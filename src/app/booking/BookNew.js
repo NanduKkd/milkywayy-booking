@@ -66,7 +66,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
         community: '',
         unitNumber: '',
         contactName: '',
-        contactPhone: '',
+        contactPhone: '+971',
         contactEmail: '',
       }],
     },
@@ -312,7 +312,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                       </div>
                       
                       {errors.properties?.[index] && (
-                        <p className="text-red-500 text-sm mt-2">Please fill all fields</p>
+                        <p className="text-red-500 text-xs mt-2">Please fill all fields</p>
                       )}
                     </CardBody>
                   )}
@@ -355,7 +355,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                       )}
                     />
                     {errors.properties?.[index]?.propertyType && (
-                      <p className="text-red-500 text-sm mt-1">{errors.properties[index].propertyType.message}</p>
+                      <p className="text-red-500 text-xs mt-1">{errors.properties[index].propertyType.message}</p>
                     )}
                   </div>
 
@@ -389,7 +389,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                         )}
                       />
                       {errors.properties?.[index]?.propertySize && (
-                        <p className="text-red-500 text-sm mt-1">{errors.properties[index].propertySize.message}</p>
+                        <p className="text-red-500 text-xs mt-1">{errors.properties[index].propertySize.message}</p>
                       )}
                     </div>
                   )}
@@ -437,7 +437,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                         )}
                       />
                       {errors.properties?.[index]?.services && (
-                        <p className="text-red-500 text-sm mt-1">{errors.properties[index].services.message}</p>
+                        <p className="text-red-500 text-xs mt-1">{errors.properties[index].services.message}</p>
                       )}
                     </div>
                   )}
@@ -459,13 +459,12 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                               variant="bordered"
                               readOnly
                               onClick={() => setShowCalendar(prev => ({...prev, [index]: !prev[index]}))}
-                              errorMessage={fieldState.error?.message}
-                              isInvalid={!!fieldState.error}
                               classNames={{
                                 inputWrapper: "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
                                 input: "text-white"
                               }}
                             />
+                            {fieldState.error && <div className="text-red-500 text-xs ml-1 mt-1">{fieldState.error.message}</div>}
                             {showCalendar[index] && (
                               <div className="absolute z-50 mt-14">
                                 <CustomCalendar
@@ -496,8 +495,6 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                               const value = Array.from(keys)[0];
                               field.onChange(value);
                             }}
-                            errorMessage={fieldState.error?.message}
-                            isInvalid={!!fieldState.error}
                             classNames={{
                               trigger: "bg-[#272727] border-zinc-700 hover:border-zinc-500 data-[focus=true]:border-white",
                               value: "text-white",
@@ -510,6 +507,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                               </SelectItem>
                             ))}
                           </Select>
+                          {fieldState.error && <div className="text-red-500 text-xs ml-1 mt-1">{fieldState.error.message}</div>}
                         </div>
                       )}
                     />
@@ -531,13 +529,12 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                             {...field}
                             placeholder="eg. Burj Khalifa"
                             variant="bordered"
-                            errorMessage={fieldState.error?.message}
-                            isInvalid={!!fieldState.error}
                             classNames={{
                               inputWrapper: "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
                               input: "text-white"
                             }}
                           />
+                          {fieldState.error && <div className="text-red-500 text-xs ml-1 mt-1">{fieldState.error.message}</div>}
                         </div>
                       )}
                     />
@@ -553,13 +550,12 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                             {...field}
                             placeholder="eg. Downtown"
                             variant="bordered"
-                            errorMessage={fieldState.error?.message}
-                            isInvalid={!!fieldState.error}
                             classNames={{
                               inputWrapper: "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
                               input: "text-white"
                             }}
                           />
+                          {fieldState.error && <div className="text-red-500 text-xs ml-1 mt-1">{fieldState.error.message}</div>}
                         </div>
                       )}
                     />
@@ -575,13 +571,12 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                             {...field}
                             placeholder="eg. 1205"
                             variant="bordered"
-                            errorMessage={fieldState.error?.message}
-                            isInvalid={!!fieldState.error}
                             classNames={{
                               inputWrapper: "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
                               input: "text-white"
                             }}
                           />
+                          {fieldState.error && <div className="text-red-500 text-xs ml-1 mt-1">{fieldState.error.message}</div>}
                         </div>
                       )}
                     />
@@ -604,13 +599,12 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                               {...field}
                               placeholder="Enter contact name"
                               variant="bordered"
-                              errorMessage={fieldState.error?.message}
-                              isInvalid={!!fieldState.error}
                               classNames={{
                                 inputWrapper: "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
                                 input: "text-white"
                               }}
                             />
+                            {fieldState.error && <div className="text-red-500 text-xs ml-1 mt-1">{fieldState.error.message}</div>}
                           </div>
                         )}
                       />
@@ -623,6 +617,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                           <div className="group flex flex-col gap-1.5">
                             <label className="block text-sm text-gray-400">Phone Number</label>
                             <PhoneNumberInput
+                              value={field.value}
                               onChange={(v) => field.onChange(v)}
                               name={field.name}
                               classNames={{
@@ -631,7 +626,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                                 countryIcon: "mr-2 flex items-center h-full",
                               }}
                             />
-                            {fieldState.error ? <div className="text-red-500 text-xs ml-1">{fieldState.error.message}</div> : null }
+                            {fieldState.error ? <div className="text-red-500 text-xs ml-1 mt-1">{fieldState.error.message}</div> : null }
                           </div>
                           /*
                           <HeroTelInput
@@ -671,15 +666,15 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
                             <label className="text-sm text-gray-400">Email Address (Optional)</label>
                             <Input
                               {...field}
+                              type="email"
                               placeholder="Enter email address"
                               variant="bordered"
-                              errorMessage={fieldState.error?.message}
-                              isInvalid={!!fieldState.error}
                               classNames={{
                                 inputWrapper: "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
                                 input: "text-white"
                               }}
                             />
+                            {fieldState.error && <div className="text-red-500 text-xs ml-1 mt-1">{fieldState.error.message}</div>}
                           </div>
                         )}
                       />
@@ -707,7 +702,7 @@ export default function BookNew({ bookingsPromise, pricingsPromise }) {
           </div>
 
           {/* Pricing Summary */}
-          <Card className="bg-[#181818] border border-zinc-800 shadow-none">
+          <Card className="bg-[#181818bb] border border-zinc-800 shadow-none">
             <CardBody>
               <div className="flex justify-between items-center">
                 <div>
