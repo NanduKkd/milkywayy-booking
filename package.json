@@ -2,6 +2,7 @@
   "name": "milkywayy-booking",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -10,14 +11,30 @@
     "format": "biome format --write"
   },
   "dependencies": {
+    "@heroui/input-otp": "^2.1.27",
+    "@heroui/react": "^2.8.5",
+    "@hookform/resolvers": "^5.2.2",
+    "@hyperse/hero-tel-input": "^1.0.1",
+    "bcrypt": "^6.0.0",
+    "dotenv": "^17.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.554.0",
+    "mime-types": "^3.0.1",
+    "next": "16.0.1",
+    "next-auth": "^4.24.13",
+    "pg": "^8.16.3",
+    "pg-hstore": "^2.3.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "next": "16.0.1"
+    "react-hook-form": "^7.66.0",
+    "sequelize": "^6.37.7",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "babel-plugin-react-compiler": "1.0.0",
+    "@biomejs/biome": "2.2.0",
     "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
-    "@biomejs/biome": "2.2.0"
+    "babel-plugin-react-compiler": "1.0.0",
+    "sequelize-cli": "^6.6.3",
+    "tailwindcss": "^4"
   }
 }
