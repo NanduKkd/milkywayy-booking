@@ -1,11 +1,9 @@
-"use strict";
-
-const { USER_ROLES } = require("../../config/app.config");
+'use strict';
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("users", {
+    await queryInterface.createTable('users', {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -13,11 +11,11 @@ module.exports = {
       },
       fullName: {
         type: Sequelize.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       email: {
         type: Sequelize.STRING,
-        allowNull: false,
+        allowNull: true,
         unique: true,
       },
       phone: {
@@ -26,25 +24,30 @@ module.exports = {
       },
       password: {
         type: Sequelize.STRING,
-        allowNull: false,
+        allowNull: true,
       },
       role: {
-        type: Sequelize.ENUM(...Object.values(USER_ROLES)),
+        type: Sequelize.ENUM,
+        values: ['SUPERADMIN', 'TRANSPORT', 'SHOOT', 'CUSTOMER'],
         allowNull: false,
-        defaultValue: USER_ROLES.SHOOT,
+        defaultValue: 'SHOOT',
+      },
+      otp: {
+        type: Sequelize.STRING,
+        allowNull: true,
       },
       createdAt: {
-        type: Sequelize.DATE,
         allowNull: false,
+        type: Sequelize.DATE,
       },
       updatedAt: {
-        type: Sequelize.DATE,
         allowNull: false,
+        type: Sequelize.DATE,
       },
     });
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("users");
+    await queryInterface.dropTable('users');
   },
 };
