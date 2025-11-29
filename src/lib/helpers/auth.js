@@ -1,22 +1,33 @@
-import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+'use server';
+import { cookies } from "next/headers";
+import { SignJWT, jwtVerify } from "jose";
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'; // Use environment variable in production
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"; // Use environment variable in production
+const key = new TextEncoder().encode(JWT_SECRET);
 
 /**
  * Sets the session user by converting the object to a JWT token and storing it in an httpOnly cookie.
  * @param {Object} user - The user object to store in the session.
  */
 export async function setSessionUser(user) {
-  const token = jwt.sign(user, JWT_SECRET, { expiresIn: '7d' }); // Token expires in 7 days
-
   const cookieStore = await cookies();
-  cookieStore.set('session-token', token, {
+
+  if (!user) {
+    cookieStore.delete("session-token");
+    return;
+  }
+
+  const token = await new SignJWT(user)
+    .setProtectedHeader({ alg: "HS256" })
+    .setExpirationTime("7d")
+    .sign(key);
+
+  cookieStore.set("session-token", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
     maxAge: 60 * 60 * 24 * 7, // 7 days
-    path: '/',
+    path: "/",
   });
 }
 
@@ -26,15 +37,15 @@ export async function setSessionUser(user) {
  */
 export async function getSessionUser() {
   const cookieStore = await cookies();
-  const token = cookieStore.get('session-token')?.value;
+  const token = cookieStore.get("session-token")?.value;
 
   if (!token) {
     return null;
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return decoded;
+    const { payload } = await jwtVerify(token, key);
+    return payload;
   } catch (error) {
     // Token is invalid or expired
     return null;

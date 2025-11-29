@@ -11,7 +11,7 @@ const WalletTransaction = sequelize.define(
       autoIncrement: true,
     },
     amount: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
     userId: {
@@ -32,6 +32,21 @@ const WalletTransaction = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
       field: "credits_at",
+    },
+    status: {
+      type: DataTypes.ENUM,
+      values: ["pending", "active", "expired", "used"],
+      allowNull: false,
+      defaultValue: "active",
+    },
+    transactionId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "transaction_id",
+      references: {
+        model: "transactions",
+        key: "id",
+      },
     },
   },
   {

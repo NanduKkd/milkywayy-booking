@@ -42,7 +42,7 @@ export default function FileUpload({
               onChange={handleFileChange}
               className="hidden"
             />
-            {!value || !(value instanceof File || typeof value === 'string')
+            {!value || !(value instanceof File || typeof value === "string")
               ? <Button
                   color="primary"
                   variant="light"
@@ -54,14 +54,18 @@ export default function FileUpload({
               : <div className="flex items-center space-x-3">
                   {accept.includes("image") && (
                     <img
-                      src={value instanceof File ? URL.createObjectURL(value) : process.env.NEXT_PUBLIC_FILE_URL+value}
+                      src={
+                        value instanceof File
+                          ? URL.createObjectURL(value)
+                          : process.env.NEXT_PUBLIC_FILE_URL + value
+                      }
                       alt="Preview"
                       className="w-12 h-12 object-cover rounded-lg border border-gray-200"
                     />
                   )}
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">
-                      {value instanceof File  ? value.name : value}
+                      {value instanceof File ? value.name : value}
                     </p>
                     {value instanceof File && (
                       <p className="text-xs text-gray-500">

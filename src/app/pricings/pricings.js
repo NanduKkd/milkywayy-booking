@@ -1,5 +1,5 @@
-'use client';
-import { use } from 'react';
+"use client";
+import { use } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,8 +16,7 @@ import {
 } from "@heroui/react";
 import FileUpload from "@/components/FileUpload";
 // import { savePricings } from '@/lib/actions/dynamicConfig';
-import { makeCustomFormData } from '@/lib/helpers/customFormData';
-
+import { makeCustomFormData } from "@/lib/helpers/customFormData";
 
 const propertyTypeSchema = z.object({
   propertyType: z.string().min(1, "Property type is required"),
@@ -172,7 +171,11 @@ function PropertyTypeSection({ sectionIndex, control }) {
 
 export default function PricingsPage({ existingsPromise }) {
   const existings = use(existingsPromise);
-  const { control, handleSubmit, formState: { isSubmitting, isDirty } } = useForm({
+  const {
+    control,
+    handleSubmit,
+    formState: { isSubmitting, isDirty },
+  } = useForm({
     resolver: zodResolver(pricingSchema),
     defaultValues: {
       sections: existings,
@@ -201,14 +204,14 @@ export default function PricingsPage({ existingsPromise }) {
     removeSection(index);
   };
 
-  const onSubmit = async(data) => {
+  const onSubmit = async (data) => {
     try {
       // await savePricings(data);
       // console.log(makeCustomFormData(data), 'dhdfjhdjfh');
       // await savePricings(makeCustomFormData(data));
-      addToast({ title: "Pricings Updated", color: 'success' });
+      addToast({ title: "Pricings Updated", color: "success" });
     } catch (error) {
-      addToast({ title: error.message, color: 'danger' })
+      addToast({ title: error.message, color: "danger" });
     }
   };
 
@@ -292,7 +295,12 @@ export default function PricingsPage({ existingsPromise }) {
                 <Button color="primary" type="button" onPress={addSection}>
                   Add Section
                 </Button>
-                <Button isDisabled={!isDirty} color="success" isLoading={isSubmitting} type="submit">
+                <Button
+                  isDisabled={!isDirty}
+                  color="success"
+                  isLoading={isSubmitting}
+                  type="submit"
+                >
                   Save Configuration
                 </Button>
               </div>

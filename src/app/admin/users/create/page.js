@@ -9,11 +9,11 @@ export default function CreateUserPage() {
   const handleSubmit = (userData) => {
     // TODO: Implement user creation logic
     console.log("Creating user:", userData);
-    router.push("/users");
+    router.push("/admin/users");
   };
 
   const handleCancel = () => {
-    router.push("/users");
+    router.push("/admin/users");
   };
 
   return (

@@ -12,13 +12,19 @@ const propertySchema = z.object({
   unitNumber: z.string().optional(),
   contactName: z.string().min(1, "Contact Name is required"),
   contactPhone: z.string().min(1, "Contact Phone is required"),
-  contactEmail: z.string().email("Invalid email address").optional().or(z.literal('')),
+  contactEmail: z
+    .string()
+    .email("Invalid email address")
+    .optional()
+    .or(z.literal("")),
 });
 
 // Main booking schema
 const bookingSchema = z.object({
   // Array of properties
-  properties: z.array(propertySchema).min(1, "At least one property is required"),
+  properties: z
+    .array(propertySchema)
+    .min(1, "At least one property is required"),
 });
 
 export { bookingSchema, propertySchema };

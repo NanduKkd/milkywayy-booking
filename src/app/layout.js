@@ -1,6 +1,7 @@
 import { Providers } from "@/components/Providers";
 import "./globals.css";
-import localFont from 'next/font/local';
+import localFont from "next/font/local";
+import { getSessionUser } from "@/lib/helpers/auth";
 
 export const metadata = {
   title: "Create Next App",
@@ -8,20 +9,18 @@ export const metadata = {
 };
 
 export const poppins = localFont({
-    variable: 'font-poppins',
-    src: '../fonts/Poppins/Poppins-Regular.ttf',
-})
+  variable: "font-poppins",
+  src: "../fonts/Poppins/Poppins-Regular.ttf",
+});
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const user = await getSessionUser();
+
   return (
     <html lang="en">
-      <body
-        className={`${poppins.className} antialiased`}
-      >
+      <body className={`${poppins.className} antialiased`}>
         {/* <div>Failed!!</div> */}
-        <Providers>
-        {children}
-        </Providers>
+        <Providers user={user}>{children}</Providers>
       </body>
     </html>
   );

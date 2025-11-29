@@ -12,11 +12,11 @@ const User = sequelize.define(
     },
     fullName: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     email: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
       unique: true,
       validate: {
         isEmail: true,
@@ -28,7 +28,7 @@ const User = sequelize.define(
     },
     password: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     role: {
       type: DataTypes.ENUM,

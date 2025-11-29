@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from 'react';
+import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Table,
@@ -13,7 +13,7 @@ import {
   Pagination,
   Button,
   Select,
-  SelectItem
+  SelectItem,
 } from "@heroui/react";
 
 const getRoleColor = (role) => {
@@ -30,25 +30,23 @@ const getRoleColor = (role) => {
 };
 
 const getLimitFromParams = (searchParams) => {
-  const limitParam = searchParams.get('limit')
-  if(!limitParam)
-    return 10;
+  const limitParam = searchParams.get("limit");
+  if (!limitParam) return 10;
   const limitNum = Number(limitParam);
-  if(isNaN(limitNum))
-    return 10;
+  if (isNaN(limitNum)) return 10;
   return limitNum;
-}
+};
 
 export default function UserTable({ users, pagination }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [limit, limitOptions] = useMemo(() => {
-    const limit = getLimitFromParams(searchParams) + ''
-    const options = new Set(['10', '20', '50', limit])
+    const limit = getLimitFromParams(searchParams) + "";
+    const options = new Set(["10", "20", "50", limit]);
 
     return [limit, [...options]];
-  }, [searchParams])
+  }, [searchParams]);
 
   const handlePageChange = (page) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -66,7 +64,7 @@ export default function UserTable({ users, pagination }) {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Users</h2>
-        <Button color="primary" onPress={() => router.push("/users/create")}>
+        <Button color="primary" onPress={() => router.push("/admin/users/create")}>
           + New User
         </Button>
       </div>
@@ -119,21 +117,28 @@ export default function UserTable({ users, pagination }) {
         </TableBody>
       </Table>
 
-        <div className="flex justify-center items-center gap-5 mt-4">
-          <Pagination
-            total={pagination.totalPages}
-            page={pagination.page}
-            onChange={handlePageChange}
-            showControls
-            showShadow
-            color="primary"
-          />
-          <Select name="" className="w-36" placeholder="" label="Per Page" selectedKeys={[limit]} onChange={e => handleLimitChange(e.target.value)}>
-            {limitOptions.map(limit => (
-              <SelectItem key={limit}>{limit}</SelectItem>
-            ))}
-          </Select>
-        </div>
+      <div className="flex justify-center items-center gap-5 mt-4">
+        <Pagination
+          total={pagination.totalPages}
+          page={pagination.page}
+          onChange={handlePageChange}
+          showControls
+          showShadow
+          color="primary"
+        />
+        <Select
+          name=""
+          className="w-36"
+          placeholder=""
+          label="Per Page"
+          selectedKeys={[limit]}
+          onChange={(e) => handleLimitChange(e.target.value)}
+        >
+          {limitOptions.map((limit) => (
+            <SelectItem key={limit}>{limit}</SelectItem>
+          ))}
+        </Select>
+      </div>
     </div>
   );
 }

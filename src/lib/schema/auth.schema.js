@@ -9,7 +9,10 @@ const signInSchema = z.object({
 });
 
 const phoneSchema = z.object({
-  phone: z.string().min(1, "Phone number is required").min(7, "Phone number is too short"),
+  phone: z
+    .string()
+    .min(1, "Phone number is required")
+    .min(7, "Phone number is too short"),
 });
 
 const otpSchema = z.object({

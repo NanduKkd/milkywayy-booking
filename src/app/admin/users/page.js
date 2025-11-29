@@ -1,12 +1,11 @@
-import { getServerSession } from "next-auth";
+import { getSessionUser } from "@/lib/helpers/auth";
 import { redirect } from "next/navigation";
 import UserTable from "@/components/UserTable";
-import { sequelize } from "@/db";
-import models from "@/db/models";
+import { sequelize } from "@/lib/db";
+import models from "@/lib/db/models";
 
 async function getUsers(page = 1, limit = 10) {
   try {
-
     const offset = (page - 1) * limit;
 
     const { count, rows: users } = await models.User.findAndCountAll({
@@ -48,10 +47,10 @@ async function getUsers(page = 1, limit = 10) {
 }
 
 export default async function UserManagement({ searchParams }) {
-  const session = await getServerSession();
+  const session = await getSessionUser();
 
   if (!session) {
-    redirect("/auth/signin");
+    redirect("/admin/login");
   }
 
   const resolvedSearchParams = await searchParams;

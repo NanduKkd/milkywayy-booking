@@ -1,29 +1,25 @@
-import { Suspense } from 'react';
-// import { auth } from '@/lib/helpers/auth';
-import BookNew from './BookNew';
-// import { getBookings } from '@/lib/actions/bookings'
-// import { getPricings } from '@/lib/actions/dynamicConfig'
+import { Suspense } from "react";
+import BookNew from "./BookNew";
+import { getPricingConfig } from "@/app/admin/prices/actions";
+import { getDiscounts } from "@/lib/actions/discounts";
 
 export default async function Booking() {
-  // const session = await auth();
-  // const bookingsPromise = session?.profile?.id && getBookings(session.profile.id);
-  // const pricingsPromise = getPricings();
-  
-  // Mock data for frontend development
-  const mockPricings = [
-    {
-      propertyTypes: [
-        { propertyType: 'Apartment' },
-        { propertyType: 'Villa' },
-        { propertyType: 'Townhouse' },
-        { propertyType: 'Penthouse' },
-      ]
-    }
-  ];
-  
+  const pricingsPromise = getPricingConfig();
+  const discountsPromise = getDiscounts();
+
   return (
-    <Suspense fallback={<div className="">Loading...</div>}>
-      <BookNew bookingsPromise={Promise.resolve([])} pricingsPromise={Promise.resolve(mockPricings)} />
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#121212] flex items-center justify-center text-white">
+          Loading...
+        </div>
+      }
+    >
+      <BookNew
+        bookingsPromise={Promise.resolve([])}
+        pricingsPromise={pricingsPromise}
+        discountsPromise={discountsPromise}
+      />
     </Suspense>
-  )
+  );
 }

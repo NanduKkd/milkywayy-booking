@@ -1,9 +1,6 @@
 export default function Page() {
-  return (
-    <div>NANDAKRISHNANKKD</div>
-  )
+  return <div>NANDAKRISHNANKKD</div>;
 }
-
 
 // import Image from "next/image";
 

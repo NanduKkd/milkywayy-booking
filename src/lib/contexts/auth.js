@@ -1,50 +1,25 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-// import { getSessionUser, setSessionUser } from "@/lib/helpers/auth";
+import { logout as logoutAction } from "@/lib/actions/auth";
 import LoginModal from "@/components/LoginModal";
 
 const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
+export function AuthProvider({ children, initialUser }) {
   const [authState, setAuthState] = useState({
-    user: null,
-    isLoading: false, // Changed to false for frontend development
-    isAuthenticated: false,
+    user: initialUser || null,
+    isLoading: false,
+    isAuthenticated: !!initialUser,
   });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-
-  // Load auth state on component mount
-  useEffect(() => {
-    const loadAuthState = async () => {
-      try {
-        // TODO: Uncomment when backend is ready
-        // const user = await getSessionUser();
-        const user = null; // Mock for frontend development
-        setAuthState({
-          user,
-          isLoading: false,
-          isAuthenticated: !!user,
-        });
-      } catch (error) {
-        setAuthState({
-          user: null,
-          isLoading: false,
-          isAuthenticated: false,
-        });
-      }
-    };
-
-    loadAuthState();
-  }, []);
 
   const login = () => {
     setIsLoginModalOpen(true);
   };
 
   const logout = async () => {
-    // TODO: Uncomment when backend is ready
-    // await setSessionUser(null);
+    await logoutAction();
 
     setAuthState({
       user: null,

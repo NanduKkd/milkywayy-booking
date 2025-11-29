@@ -1,3 +1,3 @@
-// Stub file to allow imports while focusing on frontend
-export const sequelize = null;
+import { sequelize } from "./db.js";
+export { sequelize };
 export default sequelize;

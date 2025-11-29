@@ -21,11 +21,11 @@ const Transaction = sequelize.define(
       },
     },
     amount: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
     },
     refundedAmount: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
       field: "refunded_amount",
@@ -45,19 +45,19 @@ const Transaction = sequelize.define(
       },
     },
     couponDeduction: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
       field: "coupon_deduction",
     },
     walletDeduction: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
       field: "wallet_deduction",
     },
     bulkDeduction: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
       field: "bulk_deduction",
@@ -72,6 +72,15 @@ const Transaction = sequelize.define(
       values: ["pending", "success", "failed"],
       allowNull: false,
       defaultValue: "pending",
+    },
+    metadata: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+    },
+    invoiceUrl: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "invoice_url",
     },
   },
   {

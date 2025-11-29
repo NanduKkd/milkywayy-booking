@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signInSchema } from "@/lib/schema/auth.schema";
@@ -9,7 +8,6 @@ import { signInSchema } from "@/lib/schema/auth.schema";
 export default function SignIn() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const {
     register,

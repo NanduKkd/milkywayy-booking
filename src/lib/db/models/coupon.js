@@ -50,7 +50,11 @@ const Coupon = sequelize.define(
         const now = new Date();
         const activatedAt = this.getDataValue("activatedAt");
         const deactivatedAt = this.getDataValue("deactivatedAt");
-        return activatedAt && activatedAt < now && (!deactivatedAt || deactivatedAt > now);
+        return (
+          activatedAt &&
+          activatedAt < now &&
+          (!deactivatedAt || deactivatedAt > now)
+        );
       },
     },
   },

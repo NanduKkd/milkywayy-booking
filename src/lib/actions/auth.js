@@ -1,26 +1,28 @@
 "use server";
 
-import { sequelize } from "@/db";
-import models from "@/db/models";
+import '@/lib/db/relations'
+import models from "@/lib/db/models";
 import bcrypt from "bcrypt";
-import { USER_ROLES } from '@/lib/config/app.config';
-import { setSessionUser } from '@/lib/helpers/auth';
+import { USER_ROLES } from "@/lib/config/app.config";
+import { setSessionUser } from "@/lib/helpers/auth";
 
-export async function adminLogin({email, password}) {
+export async function adminLogin({ email, password }) {
   // Check if email exists
   const user = await models.User.findOne({
-    where: { email, role: USER_ROLES.CUSTOMER },
+    where: { email },
   });
 
-  if (!user)
-    throw new Error('User does not exist');
+  if (!user) throw new Error("User does not exist");
 
-  if(!user.password)
-    throw new Error('You are not allowed to login');
+  if (user.role === USER_ROLES.CUSTOMER) {
+    throw new Error("Access denied");
+  }
+
+  if (!user.password) throw new Error("You are not allowed to login");
 
   // Check if password matches
-  if(await bcrypt.compare(password, user.password)) {
-    return {
+  if (await bcrypt.compare(password, user.password)) {
+    const userData = {
       id: user.id,
       fullName: user.fullName,
       email: user.email,
@@ -28,16 +30,27 @@ export async function adminLogin({email, password}) {
       role: user.role,
       createdAt: user.createdAt,
     };
+
+    await setSessionUser(userData);
+
+    return userData;
   }
 
-  throw new Error('Invalid password');
+  throw new Error("Invalid password");
 }
 
-export async function customerSendOtp({ userId }) {
-  const user = await models.User.findByPk(userId);
+export async function customerSendOtp({ phone }) {
+  let user = await models.User.findOne({ where: { phone } });
 
-  if (!user || user.role !== USER_ROLES.CUSTOMER) {
-    throw new Error('User not found');
+  if (!user) {
+    user = await models.User.create({
+      phone,
+      role: USER_ROLES.CUSTOMER,
+    });
+  }
+
+  if (user.role !== USER_ROLES.CUSTOMER) {
+    throw new Error("User found but not a customer");
   }
 
   // Generate random 6-digit OTP
@@ -51,25 +64,25 @@ export async function customerSendOtp({ userId }) {
   await user.save();
 
   // Note: In production, send OTP via SMS/email, but for now just return it
-  return { otp };
+  return { userId: user.id, otp };
 }
 
 export async function customerVerifyOtp({ userId, otp }) {
   const user = await models.User.findByPk(userId);
 
   if (!user || user.role !== USER_ROLES.CUSTOMER) {
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 
   if (!user.otp) {
-    throw new Error('OTP not found');
+    throw new Error("OTP not found");
   }
 
   // Verify OTP
   const isValid = await bcrypt.compare(otp, user.otp);
 
   if (!isValid) {
-    throw new Error('Invalid OTP');
+    throw new Error("Invalid OTP");
   }
 
   // Clear OTP
@@ -88,4 +101,8 @@ export async function customerVerifyOtp({ userId, otp }) {
   await setSessionUser(userData);
 
   return userData;
+}
+
+export async function logout() {
+  await setSessionUser(null);
 }

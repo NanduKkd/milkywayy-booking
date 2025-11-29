@@ -5,9 +5,4 @@ const USER_ROLES = {
   CUSTOMER: "CUSTOMER",
 };
 
-const NEXTAUTH_CONFIG = {
-  secret: process.env.NEXTAUTH_SECRET,
-  baseUrl: process.env.NEXTAUTH_URL || "http://localhost:3000",
-};
-
-export { USER_ROLES, NEXTAUTH_CONFIG };
+export { USER_ROLES };

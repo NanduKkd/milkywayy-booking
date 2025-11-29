@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 
 export default function StarBackground() {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     let animationFrameId;
 
     const resizeCanvas = () => {
@@ -15,7 +15,7 @@ export default function StarBackground() {
       canvas.height = window.innerHeight;
     };
 
-    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
     const stars = [];
@@ -62,7 +62,7 @@ export default function StarBackground() {
     draw();
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
+      window.removeEventListener("resize", resizeCanvas);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);
@@ -71,7 +71,7 @@ export default function StarBackground() {
     <canvas
       ref={canvasRef}
       className="fixed top-0 left-0 w-full h-full pointer-events-none z-0"
-      style={{ background: 'transparent' }}
+      style={{ background: "transparent" }}
     />
   );
 }

@@ -1,12 +1,17 @@
-'use client';
-import { useState } from 'react';
-import { Button } from '@heroui/react';
+"use client";
+import { useState } from "react";
+import { Button } from "@heroui/react";
 
-export default function CustomCalendar({ selectedDate, onDateChange, minDate, maxDate }) {
+export default function CustomCalendar({
+  selectedDate,
+  onDateChange,
+  minDate,
+  maxDate,
+}) {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
-  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const getDaysInMonth = (month, year) => {
     const date = new Date(year, month, 1);
@@ -56,16 +61,20 @@ export default function CustomCalendar({ selectedDate, onDateChange, minDate, ma
 
   const isSelected = (day) => {
     if (!selectedDate) return false;
-    return selectedDate.getDate() === day &&
-           selectedDate.getMonth() === currentMonth &&
-           selectedDate.getFullYear() === currentYear;
+    return (
+      selectedDate.getDate() === day &&
+      selectedDate.getMonth() === currentMonth &&
+      selectedDate.getFullYear() === currentYear
+    );
   };
 
   const isToday = (day) => {
     const today = new Date();
-    return today.getDate() === day &&
-           today.getMonth() === currentMonth &&
-           today.getFullYear() === currentYear;
+    return (
+      today.getDate() === day &&
+      today.getMonth() === currentMonth &&
+      today.getFullYear() === currentYear
+    );
   };
 
   const daysInMonth = getDaysInMonth(currentMonth, currentYear);
@@ -83,7 +92,10 @@ export default function CustomCalendar({ selectedDate, onDateChange, minDate, ma
           ‹
         </Button>
         <h2 className="text-lg font-semibold">
-          {new Date(currentYear, currentMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          {new Date(currentYear, currentMonth).toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+          })}
         </h2>
         <Button
           onClick={handleNextMonth}
@@ -97,8 +109,11 @@ export default function CustomCalendar({ selectedDate, onDateChange, minDate, ma
 
       {/* Days of Week */}
       <div className="grid grid-cols-7 gap-1 mb-2">
-        {daysOfWeek.map(day => (
-          <div key={day} className="text-center text-sm font-medium text-gray-400 py-2">
+        {daysOfWeek.map((day) => (
+          <div
+            key={day}
+            className="text-center text-sm font-medium text-gray-400 py-2"
+          >
             {day}
           </div>
         ))}
@@ -110,11 +125,17 @@ export default function CustomCalendar({ selectedDate, onDateChange, minDate, ma
           <button
             key={index}
             onClick={() => handleDateClick(day)}
-            disabled={!day || (minDate && new Date(currentYear, currentMonth, day) < minDate) || (maxDate && new Date(currentYear, currentMonth, day) > maxDate)}
+            disabled={
+              !day ||
+              (minDate && new Date(currentYear, currentMonth, day) < minDate) ||
+              (maxDate && new Date(currentYear, currentMonth, day) > maxDate)
+            }
             className={`w-8 h-8 text-sm rounded-full hover:bg-zinc-700 disabled:hover:bg-transparent disabled:text-zinc-600 ${
-              isSelected(day) ? 'bg-white text-black hover:bg-gray-200' :
-              isToday(day) ? 'bg-zinc-800 text-white border border-zinc-600' :
-              'text-gray-300'
+              isSelected(day)
+                ? "bg-white text-black hover:bg-gray-200"
+                : isToday(day)
+                  ? "bg-zinc-800 text-white border border-zinc-600"
+                  : "text-gray-300"
             }`}
           >
             {day}

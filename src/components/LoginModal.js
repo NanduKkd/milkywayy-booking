@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from "@heroui/react";
-import { HeroTelInput } from "@hyperse/hero-tel-input";
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+} from "@heroui/react";
+import PhoneNumberInput from "@/components/PhoneInput";
 import { InputOtp } from "@heroui/input-otp";
 import { customerSendOtp, customerVerifyOtp } from "@/lib/actions/auth";
 import { phoneSchema, otpSchema } from "@/lib/schema/auth.schema";
@@ -18,7 +25,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
   const phoneForm = useForm({
     resolver: zodResolver(phoneSchema),
     defaultValues: {
-      phone: "",
+      phone: "+971",
     },
   });
 
@@ -33,15 +40,13 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
     setIsLoading(true);
     setError("");
 
-    // For now, we'll use a hardcoded userId since OTP sending is not enabled
-    // In production, you would need to find user by phone number
-    // For demo purposes, let's assume userId is 1
-    const tempUserId = 1;
-
     try {
       // Call customerSendOtp action
-      await customerSendOtp({ userId: tempUserId });
-      setUserId(tempUserId);
+      const result = await customerSendOtp({
+        phone: data.phone.replace(/\s/g, ""),
+      });
+      setUserId(result.userId);
+      alert(`OTP: ${result.otp}`); // For development purposes
       setStep(2);
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -71,7 +76,9 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
     setError("");
 
     try {
-      await customerSendOtp({ userId });
+      const phone = phoneForm.getValues("phone").replace(/\s/g, "");
+      const result = await customerSendOtp({ phone });
+      alert(`OTP: ${result.otp}`); // For development purposes
     } catch (err) {
       setError(err.message || "Failed to resend OTP");
     } finally {
@@ -111,16 +118,38 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
             </div>
           )}
 
-          {step === 1 ? (
-            <form onSubmit={phoneForm.handleSubmit(handleSendOtp)} className="space-y-4">
-              <HeroTelInput
-                {...phoneForm.register("phone")}
-                label="Phone Number"
-                placeholder="Enter your phone number"
-                defaultCountry="AE" // UAE as default
-                variant="bordered"
-                isInvalid={!!phoneForm.formState.errors.phone}
-                errorMessage={phoneForm.formState.errors.phone?.message}
+          {step === 1
+            ? <form
+              onSubmit={phoneForm.handleSubmit(handleSendOtp)}
+              className="space-y-4"
+            >
+              <Controller
+                name="phone"
+                control={phoneForm.control}
+                render={({ field }) => (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-small font-medium text-foreground-600">
+                      Phone Number
+                    </label>
+                    <PhoneNumberInput
+                      value={field.value}
+                      onChange={field.onChange}
+                      name={field.name}
+                      classNames={{
+                        inputWrapper:
+                          "flex items-center w-full px-3 py-2 rounded-medium border-2 border-default-200 hover:border-default-400 focus-within:!border-primary transition-colors h-12",
+                        input:
+                          "bg-transparent border-none outline-none text-small w-full h-full",
+                        countryIcon: "mr-2 flex items-center h-full",
+                      }}
+                    />
+                    {phoneForm.formState.errors.phone && (
+                      <div className="text-tiny text-danger">
+                        {phoneForm.formState.errors.phone.message}
+                      </div>
+                    )}
+                  </div>
+                )}
               />
               <p className="text-sm text-gray-600">
                 We will send an OTP to verify your phone number.
@@ -134,8 +163,10 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
                 Send OTP
               </Button>
             </form>
-          ) : (
-            <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4">
+            : <form
+              onSubmit={otpForm.handleSubmit(handleVerifyOtp)}
+              className="space-y-4"
+            >
               <div className="flex justify-center">
                 <InputOtp
                   {...otpForm.register("otp")}
@@ -173,8 +204,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
               >
                 Verify OTP
               </Button>
-            </form>
-          )}
+            </form>}
         </ModalBody>
         <ModalFooter>
           <Button

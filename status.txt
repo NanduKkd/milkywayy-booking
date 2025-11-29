@@ -1,0 +1,27 @@
+Customer auth & Access control - 40%
+Admin auth & access control - 40%
+Bookings - 100%
+Slot Picking - 20%
+Payment - 100%
+Thank you - 100%
+Dashboard
+    Bookings
+        Listing - 100%
+        Cancellation - 40%
+        Reschedule - 40%
+    Files - 100%
+    Wallet - 100%
+    Invoices - 100%
+Admin Panel
+    Bookings
+        Listing - 100%
+        Cancellation - 40%
+        Reschedule - 40%
+        Assign - 80%
+    Team - 80%
+    Customers - 80%
+    Pricings - 100%
+    Coupons - 100%
+    Discounts - 100%
+    Invoices - 100%
+Whatsapp Notifications - 0

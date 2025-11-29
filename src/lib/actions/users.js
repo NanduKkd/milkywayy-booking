@@ -1,13 +1,12 @@
 "use server";
 
-import { sequelize } from "@/db";
-import models from "@/db/models";
+import { sequelize } from "@/lib/db";
+import models from "@/lib/db/models";
 import bcrypt from "bcrypt";
 import { revalidatePath } from "next/cache";
 
 export async function createUser(userData) {
   try {
-
     const { fullName, email, phone, role, password } = userData;
 
     // Check if user already exists

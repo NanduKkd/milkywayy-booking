@@ -11,6 +11,11 @@ const Booking = sequelize.define(
       primaryKey: true,
       autoIncrement: true,
     },
+    status: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "DRAFT",
+    },
     userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -37,11 +42,16 @@ const Booking = sequelize.define(
     },
     date: {
       type: DataTypes.DATEONLY, // For "yyyy-mm-dd" format
-      allowNull: false,
+      allowNull: true,
     },
     slot: {
       type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    duration: {
+      type: DataTypes.INTEGER,
       allowNull: false,
+      defaultValue: 1,
     },
     transactionId: {
       type: DataTypes.INTEGER,
@@ -64,8 +74,8 @@ const Booking = sequelize.define(
       field: "reschedule_count",
     },
     total: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: true,
     },
     cancelledAt: {
       type: DataTypes.DATE,
@@ -73,7 +83,7 @@ const Booking = sequelize.define(
       field: "cancelled_at",
     },
     refundedAmount: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
       field: "refunded_amount",
@@ -89,7 +99,7 @@ const Booking = sequelize.define(
       field: "files_url",
     },
     paidAmount: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       defaultValue: 0,
       field: "paid_amount",
