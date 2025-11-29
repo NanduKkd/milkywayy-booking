@@ -12,6 +12,7 @@ import Transaction from "@/lib/db/models/transaction";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
 import { auth } from "@/lib/helpers/auth";
 import { actionWrapper } from "@/lib/actions/utils";
+import { USER_ROLES } from "../config/app.config";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -291,14 +292,26 @@ const getDraftsHandler = async () => {
 export const getDrafts = actionWrapper(getDraftsHandler);
 
 const saveDraftsHandler = async (properties) => {
-  // No try-catch needed here because wrapper handles it,
+
+  // No try-catch needed here because wrapper handles it, 
+
   // but original code had it to re-throw. We can keep it clean.
 
-  const session = await auth();
-  // Fallback to ID 1 for dev if no session, or throw error
-  const userId = session?.id || 1;
+  
 
-  // Delete existing drafts for this user to avoid duplicates
+    const session = await auth();
+
+    if (!session?.id) throw new Error("Unauthorized: Please login to save drafts");
+
+    const userId = session.id;
+
+    console.log(session, 'HHHHHHHHHHHH');
+
+
+
+    // Delete existing drafts for this user to avoid duplicates
+
+
   // We only delete DRAFT status bookings, preserving history of confirmed/cancelled ones
   await Booking.destroy({
     where: {
@@ -367,13 +380,24 @@ export const saveDrafts = actionWrapper(saveDraftsHandler);
 export const createBookings = saveDrafts;
 
 const createTransactionAndPaymentIntentHandler = async (
-  bookingIds,
-  couponCode,
-) => {
-  const session = await auth();
-  const userId = session?.id || 1;
 
-  // Fetch bookings to calculate total and verify ownership
+  bookingIds,
+
+  couponCode,
+
+) => {
+
+    const session = await auth();
+
+    if (!session?.id) throw new Error("Unauthorized");
+
+    const userId = session.id;
+
+
+
+    // Fetch bookings to calculate total and verify ownership
+
+
   const bookings = await Booking.findAll({
     where: {
       id: bookingIds,
@@ -393,7 +417,7 @@ const createTransactionAndPaymentIntentHandler = async (
   }));
   await checkAvailability(propertiesToCheck, bookingIds);
 
-  const totalAmount = bookings.reduce((sum, b) => sum + b.total, 0);
+  const totalAmount = bookings.reduce((sum, b) => Number(sum) + Number(b.total), 0);
 
   // 1. Apply Automatic Discounts
   const discountsRes = await getDiscounts();
@@ -628,3 +652,49 @@ const cancelBookingBySessionIdHandler = async (sessionId) => {
 export const cancelBookingBySessionId = actionWrapper(
   cancelBookingBySessionIdHandler,
 );
+
+const completeBookingHandler = async (bookingId) => {
+  const session = await auth();
+  if (!session?.id) throw new Error("Unauthorized");
+
+  const user = await db.models.User.findByPk(session.id);
+  if (!user || user.role !== USER_ROLES.SUPERADMIN) {
+    throw new Error("Unauthorized: Admin access required");
+  }
+
+  const booking = await Booking.findByPk(bookingId);
+
+  if (!booking) throw new Error("Booking not found");
+
+  await booking.update({
+    completedAt: new Date(),
+    status: "COMPLETED",
+  });
+
+  if (booking.transactionId) {
+    const pendingBookingsCount = await Booking.count({
+      where: {
+        transactionId: booking.transactionId,
+        status: { [Op.ne]: "COMPLETED" },
+      },
+    });
+
+    if (pendingBookingsCount === 0) {
+      await WalletTransaction.update(
+        {
+          status: "active",
+          creditsAt: new Date(),
+        },
+        {
+          where: {
+            transactionId: booking.transactionId,
+            status: "pending",
+          },
+        },
+      );
+    }
+  }
+
+  return { success: true };
+};
+export const completeBooking = actionWrapper(completeBookingHandler);

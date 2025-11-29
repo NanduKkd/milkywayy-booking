@@ -1,8 +1,8 @@
 "use strict";
 
-require("dotenv").config({ path: ".env.local" });
+require("dotenv").config();
 const bcrypt = require("bcrypt");
-const { USER_ROLES } = require("../../lib/config/app.config");
+const { USER_ROLES } = require("../../config/app.config");
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {

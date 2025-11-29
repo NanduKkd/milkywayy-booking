@@ -66,8 +66,12 @@ export default function BookNew({
   discountsPromise,
 }) {
   const bookings = use(bookingsPromise);
-  const pricings = use(pricingsPromise);
-  const discountsConfig = use(discountsPromise) || [];
+  const pricingsRes = use(pricingsPromise);
+  const discountsRes = use(discountsPromise);
+
+  const pricings = pricingsRes?.success ? pricingsRes.data : null;
+  const discountsConfig = (discountsRes?.success ? discountsRes.data : []) || [];
+
   const PRICING_CONFIG = pricings || STATIC_PRICING_CONFIG;
   const [openPropertyIndex, setOpenPropertyIndex] = useState(0);
   const [step, setStep] = useState("details");

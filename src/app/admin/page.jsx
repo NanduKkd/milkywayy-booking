@@ -59,6 +59,16 @@ export default function AdminDashboard() {
             </CardBody>
           </Card>
         </Link>
+
+        <Link href="/admin/prices">
+          <Card className="hover:scale-105 transition-transform cursor-pointer">
+            <CardHeader className="font-bold text-xl">Pricing</CardHeader>
+            <Divider />
+            <CardBody>
+              <p>Manage service pricing configuration.</p>
+            </CardBody>
+          </Card>
+        </Link>
       </div>
     </div>
   );

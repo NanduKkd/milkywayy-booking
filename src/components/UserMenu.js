@@ -57,6 +57,9 @@ export default function UserMenu() {
           <DropdownItem key="dashboard" href="/dashboard/bookings">
             My Bookings
           </DropdownItem>
+          <DropdownItem key="invoices" href="/dashboard/invoices">
+            Invoices
+          </DropdownItem>
           <DropdownItem key="wallet" href="/dashboard/wallet">
             Wallet
           </DropdownItem>

@@ -18,12 +18,14 @@ import {
   Link,
   Chip,
 } from "@heroui/react";
+import { completeBooking } from "@/lib/actions/bookings";
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
   const [uploading, setUploading] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [file, setFile] = useState(null);
 
   useEffect(() => {
@@ -44,6 +46,40 @@ export default function BookingsPage() {
     if (booking) {
       setSelectedBooking(booking);
       onOpen();
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!selectedBooking) return;
+    if (selectedBooking.cancelledAt) {
+      alert("Cannot complete a cancelled booking");
+      return;
+    }
+    if (!confirm("Are you sure you want to mark this booking as completed?"))
+      return;
+
+    setCompleting(true);
+    try {
+      const res = await completeBooking(selectedBooking.id);
+      if (res.success) {
+        const updatedBooking = {
+          ...selectedBooking,
+          status: "COMPLETED",
+          completedAt: new Date().toISOString(),
+        };
+        setSelectedBooking(updatedBooking);
+        setBookings((prev) =>
+          prev.map((b) => (b.id === selectedBooking.id ? updatedBooking : b)),
+        );
+        alert("Booking marked as completed");
+      } else {
+        alert("Failed: " + (res.message || "Unknown error"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to complete booking");
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -95,7 +131,7 @@ export default function BookingsPage() {
       >
         <TableHeader>
           <TableColumn>ID</TableColumn>
-          <TableColumn>USER</TableColumn>
+          <TableColumn>PROPERTY</TableColumn>
           <TableColumn>DATE</TableColumn>
           <TableColumn>AMOUNT</TableColumn>
           <TableColumn>STATUS</TableColumn>
@@ -108,10 +144,18 @@ export default function BookingsPage() {
             >
               <TableCell>{booking.id}</TableCell>
               <TableCell>
-                <div>
-                  <p>{booking.user?.fullName}</p>
-                  <p className="text-xs text-zinc-500">{booking.user?.email}</p>
-                </div>
+                <p>
+                  {[
+                    booking.propertyDetails?.unit,
+                    booking.propertyDetails?.building,
+                    booking.propertyDetails?.community,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+                <p className="text-xs text-zinc-500">
+                  {booking.propertyDetails?.type}
+                </p>
               </TableCell>
               <TableCell>{booking.date}</TableCell>
               <TableCell>AED {booking.total}</TableCell>
@@ -145,7 +189,7 @@ export default function BookingsPage() {
               <ModalHeader className="border-b border-zinc-800">
                 Booking Details #{selectedBooking?.id}
               </ModalHeader>
-              <ModalBody className="py-6">
+              <ModalBody className="py-6 max-h-[80vh] overflow-y-auto">
                 {selectedBooking && (
                   <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-6">
@@ -168,6 +212,64 @@ export default function BookingsPage() {
                         <p className="font-medium">{selectedBooking.date}</p>
                         <p className="text-sm text-zinc-400">
                           Slot: {selectedBooking.slot}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                      <h3 className="font-semibold mb-3 text-zinc-300">
+                        Services
+                      </h3>
+                      <p className="text-sm text-zinc-400">
+                        {selectedBooking.shootDetails?.services?.join(", ") ||
+                          "No services specified."}
+                      </p>
+                    </div>
+
+                    <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                      <h3 className="font-semibold mb-3 text-zinc-300">
+                        Property Details
+                      </h3>
+                      <div className="text-sm text-zinc-400 space-y-1">
+                        <p>
+                          <span className="font-medium text-zinc-300">Type:</span>{" "}
+                          {selectedBooking.propertyDetails?.type}
+                        </p>
+                        <p>
+                          <span className="font-medium text-zinc-300">Size:</span>{" "}
+                          {selectedBooking.propertyDetails?.size}
+                        </p>
+                        <p>
+                          <span className="font-medium text-zinc-300">
+                            Address:
+                          </span>{" "}
+                          {[
+                            selectedBooking.propertyDetails?.unit,
+                            selectedBooking.propertyDetails?.building,
+                            selectedBooking.propertyDetails?.community,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
+                      <h3 className="font-semibold mb-3 text-zinc-300">
+                        Contact Details
+                      </h3>
+                      <div className="text-sm text-zinc-400 space-y-1">
+                        <p>
+                          <span className="font-medium text-zinc-300">Name:</span>{" "}
+                          {selectedBooking.contactDetails?.name}
+                        </p>
+                        <p>
+                          <span className="font-medium text-zinc-300">Phone:</span>{" "}
+                          {selectedBooking.contactDetails?.phone}
+                        </p>
+                        <p>
+                          <span className="font-medium text-zinc-300">Email:</span>{" "}
+                          {selectedBooking.contactDetails?.email}
                         </p>
                       </div>
                     </div>
@@ -208,44 +310,82 @@ export default function BookingsPage() {
                       </div>
                     </div>
 
-                    <div className="border-t border-zinc-800 pt-4">
-                      <h3 className="font-semibold mb-3 text-zinc-300">
-                        Files
-                      </h3>
-                      {selectedBooking.filesUrl && (
-                        <div className="mb-4 p-3 bg-blue-900/20 border border-blue-900/50 rounded-lg">
-                          <p className="text-xs text-blue-300 mb-1">
-                            Current File:
-                          </p>
-                          <Link
-                            href={selectedBooking.filesUrl}
-                            target="_blank"
-                            className="text-blue-400 hover:text-blue-300 hover:underline break-all"
-                          >
-                            {selectedBooking.filesUrl}
-                          </Link>
-                        </div>
-                      )}
-                      <div className="flex gap-3 items-center">
-                        <Input
-                          type="file"
-                          onChange={(e) => setFile(e.target.files[0])}
-                          className="max-w-xs"
-                          classNames={{
-                            inputWrapper: "bg-zinc-900 border-zinc-700",
-                            input: "text-zinc-300",
-                          }}
-                        />
-                        <Button
-                          onPress={handleUpload}
-                          isLoading={uploading}
-                          disabled={!file}
-                          color="primary"
-                        >
-                          Upload to S3
-                        </Button>
+                    <div className="border-t border-zinc-800 pt-4 flex justify-between items-center">
+                      <div>
+                        <h3 className="font-semibold text-zinc-300 mb-1">
+                          Booking Status
+                        </h3>
+                        <p className="text-sm text-zinc-400">
+                          {selectedBooking.cancelledAt
+                            ? "This booking has been cancelled."
+                            : selectedBooking.status === "COMPLETED" ||
+                                selectedBooking.completedAt
+                              ? "This booking is completed."
+                              : "Mark booking as completed when service is done."}
+                        </p>
                       </div>
+                      {selectedBooking.cancelledAt ? (
+                        <Chip color="danger" variant="flat">
+                          Cancelled
+                        </Chip>
+                      ) : selectedBooking.status === "COMPLETED" ||
+                        selectedBooking.completedAt ? (
+                        <Chip color="success" variant="flat">
+                          Completed
+                        </Chip>
+                      ) : (
+                        <Button
+                          color="success"
+                          variant="solid"
+                          onPress={handleComplete}
+                          isLoading={completing}
+                        >
+                          Mark as Completed
+                        </Button>
+                      )}
                     </div>
+
+                    {(selectedBooking.status === "COMPLETED" ||
+                      selectedBooking.completedAt) && (
+                      <div className="border-t border-zinc-800 pt-4">
+                        <h3 className="font-semibold mb-3 text-zinc-300">
+                          Files
+                        </h3>
+                        {selectedBooking.filesUrl && (
+                          <div className="mb-4 p-3 bg-blue-900/20 border border-blue-900/50 rounded-lg">
+                            <p className="text-xs text-blue-300 mb-1">
+                              Current File:
+                            </p>
+                            <Link
+                              href={selectedBooking.filesUrl}
+                              target="_blank"
+                              className="text-blue-400 hover:text-blue-300 hover:underline break-all"
+                            >
+                              {selectedBooking.filesUrl}
+                            </Link>
+                          </div>
+                        )}
+                        <div className="flex gap-3 items-center">
+                          <Input
+                            type="file"
+                            onChange={(e) => setFile(e.target.files[0])}
+                            className="max-w-xs"
+                            classNames={{
+                              inputWrapper: "bg-zinc-900 border-zinc-700",
+                              input: "text-zinc-300",
+                            }}
+                          />
+                          <Button
+                            onPress={handleUpload}
+                            isLoading={uploading}
+                            disabled={!file}
+                            color="primary"
+                          >
+                            Upload to S3
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </ModalBody>

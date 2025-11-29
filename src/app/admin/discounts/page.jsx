@@ -2,7 +2,8 @@ import { getDiscounts } from "@/lib/actions/discounts";
 import DiscountManager from "./DiscountManager";
 
 export default async function DiscountsPage() {
-  const discounts = await getDiscounts();
+  const res = await getDiscounts();
+  const discounts = res.success ? res.data : [];
 
   return (
     <div className="p-8 min-h-screen bg-[#121212]">
