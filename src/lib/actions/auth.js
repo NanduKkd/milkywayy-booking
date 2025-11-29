@@ -1,12 +1,13 @@
 "use server";
 
-import '@/lib/db/relations'
+import "@/lib/db/relations";
 import models from "@/lib/db/models";
 import bcrypt from "bcrypt";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { setSessionUser } from "@/lib/helpers/auth";
+import { actionWrapper } from "./utils";
 
-export async function adminLogin({ email, password }) {
+const adminLoginHandler = async ({ email, password }) => {
   // Check if email exists
   const user = await models.User.findOne({
     where: { email },
@@ -37,9 +38,11 @@ export async function adminLogin({ email, password }) {
   }
 
   throw new Error("Invalid password");
-}
+};
 
-export async function customerSendOtp({ phone }) {
+export const adminLogin = actionWrapper(adminLoginHandler);
+
+const customerSendOtpHandler = async ({ phone }) => {
   let user = await models.User.findOne({ where: { phone } });
 
   if (!user) {
@@ -65,9 +68,11 @@ export async function customerSendOtp({ phone }) {
 
   // Note: In production, send OTP via SMS/email, but for now just return it
   return { userId: user.id, otp };
-}
+};
 
-export async function customerVerifyOtp({ userId, otp }) {
+export const customerSendOtp = actionWrapper(customerSendOtpHandler);
+
+const customerVerifyOtpHandler = async ({ userId, otp }) => {
   const user = await models.User.findByPk(userId);
 
   if (!user || user.role !== USER_ROLES.CUSTOMER) {
@@ -101,8 +106,12 @@ export async function customerVerifyOtp({ userId, otp }) {
   await setSessionUser(userData);
 
   return userData;
-}
+};
 
-export async function logout() {
+export const customerVerifyOtp = actionWrapper(customerVerifyOtpHandler);
+
+const logoutHandler = async () => {
   await setSessionUser(null);
-}
+};
+
+export const logout = actionWrapper(logoutHandler);

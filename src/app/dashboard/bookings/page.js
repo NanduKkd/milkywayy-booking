@@ -10,7 +10,8 @@ export default async function BookingsPage() {
     redirect("/");
   }
 
-  const bookings = await getBookings(session.id);
+  const res = await getBookings(session.id);
+  const bookings = res.success ? res.data : [];
   const plainBookings = bookings.map((b) => b.toJSON());
 
   return (

@@ -36,12 +36,12 @@ export default function CreateUserForm({ onSubmit, onCancel }) {
     }
 
     try {
-      const result = await createUser(userData);
+      const res = await createUser(userData);
 
-      if (result.success) {
-        onSubmit(result.user);
+      if (res.success) {
+        onSubmit(res.data);
       } else {
-        setError(result.error);
+        setError(res.message);
       }
     } catch (err) {
       setError("An unexpected error occurred");

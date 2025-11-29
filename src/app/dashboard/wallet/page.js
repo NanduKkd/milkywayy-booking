@@ -7,7 +7,8 @@ export default async function WalletPage() {
   const session = await auth();
   if (!session) redirect("/");
 
-  const data = await getWalletData();
+  const res = await getWalletData();
+  const data = res.success ? res.data : { balance: 0, transactions: [] };
 
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-8">

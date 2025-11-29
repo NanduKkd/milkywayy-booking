@@ -13,10 +13,11 @@ export default function BookingList({ bookings }) {
 
     setLoadingId(id);
     try {
-      await cancelBooking(id);
+      const res = await cancelBooking(id);
+      if (!res.success) throw new Error(res.message);
       router.refresh();
     } catch (error) {
-      alert("Failed to cancel booking");
+      alert(error.message || "Failed to cancel booking");
     } finally {
       setLoadingId(null);
     }

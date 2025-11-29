@@ -7,7 +7,8 @@ export default async function InvoicesPage() {
   const session = await auth();
   if (!session) redirect("/");
 
-  const invoices = await getInvoices();
+  const res = await getInvoices();
+  const invoices = res.success ? res.data : [];
 
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-8">

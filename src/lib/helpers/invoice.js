@@ -23,7 +23,9 @@ export async function generateAndUploadInvoice(transaction, user) {
         const details = b.propertyDetails || {};
         const shoot = b.shootDetails || {};
         const services = Array.isArray(shoot.services)
-          ? shoot.services.map(s => s.replace(/_/g, ' ')).join(", ") // simple cleanup if needed
+          ? shoot.services
+              .map((s) => s.replace(/_/g, " "))
+              .join(", ") // simple cleanup if needed
           : "";
 
         let desc = `<strong>${details.type || "Property"} ${details.size ? `- ${details.size}` : ""}</strong>`;

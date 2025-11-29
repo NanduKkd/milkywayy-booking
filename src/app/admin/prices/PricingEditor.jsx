@@ -9,7 +9,13 @@ export default function PricingEditor({ initialConfig }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
 
-  const handlePriceChange = (propertyType, sizeIndex, service, field, value) => {
+  const handlePriceChange = (
+    propertyType,
+    sizeIndex,
+    service,
+    field,
+    value,
+  ) => {
     const newConfig = { ...config };
     const newSizes = [...newConfig[propertyType].sizes];
 
@@ -17,12 +23,13 @@ export default function PricingEditor({ initialConfig }) {
     const currentServiceConfig = newSizes[sizeIndex].prices[service];
 
     // Ensure it's an object
-    const newServiceConfig = typeof currentServiceConfig === 'object'
-      ? { ...currentServiceConfig }
-      : { price: currentServiceConfig, slots: 1, allowEvening: false };
+    const newServiceConfig =
+      typeof currentServiceConfig === "object"
+        ? { ...currentServiceConfig }
+        : { price: currentServiceConfig, slots: 1, allowEvening: false };
 
     // Update field
-    if (field === 'price' || field === 'slots') {
+    if (field === "price" || field === "slots") {
       newServiceConfig[field] = Number(value);
     } else {
       newServiceConfig[field] = value;
@@ -55,7 +62,7 @@ export default function PricingEditor({ initialConfig }) {
     } else {
       setMessage({
         type: "error",
-        text: "Failed to save prices: " + result.error,
+        text: "Failed to save prices: " + result.message,
       });
     }
   };
@@ -105,12 +112,24 @@ export default function PricingEditor({ initialConfig }) {
                     <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {Object.values(SERVICES).map((service) => {
                         const serviceConfig = size.prices[service];
-                        const price = typeof serviceConfig === 'object' ? serviceConfig.price : serviceConfig;
-                        const slots = typeof serviceConfig === 'object' ? (serviceConfig.slots || 1) : 1;
-                        const allowEvening = typeof serviceConfig === 'object' ? (serviceConfig.allowEvening || false) : false;
+                        const price =
+                          typeof serviceConfig === "object"
+                            ? serviceConfig.price
+                            : serviceConfig;
+                        const slots =
+                          typeof serviceConfig === "object"
+                            ? serviceConfig.slots || 1
+                            : 1;
+                        const allowEvening =
+                          typeof serviceConfig === "object"
+                            ? serviceConfig.allowEvening || false
+                            : false;
 
                         return (
-                          <div key={service} className="flex flex-col p-3 border border-gray-100 rounded-lg bg-gray-50/50">
+                          <div
+                            key={service}
+                            className="flex flex-col p-3 border border-gray-100 rounded-lg bg-gray-50/50"
+                          >
                             <label className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
                               {service}
                             </label>
@@ -182,7 +201,7 @@ export default function PricingEditor({ initialConfig }) {
                               </div>
                             </div>
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   </div>
@@ -192,6 +211,6 @@ export default function PricingEditor({ initialConfig }) {
           </div>
         ))}
       </div>
-    </div >
+    </div>
   );
 }

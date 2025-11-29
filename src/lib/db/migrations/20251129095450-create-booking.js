@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('bookings', {
+    await queryInterface.createTable("bookings", {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -12,17 +12,17 @@ module.exports = {
       status: {
         type: Sequelize.STRING,
         allowNull: false,
-        defaultValue: 'DRAFT',
+        defaultValue: "DRAFT",
       },
       user_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'users',
-          key: 'id',
+          model: "users",
+          key: "id",
         },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
       shoot_details: {
         type: Sequelize.JSONB,
@@ -53,11 +53,11 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: true,
         references: {
-          model: 'transactions',
-          key: 'id',
+          model: "transactions",
+          key: "id",
         },
-        onUpdate: 'CASCADE',
-        onDelete: 'SET NULL',
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
       },
       rescheduled_at: {
         type: Sequelize.DATE,
@@ -106,6 +106,6 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('bookings');
+    await queryInterface.dropTable("bookings");
   },
 };

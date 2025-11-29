@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('wallet_transactions', {
+    await queryInterface.createTable("wallet_transactions", {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -17,11 +17,11 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'users',
-          key: 'id',
+          model: "users",
+          key: "id",
         },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
       credit_expires_at: {
         type: Sequelize.DATE,
@@ -33,19 +33,19 @@ module.exports = {
       },
       status: {
         type: Sequelize.ENUM,
-        values: ['pending', 'active', 'expired', 'used'],
+        values: ["pending", "active", "expired", "used"],
         allowNull: false,
-        defaultValue: 'active',
+        defaultValue: "active",
       },
       transaction_id: {
         type: Sequelize.INTEGER,
         allowNull: true,
         references: {
-          model: 'transactions',
-          key: 'id',
+          model: "transactions",
+          key: "id",
         },
-        onUpdate: 'CASCADE',
-        onDelete: 'SET NULL',
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
       },
       created_at: {
         allowNull: false,
@@ -59,6 +59,6 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('wallet_transactions');
+    await queryInterface.dropTable("wallet_transactions");
   },
 };

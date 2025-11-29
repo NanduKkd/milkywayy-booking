@@ -64,7 +64,10 @@ export default function UserTable({ users, pagination }) {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold">Users</h2>
-        <Button color="primary" onPress={() => router.push("/admin/users/create")}>
+        <Button
+          color="primary"
+          onPress={() => router.push("/admin/users/create")}
+        >
           + New User
         </Button>
       </div>

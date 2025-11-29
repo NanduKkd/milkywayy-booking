@@ -42,9 +42,13 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
 
     try {
       // Call customerSendOtp action
-      const result = await customerSendOtp({
+      const res = await customerSendOtp({
         phone: data.phone.replace(/\s/g, ""),
       });
+      if (!res.success) {
+        throw new Error(res.message);
+      }
+      const result = res.data;
       setUserId(result.userId);
       alert(`OTP: ${result.otp}`); // For development purposes
       setStep(2);
@@ -60,7 +64,11 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
     setError("");
 
     try {
-      const result = await customerVerifyOtp({ userId, otp: data.otp });
+      const res = await customerVerifyOtp({ userId, otp: data.otp });
+      if (!res.success) {
+        throw new Error(res.message);
+      }
+      const result = res.data;
       onSuccess(result);
       onClose();
       resetModal();
@@ -77,7 +85,11 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
 
     try {
       const phone = phoneForm.getValues("phone").replace(/\s/g, "");
-      const result = await customerSendOtp({ phone });
+      const res = await customerSendOtp({ phone });
+      if (!res.success) {
+        throw new Error(res.message);
+      }
+      const result = res.data;
       alert(`OTP: ${result.otp}`); // For development purposes
     } catch (err) {
       setError(err.message || "Failed to resend OTP");
@@ -120,91 +132,91 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
 
           {step === 1
             ? <form
-              onSubmit={phoneForm.handleSubmit(handleSendOtp)}
-              className="space-y-4"
-            >
-              <Controller
-                name="phone"
-                control={phoneForm.control}
-                render={({ field }) => (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-small font-medium text-foreground-600">
-                      Phone Number
-                    </label>
-                    <PhoneNumberInput
-                      value={field.value}
-                      onChange={field.onChange}
-                      name={field.name}
-                      classNames={{
-                        inputWrapper:
-                          "flex items-center w-full px-3 py-2 rounded-medium border-2 border-default-200 hover:border-default-400 focus-within:!border-primary transition-colors h-12",
-                        input:
-                          "bg-transparent border-none outline-none text-small w-full h-full",
-                        countryIcon: "mr-2 flex items-center h-full",
-                      }}
-                    />
-                    {phoneForm.formState.errors.phone && (
-                      <div className="text-tiny text-danger">
-                        {phoneForm.formState.errors.phone.message}
-                      </div>
-                    )}
-                  </div>
-                )}
-              />
-              <p className="text-sm text-gray-600">
-                We will send an OTP to verify your phone number.
-              </p>
-              <Button
-                type="submit"
-                color="primary"
-                isLoading={isLoading}
-                className="w-full"
+                onSubmit={phoneForm.handleSubmit(handleSendOtp)}
+                className="space-y-4"
               >
-                Send OTP
-              </Button>
-            </form>
-            : <form
-              onSubmit={otpForm.handleSubmit(handleVerifyOtp)}
-              className="space-y-4"
-            >
-              <div className="flex justify-center">
-                <InputOtp
-                  {...otpForm.register("otp")}
-                  length={6}
-                  variant="bordered"
-                  size="lg"
-                  isInvalid={!!otpForm.formState.errors.otp}
-                  errorMessage={otpForm.formState.errors.otp?.message}
+                <Controller
+                  name="phone"
+                  control={phoneForm.control}
+                  render={({ field }) => (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-small font-medium text-foreground-600">
+                        Phone Number
+                      </label>
+                      <PhoneNumberInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        name={field.name}
+                        classNames={{
+                          inputWrapper:
+                            "flex items-center w-full px-3 py-2 rounded-medium border-2 border-default-200 hover:border-default-400 focus-within:!border-primary transition-colors h-12",
+                          input:
+                            "bg-transparent border-none outline-none text-small w-full h-full",
+                          countryIcon: "mr-2 flex items-center h-full",
+                        }}
+                      />
+                      {phoneForm.formState.errors.phone && (
+                        <div className="text-tiny text-danger">
+                          {phoneForm.formState.errors.phone.message}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 />
-              </div>
-              <div className="flex gap-2 justify-center">
+                <p className="text-sm text-gray-600">
+                  We will send an OTP to verify your phone number.
+                </p>
                 <Button
+                  type="submit"
                   color="primary"
-                  variant="light"
-                  onPress={handleChangePhone}
-                  size="sm"
-                >
-                  Change Phone Number
-                </Button>
-                <Button
-                  color="primary"
-                  variant="light"
-                  onPress={handleResendOtp}
-                  size="sm"
                   isLoading={isLoading}
+                  className="w-full"
                 >
-                  Resend OTP
+                  Send OTP
                 </Button>
-              </div>
-              <Button
-                type="submit"
-                color="primary"
-                isLoading={isLoading}
-                className="w-full"
+              </form>
+            : <form
+                onSubmit={otpForm.handleSubmit(handleVerifyOtp)}
+                className="space-y-4"
               >
-                Verify OTP
-              </Button>
-            </form>}
+                <div className="flex justify-center">
+                  <InputOtp
+                    {...otpForm.register("otp")}
+                    length={6}
+                    variant="bordered"
+                    size="lg"
+                    isInvalid={!!otpForm.formState.errors.otp}
+                    errorMessage={otpForm.formState.errors.otp?.message}
+                  />
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    color="primary"
+                    variant="light"
+                    onPress={handleChangePhone}
+                    size="sm"
+                  >
+                    Change Phone Number
+                  </Button>
+                  <Button
+                    color="primary"
+                    variant="light"
+                    onPress={handleResendOtp}
+                    size="sm"
+                    isLoading={isLoading}
+                  >
+                    Resend OTP
+                  </Button>
+                </div>
+                <Button
+                  type="submit"
+                  color="primary"
+                  isLoading={isLoading}
+                  className="w-full"
+                >
+                  Verify OTP
+                </Button>
+              </form>}
         </ModalBody>
         <ModalFooter>
           <Button

@@ -55,7 +55,7 @@ export default function CouponManager({ initialCoupons }) {
         window.location.reload();
         onClose();
       } else {
-        alert(result.error);
+        alert(result.message);
       }
     } catch (e) {
       console.error(e);
@@ -67,8 +67,12 @@ export default function CouponManager({ initialCoupons }) {
 
   const handleToggle = async (id, currentStatus) => {
     try {
-      await toggleCouponStatus(id, !currentStatus);
-      window.location.reload();
+      const res = await toggleCouponStatus(id, !currentStatus);
+      if (res.success) {
+        window.location.reload();
+      } else {
+        alert(res.message);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -77,8 +81,12 @@ export default function CouponManager({ initialCoupons }) {
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this coupon?")) return;
     try {
-      await deleteCoupon(id);
-      window.location.reload();
+      const res = await deleteCoupon(id);
+      if (res.success) {
+        window.location.reload();
+      } else {
+        alert(res.message);
+      }
     } catch (e) {
       console.error(e);
     }

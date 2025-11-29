@@ -2,26 +2,24 @@
 
 import { getPricingConfig as fetchPricingConfig } from "@/lib/helpers/pricing";
 import { DynamicConfig } from "@/lib/db/models";
+import { actionWrapper } from "@/lib/actions/utils";
 
-export async function getPricingConfig() {
+const getPricingConfigHandler = async () => {
   return fetchPricingConfig();
-}
+};
+export const getPricingConfig = actionWrapper(getPricingConfigHandler);
 
-export async function savePricingConfig(newConfig) {
-  try {
-    const [config, created] = await DynamicConfig.findOrCreate({
-      where: { key: "pricing" },
-      defaults: { value: newConfig },
-    });
+const savePricingConfigHandler = async (newConfig) => {
+  const [config, created] = await DynamicConfig.findOrCreate({
+    where: { key: "pricing" },
+    defaults: { value: newConfig },
+  });
 
-    if (!created) {
-      config.value = newConfig;
-      await config.save();
-    }
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error saving pricing config:", error);
-    return { success: false, error: error.message };
+  if (!created) {
+    config.value = newConfig;
+    await config.save();
   }
-}
+
+  return { success: true };
+};
+export const savePricingConfig = actionWrapper(savePricingConfigHandler);

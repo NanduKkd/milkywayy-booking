@@ -83,31 +83,59 @@ export const PRICING_CONFIG = {
         label: "4 Bed",
         prices: {
           [SERVICES.PHOTOGRAPHY]: { price: 900, slots: 1, allowEvening: false },
-          [SERVICES.VIDEOGRAPHY]: { price: 1000, slots: 1, allowEvening: false },
+          [SERVICES.VIDEOGRAPHY]: {
+            price: 1000,
+            slots: 1,
+            allowEvening: false,
+          },
           [SERVICES.TOUR_360]: 1050,
         },
       },
       {
         label: "5 Bed",
         prices: {
-          [SERVICES.PHOTOGRAPHY]: { price: 1000, slots: 1, allowEvening: false },
-          [SERVICES.VIDEOGRAPHY]: { price: 1100, slots: 1, allowEvening: false },
+          [SERVICES.PHOTOGRAPHY]: {
+            price: 1000,
+            slots: 1,
+            allowEvening: false,
+          },
+          [SERVICES.VIDEOGRAPHY]: {
+            price: 1100,
+            slots: 1,
+            allowEvening: false,
+          },
           [SERVICES.TOUR_360]: 1150,
         },
       },
       {
         label: "6 Bed",
         prices: {
-          [SERVICES.PHOTOGRAPHY]: { price: 1100, slots: 1, allowEvening: false },
-          [SERVICES.VIDEOGRAPHY]: { price: 1200, slots: 1, allowEvening: false },
+          [SERVICES.PHOTOGRAPHY]: {
+            price: 1100,
+            slots: 1,
+            allowEvening: false,
+          },
+          [SERVICES.VIDEOGRAPHY]: {
+            price: 1200,
+            slots: 1,
+            allowEvening: false,
+          },
           [SERVICES.TOUR_360]: 1250,
         },
       },
       {
         label: "7 Bed",
         prices: {
-          [SERVICES.PHOTOGRAPHY]: { price: 1200, slots: 1, allowEvening: false },
-          [SERVICES.VIDEOGRAPHY]: { price: 1300, slots: 1, allowEvening: false },
+          [SERVICES.PHOTOGRAPHY]: {
+            price: 1200,
+            slots: 1,
+            allowEvening: false,
+          },
+          [SERVICES.VIDEOGRAPHY]: {
+            price: 1300,
+            slots: 1,
+            allowEvening: false,
+          },
           [SERVICES.TOUR_360]: 1350,
         },
       },
@@ -142,8 +170,16 @@ export const PRICING_CONFIG = {
       {
         label: "5 Bed",
         prices: {
-          [SERVICES.PHOTOGRAPHY]: { price: 1000, slots: 1, allowEvening: false },
-          [SERVICES.VIDEOGRAPHY]: { price: 1050, slots: 1, allowEvening: false },
+          [SERVICES.PHOTOGRAPHY]: {
+            price: 1000,
+            slots: 1,
+            allowEvening: false,
+          },
+          [SERVICES.VIDEOGRAPHY]: {
+            price: 1050,
+            slots: 1,
+            allowEvening: false,
+          },
           [SERVICES.TOUR_360]: 1100,
         },
       },
@@ -194,24 +230,48 @@ export const PRICING_CONFIG = {
       {
         label: "5,000 - 7,500 sq. ft.",
         prices: {
-          [SERVICES.PHOTOGRAPHY]: { price: 1000, slots: 1, allowEvening: false },
-          [SERVICES.VIDEOGRAPHY]: { price: 1050, slots: 1, allowEvening: false },
+          [SERVICES.PHOTOGRAPHY]: {
+            price: 1000,
+            slots: 1,
+            allowEvening: false,
+          },
+          [SERVICES.VIDEOGRAPHY]: {
+            price: 1050,
+            slots: 1,
+            allowEvening: false,
+          },
           [SERVICES.TOUR_360]: 1100,
         },
       },
       {
         label: "7,500 - 10,000 sq. ft.",
         prices: {
-          [SERVICES.PHOTOGRAPHY]: { price: 1100, slots: 1, allowEvening: false },
-          [SERVICES.VIDEOGRAPHY]: { price: 1150, slots: 1, allowEvening: false },
+          [SERVICES.PHOTOGRAPHY]: {
+            price: 1100,
+            slots: 1,
+            allowEvening: false,
+          },
+          [SERVICES.VIDEOGRAPHY]: {
+            price: 1150,
+            slots: 1,
+            allowEvening: false,
+          },
           [SERVICES.TOUR_360]: 1200,
         },
       },
       {
         label: "10,000+ sq. ft.",
         prices: {
-          [SERVICES.PHOTOGRAPHY]: { price: 1200, slots: 1, allowEvening: false },
-          [SERVICES.VIDEOGRAPHY]: { price: 1250, slots: 1, allowEvening: false },
+          [SERVICES.PHOTOGRAPHY]: {
+            price: 1200,
+            slots: 1,
+            allowEvening: false,
+          },
+          [SERVICES.VIDEOGRAPHY]: {
+            price: 1250,
+            slots: 1,
+            allowEvening: false,
+          },
           [SERVICES.TOUR_360]: 1300,
         },
       },

@@ -1,9 +1,9 @@
-'use strict';
+"use strict";
 
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('transactions', {
+    await queryInterface.createTable("transactions", {
       id: {
         type: Sequelize.INTEGER,
         primaryKey: true,
@@ -13,11 +13,11 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: false,
         references: {
-          model: 'users',
-          key: 'id',
+          model: "users",
+          key: "id",
         },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
+        onUpdate: "CASCADE",
+        onDelete: "CASCADE",
       },
       amount: {
         type: Sequelize.DECIMAL(10, 2),
@@ -36,11 +36,11 @@ module.exports = {
         type: Sequelize.INTEGER,
         allowNull: true,
         references: {
-          model: 'coupons',
-          key: 'id',
+          model: "coupons",
+          key: "id",
         },
-        onUpdate: 'CASCADE',
-        onDelete: 'SET NULL',
+        onUpdate: "CASCADE",
+        onDelete: "SET NULL",
       },
       coupon_deduction: {
         type: Sequelize.DECIMAL(10, 2),
@@ -63,9 +63,9 @@ module.exports = {
       },
       status: {
         type: Sequelize.ENUM,
-        values: ['pending', 'success', 'failed'],
+        values: ["pending", "success", "failed"],
         allowNull: false,
-        defaultValue: 'pending',
+        defaultValue: "pending",
       },
       metadata: {
         type: Sequelize.JSONB,
@@ -87,6 +87,6 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('transactions');
+    await queryInterface.dropTable("transactions");
   },
 };

@@ -12,9 +12,12 @@ export default function BookingCancelPage() {
 
   useEffect(() => {
     if (sessionId) {
-      cancelBookingBySessionId(sessionId).catch((err) =>
-        console.error("Failed to cancel booking:", err),
-      );
+      cancelBookingBySessionId(sessionId)
+        .then((res) => {
+          if (!res.success)
+            console.error("Failed to cancel booking:", res.message);
+        })
+        .catch((err) => console.error("Failed to cancel booking:", err));
     }
   }, [sessionId]);
 

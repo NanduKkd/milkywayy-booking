@@ -65,8 +65,6 @@ async function handleCheckoutSessionCompleted(session) {
     paidAt: new Date(),
   });
 
-
-
   // Generate Invoice
   const user = await User.findByPk(transaction.userId);
   if (user) {
@@ -82,7 +80,7 @@ async function handleCheckoutSessionCompleted(session) {
   // Update Bookings to CONFIRMED
   await Booking.update(
     { status: "CONFIRMED" },
-    { where: { transactionId: transaction.id } }
+    { where: { transactionId: transaction.id } },
   );
 
   console.log(`Transaction ${transactionId} marked as success.`);

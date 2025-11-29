@@ -69,7 +69,7 @@ export default function DiscountManager({ initialDiscounts }) {
         onClose();
         resetForm();
       } else {
-        alert(result.error);
+        alert(result.message);
       }
     } catch (e) {
       console.error(e);
@@ -101,16 +101,24 @@ export default function DiscountManager({ initialDiscounts }) {
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this discount?")) return;
     const newDiscounts = discounts.filter((d) => d.id !== id);
-    await saveDiscounts(newDiscounts);
-    setDiscounts(newDiscounts);
+    const res = await saveDiscounts(newDiscounts);
+    if (res.success) {
+      setDiscounts(newDiscounts);
+    } else {
+      alert(res.message);
+    }
   };
 
   const handleToggle = async (id) => {
     const newDiscounts = discounts.map((d) =>
       d.id === id ? { ...d, isActive: !d.isActive } : d,
     );
-    await saveDiscounts(newDiscounts);
-    setDiscounts(newDiscounts);
+    const res = await saveDiscounts(newDiscounts);
+    if (res.success) {
+      setDiscounts(newDiscounts);
+    } else {
+      alert(res.message);
+    }
   };
 
   const moveItem = async (index, direction) => {
@@ -131,7 +139,11 @@ export default function DiscountManager({ initialDiscounts }) {
     newDiscounts[index] = itemTarget;
 
     setDiscounts(newDiscounts); // Optimistic update
-    await saveDiscounts(newDiscounts);
+    const res = await saveDiscounts(newDiscounts);
+    if (!res.success) {
+      alert(res.message);
+      // Revert changes if needed, but for now just alert
+    }
   };
 
   const columns = [

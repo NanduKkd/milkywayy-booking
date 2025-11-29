@@ -42,12 +42,13 @@ export default function WalletView({ data }) {
                       </div>
                       {t.status !== "active" && (
                         <span
-                          className={`text-xs px-2 py-0.5 rounded border uppercase ${t.status === "pending"
-                            ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                            : t.status === "expired"
-                              ? "bg-red-500/10 text-red-500 border-red-500/20"
-                              : "bg-gray-500/10 text-gray-400 border-gray-500/20"
-                            }`}
+                          className={`text-xs px-2 py-0.5 rounded border uppercase ${
+                            t.status === "pending"
+                              ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                              : t.status === "expired"
+                                ? "bg-red-500/10 text-red-500 border-red-500/20"
+                                : "bg-gray-500/10 text-gray-400 border-gray-500/20"
+                          }`}
                         >
                           {t.status}
                         </span>
