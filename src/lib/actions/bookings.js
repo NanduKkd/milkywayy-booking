@@ -305,8 +305,6 @@ const saveDraftsHandler = async (properties) => {
 
     const userId = session.id;
 
-    console.log(session, 'HHHHHHHHHHHH');
-
 
 
     // Delete existing drafts for this user to avoid duplicates

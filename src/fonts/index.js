@@ -4,3 +4,4 @@ export const michroma = localFont({
   src: "./Michroma-Regular.ttf",
   variable: "font-michroma",
 });
+

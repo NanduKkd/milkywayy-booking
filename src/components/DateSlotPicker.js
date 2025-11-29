@@ -353,7 +353,7 @@ export default function DateSlotPicker({
                   </div>
 
                   {/* Slot Selection Section */}
-                  <div className="border-l border-zinc-800 pl-6 flex flex-col">
+                  <div className="border-t md:border-t-0 md:border-l border-zinc-800 p-6 md:pr-0 flex flex-col">
                     <h3 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
                       <Clock size={18} />
                       Available Slots

@@ -156,7 +156,7 @@ export default function BookingList({ bookings }) {
         isOpen={isOpen}
         onOpenChange={onOpenChange}
         size="2xl"
-        className="dark text-white bg-[#181818] border border-zinc-800"
+        className="text-white bg-[#181818] border border-zinc-800"
       >
         <ModalContent>
           {(onClose) => (

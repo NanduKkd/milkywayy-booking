@@ -36,19 +36,15 @@ export default function PhoneNumberInput({
           name: countryNames[countryCode],
         };
         const restText = toCheck.substring(i);
-        if (restText.length > 0) {
-          if (restText.length > 7)
-            return [
-              countryData,
-              `${countryData.dial_code} ${restText.substring(0, restText.length - 7)} ${restText.substring(restText.length - 7, restText.length - 4)} ${restText.substring(restText.length - 4)}`,
-            ];
-          else if (restText.length > 4)
-            return [
-              countryData,
-              `${countryData.dial_code} ${restText.substring(0, restText.length - 4)} ${restText.substring(restText.length - 4)}`,
-            ];
-          else return [countryData, `${countryData.dial_code} ${restText}`];
-        } else return [countryData, `${countryData.dial_code}${restText}`];
+        if(restText.length > 0) {
+          if(restText.length > 9)
+            return [countryData, countryData.dial_code+' '+restText.substring(0, 3)+' '+restText.substring(3, 6)+' '+restText.substring(6)]
+          else if(restText.length>5)
+            return [countryData, countryData.dial_code+' '+restText.substring(0, 2)+' '+restText.substring(2, 5)+' '+restText.substring(5)];
+          else if(restText.length>2)
+            return [countryData, countryData.dial_code+' '+restText.substring(0, 2)+' '+restText.substring(2)];
+          return [countryData, countryData.dial_code+' '+restText];
+        } else return [countryData, countryData.dial_code+restText];
       }
     }
     return [null, value];
