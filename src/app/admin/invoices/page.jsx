@@ -3,14 +3,14 @@ import { useState, useEffect } from "react";
 import {
   Table,
   TableHeader,
-  TableColumn,
+  TableHead,
   TableBody,
   TableRow,
   TableCell,
-  Link,
-  Chip,
-  Button,
-} from "@heroui/react";
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { Download } from "lucide-react";
 
 export default function InvoicesPage() {
@@ -32,69 +32,75 @@ export default function InvoicesPage() {
   return (
     <div className="p-8 bg-[#121212] min-h-screen text-white">
       <h1 className="text-2xl font-bold mb-6">Invoices</h1>
-      <Table
-        aria-label="Invoices table"
-        selectionMode="none"
-        classNames={{
-          wrapper: "bg-[#181818] border border-zinc-800",
-          th: "bg-zinc-900 text-zinc-400",
-          td: "text-zinc-300",
-        }}
-      >
-        <TableHeader>
-          <TableColumn>INVOICE ID</TableColumn>
-          <TableColumn>USER</TableColumn>
-          <TableColumn>DATE</TableColumn>
-          <TableColumn>AMOUNT</TableColumn>
-          <TableColumn>STATUS</TableColumn>
-          <TableColumn>ACTION</TableColumn>
-        </TableHeader>
-        <TableBody emptyContent={"No invoices found"}>
-          {invoices.map((invoice) => (
-            <TableRow key={invoice.id} className="hover:bg-zinc-800">
-              <TableCell>#{invoice.id}</TableCell>
-              <TableCell>
-                <div>
-                  <p>{invoice.user?.fullName}</p>
-                  <p className="text-xs text-zinc-500">{invoice.user?.email}</p>
-                </div>
-              </TableCell>
-              <TableCell>
-                {invoice.createdAt
-                  ? new Date(invoice.createdAt).toLocaleDateString()
-                  : "-"}
-              </TableCell>
-              <TableCell>AED {invoice.amount}</TableCell>
-              <TableCell>
-                <Chip
-                  color={invoice.status === "success" ? "success" : "warning"}
-                  variant="flat"
-                  size="sm"
-                >
-                  {invoice.status || "Pending"}
-                </Chip>
-              </TableCell>
-              <TableCell>
-                {invoice.invoiceUrl ? (
-                  <Button
-                    as={Link}
-                    href={invoice.invoiceUrl}
-                    target="_blank"
-                    isIconOnly
-                    variant="light"
-                    color="primary"
-                    aria-label="Download Invoice"
-                  >
-                    <Download size={20} />
-                  </Button>
-                ) : (
-                  <span className="text-zinc-600">-</span>
-                )}
-              </TableCell>
+      <div className="rounded-md border border-zinc-800 bg-[#181818]">
+        <Table>
+          <TableHeader className="bg-zinc-900">
+            <TableRow className="border-zinc-800 hover:bg-zinc-900">
+              <TableHead className="text-zinc-400">INVOICE ID</TableHead>
+              <TableHead className="text-zinc-400">USER</TableHead>
+              <TableHead className="text-zinc-400">DATE</TableHead>
+              <TableHead className="text-zinc-400">AMOUNT</TableHead>
+              <TableHead className="text-zinc-400">STATUS</TableHead>
+              <TableHead className="text-zinc-400">ACTION</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {invoices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-zinc-500">
+                  No invoices found
+                </TableCell>
+              </TableRow>
+            ) : (
+              invoices.map((invoice) => (
+                <TableRow key={invoice.id} className="hover:bg-zinc-800 border-zinc-800">
+                  <TableCell className="text-zinc-300">#{invoice.id}</TableCell>
+                  <TableCell className="text-zinc-300">
+                    <div>
+                      <p>{invoice.user?.fullName}</p>
+                      <p className="text-xs text-zinc-500">{invoice.user?.email}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-zinc-300">
+                    {invoice.createdAt
+                      ? new Date(invoice.createdAt).toLocaleDateString()
+                      : "-"}
+                  </TableCell>
+                  <TableCell className="text-zinc-300">AED {invoice.amount}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={invoice.status === "success" ? "success" : "secondary"}
+                      className={
+                        invoice.status === "success"
+                          ? "bg-green-500/15 text-green-500 hover:bg-green-500/25 border-green-500/20"
+                          : "bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25 border-yellow-500/20"
+                      }
+                    >
+                      {invoice.status || "Pending"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {invoice.invoiceUrl ? (
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                      >
+                        <Link href={invoice.invoiceUrl} target="_blank" aria-label="Download Invoice">
+                          <Download size={20} />
+                        </Link>
+                      </Button>
+                    ) : (
+                      <span className="text-zinc-600">-</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

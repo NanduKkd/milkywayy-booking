@@ -1,7 +1,7 @@
 "use client";
 
 import CustomerHeader from "@/components/CustomerHeader";
-import { Tabs, Tab } from "@heroui/react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Calendar, Wallet, Receipt } from "lucide-react";
@@ -25,30 +25,24 @@ export default function DashboardLayout({ children }) {
         <h1 className="text-3xl font-bold mb-8 text-white">My Dashboard</h1>
 
         <Tabs
-          aria-label="Dashboard Navigation"
-          selectedKey={currentTab}
+          value={currentTab}
           className="mb-8 w-full"
-          classNames={{
-            tabList: "bg-zinc-900/50 w-full p-1 rounded-lg gap-1 border border-white/10",
-            cursor: "bg-zinc-800 rounded-md shadow-sm border border-white/10",
-            tab: "h-10 px-4 data-[hover=true]:bg-white/5 rounded-md transition-colors",
-            tabContent: "text-zinc-400 group-data-[selected=true]:text-white font-medium flex items-center gap-2",
-          }}
-          size="lg"
         >
-          {tabs.map((item) => (
-            <Tab
-              key={item.key}
-              title={
-                <div className="flex items-center gap-2">
+          <TabsList className="bg-zinc-900/50 w-full p-1 rounded-lg gap-1 border border-white/10 h-auto justify-start">
+            {tabs.map((item) => (
+              <TabsTrigger
+                key={item.key}
+                value={item.key}
+                asChild
+                className="h-10 px-4 data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-400 hover:bg-white/5 transition-colors flex items-center gap-2 justify-start"
+              >
+                <Link href={item.href}>
                   {item.icon}
                   <span>{item.title}</span>
-                </div>
-              }
-              href={item.href}
-              as={Link}
-            />
-          ))}
+                </Link>
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </Tabs>
 
         {children}

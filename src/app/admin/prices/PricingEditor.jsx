@@ -3,11 +3,16 @@
 import { useState } from "react";
 import { savePricingConfig } from "./actions";
 import { SERVICES } from "@/lib/config/pricing";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 export default function PricingEditor({ initialConfig }) {
   const [config, setConfig] = useState(initialConfig);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState(null);
 
   const handlePriceChange = (
     propertyType,
@@ -52,18 +57,12 @@ export default function PricingEditor({ initialConfig }) {
 
   const handleSave = async () => {
     setSaving(true);
-    setMessage(null);
     const result = await savePricingConfig(config);
     setSaving(false);
     if (result.success) {
-      setMessage({ type: "success", text: "Prices saved successfully!" });
-      // Clear success message after 3 seconds
-      setTimeout(() => setMessage(null), 3000);
+      toast.success("Prices saved successfully!");
     } else {
-      setMessage({
-        type: "error",
-        text: "Failed to save prices: " + result.message,
-      });
+      toast.error("Failed to save prices: " + result.message);
     }
   };
 
@@ -73,33 +72,22 @@ export default function PricingEditor({ initialConfig }) {
         <h1 className="text-3xl font-bold text-gray-900">
           Pricing Configuration
         </h1>
-        <button
+        <Button
           onClick={handleSave}
           disabled={saving}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white"
         >
           {saving ? "Saving..." : "Save Changes"}
-        </button>
+        </Button>
       </div>
-
-      {message && (
-        <div
-          className={`p-4 mb-6 rounded-lg border ${message.type === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}
-        >
-          {message.text}
-        </div>
-      )}
 
       <div className="space-y-8">
         {Object.entries(config).map(([type, typeConfig]) => (
-          <div
-            key={type}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
-          >
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800">{type}</h2>
-            </div>
-            <div className="p-6">
+          <Card key={type} className="overflow-hidden">
+            <CardHeader className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+              <CardTitle className="text-xl font-semibold text-gray-800">{type}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
               <div className="grid grid-cols-1 gap-4">
                 {typeConfig.sizes.map((size, sizeIndex) => (
                   <div
@@ -130,15 +118,15 @@ export default function PricingEditor({ initialConfig }) {
                             key={service}
                             className="flex flex-col p-3 border border-gray-100 rounded-lg bg-gray-50/50"
                           >
-                            <label className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
+                            <Label className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">
                               {service}
-                            </label>
+                            </Label>
                             <div className="space-y-2">
                               <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
                                   AED
                                 </span>
-                                <input
+                                <Input
                                   type="number"
                                   value={price}
                                   onChange={(e) =>
@@ -150,7 +138,7 @@ export default function PricingEditor({ initialConfig }) {
                                       e.target.value,
                                     )
                                   }
-                                  className="w-full pl-8 pr-2 py-1.5 text-sm bg-white border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                  className="pl-8 pr-2 h-8 text-sm bg-white"
                                   placeholder="Price"
                                 />
                               </div>
@@ -159,7 +147,7 @@ export default function PricingEditor({ initialConfig }) {
                                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">
                                     SLOTS
                                   </span>
-                                  <input
+                                  <Input
                                     type="number"
                                     min="1"
                                     value={slots}
@@ -172,32 +160,30 @@ export default function PricingEditor({ initialConfig }) {
                                         e.target.value,
                                       )
                                     }
-                                    className="w-full pl-10 pr-2 py-1.5 text-sm bg-white border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                    className="pl-10 pr-2 h-8 text-sm bg-white"
                                   />
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="checkbox"
+                              <div className="flex items-center gap-2 pt-1">
+                                <Checkbox
                                   id={`${type}-${sizeIndex}-${service}-evening`}
                                   checked={allowEvening}
-                                  onChange={(e) =>
+                                  onCheckedChange={(checked) =>
                                     handlePriceChange(
                                       type,
                                       sizeIndex,
                                       service,
                                       "allowEvening",
-                                      e.target.checked,
+                                      checked,
                                     )
                                   }
-                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
                                 />
-                                <label
+                                <Label
                                   htmlFor={`${type}-${sizeIndex}-${service}-evening`}
-                                  className="text-xs text-gray-600 select-none cursor-pointer"
+                                  className="text-xs text-gray-600 cursor-pointer"
                                 >
                                   Allow Evening
-                                </label>
+                                </Label>
                               </div>
                             </div>
                           </div>
@@ -207,8 +193,8 @@ export default function PricingEditor({ initialConfig }) {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

@@ -1,7 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Input, Select, SelectItem, Button } from "@heroui/react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createUser } from "@/lib/actions/users";
 
 const roles = [
@@ -58,65 +67,83 @@ export default function CreateUserForm({ onSubmit, onCancel }) {
         </div>
       )}
 
-      <Input
-        name="fullName"
-        label="Full Name"
-        placeholder="Enter full name"
-        variant="bordered"
-        isRequired
-      />
-      <Input
-        name="email"
-        label="Email"
-        type="email"
-        placeholder="Enter email address"
-        variant="bordered"
-        isRequired
-      />
-      <Input
-        name="phone"
-        label="Phone"
-        placeholder="Enter phone number"
-        variant="bordered"
-      />
-      <Select
-        name="role"
-        label="Role"
-        placeholder="Select a role"
-        variant="bordered"
-        isRequired
-      >
-        {roles.map((role) => (
-          <SelectItem key={role.key} value={role.key}>
-            {role.label}
-          </SelectItem>
-        ))}
-      </Select>
-      <Input
-        name="password"
-        label="Password"
-        type="password"
-        placeholder="Enter password"
-        variant="bordered"
-      />
-      <Input
-        name="confirmPassword"
-        label="Confirm Password"
-        type="password"
-        placeholder="Confirm password"
-        variant="bordered"
-      />
+      <div className="space-y-2">
+        <Label htmlFor="fullName">Full Name</Label>
+        <Input
+          id="fullName"
+          name="fullName"
+          placeholder="Enter full name"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          name="email"
+          type="email"
+          placeholder="Enter email address"
+          required
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phone">Phone</Label>
+        <Input
+          id="phone"
+          name="phone"
+          placeholder="Enter phone number"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="role">Role</Label>
+        <Select name="role" required>
+          <SelectTrigger id="role">
+            <SelectValue placeholder="Select a role" />
+          </SelectTrigger>
+          <SelectContent>
+            {roles.map((role) => (
+              <SelectItem key={role.key} value={role.key}>
+                {role.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          placeholder="Enter password"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="confirmPassword">Confirm Password</Label>
+        <Input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          placeholder="Confirm password"
+        />
+      </div>
+
       <div className="flex gap-2 pt-4">
         <Button
-          color="danger"
-          variant="light"
-          onPress={onCancel}
-          isDisabled={isSubmitting}
+          variant="ghost"
+          onClick={onCancel}
+          disabled={isSubmitting}
+          className="text-red-600 hover:text-red-700 hover:bg-red-50"
         >
           Cancel
         </Button>
-        <Button color="primary" type="submit" isLoading={isSubmitting}>
-          Create User
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Creating..." : "Create User"}
         </Button>
       </div>
     </form>

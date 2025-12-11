@@ -5,25 +5,31 @@ import { saveDiscounts } from "@/lib/actions/discounts";
 import {
   Table,
   TableHeader,
+  TableHead,
   TableBody,
-  TableColumn,
   TableRow,
   TableCell,
-  Button,
-  Input,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  Chip,
-  Card,
-  CardBody,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
   Select,
+  SelectContent,
   SelectItem,
-  Switch,
-} from "@heroui/react";
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Plus,
   Trash2,
@@ -37,7 +43,7 @@ import { michroma } from "@/fonts";
 
 export default function DiscountManager({ initialDiscounts }) {
   const [discounts, setDiscounts] = useState(initialDiscounts || []);
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -51,7 +57,7 @@ export default function DiscountManager({ initialDiscounts }) {
     isActive: true,
   });
 
-  const handleSave = async (onClose) => {
+  const handleSave = async () => {
     setIsLoading(true);
     try {
       let newDiscounts;
@@ -66,7 +72,7 @@ export default function DiscountManager({ initialDiscounts }) {
       const result = await saveDiscounts(newDiscounts);
       if (result.success) {
         setDiscounts(newDiscounts);
-        onClose();
+        setIsOpen(false);
         resetForm();
       } else {
         alert(result.message);
@@ -95,7 +101,7 @@ export default function DiscountManager({ initialDiscounts }) {
   const handleEdit = (discount) => {
     setFormData(discount);
     setEditingId(discount.id);
-    onOpen();
+    setIsOpen(true);
   };
 
   const handleDelete = async (id) => {
@@ -146,15 +152,6 @@ export default function DiscountManager({ initialDiscounts }) {
     }
   };
 
-  const columns = [
-    { name: "ORDER", uid: "order" },
-    { name: "NAME", uid: "name" },
-    { name: "TYPE", uid: "type" },
-    { name: "RULES", uid: "rules" },
-    { name: "STATUS", uid: "status" },
-    { name: "ACTIONS", uid: "actions" },
-  ];
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -167,347 +164,270 @@ export default function DiscountManager({ initialDiscounts }) {
           </p>
         </div>
         <Button
-          color="primary"
-          endContent={<Plus size={20} />}
-          onPress={() => {
+          onClick={() => {
             resetForm();
-            onOpen();
+            setIsOpen(true);
           }}
-          className="font-semibold"
+          className="font-semibold bg-blue-600 hover:bg-blue-700 text-white"
         >
+          <Plus size={20} className="mr-2" />
           Add Discount
         </Button>
       </div>
 
       <Card className="bg-[#181818bb] border border-zinc-800">
-        <CardBody>
-          <Table
-            aria-label="Discounts table"
-            classNames={{
-              base: "max-h-[520px] overflow-scroll",
-              table: "min-h-[400px]",
-              th: "bg-[#272727] text-gray-300",
-              td: "text-gray-300",
-              wrapper: "bg-transparent shadow-none",
-            }}
-          >
-            <TableHeader columns={columns}>
-              {(column) => (
-                <TableColumn
-                  key={column.uid}
-                  align={column.uid === "actions" ? "center" : "start"}
-                >
-                  {column.name}
-                </TableColumn>
-              )}
-            </TableHeader>
-            <TableBody
-              items={discounts}
-              emptyContent={"No discounts configured"}
-            >
-              {(item) => (
-                <TableRow key={item.id}>
-                  {(columnKey) => {
-                    const index = discounts.indexOf(item);
-                    if (columnKey === "order") {
-                      return (
-                        <TableCell>
-                          <div className="flex flex-col gap-1">
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              onPress={() => moveItem(index, "up")}
-                              disabled={index === 0}
-                              className="text-zinc-300"
-                            >
-                              <ArrowUp size={14} />
-                            </Button>
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              onPress={() => moveItem(index, "down")}
-                              disabled={index === discounts.length - 1}
-                              className="text-zinc-300"
-                            >
-                              <ArrowDown size={14} />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      );
-                    }
-                    if (columnKey === "name") {
-                      return (
-                        <TableCell>
-                          <span className="font-bold text-white">
-                            {item.name}
-                          </span>
-                        </TableCell>
-                      );
-                    }
-                    if (columnKey === "type") {
-                      return (
-                        <TableCell>
-                          <Chip
-                            color={
-                              item.type === "wallet" ? "secondary" : "primary"
-                            }
-                            variant="flat"
-                            size="sm"
-                            startContent={
-                              item.type === "wallet" ? (
-                                <Wallet size={14} />
-                              ) : (
-                                <Tag size={14} />
-                              )
-                            }
-                          >
-                            {item.type === "wallet"
-                              ? "Wallet Credit"
-                              : "Direct Discount"}
-                          </Chip>
-                        </TableCell>
-                      );
-                    }
-                    if (columnKey === "rules") {
-                      return (
-                        <TableCell>
-                          <div className="flex flex-col text-sm">
-                            <span className="text-white">
-                              {item.percentage}% (Max AED {item.maxDiscount})
-                            </span>
-                            <span className="text-zinc-400">
-                              Min Spend: AED {item.minAmount}
-                            </span>
-                            {item.type === "wallet" && item.expiryDays > 0 && (
-                              <span className="text-orange-400 text-xs">
-                                Expires in {item.expiryDays} days
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                      );
-                    }
-                    if (columnKey === "status") {
-                      return (
-                        <TableCell>
-                          <Chip
-                            color={item.isActive ? "success" : "default"}
-                            variant="dot"
-                            size="sm"
-                            classNames={{
-                              base: "text-zinc-200",
-                            }}
-                          >
-                            {item.isActive ? "Active" : "Inactive"}
-                          </Chip>
-                        </TableCell>
-                      );
-                    }
-                    if (columnKey === "actions") {
-                      return (
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-2">
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              color={item.isActive ? "warning" : "success"}
-                              onPress={() => handleToggle(item.id)}
-                            >
-                              <Power size={18} />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="light"
-                              onPress={() => handleEdit(item)}
-                              className="text-zinc-300"
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="light"
-                              color="danger"
-                              onPress={() => handleDelete(item.id)}
-                            >
-                              <Trash2 size={18} />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      );
-                    }
-                    return <TableCell>{item[columnKey]}</TableCell>;
-                  }}
+        <CardContent className="p-0">
+          <div className="max-h-[520px] overflow-auto">
+            <Table>
+              <TableHeader className="bg-[#272727]">
+                <TableRow className="border-zinc-800 hover:bg-[#272727]">
+                  <TableHead className="text-gray-300">ORDER</TableHead>
+                  <TableHead className="text-gray-300">NAME</TableHead>
+                  <TableHead className="text-gray-300">TYPE</TableHead>
+                  <TableHead className="text-gray-300">RULES</TableHead>
+                  <TableHead className="text-gray-300">STATUS</TableHead>
+                  <TableHead className="text-center text-gray-300">ACTIONS</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardBody>
+              </TableHeader>
+              <TableBody>
+                {discounts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-gray-400">
+                      No discounts configured
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  discounts.map((item, index) => (
+                    <TableRow key={item.id} className="border-zinc-800 hover:bg-zinc-800/50">
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => moveItem(index, "up")}
+                            disabled={index === 0}
+                            className="text-zinc-300 h-6 w-6"
+                          >
+                            <ArrowUp size={14} />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => moveItem(index, "down")}
+                            disabled={index === discounts.length - 1}
+                            className="text-zinc-300 h-6 w-6"
+                          >
+                            <ArrowDown size={14} />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-bold text-white">
+                          {item.name}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={item.type === "wallet" ? "secondary" : "default"}
+                          className="flex items-center gap-1 w-fit"
+                        >
+                          {item.type === "wallet" ? (
+                            <Wallet size={14} />
+                          ) : (
+                            <Tag size={14} />
+                          )}
+                          {item.type === "wallet"
+                            ? "Wallet Credit"
+                            : "Direct Discount"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col text-sm">
+                          <span className="text-white">
+                            {item.percentage}% (Max AED {item.maxDiscount})
+                          </span>
+                          <span className="text-zinc-400">
+                            Min Spend: AED {item.minAmount}
+                          </span>
+                          {item.type === "wallet" && item.expiryDays > 0 && (
+                            <span className="text-orange-400 text-xs">
+                              Expires in {item.expiryDays} days
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={item.isActive ? "success" : "secondary"}
+                          className={item.isActive ? "bg-green-500/20 text-green-500 hover:bg-green-500/30" : "bg-zinc-500/20 text-zinc-500 hover:bg-zinc-500/30"}
+                        >
+                          {item.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className={item.isActive ? "text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10" : "text-green-500 hover:text-green-400 hover:bg-green-500/10"}
+                            onClick={() => handleToggle(item.id)}
+                          >
+                            <Power size={18} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEdit(item)}
+                            className="text-zinc-300 hover:bg-zinc-800"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                            onClick={() => handleDelete(item.id)}
+                          >
+                            <Trash2 size={18} />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
       </Card>
 
-      <Modal
-        isOpen={isOpen}
-        onOpenChange={onOpenChange}
-        classNames={{
-          base: "bg-[#181818] border border-zinc-800 text-white",
-          header: "border-b border-zinc-800",
-          footer: "border-t border-zinc-800",
-          closeButton: "hover:bg-zinc-800 active:bg-zinc-800",
-        }}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                {editingId ? "Edit Discount" : "Add New Discount"}
-              </ModalHeader>
-              <ModalBody className="py-6">
-                <div className="space-y-4">
-                  <Input
-                    label="Discount Name"
-                    placeholder="e.g. Summer Sale"
-                    variant="bordered"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                    classNames={{
-                      inputWrapper:
-                        "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
-                      input: "text-white",
-                    }}
-                  />
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-[500px] bg-[#181818] border-zinc-800 text-white">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Edit Discount" : "Add New Discount"}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Discount Name</Label>
+              <Input
+                id="name"
+                placeholder="e.g. Summer Sale"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                className="bg-[#272727] border-zinc-700 text-white focus-visible:ring-offset-0"
+              />
+            </div>
 
-                  <Select
-                    label="Discount Type"
-                    variant="bordered"
-                    selectedKeys={[formData.type]}
-                    onChange={(e) =>
-                      setFormData({ ...formData, type: e.target.value })
-                    }
-                    classNames={{
-                      trigger:
-                        "bg-[#272727] border-zinc-700 hover:border-zinc-500 data-[focus=true]:border-white",
-                      value: "text-white",
-                      popoverContent: "bg-[#181818] border border-zinc-800",
-                    }}
-                  >
-                    <SelectItem
-                      key="direct"
-                      value="direct"
-                      className="text-white hover:bg-zinc-800"
-                    >
-                      Direct Discount
-                    </SelectItem>
-                    <SelectItem
-                      key="wallet"
-                      value="wallet"
-                      className="text-white hover:bg-zinc-800"
-                    >
-                      Wallet Credit
-                    </SelectItem>
-                  </Select>
+            <div className="space-y-2">
+              <Label htmlFor="type">Discount Type</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, type: value })
+                }
+              >
+                <SelectTrigger className="bg-[#272727] border-zinc-700 text-white">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#181818] border-zinc-800 text-white">
+                  <SelectItem value="direct" className="focus:bg-zinc-800 focus:text-white">Direct Discount</SelectItem>
+                  <SelectItem value="wallet" className="focus:bg-zinc-800 focus:text-white">Wallet Credit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Percentage"
-                      placeholder="0-100"
-                      type="number"
-                      variant="bordered"
-                      endContent={<span className="text-zinc-400">%</span>}
-                      value={formData.percentage}
-                      onChange={(e) =>
-                        setFormData({ ...formData, percentage: e.target.value })
-                      }
-                      classNames={{
-                        inputWrapper:
-                          "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
-                        input: "text-white",
-                      }}
-                    />
-                    <Input
-                      label="Max Amount (AED)"
-                      placeholder="Amount"
-                      type="number"
-                      variant="bordered"
-                      value={formData.maxDiscount}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          maxDiscount: e.target.value,
-                        })
-                      }
-                      classNames={{
-                        inputWrapper:
-                          "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
-                        input: "text-white",
-                      }}
-                    />
-                  </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="percentage">Percentage</Label>
+                <div className="relative">
                   <Input
-                    label="Min Spend (AED)"
-                    placeholder="Amount"
+                    id="percentage"
+                    placeholder="0-100"
                     type="number"
-                    variant="bordered"
-                    value={formData.minAmount}
+                    value={formData.percentage}
                     onChange={(e) =>
-                      setFormData({ ...formData, minAmount: e.target.value })
+                      setFormData({ ...formData, percentage: e.target.value })
                     }
-                    classNames={{
-                      inputWrapper:
-                        "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
-                      input: "text-white",
-                    }}
+                    className="bg-[#272727] border-zinc-700 text-white focus-visible:ring-offset-0 pr-8"
                   />
-
-                  {formData.type === "wallet" && (
-                    <Input
-                      label="Expiry (Days)"
-                      placeholder="0 for no expiry"
-                      type="number"
-                      variant="bordered"
-                      value={formData.expiryDays}
-                      onChange={(e) =>
-                        setFormData({ ...formData, expiryDays: e.target.value })
-                      }
-                      classNames={{
-                        inputWrapper:
-                          "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white",
-                        input: "text-white",
-                      }}
-                    />
-                  )}
-
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      isSelected={formData.isActive}
-                      onValueChange={(v) =>
-                        setFormData({ ...formData, isActive: v })
-                      }
-                    />
-                    <span className="text-sm text-zinc-400">Active</span>
-                  </div>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">%</span>
                 </div>
-              </ModalBody>
-              <ModalFooter>
-                <Button color="danger" variant="light" onPress={onClose}>
-                  Cancel
-                </Button>
-                <Button
-                  color="primary"
-                  onPress={() => handleSave(onClose)}
-                  isLoading={isLoading}
-                >
-                  Save Discount
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="maxDiscount">Max Amount (AED)</Label>
+                <Input
+                  id="maxDiscount"
+                  placeholder="Amount"
+                  type="number"
+                  value={formData.maxDiscount}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      maxDiscount: e.target.value,
+                    })
+                  }
+                  className="bg-[#272727] border-zinc-700 text-white focus-visible:ring-offset-0"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="minAmount">Min Spend (AED)</Label>
+              <Input
+                id="minAmount"
+                placeholder="Amount"
+                type="number"
+                value={formData.minAmount}
+                onChange={(e) =>
+                  setFormData({ ...formData, minAmount: e.target.value })
+                }
+                className="bg-[#272727] border-zinc-700 text-white focus-visible:ring-offset-0"
+              />
+            </div>
+
+            {formData.type === "wallet" && (
+              <div className="space-y-2">
+                <Label htmlFor="expiryDays">Expiry (Days)</Label>
+                <Input
+                  id="expiryDays"
+                  placeholder="0 for no expiry"
+                  type="number"
+                  value={formData.expiryDays}
+                  onChange={(e) =>
+                    setFormData({ ...formData, expiryDays: e.target.value })
+                  }
+                  className="bg-[#272727] border-zinc-700 text-white focus-visible:ring-offset-0"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-2">
+              <Switch
+                id="isActive"
+                checked={formData.isActive}
+                onCheckedChange={(v) =>
+                  setFormData({ ...formData, isActive: v })
+                }
+              />
+              <Label htmlFor="isActive" className="text-sm text-zinc-400 cursor-pointer">Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsOpen(false)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isLoading ? "Saving..." : "Save Discount"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

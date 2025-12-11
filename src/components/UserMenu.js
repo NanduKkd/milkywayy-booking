@@ -1,19 +1,18 @@
 "use client";
 
 import {
-  Dropdown,
-  DropdownTrigger,
   DropdownMenu,
-  DropdownItem,
-  Button,
-  User,
-  Navbar,
-  NavbarBrand,
-  NavbarContent,
-  NavbarItem,
-} from "@heroui/react";
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/contexts/auth";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function UserMenu() {
   const { authState, login, logout } = useAuth();
@@ -27,7 +26,7 @@ export default function UserMenu() {
 
   if (!isAuthenticated) {
     return (
-      <Button color="primary" variant="flat" onPress={login}>
+      <Button onClick={login}>
         Login
       </Button>
     );
@@ -35,39 +34,37 @@ export default function UserMenu() {
 
   return (
     <div className="flex items-center gap-4 text-white">
-      <Dropdown placement="bottom-end">
-        <DropdownTrigger>
-          <User
-            as="button"
-            avatarProps={{
-              isBordered: true,
-              src: "", // Add avatar URL if available
-              color: "primary",
-              size: "sm",
-            }}
-            className="transition-transform"
-            name="" // Hiding name in the trigger to keep it clean, shown in text above or in menu
-          />
-        </DropdownTrigger>
-        <DropdownMenu aria-label="User Actions" variant="flat">
-          <DropdownItem key="profile" className="h-14 gap-2">
-            <p className="font-semibold">{user?.phone}</p>
-          </DropdownItem>
-
-          <DropdownItem key="dashboard" href="/dashboard/bookings">
-            My Bookings
-          </DropdownItem>
-          <DropdownItem key="invoices" href="/dashboard/invoices">
-            Invoices
-          </DropdownItem>
-          <DropdownItem key="wallet" href="/dashboard/wallet">
-            Wallet
-          </DropdownItem>
-          <DropdownItem key="logout" color="danger" onPress={handleLogout}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Avatar className="h-8 w-8">
+              <AvatarImage src="" alt={user?.phone} />
+              <AvatarFallback>{user?.phone?.slice(0, 2)}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="end" forceMount>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{user?.phone}</p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/bookings">My Bookings</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/invoices">Invoices</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/dashboard/wallet">Wallet</Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
             Log Out
-          </DropdownItem>
-        </DropdownMenu>
-      </Dropdown>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

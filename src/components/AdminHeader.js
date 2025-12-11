@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Navbar,
-  NavbarBrand,
-  NavbarContent,
-  NavbarItem,
-  Button,
-} from "@heroui/react";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/contexts/auth";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -21,19 +15,17 @@ export default function AdminHeader() {
   };
 
   return (
-    <Navbar maxWidth="full" isBordered>
-      <NavbarBrand>
+    <nav className="flex h-16 w-full items-center justify-between border-b px-4 lg:px-6 bg-background">
+      <div className="flex items-center">
         <Link href="/admin" className="font-bold text-inherit">
           ADMIN PANEL
         </Link>
-      </NavbarBrand>
-      <NavbarContent justify="end">
-        <NavbarItem>
-          <Button color="danger" variant="flat" onPress={handleLogout}>
-            Log Out
-          </Button>
-        </NavbarItem>
-      </NavbarContent>
-    </Navbar>
+      </div>
+      <div className="flex items-center justify-end">
+        <Button variant="ghost" className="text-red-600 hover:text-red-600 hover:bg-red-50" onClick={handleLogout}>
+          Log Out
+        </Button>
+      </div>
+    </nav>
   );
 }

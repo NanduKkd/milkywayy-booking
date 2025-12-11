@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Controller } from "react-hook-form";
-import { Button } from "@heroui/react";
+import { Button } from "@/components/ui/button";
 
 export default function FileUpload({
   name,
@@ -44,44 +44,44 @@ export default function FileUpload({
             />
             {!value || !(value instanceof File || typeof value === "string")
               ? <Button
-                  color="primary"
-                  variant="light"
-                  onPress={handleButtonClick}
-                  className="w-full justify-start"
-                >
-                  {buttonText}
-                </Button>
+                variant="outline"
+                onClick={handleButtonClick}
+                className="w-full justify-start"
+                type="button"
+              >
+                {buttonText}
+              </Button>
               : <div className="flex items-center space-x-3">
-                  {accept.includes("image") && (
-                    <img
-                      src={
-                        value instanceof File
-                          ? URL.createObjectURL(value)
-                          : process.env.NEXT_PUBLIC_FILE_URL + value
-                      }
-                      alt="Preview"
-                      className="w-12 h-12 object-cover rounded-lg border border-gray-200"
-                    />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">
-                      {value instanceof File ? value.name : value}
+                {accept.includes("image") && (
+                  <img
+                    src={
+                      value instanceof File
+                        ? URL.createObjectURL(value)
+                        : process.env.NEXT_PUBLIC_FILE_URL + value
+                    }
+                    alt="Preview"
+                    className="w-12 h-12 object-cover rounded-lg border border-gray-200"
+                  />
+                )}
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    {value instanceof File ? value.name : value}
+                  </p>
+                  {value instanceof File && (
+                    <p className="text-xs text-gray-500">
+                      {(value.size / 1024).toFixed(1)} KB
                     </p>
-                    {value instanceof File && (
-                      <p className="text-xs text-gray-500">
-                        {(value.size / 1024).toFixed(1)} KB
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    color="primary"
-                    variant="light"
-                    size="sm"
-                    onPress={handleButtonClick}
-                  >
-                    {changeButtonText}
-                  </Button>
-                </div>}
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleButtonClick}
+                  type="button"
+                >
+                  {changeButtonText}
+                </Button>
+              </div>}
             {fieldState.error && (
               <p className="mt-1 text-sm text-red-600">
                 {fieldState.error.message}

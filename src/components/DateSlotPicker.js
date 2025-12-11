@@ -1,23 +1,22 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import {
-  Button,
-  Spinner,
-  cn,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  Input,
-} from "@heroui/react";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { getAvailabilityForRange } from "@/lib/actions/bookings";
 import {
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIcon,
   Clock,
+  Loader2,
 } from "lucide-react";
 
 const TIME_SLOTS = [
@@ -37,7 +36,7 @@ export default function DateSlotPicker({
   allowEvening = false,
   blockedSlotsMap = {},
 }) {
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const [isOpen, setIsOpen] = useState(false);
 
   const parseDate = (str) => {
     if (!str) return null;
@@ -240,191 +239,174 @@ export default function DateSlotPicker({
 
   return (
     <>
-      <div onClick={onOpen} className="cursor-pointer">
-        <Input
-          value={formatDisplayValue()}
-          placeholder="Select Date & Time"
-          variant="bordered"
-          readOnly
-          startContent={<CalendarIcon className="text-gray-400" size={16} />}
-          classNames={{
-            inputWrapper:
-              "bg-[#272727] border-zinc-700 hover:border-zinc-500 group-data-[focus=true]:border-white cursor-pointer",
-            input: "text-white cursor-pointer",
-          }}
-          errorMessage={error}
-          isInvalid={!!error}
-        />
+      <div onClick={() => setIsOpen(true)} className="cursor-pointer">
+        <div className="relative">
+          <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+          <Input
+            value={formatDisplayValue()}
+            placeholder="Select Date & Time"
+            readOnly
+            className={cn(
+              "pl-9 cursor-pointer bg-[#272727] border-zinc-700 text-white placeholder:text-muted-foreground focus-visible:ring-offset-0 focus-visible:ring-1 focus-visible:ring-white",
+              error && "border-red-500 focus-visible:ring-red-500"
+            )}
+          />
+        </div>
+        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       </div>
 
-      <Modal
-        isOpen={isOpen}
-        onOpenChange={onOpenChange}
-        size="2xl"
-        classNames={{
-          base: "bg-[#18181b] border border-zinc-800 text-white",
-          header: "border-b border-zinc-800",
-          footer: "border-t border-zinc-800",
-          closeButton: "hover:bg-zinc-800 active:bg-zinc-700",
-        }}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                Select Date & Time
-              </ModalHeader>
-              <ModalBody className="py-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Calendar Section */}
-                  <div className="w-full">
-                    <div className="flex justify-between items-center mb-4">
-                      <Button
-                        onClick={handlePrevMonth}
-                        size="sm"
-                        variant="light"
-                        isIconOnly
-                        className="text-white hover:bg-zinc-800"
-                      >
-                        <ChevronLeft size={20} />
-                      </Button>
-                      <h2 className="text-lg font-semibold text-white">
-                        {new Date(currentYear, currentMonth).toLocaleDateString(
-                          "en-US",
-                          {
-                            month: "long",
-                            year: "numeric",
-                          },
-                        )}
-                      </h2>
-                      <Button
-                        onClick={handleNextMonth}
-                        size="sm"
-                        variant="light"
-                        isIconOnly
-                        className="text-white hover:bg-zinc-800"
-                      >
-                        <ChevronRight size={20} />
-                      </Button>
-                    </div>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-2xl bg-[#18181b] border-zinc-800 text-white p-0 gap-0 overflow-hidden">
+          <DialogHeader className="p-6 border-b border-zinc-800">
+            <DialogTitle>Select Date & Time</DialogTitle>
+          </DialogHeader>
 
-                    <div className="grid grid-cols-7 gap-1 mb-2">
-                      {daysOfWeek.map((day) => (
-                        <div
-                          key={day}
-                          className="text-center text-xs font-medium text-gray-500 py-1"
-                        >
-                          {day}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-7 gap-1 relative min-h-[200px]">
-                      {loading && (
-                        <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center rounded-lg">
-                          <Spinner size="sm" color="white" />
-                        </div>
-                      )}
-                      {daysInMonth.map((day, index) => {
-                        const disabled = isDateDisabled(day);
-                        return (
-                          <button
-                            key={index}
-                            onClick={() => !disabled && handleDateClick(day)}
-                            disabled={disabled}
-                            type="button"
-                            className={cn(
-                              "h-9 w-full rounded-lg text-sm flex items-center justify-center transition-colors relative",
-                              !day && "invisible",
-                              isSelected(day)
-                                ? "bg-white text-black font-semibold"
-                                : isToday(day)
-                                  ? "bg-zinc-800 text-white border border-zinc-600"
-                                  : "text-gray-300 hover:bg-zinc-800",
-                              disabled &&
-                                "opacity-30 cursor-not-allowed hover:bg-transparent text-zinc-600",
-                            )}
-                          >
-                            {day}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Slot Selection Section */}
-                  <div className="border-t md:border-t-0 md:border-l border-zinc-800 p-6 md:pr-0 flex flex-col">
-                    <h3 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
-                      <Clock size={18} />
-                      Available Slots
-                    </h3>
-
-                    {!date
-                      ? <div className="flex-1 flex items-center justify-center text-gray-500 text-sm italic">
-                          Select a date to view slots
-                        </div>
-                      : <div className="space-y-3">
-                          <p className="text-sm text-gray-400 mb-2">
-                            For {new Date(date).toLocaleDateString()}
-                          </p>
-                          <div className="grid grid-cols-1 gap-3">
-                            {TIME_SLOTS.map((timeSlot) => {
-                              const isAvailable = isSlotAvailable(
-                                timeSlot.value,
-                                currentBlockedSlots,
-                              );
-                              const isSelectedSlot = slot === timeSlot.value;
-
-                              return (
-                                <button
-                                  key={timeSlot.value}
-                                  onClick={() =>
-                                    isAvailable && onSlotChange(timeSlot.value)
-                                  }
-                                  disabled={!isAvailable}
-                                  type="button"
-                                  className={cn(
-                                    "px-4 py-3 rounded-xl border text-sm font-medium transition-all flex justify-between items-center w-full",
-                                    isSelectedSlot
-                                      ? "bg-white text-black border-white"
-                                      : "bg-[#272727] text-gray-300 border-zinc-700 hover:border-zinc-500",
-                                    !isAvailable &&
-                                      "opacity-50 cursor-not-allowed hover:border-zinc-700 bg-[#1a1a1a] text-zinc-600",
-                                  )}
-                                >
-                                  <span>{timeSlot.label}</span>
-                                  {!isAvailable && (
-                                    <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-gray-400">
-                                      Unavailable
-                                    </span>
-                                  )}
-                                  {isSelectedSlot && (
-                                    <span className="w-2 h-2 rounded-full bg-black"></span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>}
-                  </div>
-                </div>
-              </ModalBody>
-              <ModalFooter>
-                <Button color="danger" variant="light" onPress={onClose}>
-                  Cancel
-                </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2">
+            {/* Calendar Section */}
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
                 <Button
-                  className="bg-white text-black font-semibold"
-                  onPress={onClose}
-                  isDisabled={!date || !slot}
+                  onClick={handlePrevMonth}
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-white hover:bg-zinc-800 hover:text-white"
                 >
-                  Confirm Selection
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+                <h2 className="text-lg font-semibold text-white">
+                  {new Date(currentYear, currentMonth).toLocaleDateString(
+                    "en-US",
+                    {
+                      month: "long",
+                      year: "numeric",
+                    },
+                  )}
+                </h2>
+                <Button
+                  onClick={handleNextMonth}
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-white hover:bg-zinc-800 hover:text-white"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 mb-2">
+                {daysOfWeek.map((day) => (
+                  <div
+                    key={day}
+                    className="text-center text-xs font-medium text-gray-500 py-1"
+                  >
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 relative min-h-[200px]">
+                {loading && (
+                  <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center rounded-lg">
+                    <Loader2 className="h-6 w-6 animate-spin text-white" />
+                  </div>
+                )}
+                {daysInMonth.map((day, index) => {
+                  const disabled = isDateDisabled(day);
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => !disabled && handleDateClick(day)}
+                      disabled={disabled}
+                      type="button"
+                      className={cn(
+                        "h-9 w-full rounded-lg text-sm flex items-center justify-center transition-colors relative",
+                        !day && "invisible",
+                        isSelected(day)
+                          ? "bg-white text-black font-semibold"
+                          : isToday(day)
+                            ? "bg-zinc-800 text-white border border-zinc-600"
+                            : "text-gray-300 hover:bg-zinc-800",
+                        disabled &&
+                        "opacity-30 cursor-not-allowed hover:bg-transparent text-zinc-600",
+                      )}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Slot Selection Section */}
+            <div className="border-t md:border-t-0 md:border-l border-zinc-800 p-6 flex flex-col bg-[#18181b]">
+              <h3 className="text-md font-semibold text-white mb-4 flex items-center gap-2">
+                <Clock size={18} />
+                Available Slots
+              </h3>
+
+              {!date
+                ? <div className="flex-1 flex items-center justify-center text-gray-500 text-sm italic">
+                  Select a date to view slots
+                </div>
+                : <div className="space-y-3">
+                  <p className="text-sm text-gray-400 mb-2">
+                    For {new Date(date).toLocaleDateString()}
+                  </p>
+                  <div className="grid grid-cols-1 gap-3">
+                    {TIME_SLOTS.map((timeSlot) => {
+                      const isAvailable = isSlotAvailable(
+                        timeSlot.value,
+                        currentBlockedSlots,
+                      );
+                      const isSelectedSlot = slot === timeSlot.value;
+
+                      return (
+                        <button
+                          key={timeSlot.value}
+                          onClick={() =>
+                            isAvailable && onSlotChange(timeSlot.value)
+                          }
+                          disabled={!isAvailable}
+                          type="button"
+                          className={cn(
+                            "px-4 py-3 rounded-xl border text-sm font-medium transition-all flex justify-between items-center w-full",
+                            isSelectedSlot
+                              ? "bg-white text-black border-white"
+                              : "bg-[#272727] text-gray-300 border-zinc-700 hover:border-zinc-500",
+                            !isAvailable &&
+                            "opacity-50 cursor-not-allowed hover:border-zinc-700 bg-[#1a1a1a] text-zinc-600",
+                          )}
+                        >
+                          <span>{timeSlot.label}</span>
+                          {!isAvailable && (
+                            <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-gray-400">
+                              Unavailable
+                            </span>
+                          )}
+                          {isSelectedSlot && (
+                            <span className="w-2 h-2 rounded-full bg-black"></span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>}
+            </div>
+          </div>
+
+          <DialogFooter className="p-6 border-t border-zinc-800">
+            <Button variant="ghost" onClick={() => setIsOpen(false)} className="text-red-500 hover:text-red-400 hover:bg-red-500/10">
+              Cancel
+            </Button>
+            <Button
+              className="bg-white text-black hover:bg-gray-200 font-semibold"
+              onClick={() => setIsOpen(false)}
+              disabled={!date || !slot}
+            >
+              Confirm Selection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

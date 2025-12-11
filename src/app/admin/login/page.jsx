@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Input, Button, Card, CardBody, CardHeader } from "@heroui/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
 import { adminLogin } from "@/lib/actions/auth";
 import { signInSchema } from "@/lib/schema/auth.schema";
@@ -51,47 +54,54 @@ export default function AdminLoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md p-6">
-        <CardHeader className="flex flex-col gap-1 items-center">
-          <h1 className="text-2xl font-bold">Admin Login</h1>
-          <p className="text-sm text-gray-500">
+      <Card className="w-full max-w-md">
+        <CardHeader className="flex flex-col gap-1 items-center text-center">
+          <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
+          <CardDescription>
             Enter your credentials to access admin panel
-          </p>
+          </CardDescription>
         </CardHeader>
-        <CardBody>
+        <CardContent>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm">
               {error}
             </div>
           )}
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-              {...register("email")}
-              label="Email"
-              placeholder="admin@example.com"
-              variant="bordered"
-              isInvalid={!!errors.email}
-              errorMessage={errors.email?.message}
-            />
-            <Input
-              {...register("password")}
-              label="Password"
-              placeholder="********"
-              type="password"
-              variant="bordered"
-              isInvalid={!!errors.password}
-              errorMessage={errors.password?.message}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                {...register("email")}
+                placeholder="admin@example.com"
+                className={errors.email ? "border-red-500" : ""}
+              />
+              {errors.email && (
+                <p className="text-xs text-red-500">{errors.email.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                {...register("password")}
+                placeholder="********"
+                type="password"
+                className={errors.password ? "border-red-500" : ""}
+              />
+              {errors.password && (
+                <p className="text-xs text-red-500">{errors.password.message}</p>
+              )}
+            </div>
             <Button
               type="submit"
-              color="primary"
               className="w-full"
-              isLoading={isLoading}
+              disabled={isLoading}
             >
-              Login
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
           </form>
-        </CardBody>
+        </CardContent>
       </Card>
     </div>
   );

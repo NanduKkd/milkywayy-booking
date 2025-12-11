@@ -1,7 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Modal, ModalContent, ModalHeader, ModalBody } from "@heroui/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import CreateUserForm from "@/components/CreateUserForm";
 
 export default function CreateUserModal() {
@@ -18,21 +23,15 @@ export default function CreateUserModal() {
   };
 
   return (
-    <Modal
-      isOpen={true}
-      onClose={handleClose}
-      placement="center"
-      backdrop="blur"
-      hideCloseButton
-    >
-      <ModalContent>
-        <ModalHeader className="flex flex-col gap-1">
-          Create New User
-        </ModalHeader>
-        <ModalBody>
+    <Dialog open={true} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Create New User</DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
           <CreateUserForm onSubmit={handleSubmit} onCancel={handleClose} />
-        </ModalBody>
-      </ModalContent>
-    </Modal>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

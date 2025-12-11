@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@heroui/react";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function CustomCalendar({
   selectedDate,
@@ -80,16 +81,16 @@ export default function CustomCalendar({
   const daysInMonth = getDaysInMonth(currentMonth, currentYear);
 
   return (
-    <div className="w-full max-w-md mx-auto bg-[#18181b] border border-zinc-800 rounded-lg shadow-lg p-4 text-white">
+    <div className="w-full max-w-md mx-auto bg-card border border-border rounded-lg shadow-lg p-4 text-card-foreground">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <Button
           onClick={handlePrevMonth}
-          size="sm"
-          variant="light"
-          className="w-8 h-8 p-0 text-white hover:bg-zinc-800"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground"
         >
-          ‹
+          <ChevronLeft className="h-4 w-4" />
         </Button>
         <h2 className="text-lg font-semibold">
           {new Date(currentYear, currentMonth).toLocaleDateString("en-US", {
@@ -99,11 +100,11 @@ export default function CustomCalendar({
         </h2>
         <Button
           onClick={handleNextMonth}
-          size="sm"
-          variant="light"
-          className="w-8 h-8 p-0 text-white hover:bg-zinc-800"
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 p-0 hover:bg-accent hover:text-accent-foreground"
         >
-          ›
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
 
@@ -112,7 +113,7 @@ export default function CustomCalendar({
         {daysOfWeek.map((day) => (
           <div
             key={day}
-            className="text-center text-sm font-medium text-gray-400 py-2"
+            className="text-center text-sm font-medium text-muted-foreground py-2"
           >
             {day}
           </div>
@@ -130,13 +131,16 @@ export default function CustomCalendar({
               (minDate && new Date(currentYear, currentMonth, day) < minDate) ||
               (maxDate && new Date(currentYear, currentMonth, day) > maxDate)
             }
-            className={`w-8 h-8 text-sm rounded-full hover:bg-zinc-700 disabled:hover:bg-transparent disabled:text-zinc-600 ${
-              isSelected(day)
-                ? "bg-white text-black hover:bg-gray-200"
+            className={`w-8 h-8 text-sm rounded-full flex items-center justify-center transition-colors
+              ${!day ? "invisible" : ""}
+              ${isSelected(day)
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : isToday(day)
-                  ? "bg-zinc-800 text-white border border-zinc-600"
-                  : "text-gray-300"
-            }`}
+                  ? "bg-accent text-accent-foreground"
+                  : "text-foreground hover:bg-accent hover:text-accent-foreground"
+              }
+              disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed
+            `}
           >
             {day}
           </button>

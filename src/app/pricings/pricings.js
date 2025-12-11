@@ -3,20 +3,21 @@ import { use } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  Button,
-  Input,
   Table,
   TableBody,
   TableCell,
-  TableColumn,
+  TableHead,
   TableHeader,
   TableRow,
-  addToast,
-} from "@heroui/react";
+} from "@/components/ui/table";
+import { toast } from "sonner";
 import FileUpload from "@/components/FileUpload";
 // import { savePricings } from '@/lib/actions/dynamicConfig';
 import { makeCustomFormData } from "@/lib/helpers/customFormData";
+import { Label } from "@/components/ui/label";
 
 const propertyTypeSchema = z.object({
   propertyType: z.string().min(1, "Property type is required"),
@@ -61,106 +62,126 @@ function PropertyTypeSection({ sectionIndex, control }) {
 
   return (
     <>
-      <Table aria-label="Property types pricing table">
-        <TableHeader>
-          <TableColumn>Property Type</TableColumn>
-          <TableColumn>Photo</TableColumn>
-          <TableColumn>Video</TableColumn>
-          <TableColumn>Combined</TableColumn>
-          <TableColumn>Actions</TableColumn>
-        </TableHeader>
-        <TableBody emptyContent="No property types added yet">
-          {propertyFields.map((field, propertyIndex) => (
-            <TableRow key={field.id}>
-              <TableCell>
-                <Controller
-                  name={`sections.${sectionIndex}.propertyTypes.${propertyIndex}.propertyType`}
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Input
-                      {...field}
-                      placeholder="Property type"
-                      variant="bordered"
-                      size="sm"
-                      isRequired
-                      errorMessage={fieldState.error?.message}
-                    />
-                  )}
-                />
-              </TableCell>
-              <TableCell>
-                <Controller
-                  name={`sections.${sectionIndex}.propertyTypes.${propertyIndex}.photo`}
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Input
-                      {...field}
-                      placeholder="Price"
-                      variant="bordered"
-                      size="sm"
-                      type="number"
-                      isRequired
-                      errorMessage={fieldState.error?.message}
-                    />
-                  )}
-                />
-              </TableCell>
-              <TableCell>
-                <Controller
-                  name={`sections.${sectionIndex}.propertyTypes.${propertyIndex}.video`}
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Input
-                      {...field}
-                      placeholder="Price"
-                      variant="bordered"
-                      size="sm"
-                      type="number"
-                      isRequired
-                      errorMessage={fieldState.error?.message}
-                    />
-                  )}
-                />
-              </TableCell>
-              <TableCell>
-                <Controller
-                  name={`sections.${sectionIndex}.propertyTypes.${propertyIndex}.combined`}
-                  control={control}
-                  render={({ field, fieldState }) => (
-                    <Input
-                      {...field}
-                      placeholder="Price"
-                      variant="bordered"
-                      size="sm"
-                      type="number"
-                      isRequired
-                      errorMessage={fieldState.error?.message}
-                    />
-                  )}
-                />
-              </TableCell>
-              <TableCell>
-                <Button
-                  color="danger"
-                  variant="light"
-                  size="sm"
-                  onPress={() => removePropertyType(propertyIndex)}
-                  isDisabled={propertyFields.length === 1}
-                >
-                  Delete
-                </Button>
-              </TableCell>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Property Type</TableHead>
+              <TableHead>Photo</TableHead>
+              <TableHead>Video</TableHead>
+              <TableHead>Combined</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {propertyFields.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground">
+                  No property types added yet
+                </TableCell>
+              </TableRow>
+            ) : (
+              propertyFields.map((field, propertyIndex) => (
+                <TableRow key={field.id}>
+                  <TableCell>
+                    <Controller
+                      name={`sections.${sectionIndex}.propertyTypes.${propertyIndex}.propertyType`}
+                      control={control}
+                      render={({ field, fieldState }) => (
+                        <div>
+                          <Input
+                            {...field}
+                            placeholder="Property type"
+                            className={fieldState.error ? "border-red-500" : ""}
+                          />
+                          {fieldState.error && (
+                            <p className="text-xs text-red-500 mt-1">{fieldState.error.message}</p>
+                          )}
+                        </div>
+                      )}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Controller
+                      name={`sections.${sectionIndex}.propertyTypes.${propertyIndex}.photo`}
+                      control={control}
+                      render={({ field, fieldState }) => (
+                        <div>
+                          <Input
+                            {...field}
+                            placeholder="Price"
+                            type="number"
+                            className={fieldState.error ? "border-red-500" : ""}
+                          />
+                          {fieldState.error && (
+                            <p className="text-xs text-red-500 mt-1">{fieldState.error.message}</p>
+                          )}
+                        </div>
+                      )}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Controller
+                      name={`sections.${sectionIndex}.propertyTypes.${propertyIndex}.video`}
+                      control={control}
+                      render={({ field, fieldState }) => (
+                        <div>
+                          <Input
+                            {...field}
+                            placeholder="Price"
+                            type="number"
+                            className={fieldState.error ? "border-red-500" : ""}
+                          />
+                          {fieldState.error && (
+                            <p className="text-xs text-red-500 mt-1">{fieldState.error.message}</p>
+                          )}
+                        </div>
+                      )}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Controller
+                      name={`sections.${sectionIndex}.propertyTypes.${propertyIndex}.combined`}
+                      control={control}
+                      render={({ field, fieldState }) => (
+                        <div>
+                          <Input
+                            {...field}
+                            placeholder="Price"
+                            type="number"
+                            className={fieldState.error ? "border-red-500" : ""}
+                          />
+                          {fieldState.error && (
+                            <p className="text-xs text-red-500 mt-1">{fieldState.error.message}</p>
+                          )}
+                        </div>
+                      )}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removePropertyType(propertyIndex)}
+                      disabled={propertyFields.length === 1}
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                      type="button"
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <div className="mt-4">
         <Button
-          color="secondary"
-          variant="light"
+          variant="secondary"
           type="button"
-          onPress={addPropertyType}
+          onClick={addPropertyType}
         >
           Add Property Type
         </Button>
@@ -209,9 +230,9 @@ export default function PricingsPage({ existingsPromise }) {
       // await savePricings(data);
       // console.log(makeCustomFormData(data), 'dhdfjhdjfh');
       // await savePricings(makeCustomFormData(data));
-      addToast({ title: "Pricings Updated", color: "success" });
+      toast.success("Pricings Updated");
     } catch (error) {
-      addToast({ title: error.message, color: "danger" });
+      toast.error(error.message);
     }
   };
 
@@ -222,89 +243,96 @@ export default function PricingsPage({ existingsPromise }) {
       <form onSubmit={handleSubmit(onSubmit)}>
         {sectionFields.length === 0
           ? <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                No pricing sections configured yet
-              </p>
-              <Button color="primary" type="button" onPress={addSection}>
-                Add Section
-              </Button>
-            </div>
+            <p className="text-gray-500 mb-4">
+              No pricing sections configured yet
+            </p>
+            <Button type="button" onClick={addSection}>
+              Add Section
+            </Button>
+          </div>
           : <div className="space-y-8">
-              {sectionFields.map((field, sectionIndex) => (
-                <div key={field.id} className="border rounded-lg p-6 bg-white">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <Controller
-                      name={`sections.${sectionIndex}.title`}
-                      control={control}
-                      render={({ field, fieldState }) => (
-                        <Input
-                          {...field}
-                          label="Section Title"
-                          placeholder="Enter section title"
-                          variant="bordered"
-                          isRequired
-                          errorMessage={fieldState.error?.message}
-                        />
-                      )}
-                    />
-
-                    <Controller
-                      name={`sections.${sectionIndex}.subtitle`}
-                      control={control}
-                      render={({ field, fieldState }) => (
-                        <Input
-                          {...field}
-                          label="Section Sub-title"
-                          placeholder="Enter section sub-title"
-                          variant="bordered"
-                          errorMessage={fieldState.error?.message}
-                        />
-                      )}
-                    />
-
-                    <FileUpload
-                      name={`sections.${sectionIndex}.icon`}
-                      control={control}
-                      label="Section Icon"
-                      accept="image/*"
-                      buttonText="Choose Image"
-                      changeButtonText="Change"
-                    />
-                  </div>
-
-                  <PropertyTypeSection
-                    sectionIndex={sectionIndex}
+            {sectionFields.map((field, sectionIndex) => (
+              <div key={field.id} className="border rounded-lg p-6 bg-card text-card-foreground">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <Controller
+                    name={`sections.${sectionIndex}.title`}
                     control={control}
+                    render={({ field, fieldState }) => (
+                      <div className="flex flex-col gap-2">
+                        <Label>Section Title</Label>
+                        <Input
+                          {...field}
+                          placeholder="Enter section title"
+                          className={fieldState.error ? "border-red-500" : ""}
+                        />
+                        {fieldState.error && (
+                          <p className="text-xs text-red-500">{fieldState.error.message}</p>
+                        )}
+                      </div>
+                    )}
                   />
 
-                  <div className="flex justify-end mt-4">
-                    <Button
-                      color="danger"
-                      variant="light"
-                      size="sm"
-                      onPress={() => removeSectionHandler(sectionIndex)}
-                      isDisabled={sectionFields.length === 1}
-                    >
-                      Delete Section
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                  <Controller
+                    name={`sections.${sectionIndex}.subtitle`}
+                    control={control}
+                    render={({ field, fieldState }) => (
+                      <div className="flex flex-col gap-2">
+                        <Label>Section Sub-title</Label>
+                        <Input
+                          {...field}
+                          placeholder="Enter section sub-title"
+                          className={fieldState.error ? "border-red-500" : ""}
+                        />
+                        {fieldState.error && (
+                          <p className="text-xs text-red-500">{fieldState.error.message}</p>
+                        )}
+                      </div>
+                    )}
+                  />
 
-              <div className="flex justify-center gap-4">
-                <Button color="primary" type="button" onPress={addSection}>
-                  Add Section
-                </Button>
-                <Button
-                  isDisabled={!isDirty}
-                  color="success"
-                  isLoading={isSubmitting}
-                  type="submit"
-                >
-                  Save Configuration
-                </Button>
+                  <FileUpload
+                    name={`sections.${sectionIndex}.icon`}
+                    control={control}
+                    label="Section Icon"
+                    accept="image/*"
+                    buttonText="Choose Image"
+                    changeButtonText="Change"
+                  />
+                </div>
+
+                <PropertyTypeSection
+                  sectionIndex={sectionIndex}
+                  control={control}
+                />
+
+                <div className="flex justify-end mt-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeSectionHandler(sectionIndex)}
+                    disabled={sectionFields.length === 1}
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                    type="button"
+                  >
+                    Delete Section
+                  </Button>
+                </div>
               </div>
-            </div>}
+            ))}
+
+            <div className="flex justify-center gap-4">
+              <Button type="button" onClick={addSection}>
+                Add Section
+              </Button>
+              <Button
+                disabled={!isDirty || isSubmitting}
+                className="bg-green-600 hover:bg-green-700 text-white"
+                type="submit"
+              >
+                {isSubmitting ? "Saving..." : "Save Configuration"}
+              </Button>
+            </div>
+          </div>}
       </form>
     </div>
   );

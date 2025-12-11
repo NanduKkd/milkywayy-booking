@@ -1,13 +1,13 @@
 "use client";
 
-import { HeroUIProvider, ToastProvider } from "@heroui/react";
 import { AuthProvider } from "@/lib/contexts/auth";
+import { Toaster } from "@/components/ui/sonner";
 
 export function Providers({ children, user }) {
   return (
-    <HeroUIProvider>
-      <ToastProvider />
-      <AuthProvider initialUser={user}>{children}</AuthProvider>
-    </HeroUIProvider>
+    <AuthProvider initialUser={user}>
+      {children}
+      <Toaster />
+    </AuthProvider>
   );
 }

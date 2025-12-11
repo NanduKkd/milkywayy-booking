@@ -1,6 +1,6 @@
 "use client";
 
-import { Navbar, NavbarBrand, NavbarContent, NavbarItem, Button } from "@heroui/react";
+import { Button } from "@/components/ui/button";
 import Image from 'next/image';
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -20,52 +20,43 @@ export default function CustomerHeader() {
   const isDashboardPage = pathname.startsWith("/dashboard");
 
   return (
-    <Navbar
-      maxWidth="xl"
-      className="fixed top-0 left-0 right-0 bg-transparent top-0 z-50 backdrop-blur-md border-b border-white/10"
-      isBordered={false}
-    >
-      <NavbarBrand>
-        <Link href="/" className="font-bold text-white flex gap-2 items-center text-xl">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/10 bg-transparent px-4 backdrop-blur-md lg:px-8">
+      <div className="flex items-center">
+        <Link href="/" className="flex items-center gap-2 text-xl font-bold text-white">
           <Image src="/logo-texxt.png" height="40" width="200" alt="Milkywayy" />
         </Link>
-      </NavbarBrand>
+      </div>
 
-      <NavbarContent justify="end">
+      <div className="flex items-center gap-4">
         {isAuthenticated ? (
           <>
-            <NavbarItem>
-              <Button
-                as={Link}
-                href={isDashboardPage ? "/booking" : "/dashboard/bookings"}
-                variant="ghost"
-                className="border-white/20 bg-transparent text-white"
-              >
+            <Button
+              asChild
+              variant="ghost"
+              className="border border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            >
+              <Link href={isDashboardPage ? "/booking" : "/dashboard/bookings"}>
                 {isDashboardPage ? "Book Now" : "Dashboard"}
-              </Button>
-            </NavbarItem>
-            <NavbarItem>
-              <Button
-                onPress={handleLogout}
-                variant="ghost"
-                className="border-white/20 bg-transparent text-white"
-              >
-                Logout
-              </Button>
-            </NavbarItem>
+              </Link>
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="border border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            >
+              Logout
+            </Button>
           </>
         ) : (
-          <NavbarItem>
-            <Button
-              onPress={login}
-              variant="ghost"
-              className="border-white/20 bg-transparent text-white"
-            >
-              Login
-            </Button>
-          </NavbarItem>
+          <Button
+            onClick={login}
+            variant="ghost"
+            className="border border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+          >
+            Login
+          </Button>
         )}
-      </NavbarContent>
-    </Navbar>
+      </div>
+    </nav>
   );
 }
