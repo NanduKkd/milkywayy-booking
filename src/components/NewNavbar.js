@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import DashboardLoginModal from "./LoginModal";
 import VideoModal from "./VideoModal";
 
-const logo = "/logo-sm.png";
+const logo = "/logo-with-title.png";
 
 const NewNavbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -51,11 +51,11 @@ const NewNavbar = () => {
         className={`transition-all duration-300 ${isScrolled ? "bg-background/90 backdrop-blur-lg shadow-lg" : "bg-transparent"
           }`}
       >
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto pl-2 pr-6 py-4">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link href="/" className="flex items-center">
-              <img src={logo} alt="Milkywayy Logo" className="h-8 w-auto" />
+              <img src={logo} alt="Milkywayy Logo" className="h-10 w-auto" />
             </Link>
 
             {/* Desktop Nav */}
@@ -109,7 +109,7 @@ const NewNavbar = () => {
 
           {/* Mobile Menu */}
           {isMobileMenuOpen && (
-            <div className="lg:hidden mt-4 pb-4 space-y-4 border-t border-border pt-4">
+            <div className="lg:hidden mt-4 pb-4 space-y-4 border-t border-border pt-4 bg-background/90 backdrop-blur-lg shadow-lg">
               {navItems.map((item) =>
                 item.href ? (
                   <Link
