@@ -11,7 +11,7 @@ const HeroSection = ({ onWatchVideo }) => {
 
   return (
     <section className="relative min-h-screen flex items-center pt-32 pb-20 overflow-hidden">
-      <div className="absolute inset-0 bg-background/5 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-secondary/30 border-t border-b border-border" />
 
       <div className="container mx-auto px-6 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">

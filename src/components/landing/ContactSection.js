@@ -63,8 +63,7 @@ const ContactSection = () => {
                 <SelectContent>
                   <SelectItem value="photography">Photography</SelectItem>
                   <SelectItem value="video">Video</SelectItem>
-                  <SelectItem value="360-tour">360° Virtual Tour</SelectItem>
-                  <SelectItem value="reels">Short-form Reels</SelectItem>
+                  <SelectItem value="360-tour">360 Virtual Tour</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
