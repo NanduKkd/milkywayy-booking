@@ -17,7 +17,7 @@ const AnnouncementBar = ({ onHeightChange }) => {
 
   return (
     <div 
-      className="text-center text-sm font-medium overflow-hidden transition-all duration-150"
+      className="text-center text-sm font-medium overflow-hidden transition-all duration-150 bg-gray-300 text-black"
       style={{
         height: `${36 * (1 - scrollProgress)}px`,
         opacity: 1 - scrollProgress,

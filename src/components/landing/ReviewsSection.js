@@ -65,7 +65,7 @@ const ReviewsSection = () => {
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center mb-16 fade-in">
           <h2 className="font-heading text-3xl md:text-4xl font-bold mb-4">
-            What brokers say after switching.
+            Client Voices
           </h2>
         </div>
 

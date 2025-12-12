@@ -26,15 +26,9 @@ const OurWorkPreview = () => {
     { type: "short-form", title: "Palm Villa Reel", category: "Short-form" },
     { type: "short-form", title: "Marina Lifestyle", category: "Short-form" },
     { type: "short-form", title: "Downtown Living", category: "Short-form" },
-    { type: "short-form", title: "JBR Beach View", category: "Short-form" },
-    { type: "short-form", title: "Business Bay Tour", category: "Short-form" },
-    { type: "short-form", title: "Creek Harbour Sunset", category: "Short-form" },
     { type: "long-form", title: "Palm Villa Walkthrough", category: "Long-form" },
     { type: "long-form", title: "Emirates Hills Estate", category: "Long-form" },
     { type: "long-form", title: "Downtown Sky Collection", category: "Long-form" },
-    { type: "long-form", title: "Bluewaters Penthouse", category: "Long-form" },
-    { type: "long-form", title: "Dubai Marina Tower", category: "Long-form" },
-    { type: "long-form", title: "Palm Jumeirah Villa", category: "Long-form" },
   ];
 
   const categories = ["Photography", "360°", "Short-form", "Long-form"];

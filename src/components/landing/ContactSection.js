@@ -10,7 +10,7 @@ const ContactSection = () => {
   const [formData, setFormData] = useState({
     name: "",
     company: "",
-    phone: "",
+    phone: "+971",
     email: "",
     service: "",
     message: ""
@@ -125,20 +125,17 @@ const ContactSection = () => {
             </div>
 
             <p className="text-sm text-muted-foreground">Prefer WhatsApp? 
-Tap to chat — we typically respond within minutes.
+Tap to chat - we typically respond within minutes.
           </p>
 
             {/* Social icons */}
             <div className="flex gap-4 pt-4">
               {[{
               icon: Instagram,
-              href: "#"
+              href: "https://www.instagram.com/milkywayy_com/"
             }, {
               icon: Linkedin,
-              href: "#"
-            }, {
-              icon: Youtube,
-              href: "#"
+              href: "https://www.linkedin.com/milkywayy-com/"
             }].map((social, i) => <a key={i} href={social.href} className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors">
                   <social.icon className="w-5 h-5" />
                 </a>)}

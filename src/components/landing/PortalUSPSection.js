@@ -75,7 +75,7 @@ const PortalUSPSection = () => {
           {/* Right: Features */}
           <div className="fade-in order-1 lg:order-2" style={{ animationDelay: "0.1s" }}>
             <h2 className="font-heading text-3xl md:text-4xl font-bold mb-8">
-              Everything in one place — book, track, download.
+              Everything in one place: book, track, download.
             </h2>
             <ul className="space-y-4 mb-8">
               {features.map((feature, index) => (

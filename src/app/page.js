@@ -21,7 +21,7 @@ export default function Page() {
   const [showVideoModal, setShowVideoModal] = useState(false);
 
   return (
-    <div className="relative min-h-screen text-white bg-black">
+    <div className="relative min-h-screen text-white bg-black/60">
       <StarBackground />
       <div className="relative z-10">
         <div className="fixed top-0 left-0 right-0 z-50">
@@ -30,7 +30,7 @@ export default function Page() {
         </div>
         <main className="pt-[100px]">
           <HeroSection onWatchVideo={() => setShowVideoModal(true)} />
-          <SocialProofStrip />
+      {/* <SocialProofStrip /> */}
           <PainSolutionSection />
           <SeeItInActionSection onWatchVideo={() => setShowVideoModal(true)} />
           <PortalUSPSection />
