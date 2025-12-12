@@ -12,8 +12,13 @@ export const metadata = {
 };
 
 export const poppins = localFont({
-  variable: "font-poppins",
+  variable: "--font-poppins",
   src: "../fonts/Poppins/Poppins-Regular.ttf",
+});
+
+export const spaceGrotesk = localFont({
+  variable: "--font-space-grotesk",
+  src: "../fonts/Space_Grotesk/SpaceGrotesk-VariableFont_wght.ttf",
 });
 
 export default async function RootLayout({ children }) {
@@ -21,7 +26,7 @@ export default async function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body className={`${poppins.className} antialiased`}>
+      <body className={`${poppins.className} ${spaceGrotesk.variable} antialiased`}>
         {/* <div>Failed!!</div> */}
         <Providers user={user}>{children}</Providers>
       </body>

@@ -8,5 +8,5 @@ export const michroma = localFont({
 
 export const spaceGrotesk = localFont({
   variable: "font-space-grotesk",
-  src: "../fonts/Space_Grotesk/SpaceGrotesk-VariableFont_wght.ttf",
+  src: "./Space_Grotesk/SpaceGrotesk-VariableFont_wght.ttf",
 });

@@ -17,7 +17,7 @@ const Footer = () => {
       </video>
       
       {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/70"></div>
+      <div className="absolute inset-0 bg-background/70"></div>
       
       <div className="container mx-auto px-6 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
