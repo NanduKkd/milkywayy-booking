@@ -123,18 +123,20 @@ export default function PortfolioList({ initialItems }) {
               <Plus className="mr-2 h-4 w-4" /> New Entry
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden p-0">
+            <DialogHeader className="px-6 pt-6 pb-2">
               <DialogTitle>
                 {editingItem
                   ? "Edit Portfolio Entry"
                   : "Create New Portfolio Entry"}
               </DialogTitle>
             </DialogHeader>
-            <PortfolioForm
-              onSuccess={handleFormSuccess}
-              initialData={editingItem}
-            />
+            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-6 pb-6">
+              <PortfolioForm
+                onSuccess={handleFormSuccess}
+                initialData={editingItem}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       </div>

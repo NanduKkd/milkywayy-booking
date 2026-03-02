@@ -249,7 +249,9 @@ export default function PricingEditor({ initialConfig }) {
                                         ) : (
                                           // For non-commercial properties, show subcategories
                                           Object.entries(VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM).map(([key, label]) => {
-                                            const categoryConfig = longFormConfig[key] || { price: 0, slots: 2 };
+                                            const categoryConfig =
+                                              longFormConfig[label] ||
+                                              longFormConfig[key] || { price: 0, slots: 2 };
                                             return (
                                               <div key={key} className="flex items-center gap-2">
                                                 <span className="text-xs text-gray-600 w-20">{label}</span>
@@ -258,7 +260,7 @@ export default function PricingEditor({ initialConfig }) {
                                                   <Input
                                                     type="number"
                                                     value={categoryConfig.price || 0}
-                                                    onChange={(e) => handleVideographyPriceChange(type, sizeIndex, VIDEOGRAPHY_SUB_SERVICES.LONG_FORM, key, "price", e.target.value)}
+                                                    onChange={(e) => handleVideographyPriceChange(type, sizeIndex, VIDEOGRAPHY_SUB_SERVICES.LONG_FORM, label, "price", e.target.value)}
                                                     className="pl-7 pr-1 h-7 text-xs"
                                                   />
                                                 </div>
@@ -267,7 +269,7 @@ export default function PricingEditor({ initialConfig }) {
                                                     type="number"
                                                     min="1"
                                                     value={categoryConfig.slots || 2}
-                                                    onChange={(e) => handleVideographyPriceChange(type, sizeIndex, VIDEOGRAPHY_SUB_SERVICES.LONG_FORM, key, "slots", e.target.value)}
+                                                    onChange={(e) => handleVideographyPriceChange(type, sizeIndex, VIDEOGRAPHY_SUB_SERVICES.LONG_FORM, label, "slots", e.target.value)}
                                                     className="pl-1 pr-1 h-7 text-xs text-center"
                                                   />
                                                 </div>
