@@ -27,7 +27,31 @@ export async function GET(request) {
       }
     }
 
-    const works = await OurWork.findAll(options);
+    let works;
+    try {
+      works = await OurWork.findAll(options);
+    } catch (error) {
+      const isMissingThumbnailColumn =
+        error?.parent?.code === "42703" &&
+        String(error?.parent?.sql || "").includes('"thumbnail"');
+      if (!isMissingThumbnailColumn) throw error;
+
+      works = await OurWork.findAll({
+        ...options,
+        attributes: [
+          "id",
+          "title",
+          "subtitle",
+          "type",
+          "mediaContent",
+          "order",
+          "isVisible",
+          "createdAt",
+          "updatedAt",
+        ],
+      });
+      works = works.map((w) => ({ ...w.toJSON(), thumbnail: null }));
+    }
 
     return NextResponse.json(works);
   } catch (error) {

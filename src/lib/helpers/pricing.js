@@ -36,6 +36,46 @@ const normalizeLongFormCategoryKeys = (longFormConfig) => {
   return normalized;
 };
 
+const mergeMissingDefaultSizes = (propertyType, normalizedSizes) => {
+  const defaultSizes = PRICING_CONFIG?.[propertyType]?.sizes;
+  if (!Array.isArray(defaultSizes)) return normalizedSizes;
+
+  const currentSizes = Array.isArray(normalizedSizes) ? normalizedSizes : [];
+  const byLabel = new Map();
+
+  currentSizes.forEach((size) => {
+    const label = String(size?.label || "").trim();
+    if (!label) return;
+    byLabel.set(label, size);
+  });
+
+  defaultSizes.forEach((size) => {
+    const label = String(size?.label || "").trim();
+    if (!label || byLabel.has(label)) return;
+    byLabel.set(label, size);
+  });
+
+  const ordered = [];
+  const used = new Set();
+
+  defaultSizes.forEach((size) => {
+    const label = String(size?.label || "").trim();
+    if (!label) return;
+    const resolved = byLabel.get(label);
+    if (!resolved) return;
+    ordered.push(resolved);
+    used.add(label);
+  });
+
+  currentSizes.forEach((size) => {
+    const label = String(size?.label || "").trim();
+    if (!label || used.has(label)) return;
+    ordered.push(size);
+  });
+
+  return ordered;
+};
+
 export const normalizePricingConfig = (config) => {
   if (!config || typeof config !== "object" || Array.isArray(config)) {
     return PRICING_CONFIG;
@@ -49,7 +89,7 @@ export const normalizePricingConfig = (config) => {
       return;
     }
 
-    const sizes = Array.isArray(typeConfig.sizes)
+    const normalizedSizes = Array.isArray(typeConfig.sizes)
       ? typeConfig.sizes.map((size) => {
           if (!size?.prices || typeof size.prices !== "object") {
             return size;
@@ -82,7 +122,23 @@ export const normalizePricingConfig = (config) => {
 
     normalizedConfig[propertyType] = {
       ...typeConfig,
-      sizes,
+      sizes: mergeMissingDefaultSizes(propertyType, normalizedSizes),
+    };
+  });
+
+  Object.entries(PRICING_CONFIG).forEach(([propertyType, defaultTypeConfig]) => {
+    if (!normalizedConfig[propertyType]) {
+      normalizedConfig[propertyType] = defaultTypeConfig;
+      return;
+    }
+
+    normalizedConfig[propertyType] = {
+      ...defaultTypeConfig,
+      ...normalizedConfig[propertyType],
+      sizes: mergeMissingDefaultSizes(
+        propertyType,
+        normalizedConfig[propertyType]?.sizes,
+      ),
     };
   });
 

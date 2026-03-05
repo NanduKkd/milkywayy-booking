@@ -4,7 +4,7 @@ import OurWork from "@/lib/db/models/ourwork";
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { title, subtitle, type, mediaContent, order, isVisible } = body;
+    const { title, subtitle, type, mediaContent, thumbnail, order, isVisible } = body;
 
     if (!title || !type || !mediaContent) {
       return NextResponse.json(
@@ -13,14 +13,32 @@ export async function POST(request) {
       );
     }
 
-    const work = await OurWork.create({
-      title,
-      subtitle,
-      type,
-      mediaContent,
-      order: order || 0,
-      isVisible: isVisible !== undefined ? isVisible : true,
-    });
+    let work;
+    try {
+      work = await OurWork.create({
+        title,
+        subtitle,
+        type,
+        mediaContent,
+        thumbnail: thumbnail || null,
+        order: order || 0,
+        isVisible: isVisible !== undefined ? isVisible : true,
+      });
+    } catch (error) {
+      const isMissingThumbnailColumn =
+        error?.parent?.code === "42703" &&
+        String(error?.parent?.sql || "").includes('"thumbnail"');
+      if (!isMissingThumbnailColumn) throw error;
+
+      work = await OurWork.create({
+        title,
+        subtitle,
+        type,
+        mediaContent,
+        order: order || 0,
+        isVisible: isVisible !== undefined ? isVisible : true,
+      });
+    }
 
     return NextResponse.json(work, { status: 201 });
   } catch (error) {

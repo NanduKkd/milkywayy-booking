@@ -125,10 +125,40 @@ export const PRICING_CONFIG = {
           [SERVICES.TOUR_360]: 850,
         },
       },
+      {
+        label: "5 Bed",
+        prices: {
+          [SERVICES.PHOTOGRAPHY]: { price: 850, slots: 1, allowEvening: false },
+          [SERVICES.VIDEOGRAPHY]: {
+            [VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM]: { price: 900, slots: 1, allowEvening: false },
+            [VIDEOGRAPHY_SUB_SERVICES.LONG_FORM]: {
+              [VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.DAYLIGHT]: { price: 1350, slots: 2, allowEvening: true },
+              [VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.NIGHT_LIGHT]: { price: 1800, slots: 2, allowEvening: true },
+              [VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.DAYLIGHT_NIGHT]: { price: 2250, slots: 3, allowEvening: true },
+            },
+          },
+          [SERVICES.TOUR_360]: 950,
+        },
+      },
     ],
   },
   [PROPERTY_TYPES.VILLA]: {
     sizes: [
+      {
+        label: "2 Bed",
+        prices: {
+          [SERVICES.PHOTOGRAPHY]: { price: 700, slots: 1, allowEvening: false },
+          [SERVICES.VIDEOGRAPHY]: {
+            [VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM]: { price: 800, slots: 1, allowEvening: false },
+            [VIDEOGRAPHY_SUB_SERVICES.LONG_FORM]: {
+              [VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.DAYLIGHT]: { price: 1200, slots: 2, allowEvening: true },
+              [VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.NIGHT_LIGHT]: { price: 1600, slots: 2, allowEvening: true },
+              [VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.DAYLIGHT_NIGHT]: { price: 2000, slots: 3, allowEvening: true },
+            },
+          },
+          [SERVICES.TOUR_360]: 850,
+        },
+      },
       {
         label: "3 Bed",
         prices: {

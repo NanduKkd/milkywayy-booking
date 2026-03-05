@@ -11,8 +11,6 @@ import PainSolutionSection from "@/components/landing/PainSolutionSection";
 import PortalUSPSection from "@/components/landing/PortalUSPSection";
 import ReviewsSection from "@/components/landing/ReviewsSection";
 import SeeItInActionSection from "@/components/landing/SeeItInActionSection";
-import ServicesSection from "@/components/landing/ServicesSection";
-import SocialProofStrip from "@/components/landing/SocialProofStrip";
 import NewNavbar from "@/components/NewNavbar";
 import StarBackground from "@/components/StarBackground";
 import VideoModal from "@/components/VideoModal";
@@ -21,7 +19,7 @@ export default function Page() {
   const [showVideoModal, setShowVideoModal] = useState(false);
 
   return (
-    <div className="relative min-h-screen text-white bg-background">
+    <div className="relative min-h-screen text-white bg-black">
       <StarBackground />
       <div className="relative z-10">
         <div className="fixed top-0 left-0 right-0 z-50">
@@ -34,7 +32,6 @@ export default function Page() {
           <PainSolutionSection />
           <SeeItInActionSection onWatchVideo={() => setShowVideoModal(true)} />
           <PortalUSPSection />
-          <ServicesSection />
           <OurWorkPreview />
           <ReviewsSection />
           <FAQSection />

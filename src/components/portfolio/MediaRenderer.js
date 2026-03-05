@@ -5,6 +5,45 @@ import { InstagramEmbed, YouTubeEmbed } from "react-social-media-embed";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import ImageCarousel from "./ImageCarousel";
 
+const normalizeUrl = (rawUrl) => {
+  if (!rawUrl || typeof rawUrl !== "string") return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  return `https://${trimmed}`;
+};
+
+const extractYouTubeId = (rawUrl) => {
+  const normalized = normalizeUrl(rawUrl);
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized);
+    const host = url.hostname.replace("www.", "");
+
+    if (host === "youtu.be") {
+      return url.pathname.split("/").filter(Boolean)[0] || null;
+    }
+
+    if (host.includes("youtube.com")) {
+      if (url.searchParams.get("v")) return url.searchParams.get("v");
+
+      const parts = url.pathname.split("/").filter(Boolean);
+      const embedIdx = parts.indexOf("embed");
+      if (embedIdx !== -1 && parts[embedIdx + 1]) return parts[embedIdx + 1];
+
+      const shortsIdx = parts.indexOf("shorts");
+      if (shortsIdx !== -1 && parts[shortsIdx + 1]) return parts[shortsIdx + 1];
+
+      const liveIdx = parts.indexOf("live");
+      if (liveIdx !== -1 && parts[liveIdx + 1]) return parts[liveIdx + 1];
+    }
+  } catch (_error) {
+    return null;
+  }
+  return null;
+};
+
 export default function MediaRenderer({ type, url, title, className = "" }) {
   switch (type) {
     case OUR_WORK_TYPES.IMAGE:
@@ -51,13 +90,19 @@ export default function MediaRenderer({ type, url, title, className = "" }) {
       );
 
     case OUR_WORK_TYPES.THREE_SIXTY:
+      const youtubeId = extractYouTubeId(url);
+      const iframeSrc = youtubeId
+        ? `https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0&modestbranding=1`
+        : normalizeUrl(url) || url;
       return (
         <div className={`relative w-full h-full my-auto bg-black ${className}`}>
           <iframe
-            src={url}
+            src={iframeSrc}
             title={title}
             className="w-full h-full border-0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
             loading="lazy"
           />
         </div>

@@ -22,6 +22,7 @@ const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters"),
   subtitle: z.string().optional(),
   type: z.enum(Object.values(OUR_WORK_TYPES)),
+  thumbnail: z.string().optional(),
   mediaContent: z.union([z.string(), z.array(z.string())]).refine((val) => {
     if (Array.isArray(val)) return val.length > 0;
     return val.length > 0;
@@ -47,6 +48,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
       title: "",
       subtitle: "",
       type: OUR_WORK_TYPES.IMAGE,
+      thumbnail: "",
       mediaContent: "",
       order: 0,
       isVisible: true,
@@ -55,6 +57,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
 
   const watchType = watch("type");
   const watchMediaContent = watch("mediaContent");
+  const watchThumbnail = watch("thumbnail");
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -157,6 +160,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+      <Input type="hidden" {...register("thumbnail")} />
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>
         <Input id="title" placeholder="Project Title" {...register("title")} />
@@ -280,6 +284,64 @@ export default function PortfolioForm({ onSuccess, initialData }) {
           </p>
         )}
       </div>
+
+      {watchType === OUR_WORK_TYPES.THREE_SIXTY && (
+        <div className="space-y-2">
+          <Label>360 Thumbnail (for cards/modal preview)</Label>
+          <div className="flex gap-2">
+            <Input
+              id="thumbnail"
+              placeholder="https://... thumbnail image URL"
+              value={watchThumbnail || ""}
+              onChange={(e) => setValue("thumbnail", e.target.value)}
+            />
+            <Input
+              type="file"
+              className="hidden"
+              id="portfolio-thumbnail-upload"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setIsUploading(true);
+                try {
+                  const formData = new FormData();
+                  formData.append("file", file);
+                  formData.append("folder", "portfolio");
+                  const res = await fetch("/api/admin/upload", {
+                    method: "POST",
+                    body: formData,
+                  });
+                  if (!res.ok) throw new Error("Thumbnail upload failed");
+                  const { url } = await res.json();
+                  setValue("thumbnail", url);
+                  toast.success("Thumbnail uploaded");
+                } catch (error) {
+                  toast.error(error.message || "Failed to upload thumbnail");
+                } finally {
+                  setIsUploading(false);
+                  e.target.value = "";
+                }
+              }}
+            />
+            <label
+              htmlFor="portfolio-thumbnail-upload"
+              className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground"
+            >
+              Upload
+            </label>
+          </div>
+          {watchThumbnail && (
+            <div className="relative w-44 h-24 rounded-md overflow-hidden border border-border">
+              <img
+                src={watchThumbnail}
+                alt="Thumbnail preview"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="order">Display Order</Label>

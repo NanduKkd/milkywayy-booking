@@ -5,6 +5,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 
+const GoogleGMark = ({ className = "" }) => (
+  <span
+    className={`inline-block text-[30px] font-semibold leading-none bg-[conic-gradient(from_200deg,_#4285F4_0deg,_#4285F4_95deg,_#34A853_95deg,_#34A853_180deg,_#FBBC05_180deg,_#FBBC05_260deg,_#EA4335_260deg,_#EA4335_360deg)] bg-clip-text text-transparent ${className}`}
+    aria-hidden="true"
+  >
+    G
+  </span>
+);
+
 const renderStars = (rating, keyPrefix, sizeClass = "w-4 h-4") => {
   return Array.from({ length: Number(rating) || 0 }).map((_, i) => (
     <Star
@@ -49,23 +58,23 @@ const ReviewsSection = () => {
     >
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center mb-12 fade-in">
-          <p className="text-muted-foreground text-sm tracking-[0.2em] uppercase mb-4">
+          <p className="text-muted-foreground text-xs tracking-[0.25em] uppercase mb-4">
             Google Reviews
           </p>
           <div className="flex items-center justify-center gap-3 mb-5">
-            <span className="text-2xl">G</span>
-            <span className="text-3xl font-semibold">5.0</span>
+            <GoogleGMark />
+            <span className="text-4xl font-semibold leading-none">5.0</span>
             <div className="flex items-center gap-1">
-              {renderStars(5, "headline", "w-5 h-5")}
+              {renderStars(5, "headline", "w-4 h-4")}
             </div>
-            <span className="text-muted-foreground text-xl">
-              {reviewsCount} reviews on Google
+            <span className="text-muted-foreground text-lg">
+              {reviewsCount} review{reviewsCount === 1 ? "" : "s"} on Google
             </span>
           </div>
-          <h2 className="font-heading text-5xl md:text-6xl font-bold mb-4">
+          <h2 className="font-heading text-4xl md:text-6xl font-bold mb-4">
             Trusted by Real Estate Professionals Across Dubai
           </h2>
-          <p className="text-muted-foreground max-w-3xl mx-auto text-xl">
+          <p className="text-muted-foreground max-w-3xl mx-auto text-lg md:text-2xl">
             Consistent quality. Fast delivery. Structured workflow. That&apos;s
             why teams move to Milkywayy.
           </p>
@@ -80,10 +89,8 @@ const ReviewsSection = () => {
                     className="snap-start min-w-[320px] md:min-w-[360px] max-w-[380px] bg-card/70 border border-border rounded-2xl p-6"
                     style={{ animationDelay: `${index * 0.05}s` }}
                   >
-                    <span className="text-3xl text-muted-foreground mb-3 block">
-                      G
-                    </span>
-                    <p className="text-xl leading-relaxed mb-5 line-clamp-4">
+                    <GoogleGMark className="mb-3 text-[28px]" />
+                    <p className="mb-5 min-h-[7.5rem] text-xl leading-8 text-foreground line-clamp-4 break-words [overflow-wrap:anywhere]">
                       &quot;{review.quote}&quot;
                     </p>
                     <div className="flex items-center gap-1 mb-4">

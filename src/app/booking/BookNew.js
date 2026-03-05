@@ -7,37 +7,29 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import StarBackground from "@/components/StarBackground";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/contexts/auth";
 import {
   createBookings,
   createTransactionAndPaymentIntent,
   getDrafts,
   saveDrafts,
 } from "@/lib/actions/bookings";
-import { validateCoupon } from "@/lib/actions/coupons";
 import { PRICING_CONFIG as STATIC_PRICING_CONFIG } from "@/lib/config/pricing";
 import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
 import { bookingSchema } from "@/lib/schema/booking.schema";
-import { PaymentStep } from "./components/PaymentStep";
 // Modular Components
 import { PropertyCard } from "./components/PropertyCard";
 
 export default function BookNew({ pricingsPromise, discountsPromise }) {
   const pricingsRes = use(pricingsPromise);
-  const discountsRes = use(discountsPromise);
+  use(discountsPromise);
 
   const pricings = pricingsRes?.success ? pricingsRes.data : null;
-  const discountsConfig =
-    (discountsRes?.success ? discountsRes.data : []) || [];
 
   const PRICING_CONFIG = pricings || STATIC_PRICING_CONFIG;
   const [openPropertyIndex, setOpenPropertyIndex] = useState(0);
-  const [step, setStep] = useState("details");
-  const [couponCode, setCouponCode] = useState("");
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [couponError, setCouponError] = useState("");
-  const [couponSuccess, setCouponSuccess] = useState("");
-  const [bookingIds, setBookingIds] = useState([]);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const { authState, login } = useAuth();
 
   const {
     control,
@@ -130,7 +122,8 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
 
   // Auto-save drafts
   useEffect(() => {
-    if (isLoadingDrafts || step !== "details") return;
+    if (isLoadingDrafts) return;
+    if (!authState?.isAuthenticated) return;
 
     const timer = setTimeout(async () => {
       try {
@@ -138,12 +131,14 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
           await saveDrafts(properties);
         }
       } catch (err) {
-        console.error("Auto-save failed", err);
+        if (!String(err?.message || "").toLowerCase().includes("unauthorized")) {
+          console.error("Auto-save failed", err);
+        }
       }
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [properties, isLoadingDrafts, step]);
+  }, [properties, isLoadingDrafts, authState?.isAuthenticated]);
 
   const addProperty = () => {
     const currentProperties = getValues("properties");
@@ -283,39 +278,6 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     await trigger(`properties.${index}.services`);
   };
 
-  const handleFinalSubmit = async () => {
-    console.log("handleFinalSubmit called with bookingIds:", bookingIds);
-    setIsProcessingPayment(true);
-    try {
-      // Extract just IDs for payment processing
-      const idsForPayment = bookingIds.map((b) =>
-        typeof b === "object" ? b.id : b,
-      );
-      console.log("IDs for payment:", idsForPayment);
-
-      if (idsForPayment.length === 0) {
-        throw new Error("No booking IDs available for payment");
-      }
-
-      const res = await createTransactionAndPaymentIntent(
-        idsForPayment,
-        couponCode,
-      );
-      console.log("Payment response:", res);
-      if (!res.success) throw new Error(res.message);
-      const result = res.data;
-      if (result.url) {
-        window.location.href = result.url;
-      } else {
-        throw new Error("No payment URL returned");
-      }
-    } catch (error) {
-      toast.error(error.message || "Failed to process payment");
-    } finally {
-      setIsProcessingPayment(false);
-    }
-  };
-
   const calculateTotal = () => {
     return properties.reduce((total, property) => {
       return total + getPropertyPrice(property);
@@ -435,41 +397,6 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     return { duration, allowEvening };
   };
 
-  const calculateAutomaticDiscounts = (amount) => {
-    let currentAmount = amount;
-    let calculationBasis = amount;
-    let directDiscount = 0;
-    let walletCredits = 0;
-    const applied = [];
-
-    discountsConfig.forEach((d) => {
-      if (!d.isActive) return;
-      if (amount < d.minAmount) return;
-
-      const val = Math.min(
-        (calculationBasis * d.percentage) / 100,
-        d.maxDiscount,
-      );
-
-      if (d.type === "direct") {
-        directDiscount += val;
-        currentAmount -= val;
-        calculationBasis -= val;
-      } else if (d.type === "wallet") {
-        walletCredits += val;
-        calculationBasis -= val;
-      }
-      applied.push({ ...d, value: val });
-    });
-
-    return {
-      finalAmount: currentAmount,
-      directDiscount,
-      walletCredits,
-      applied,
-    };
-  };
-
   const getOccupiedSlots = (currentIndex) => {
     const occupied = {};
     const HOURLY_SLOTS = [
@@ -533,31 +460,15 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     return occupied;
   };
 
-  const handleApplyCoupon = async () => {
-    setCouponError("");
-    setCouponSuccess("");
-    setDiscountAmount(0);
-
-    if (!couponCode) return;
-
-    const total = calculateTotal();
-    const { finalAmount } = calculateAutomaticDiscounts(total);
-
-    const res = await validateCoupon(couponCode, finalAmount);
-    const result = res.success
-      ? res.data
-      : { valid: false, message: res.message };
-
-    if (result.valid) {
-      setDiscountAmount(result.discount);
-      setCouponSuccess(`Coupon applied! You saved AED ${result.discount}`);
-    } else {
-      setCouponError(result.message);
-    }
-  };
-
   const onContinue = async (data) => {
     console.log("onContinue called with data:", data);
+    if (!authState?.isAuthenticated) {
+      toast.error("Please login to continue to payment");
+      login();
+      return;
+    }
+
+    setIsProcessingPayment(true);
     try {
       // Create bookings first
       const res = await createBookings(data.properties);
@@ -574,40 +485,29 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
         bookingData.map((b) => b.bookingCode),
       );
 
-      // Update state with new booking IDs
-      setBookingIds(newBookingIds);
+      const paymentRes = await createTransactionAndPaymentIntent(
+        newBookingIds,
+        "",
+      );
+      if (!paymentRes.success) throw new Error(paymentRes.message);
 
-      // Move to payment step
-      setStep("payment");
+      const paymentUrl = paymentRes.data?.url;
+      if (!paymentUrl) throw new Error("No payment URL returned");
+      window.location.href = paymentUrl;
     } catch (error) {
       console.error("Booking submission error:", error);
-      toast.error(error.message || "Failed to process booking");
+      if (String(error?.message || "").toLowerCase().includes("unauthorized")) {
+        toast.error("Please login to continue to payment");
+        login();
+        return;
+      }
+      toast.error(error.message || "Failed to process payment");
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
   const totalAmount = calculateTotal();
-  const {
-    finalAmount: amountAfterAuto,
-    walletCredits: autoWalletCredits,
-    applied: appliedAutoDiscounts,
-  } = calculateAutomaticDiscounts(totalAmount);
-
-  useEffect(() => {
-    if (couponCode && discountAmount > 0) {
-      validateCoupon(couponCode, amountAfterAuto).then((res) => {
-        const result = res.success
-          ? res.data
-          : { valid: false, message: res.message };
-        if (result.valid) {
-          setDiscountAmount(result.discount);
-        } else {
-          setDiscountAmount(0);
-          setCouponError(result.message);
-          setCouponSuccess("");
-        }
-      });
-    }
-  }, [amountAfterAuto, couponCode, discountAmount]);
 
   const primaryProperty = properties?.[0] || {};
   const primaryTitle = [
@@ -620,30 +520,32 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     primaryProperty.services?.length > 0
       ? primaryProperty.services.join(" + ")
       : "Select services";
+  const primarySchedule = [primaryProperty.preferredDate, primaryProperty.startTime]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="min-h-screen pt-24 pb-8 relative">
       <StarBackground />
-      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="mb-10 text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
-          <p className="text-xs tracking-[0.24em] uppercase text-muted-foreground mb-3">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div className="mx-auto mb-8 max-w-3xl text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
+          <p className="text-xs tracking-[0.24em] uppercase text-white/60 mb-3">
             Milkywayy Portal
           </p>
-          <h1 className="font-heading text-white text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-4">
+          <h1 className="font-heading text-white text-4xl sm:text-5xl lg:text-7xl font-bold leading-tight mb-4">
             Book Your Shoot
           </h1>
-          <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto">
+          <p className="text-white/80 text-base md:text-xl max-w-2xl mx-auto">
             Premium property media for Dubai&apos;s finest real estate
           </p>
         </div>
 
-        {step === "details"
-          ? <form onSubmit={handleSubmit(onContinue)}>
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-6 items-start">
+        <form onSubmit={handleSubmit(onContinue)}>
+              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
                 <div className="space-y-6">
                   {properties?.map((property, index) => (
                     <PropertyCard
-                      key={`${property.community || "property"}_${property.building || "building"}_${property.unitNumber || "unit"}_${property.propertyType || "type"}_${property.propertySize || "size"}_${index}`}
+                      key={`property-${index}`}
                       index={index}
                       property={property}
                       isOpen={index === openPropertyIndex}
@@ -673,7 +575,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
                     type="button"
                     variant="ghost"
                     onClick={addProperty}
-                    className="w-full text-muted-foreground border border-border border-dashed hover:border-solid hover:bg-accent/20 hover:text-foreground transition-all duration-200 group py-6 rounded-xl"
+                    className="w-full text-muted-foreground border border-white/15 border-dashed hover:border-white/30 hover:bg-white/[0.03] hover:text-foreground transition-all duration-200 group py-6 rounded-2xl"
                   >
                     <Plus
                       size={18}
@@ -683,30 +585,33 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
                   </Button>
                 </div>
 
-                <aside className="xl:sticky xl:top-28 rounded-2xl border border-border bg-card/70 p-5 backdrop-blur-sm">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
+                <aside className="xl:sticky xl:top-28 rounded-2xl border border-white/10 bg-[#141519]/90 p-5 backdrop-blur-sm">
+                  <p className="text-xs uppercase tracking-wider text-white/60 mb-4">
                     Order Summary
                   </p>
 
-                  <div className="rounded-xl border border-border bg-background/40 p-4 mb-6">
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4 mb-6">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-sm">
+                        <p className="font-semibold text-sm text-white">
                           {primaryTitle || "Property Summary"}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-white/60 mt-1">
                           {primaryServices}
                         </p>
+                        <p className="text-[11px] text-white/60 mt-2">
+                          {primarySchedule || "Select date and time"}
+                        </p>
                       </div>
-                      <span className="font-semibold text-sm whitespace-nowrap">
+                      <span className="font-semibold text-sm whitespace-nowrap text-white">
                         AED {totalAmount.toLocaleString()}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mb-6">
-                    <p className="text-muted-foreground">Grand Total</p>
-                    <p className="text-3xl font-semibold">
+                  <div className="flex items-center justify-between mb-6 pt-2 border-t border-white/10">
+                    <p className="text-white/60">Grand Total</p>
+                    <p className="text-3xl font-semibold text-white">
                       AED {totalAmount.toLocaleString()}
                     </p>
                   </div>
@@ -714,18 +619,18 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
                   <Button
                     type="submit"
                     size="lg"
-                    disabled={isSubmitting}
-                    className="w-full rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 font-medium"
+                    disabled={isSubmitting || isProcessingPayment}
+                    className="w-full rounded-xl bg-gradient-to-b from-white to-zinc-300 text-black hover:from-zinc-100 hover:to-zinc-300 font-medium"
                   >
-                    {isSubmitting
+                    {isSubmitting || isProcessingPayment
                       ? <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting...
+                          Redirecting to Payment...
                         </>
                       : "Continue to Payment"}
                   </Button>
 
-                  <p className="text-[11px] leading-relaxed text-muted-foreground/70 mt-4">
+                  <p className="text-[11px] leading-relaxed text-white/60 mt-4">
                     Media is licensed for client marketing use. Milkywayy may
                     showcase selected work for portfolio and promotional
                     purposes.
@@ -733,25 +638,8 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
                 </aside>
               </div>
             </form>
-          : <PaymentStep
-              properties={properties}
-              onBack={() => setStep("details")}
-              getPropertyPrice={getPropertyPrice}
-              calculateTotal={calculateTotal}
-              appliedAutoDiscounts={appliedAutoDiscounts}
-              discountAmount={discountAmount}
-              amountAfterAuto={amountAfterAuto}
-              autoWalletCredits={autoWalletCredits}
-              couponCode={couponCode}
-              setCouponCode={setCouponCode}
-              handleApplyCoupon={handleApplyCoupon}
-              couponError={couponError}
-              couponSuccess={couponSuccess}
-              handleFinalSubmit={handleFinalSubmit}
-              isProcessingPayment={isProcessingPayment}
-            />}
 
-        <footer className="mt-24 border-t border-border/40 pt-14 pb-6 text-center">
+        <footer className="mt-24 border-t border-white/10 pt-14 pb-6 text-center">
           <div className="flex items-center justify-center mb-4">
             <Image
               src="/logo-texxt.png"
@@ -760,10 +648,10 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               alt="Milkywayy"
             />
           </div>
-          <p className="text-muted-foreground mb-10">
+          <p className="text-white/60 mb-10">
             Don&apos;t Just List. Dominate.
           </p>
-          <p className="text-sm text-muted-foreground/80">
+          <p className="text-sm text-white/40">
             &copy; 2026 Milkywayy LLC | All Rights Reserved
           </p>
         </footer>

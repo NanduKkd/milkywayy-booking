@@ -8,6 +8,8 @@ import {
 
   Camera,
 
+  Check,
+
   ChevronDown,
 
   ChevronUp,
@@ -83,6 +85,12 @@ const SERVICE_SUBTITLES = {
 
   // Videography: "Short-Form Walkthroughs (30-90s)",
 
+};
+
+const SERVICE_ESTIMATES = {
+  Photography: "Est - 24 hrs",
+  Videography: "Est - 48-72 hrs",
+  "360Â° Tour": "Est - 48-72 hrs",
 };
 
 
@@ -199,7 +207,7 @@ export function PropertyCard({
 
       className={cn(
 
-        "bg-card/90 border border-border shadow-lg hover:shadow-xl transition-all duration-300 overflow-visible backdrop-blur-sm",
+        "bg-gradient-to-br from-[#141517]/95 via-[#16171a]/95 to-[#121316]/95 border border-white/10 shadow-[0_18px_50px_rgba(0,0,0,0.35)] transition-all duration-300 overflow-visible backdrop-blur-sm rounded-2xl",
 
         isOpen ? "relative z-10 ring-2 ring-primary/20" : "relative z-0 hover:border-border/60",
 
@@ -209,7 +217,7 @@ export function PropertyCard({
 
       <CardHeader
 
-        className="flex flex-row justify-between items-center pb-6 cursor-pointer space-y-0 hover:bg-accent/5 transition-colors duration-200 rounded-t-xl"
+        className="flex flex-row justify-between items-center pb-5 cursor-pointer space-y-0 hover:bg-white/[0.02] transition-colors duration-200 rounded-t-2xl"
 
         onClick={onToggle}
 
@@ -267,7 +275,7 @@ export function PropertyCard({
 
           {price > 0 && (
 
-            <div className="hidden md:block bg-gradient-to-r from-primary/20 to-primary/10 border border-primary/20 px-4 py-2 rounded-lg text-sm font-bold text-primary backdrop-blur-sm mr-3">
+            <div className="hidden md:block bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-sm font-semibold text-foreground backdrop-blur-sm mr-3">
 
               AED {price}
 
@@ -441,7 +449,7 @@ export function PropertyCard({
 
             <div>
 
-              <label className="block text-sm font-medium text-muted-foreground mb-3">
+              <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
 
                 Property Type
 
@@ -469,7 +477,9 @@ export function PropertyCard({
 
                           key={type}
 
-                          className="p-4 text-center flex flex-col items-center justify-center gap-3 min-h-24"
+                          className="relative p-4 text-center flex flex-col items-center justify-center gap-3 min-h-24"
+                          selectedClassName="border-white/30 bg-white/[0.06] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+                          unselectedClassName="border-white/10 bg-[#17191d] text-muted-foreground hover:border-white/20 hover:text-white"
 
                           isSelected={field.value === type}
 
@@ -487,7 +497,12 @@ export function PropertyCard({
 
                           <Icon size={24} />
 
-                          <span className="text-sm font-medium">{type}</span>
+                          <span className="text-sm font-medium">{String(type).replace("/", " / ")}</span>
+                          {field.value === type && (
+                            <span className="absolute right-3 top-3 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                              <Check className="h-3 w-3" />
+                            </span>
+                          )}
 
                         </OptionCard>
 
@@ -520,10 +535,16 @@ export function PropertyCard({
             {property.propertyType && pricingConfig && pricingConfig[property.propertyType] && (
 
               <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                {property.propertyType === "Commercial" && (
+                  <div className="mb-4">
+                    <h3 className="text-3xl font-bold text-foreground">Commercial Property Booking</h3>
+                    <p className="text-muted-foreground mt-1">Select property scale. Then choose services.</p>
+                  </div>
+                )}
 
-                <label className="block text-sm font-medium text-muted-foreground mb-3">
+                <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
 
-                  {property.propertyType === "Commercial" ? "Select Package" : "Property Size"}
+                  {property.propertyType === "Commercial" ? "Step 1 — Property Scale" : "Property Size"}
 
                 </label>
 
@@ -535,7 +556,7 @@ export function PropertyCard({
 
                   render={({ field }) => (
 
-                    <div className={property.propertyType === "Commercial" ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 w-full" : "grid grid-cols-2 lg:grid-cols-4 gap-3 w-full"}>
+                    <div className={property.propertyType === "Commercial" ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 w-full" : "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 w-full"}>
 
                       {pricingConfig[property.propertyType].sizes.map((sizeObj) => {
 
@@ -683,7 +704,7 @@ export function PropertyCard({
 
                               <div className="font-semibold text-lg text-foreground">
 
-                                {sizeObj.label}
+                                {sizeObj.label === "Elite" ? "Executive" : sizeObj.label}
 
                               </div>
 
@@ -709,7 +730,9 @@ export function PropertyCard({
 
                               key={sizeObj.label}
 
-                              className="px-4 py-3"
+                              className="px-4 py-2.5 min-h-[42px] text-sm font-medium"
+                              selectedClassName="border-white bg-white text-black shadow-none"
+                              unselectedClassName="border-white/10 bg-[#1b1d21] text-muted-foreground hover:border-white/25 hover:text-white"
 
                               onClick={() => {
 
@@ -767,9 +790,9 @@ export function PropertyCard({
 
               <div className="animate-in fade-in slide-in-from-top-4 duration-300">
 
-                <label className="block text-sm font-medium text-muted-foreground mb-3">
+                <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
 
-                  Services (Multiple Selection)
+                  {property.propertyType === "Commercial" ? "Step 2 — Select Services" : "Services"}
 
                 </label>
 
@@ -881,6 +904,9 @@ export function PropertyCard({
                               key={serviceName}
 
                               isSelected={isSelected}
+                              className="relative min-h-[132px] px-4 py-4"
+                              selectedClassName="border-white/30 bg-white/[0.07] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+                              unselectedClassName="border-white/10 bg-[#17191d] text-muted-foreground hover:border-white/20 hover:text-white"
 
                               onClick={() =>
 
@@ -898,11 +924,11 @@ export function PropertyCard({
 
                             >
 
-                              <div className="flex justify-items-center flex-col items-center gap-3">
+                              <div className="flex flex-col items-start gap-3 text-left">
 
                                 <Icon
 
-                                  size={32}
+                                  size={20}
 
                                   className={
 
@@ -916,41 +942,23 @@ export function PropertyCard({
 
                                 />
 
-                                <div className="">
+                                <div className="w-full">
 
-                                  <div className="font-semibold mb-1">
+                                  <div className="font-semibold mb-1 text-sm">
 
                                     {serviceName}
 
                                   </div>
 
-                                  {property.propertyType === "Commercial" ? (
-
-                                    <div className="text-xs text-muted-foreground mb-1">
-
-                                      {serviceName === "Photography" && "Up to 10 edited photos"}
-
-                                      {serviceName === "Videography" && hasShortFormSelection && "60–90 sec"}
-
-                                      {serviceName === "Videography" && selectedLongForm && "8–15 mins max"}
-
-                                      {serviceName === "360° Tour" && "Up to 20 hotspots"}
-
-                                    </div>
-
-                                  ) : SERVICE_SUBTITLES[serviceName] ? (
-
-                                    <div className="text-xs text-muted-foreground mb-1">
-
-                                      {SERVICE_SUBTITLES[serviceName]}
-
-                                    </div>
-
-                                  ) : null}
+                                  <div className="text-[11px] text-muted-foreground mb-1">
+                                    {property.propertyType === "Commercial"
+                                      ? SERVICE_ESTIMATES[serviceName]
+                                      : SERVICE_SUBTITLES[serviceName] || SERVICE_ESTIMATES[serviceName]}
+                                  </div>
 
                                   {property.propertyType === "Commercial" ? (
 
-                                    <div className="text-sm text-muted-foreground">
+                                    <div className="text-sm text-foreground/90">
 
                                       {serviceName !== "Videography" && `AED ${price}`}
 
@@ -958,7 +966,7 @@ export function PropertyCard({
 
                                   ) : serviceName !== "Videography" && (
 
-                                    <div className="text-sm text-muted-foreground">
+                                    <div className="text-sm text-foreground/90">
 
                                       AED {price}
 
@@ -967,6 +975,11 @@ export function PropertyCard({
                                   )}
 
                                 </div>
+                                {isSelected && (
+                                  <span className="absolute right-3 top-3 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                                    <Check className="h-3 w-3" />
+                                  </span>
+                                )}
 
                               </div>
 
@@ -1006,7 +1019,7 @@ export function PropertyCard({
 
               <div className="animate-in fade-in slide-in-from-top-4 duration-300">
 
-                <label className="block text-sm font-medium text-muted-foreground mb-3">
+                <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
 
                   {property.propertyType === "Commercial" ? "Videography Package" : "Videography Duration"}
 
@@ -1020,7 +1033,7 @@ export function PropertyCard({
 
                   render={({ field }) => (
 
-                    <div className="space-y-4">
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-[#14161a]/80 p-3 md:p-4">
 
                       {/* Main Service Selection */}
 
@@ -1115,6 +1128,9 @@ export function PropertyCard({
                             <OptionCard
 
                               key={subService}
+                              className="py-3"
+                              selectedClassName="border-white bg-white text-black"
+                              unselectedClassName="border-white/10 bg-[#1a1d22] text-muted-foreground hover:border-white/20 hover:text-white"
 
                               isSelected={
                                 subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
@@ -1194,7 +1210,7 @@ export function PropertyCard({
 
                             >
 
-                              <div className="flex flex-col items-center gap-2">
+                              <div className="flex flex-col items-center gap-1">
 
                                 <div className="font-semibold">{subService}</div>
 
@@ -1229,18 +1245,49 @@ export function PropertyCard({
                         })}
 
                       </div>
+                      <div className="mt-1 text-2xl font-bold text-foreground">
+                        {(() => {
+                          const typeConfig = pricingConfig[property.propertyType];
+                          const sizeConfig = typeConfig?.sizes?.find(
+                            (s) => s.label === property.propertySize,
+                          );
+                          const videographyPriceConfig =
+                            sizeConfig?.prices?.["Videography"];
+                          if (!videographyPriceConfig) return "AED 0";
+
+                          const selectedSelections = parseVideographySelections(field.value);
+                          const effectiveSelections =
+                            selectedSelections.length > 0
+                              ? selectedSelections
+                              : [VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM];
+
+                          const total = effectiveSelections.reduce((sum, selection) => {
+                            const resolved = resolveVideographyPriceConfig(
+                              videographyPriceConfig,
+                              selection,
+                            );
+                            const amount =
+                              typeof resolved === "object"
+                                ? Number(resolved?.price || 0)
+                                : Number(resolved || 0);
+                            return sum + (Number.isFinite(amount) ? amount : 0);
+                          }, 0);
+
+                          return `AED ${total}`;
+                        })()}
+                      </div>
 
 
 
-                      {/* Sub-Category Selection - Show only for Long Form and non-commercial properties */}
+                      {/* Lighting Preference Selection - Show when Long Form category is selected */}
 
                       {selectedLongForm?.startsWith(`${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`) && property.propertyType !== "Commercial" && (
 
                         <div className="mt-4">
 
-                          <label className="block text-sm font-medium text-muted-foreground mb-3">
+                          <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
 
-                            {VIDEOGRAPHY_SUB_SERVICES.LONG_FORM} Options
+                            Lighting Preference
 
                           </label>
 
@@ -1276,8 +1323,6 @@ export function PropertyCard({
 
                                 const priceConfig = sizeConfig?.prices?.["Videography"]?.[mainService]?.[categoryName];
 
-                                const price = priceConfig?.price || 0;
-
 
 
                                 return (
@@ -1285,6 +1330,9 @@ export function PropertyCard({
                                   <OptionCard
 
                                     key={categoryKey}
+                                    className="relative py-3"
+                                    selectedClassName="border-white/40 bg-[#1f232a] text-white"
+                                    unselectedClassName="border-white/10 bg-[#15181d] text-muted-foreground hover:border-white/25 hover:text-white"
 
                                     isSelected={currentCategory === categoryName}
 
@@ -1309,16 +1357,13 @@ export function PropertyCard({
 
                                   >
 
-                                    <div className="flex flex-col items-center gap-1">
-
+                                    <div className="flex items-center justify-center gap-2">
                                       <div className="font-medium text-sm">{categoryName}</div>
-
-                                      <div className="text-xs text-muted-foreground">
-
-                                        AED {price}
-
-                                      </div>
-
+                                      {currentCategory === categoryName && (
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                                          <Check className="h-3 w-3" />
+                                        </span>
+                                      )}
                                     </div>
 
                                   </OptionCard>
@@ -1330,7 +1375,6 @@ export function PropertyCard({
                             })()}
 
                           </div>
-
                         </div>
 
                       )}
@@ -1435,15 +1479,19 @@ export function PropertyCard({
 
                     />
 
-                    {fieldState.error && (
+                    <div className="min-h-[18px]">
 
-                      <div className="text-red-500 text-xs ml-1 mt-1">
+                      {fieldState.error && (
 
-                        {fieldState.error.message}
+                        <div className="text-red-500 text-xs ml-1 mt-1">
 
-                      </div>
+                          {fieldState.error.message}
 
-                    )}
+                        </div>
+
+                      )}
+
+                    </div>
 
                   </div>
 
@@ -1479,15 +1527,19 @@ export function PropertyCard({
 
                     />
 
-                    {fieldState.error && (
+                    <div className="min-h-[18px]">
 
-                      <div className="text-red-500 text-xs ml-1 mt-1">
+                      {fieldState.error && (
 
-                        {fieldState.error.message}
+                        <div className="text-red-500 text-xs ml-1 mt-1">
 
-                      </div>
+                          {fieldState.error.message}
 
-                    )}
+                        </div>
+
+                      )}
+
+                    </div>
 
                   </div>
 
@@ -1523,15 +1575,19 @@ export function PropertyCard({
 
                     />
 
-                    {fieldState.error && (
+                    <div className="min-h-[18px]">
 
-                      <div className="text-red-500 text-xs ml-1 mt-1">
+                      {fieldState.error && (
 
-                        {fieldState.error.message}
+                        <div className="text-red-500 text-xs ml-1 mt-1">
 
-                      </div>
+                          {fieldState.error.message}
 
-                    )}
+                        </div>
+
+                      )}
+
+                    </div>
 
                   </div>
 
@@ -1724,5 +1780,8 @@ export function PropertyCard({
   );
 
 }
+
+
+
 
 

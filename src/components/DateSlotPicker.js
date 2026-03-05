@@ -377,7 +377,7 @@ export default function DateSlotPicker({
                         "h-9 w-full rounded-lg text-sm flex items-center justify-center transition-colors relative",
                         !day && "invisible",
                         isSelected(day)
-                          ? "bg-accent text-accent-foreground font-semibold"
+                          ? "bg-white text-black font-semibold"
                           : isToday(day)
                             ? "bg-secondary text-secondary-foreground border"
                             : "text-foreground hover:bg-secondary",
@@ -426,7 +426,7 @@ export default function DateSlotPicker({
                             className={cn(
                               "px-3 py-2 rounded-lg border text-xs font-medium transition-all flex justify-between items-center w-full",
                               isSelectedSlot
-                                ? "bg-accent text-accent-foreground"
+                                ? "bg-white text-black border-white"
                                 : "bg-secondary text-secondary-foreground border",
                              !isAvailable &&
                                 "cursor-not-allowed bg-muted text-muted-foreground opacity-50",
@@ -439,7 +439,7 @@ export default function DateSlotPicker({
                               </span>
                             </div>
                             {isSelectedSlot && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-accent-foreground"></span>
+                              <span className="w-1.5 h-1.5 rounded-full bg-black"></span>
                             )}
                           </button>
                         );
@@ -458,7 +458,7 @@ export default function DateSlotPicker({
               Cancel
             </Button>
             <Button
-              className="bg-accent text-accent-foreground font-semibold"
+              className="bg-white text-black font-semibold hover:bg-zinc-200"
               onClick={() => setIsOpen(false)}
               disabled={!date || !slot}
             >

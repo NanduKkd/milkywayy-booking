@@ -23,7 +23,7 @@ export default function CustomerHeader({ mode = "default" }) {
 
   if (mode === "booking") {
     return (
-      <HeaderBackground className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/10 px-4 lg:px-8">
+      <HeaderBackground className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/10 px-4 lg:px-8 bg-black/95 backdrop-blur">
         <Link
           href="/"
           className="flex items-center gap-2 text-xl font-bold text-white"
@@ -36,7 +36,7 @@ export default function CustomerHeader({ mode = "default" }) {
           />
         </Link>
 
-        <div className="hidden md:flex items-center gap-8 text-sm text-white/70">
+        <div className="hidden md:flex items-center gap-8 text-sm text-white/60">
           <a href="/#services" className="hover:text-white transition-colors">
             Services
           </a>
@@ -51,14 +51,14 @@ export default function CustomerHeader({ mode = "default" }) {
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
-            className="border border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white rounded-xl px-5"
+            className="h-10 border border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white rounded-xl px-6"
             onClick={() => router.push("/booking")}
           >
             Book Now
           </Button>
           <Button
             variant="ghost"
-            className="border border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white rounded-xl px-5"
+            className="h-10 border border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white rounded-xl px-6"
             onClick={
               isAuthenticated ? () => router.push("/dashboard/bookings") : login
             }
