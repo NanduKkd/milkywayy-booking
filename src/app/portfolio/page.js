@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Play } from "lucide-react";
+import Link from "next/link";
 import Footer from "@/components/Footer";
 import AnnouncementBar from "@/components/landing/AnnouncementBar";
 import NewNavbar from "@/components/NewNavbar";
 import MediaRenderer from "@/components/portfolio/MediaRenderer";
 import StarBackground from "@/components/StarBackground";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import { isTouchDevice } from "@/lib/helpers/ui";
@@ -14,6 +18,8 @@ export default function PortfolioPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isTouch, setIsTouch] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [showInteractive360, setShowInteractive360] = useState(false);
 
   useEffect(() => {
     setIsTouch(isTouchDevice());
@@ -34,29 +40,55 @@ export default function PortfolioPage() {
   }, []);
 
   const categories = [
-    // { label: "All", value: "ALL" },
     { label: "Photography", value: OUR_WORK_TYPES.IMAGE },
-    { label: "Videography", value: OUR_WORK_TYPES.SHORT_VIDEO },
-    { label: "360° Tour", value: OUR_WORK_TYPES.THREE_SIXTY },
-    // { label: "Long-form", value: OUR_WORK_TYPES.VIDEO },
+    { label: "Short-form", value: OUR_WORK_TYPES.SHORT_VIDEO },
+    { label: "Long-form", value: OUR_WORK_TYPES.VIDEO },
+    { label: "360\u00B0", value: OUR_WORK_TYPES.THREE_SIXTY },
   ];
+
+  const openPreview = (item) => {
+    setSelectedItem(item);
+    setShowInteractive360(false);
+  };
+
+  const closePreview = () => {
+    setSelectedItem(null);
+    setShowInteractive360(false);
+  };
 
   const renderGrid = (filteredItems) => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 justify-between gap-y-6 py-8 items-center">
       {filteredItems.map((item, index) => (
         <div
           key={item.id}
-          className="group flex flex-col gap-4 fade-in mx-auto"
+          role="button"
+          tabIndex={0}
+          onClick={() => openPreview(item)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              openPreview(item);
+            }
+          }}
+          className="group flex flex-col gap-4 fade-in mx-auto cursor-pointer"
           style={{ animationDelay: `${index * 0.05}s` }}
         >
-          <div className={`relative min-w-[60vw] md:min-w-[35vw] lg:min-w-[25vw] ${item.type!=='SHORT_VIDEO' ? 'aspect-4/3' : ''} bg-card rounded-2xl overflow-hidden shadow-xl border border-white/10`}>
-            <div className={item.type === OUR_WORK_TYPES.IMAGE && !isTouch ? "photography-grayscale h-full w-full" : "h-full w-full"}>
-              <MediaRenderer
-                type={item.type}
-                url={item.mediaContent}
-                title={item.title}
+          <div className={`relative min-w-[60vw] md:min-w-[35vw] lg:min-w-[25vw] ${item.type !== "SHORT_VIDEO" ? "aspect-4/3" : ""} bg-card rounded-2xl overflow-hidden shadow-xl border border-white/10`}>
+            {item.type === OUR_WORK_TYPES.THREE_SIXTY && item.thumbnail ? (
+              <img
+                src={item.thumbnail}
+                alt={item.title}
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               />
-            </div>
+            ) : (
+              <div className={item.type === OUR_WORK_TYPES.IMAGE && !isTouch ? "photography-grayscale h-full w-full" : "h-full w-full"}>
+                <MediaRenderer
+                  type={item.type}
+                  url={item.mediaContent}
+                  title={item.title}
+                />
+              </div>
+            )}
           </div>
           <div className="px-2">
             <h3 className="font-bold text-xl text-white">{item.title}</h3>
@@ -131,6 +163,63 @@ export default function PortfolioPage() {
 
         <Footer />
       </div>
+
+      <Dialog open={Boolean(selectedItem)} onOpenChange={(open) => !open && closePreview()}>
+        <DialogContent className="max-w-[760px] w-[92vw] p-0 gap-0 border border-white/10 rounded-2xl bg-[#111318]/95 overflow-hidden">
+          <DialogTitle className="sr-only">
+            {selectedItem?.title || "Work Preview"}
+          </DialogTitle>
+          {selectedItem && (
+            <>
+              <div className="relative h-[420px] bg-[#222428]">
+                {selectedItem.type === OUR_WORK_TYPES.THREE_SIXTY &&
+                selectedItem.thumbnail &&
+                !showInteractive360 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowInteractive360(true)}
+                    className="h-full w-full relative"
+                  >
+                    <img
+                      src={selectedItem.thumbnail}
+                      alt={selectedItem.title}
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/30" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="h-16 w-16 rounded-full border border-white/40 bg-black/30 flex items-center justify-center">
+                        <Play className="h-8 w-8 text-white" />
+                      </span>
+                    </div>
+                  </button>
+                ) : (
+                  <MediaRenderer
+                    type={selectedItem.type}
+                    url={selectedItem.mediaContent}
+                    title={selectedItem.title}
+                    className="h-full w-full"
+                  />
+                )}
+              </div>
+
+              <div className="p-6 bg-[#17191d] border-t border-white/10">
+                <p className="text-4xl font-bold text-foreground mb-2">
+                  {selectedItem.title}
+                </p>
+                <p className="text-muted-foreground text-xl mb-4">
+                  {selectedItem.subtitle
+                    ? `${selectedItem.subtitle} - ${categories.find((c) => c.value === selectedItem.type)?.label || "Work"}`
+                    : categories.find((c) => c.value === selectedItem.type)?.label || "Work"}
+                </p>
+                <Button asChild className="rounded-xl bg-gradient-to-b from-white to-zinc-300 text-black hover:from-zinc-100 hover:to-zinc-300">
+                  <Link href="/booking">Book a similar shoot</Link>
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

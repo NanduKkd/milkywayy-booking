@@ -62,8 +62,16 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
         throw new Error(res.message);
       }
       const result = res.data;
+      if (result?.requiresRegistration) {
+        createAccountForm.setValue("phone", phone);
+        setActiveTab("create");
+        setError("No account found for this phone number. Please create an account.");
+        return;
+      }
       setUserId(result.userId);
-      alert(`OTP: ${result.otp}`); // For development
+      if (result?.debugOtp) {
+        alert(`OTP: ${result.debugOtp}`);
+      }
       setActiveTab("otp");
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -108,9 +116,22 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
       if (!res.success) {
         throw new Error(res.message);
       }
+      const otpRes = await customerSendOtp({ phone });
+      if (!otpRes.success) {
+        throw new Error(otpRes.message || "Account created, but failed to send OTP");
+      }
 
-      onSuccess(res.data);
-      handleClose();
+      const otpData = otpRes.data;
+      if (otpData?.requiresRegistration) {
+        throw new Error("Account was created, but OTP setup failed. Please try again.");
+      }
+
+      setUserId(otpData.userId);
+      if (otpData?.debugOtp) {
+        alert(`OTP: ${otpData.debugOtp}`);
+      }
+      setActiveTab("otp");
+      setError("");
     } catch (err) {
       setError(err.message || "Failed to create account");
     } finally {
@@ -169,7 +190,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
 
             <TabsContent value="login" className="space-y-4 mt-6">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm leading-relaxed break-words whitespace-pre-wrap">
                   {error}
                 </div>
               )}
@@ -210,7 +231,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
 
             <TabsContent value="otp" className="space-y-4 mt-6">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm leading-relaxed break-words whitespace-pre-wrap">
                   {error}
                 </div>
               )}
@@ -261,7 +282,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
 
             <TabsContent value="create" className="space-y-4 mt-6">
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm leading-relaxed break-words whitespace-pre-wrap">
                   {error}
                 </div>
               )}
@@ -336,3 +357,4 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
     </Dialog>
   );
 }
+

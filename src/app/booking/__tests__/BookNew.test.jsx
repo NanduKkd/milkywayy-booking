@@ -99,7 +99,7 @@ describe('BookNew', () => {
       expect(screen.getByTestId('property-card-0')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Book Your Property Shoot/i)).toBeInTheDocument();
+    expect(screen.getByText(/Book Your Shoot/i)).toBeInTheDocument();
   });
 
   it('adds a new property', async () => {

@@ -7,8 +7,12 @@ export default async function BookingSuccessPage({ searchParams }) {
   const { session_id } = await searchParams;
 
   let bookingRef = "MWY-BOOKED";
+  let paymentVerified = false;
+  let verificationMessage = "";
   if (session_id) {
-    await verifyStripeSession(session_id);
+    const verification = await verifyStripeSession(session_id);
+    paymentVerified = Boolean(verification?.success);
+    verificationMessage = verification?.message || "";
     bookingRef = `MW-${String(session_id).slice(-8).toUpperCase()}`;
   }
 
@@ -20,11 +24,16 @@ export default async function BookingSuccessPage({ searchParams }) {
             Milkywayy Portal
           </p>
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold mb-3 tracking-tight">
-            Thank You
+            {paymentVerified ? "Thank You" : "Payment Processing"}
           </h1>
           <p className="text-sm md:text-base text-muted-foreground max-w-md mx-auto">
-            Your booking has been confirmed
+            {paymentVerified
+              ? "Your booking has been confirmed"
+              : "We are still verifying your payment. Please refresh in a few seconds."}
           </p>
+          {!paymentVerified && session_id && (
+            <p className="text-xs text-amber-300 mt-3">{verificationMessage}</p>
+          )}
         </div>
 
         <div className="max-w-xl mx-auto fade-in space-y-6">
@@ -34,7 +43,7 @@ export default async function BookingSuccessPage({ searchParams }) {
               <CheckCheck className="h-8 w-8 text-foreground" />
             </div>
             <h2 className="text-2xl md:text-3xl font-semibold mb-4 tracking-tight">
-              Booking Confirmed
+              {paymentVerified ? "Booking Confirmed" : "Confirmation Pending"}
             </h2>
             <div className="inline-flex items-center px-4 py-2 bg-secondary/50 border border-border rounded-full">
               <span className="text-xs text-muted-foreground mr-2">Booking ID:</span>

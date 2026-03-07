@@ -54,8 +54,13 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
         throw new Error(res.message);
       }
       const result = res.data;
+      if (result?.requiresRegistration) {
+        throw new Error("No account found for this phone number. Please create an account first.");
+      }
       setUserId(result.userId);
-      alert(`OTP: ${result.otp}`); // For development purposes
+      if (result?.debugOtp) {
+        alert(`OTP: ${result.debugOtp}`);
+      }
       setStep(2);
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -95,7 +100,9 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
         throw new Error(res.message);
       }
       const result = res.data;
-      alert(`OTP: ${result.otp}`); // For development purposes
+      if (result?.debugOtp) {
+        alert(`OTP: ${result.debugOtp}`);
+      }
     } catch (err) {
       setError(err.message || "Failed to resend OTP");
     } finally {
@@ -132,7 +139,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
         </DialogHeader>
         <div className="grid gap-4 py-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4 text-sm leading-relaxed break-words whitespace-pre-wrap">
               {error}
             </div>
           )}
@@ -255,3 +262,4 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
     </Dialog>
   );
 }
+

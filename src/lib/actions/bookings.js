@@ -910,6 +910,10 @@ const createTransactionAndPaymentIntentHandler = async (
 
   couponCode,
 ) => {
+  console.log("[PAYMENT] createTransactionAndPaymentIntent start", {
+    bookingIds,
+    hasCoupon: Boolean(couponCode),
+  });
   const session = await auth();
 
   if (!session?.id) throw new Error("Unauthorized");
@@ -917,16 +921,30 @@ const createTransactionAndPaymentIntentHandler = async (
   const userId = session.id;
 
   // Fetch bookings to calculate total and verify ownership
-  console.log('Looking for bookings:', bookingIds, 'for user:', userId);
+  console.log("[PAYMENT] Looking for bookings", { bookingIds, userId });
   const bookings = await Booking.findAll({
     where: {
       id: bookingIds,
       userId: userId,
     },
   });
-  console.log('Found bookings:', bookings.map(b => ({ id: b.id, userId: b.userId, status: b.status })));
+  const foundBookingIds = bookings.map((b) => b.id);
+  console.log("[PAYMENT] Found bookings", {
+    userId,
+    foundBookingIds,
+    foundCount: bookings.length,
+    requestedCount: bookingIds.length,
+  });
 
   if (bookings.length !== bookingIds.length) {
+    const missingBookingIds = bookingIds.filter((id) => !foundBookingIds.includes(id));
+    console.error("[PAYMENT] Booking ownership mismatch", {
+      userId,
+      requestedBookingIds: bookingIds,
+      foundBookingIds,
+      missingBookingIds,
+      reason: "Some bookings not found or unauthorized",
+    });
     throw new Error("Some bookings not found or unauthorized");
   }
 
@@ -939,6 +957,10 @@ const createTransactionAndPaymentIntentHandler = async (
     duration: b.duration,
   }));
   await checkAvailability(propertiesToCheck, bookingIds);
+  console.log("[PAYMENT] Availability re-check passed", {
+    bookingIds,
+    userId,
+  });
 
   const totalAmount = bookings.reduce(
     (sum, b) => Number(sum) + Number(b.total),
@@ -1057,6 +1079,11 @@ const createTransactionAndPaymentIntentHandler = async (
   // Update Transaction with Session ID (temporarily in stripePaymentIntentId or just rely on webhook)
   // We will store session ID for now to reference it if needed before webhook fires
   await transaction.update({ stripePaymentIntentId: stripeSession.id });
+  console.log("[PAYMENT] Stripe checkout session created", {
+    userId,
+    transactionId: transaction.id,
+    stripeSessionId: stripeSession.id,
+  });
 
   return { url: stripeSession.url };
 };
@@ -1197,69 +1224,143 @@ export const cancelBooking = actionWrapper(cancelBookingHandler);
 
 const verifyStripeSessionHandler = async (sessionId) => {
   if (!sessionId) throw new Error("No session ID");
+  console.log("[PAYMENT] verifyStripeSession start", { sessionId });
 
   const session = await stripe.checkout.sessions.retrieve(sessionId);
+  console.log("[PAYMENT] Stripe session retrieved", {
+    sessionId,
+    paymentStatus: session.payment_status,
+    transactionId: session.metadata?.transactionId,
+  });
 
   if (session.payment_status === "paid") {
     const transactionId = session.metadata.transactionId;
+    if (!transactionId) {
+      throw new Error("Missing transaction ID in Stripe session metadata");
+    }
 
-    if (transactionId) {
-      const transaction = await Transaction.findByPk(transactionId);
+    const transaction = await Transaction.findByPk(transactionId);
+    if (!transaction) {
+      console.error("[PAYMENT] verifyStripeSession transaction missing", {
+        sessionId,
+        transactionId,
+      });
+      throw new Error(`Transaction not found for id ${transactionId}`);
+    }
 
-      if (transaction && transaction.status !== "success") {
-        await transaction.update({
-          status: "success",
-          stripePaymentIntentId: session.payment_intent,
-          paidAt: new Date(),
-        });
+    const shouldGenerateSideEffects = transaction.status !== "success";
+    const confirmationAlreadySent = Boolean(
+      transaction.metadata?.bookingConfirmationSentAt,
+    );
+    if (shouldGenerateSideEffects) {
+      await transaction.update({
+        status: "success",
+        stripePaymentIntentId: session.payment_intent,
+        paidAt: new Date(),
+      });
+    }
 
-        await Booking.update(
-          { status: "CONFIRMED" },
-          { where: { transactionId: transaction.id } },
-        );
+    // Always ensure bookings move out of DRAFT for paid sessions.
+    await Booking.update(
+      { status: "CONFIRMED" },
+      { where: { transactionId: transaction.id } },
+    );
+    console.log("[PAYMENT] Bookings set to CONFIRMED", {
+      sessionId,
+      transactionId: transaction.id,
+    });
 
-        try {
-          const user = await db.models.User.findByPk(transaction.userId);
-          if (user) {
-            const confirmedBookings = await Booking.findAll({
-              where: { transactionId: transaction.id },
-            });
-            await Promise.allSettled(
-              confirmedBookings.map((b) => sendBookingConfirmation(b, user)),
-            );
-          }
-        } catch (notifyError) {
-          console.error("WhatsApp booking confirmation failed:", notifyError);
-        }
+    let invoiceUrl = transaction.invoiceUrl || null;
 
-        // Generate Invoice
-        try {
-          const user = await db.models.User.findByPk(transaction.userId);
-          if (user) {
-            const { generateAndUploadInvoice } = await import(
-              "@/lib/helpers/invoice"
-            );
-            const invoiceUrl = await generateAndUploadInvoice(
-              transaction,
-              user,
-            );
-            if (invoiceUrl) {
-              await transaction.update({ invoiceUrl });
-            }
-          }
-        } catch (invoiceError) {
-          console.error(
-            "Error generating invoice in verifyStripeSession:",
-            invoiceError,
+    if (shouldGenerateSideEffects || !invoiceUrl) {
+      // Generate Invoice
+      try {
+        const user = await db.models.User.findByPk(transaction.userId);
+        if (user) {
+          const { generateAndUploadInvoice } = await import(
+            "@/lib/helpers/invoice"
           );
-          // Don't fail the verification if invoice generation fails, just log it
+          const generatedInvoiceUrl = await generateAndUploadInvoice(
+            transaction,
+            user,
+          );
+          if (generatedInvoiceUrl) {
+            invoiceUrl = generatedInvoiceUrl;
+            await transaction.update({ invoiceUrl: generatedInvoiceUrl });
+          }
         }
+      } catch (invoiceError) {
+        console.error(
+          "Error generating invoice in verifyStripeSession:",
+          invoiceError,
+        );
+        // Don't fail the verification if invoice generation fails, just log it
+      }
 
-        return {
-          message: "Payment verified and bookings confirmed",
-        };
+    }
+
+    if (!confirmationAlreadySent) {
+      try {
+        const user = await db.models.User.findByPk(transaction.userId);
+        if (user) {
+          const confirmedBookings = await Booking.findAll({
+            where: { transactionId: transaction.id },
+          });
+          const notifyResults = await Promise.allSettled(
+            confirmedBookings.map((b) =>
+              sendBookingConfirmation(b, user, {
+                Invoice_URL: invoiceUrl || transaction.invoiceUrl || "",
+              }),
+            ),
+          );
+          notifyResults.forEach((result, idx) => {
+            const bookingId = confirmedBookings[idx]?.id;
+            if (result.status === "rejected") {
+              console.error(
+                `WhatsApp confirmation rejected for booking ${bookingId}:`,
+                result.reason,
+              );
+              return;
+            }
+            if (!result.value?.success) {
+              console.error(
+                `WhatsApp confirmation failed for booking ${bookingId}:`,
+                result.value?.error || "Unknown Twilio error",
+              );
+            }
+          });
+
+          const allNotificationsSuccessful = notifyResults.every(
+            (result) => result.status === "fulfilled" && result.value?.success,
+          );
+          if (allNotificationsSuccessful) {
+            await transaction.update({
+              metadata: {
+                ...(transaction.metadata || {}),
+                bookingConfirmationSentAt: new Date().toISOString(),
+              },
+            });
+            console.log("[PAYMENT] WhatsApp booking confirmations sent", {
+              sessionId,
+              transactionId: transaction.id,
+              bookingCount: confirmedBookings.length,
+            });
+          } else {
+            console.error("[PAYMENT] Some WhatsApp booking confirmations failed", {
+              sessionId,
+              transactionId: transaction.id,
+              bookingCount: confirmedBookings.length,
+            });
+          }
+        }
+      } catch (notifyError) {
+        console.error("WhatsApp booking confirmation failed:", notifyError);
       }
     }
+
+    return {
+      message: "Payment verified and bookings confirmed",
+    };
   }
   return {};
 };

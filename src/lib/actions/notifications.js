@@ -1,5 +1,5 @@
-import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import Booking from "@/lib/db/models/booking";
+import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import User from "@/lib/db/models/user";
 import { sendWhatsAppTemplate } from "@/lib/notifications/whatsapp";
 
@@ -11,7 +11,7 @@ const START_TIME_TO_PERIOD = {
   "17:00": "evening",
 };
 
-const toDateKey = (dateObj) => {
+const _toDateKey = (dateObj) => {
   const y = dateObj.getFullYear();
   const m = String(dateObj.getMonth() + 1).padStart(2, "0");
   const d = String(dateObj.getDate()).padStart(2, "0");
@@ -49,7 +49,8 @@ const getArrivalWindow = async (booking) => {
       where: { key: "timeSlots" },
       attributes: ["value"],
     });
-    const blockDef = configEntry?.value?.systemSettings?.blockDefinitions?.[startPeriod];
+    const blockDef =
+      configEntry?.value?.systemSettings?.blockDefinitions?.[startPeriod];
     if (blockDef?.startTime && blockDef?.endTime) {
       return `${blockDef.startTime} - ${blockDef.endTime}`;
     }
@@ -61,13 +62,18 @@ const getArrivalWindow = async (booking) => {
 };
 
 const getPropertyName = (booking) => {
-  const unit = booking?.propertyDetails?.unit || booking?.propertyDetails?.unitNumber;
+  const unit =
+    booking?.propertyDetails?.unit || booking?.propertyDetails?.unitNumber;
   const building = booking?.propertyDetails?.building;
   return [unit, building].filter(Boolean).join(", ") || "Property";
 };
 
 const getLocation = (booking) => {
-  return booking?.propertyDetails?.community || booking?.propertyDetails?.building || "Location";
+  return (
+    booking?.propertyDetails?.community ||
+    booking?.propertyDetails?.building ||
+    "Location"
+  );
 };
 
 const getRecipientPhone = (booking, user) => {
@@ -79,13 +85,24 @@ const getRecipientPhone = (booking, user) => {
   );
 };
 
+const getClientName = (booking, user) => {
+  return (
+    booking?.contactDetails?.name ||
+    booking?.contactDetails?.fullName ||
+    user?.fullName ||
+    "Client"
+  );
+};
+
 const buildVariables = async (booking, user, overrides = {}) => {
   const propertyName = getPropertyName(booking);
   const location = getLocation(booking);
   const arrivalWindow = await getArrivalWindow(booking);
+  const clientName = getClientName(booking, user);
   return {
     Property_Name: propertyName,
     Location: location,
+    Client_Name: clientName,
     Shoot_Date: formatDate(booking?.date),
     Arrival_Window: arrivalWindow,
     ...overrides,
@@ -103,8 +120,8 @@ const sendTemplate = async (templateName, booking, user, overrides) => {
   return result;
 };
 
-export async function sendBookingConfirmation(booking, user) {
-  return sendTemplate("shoot_confirmation", booking, user);
+export async function sendBookingConfirmation(booking, user, overrides = {}) {
+  return sendTemplate("shoot_confirmation", booking, user, overrides);
 }
 
 export async function sendRescheduleConfirmation(booking, user) {

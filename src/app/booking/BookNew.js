@@ -1,11 +1,9 @@
-"use client";
+﻿"use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus } from "lucide-react";
-import Image from "next/image";
 import { use, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import StarBackground from "@/components/StarBackground";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/contexts/auth";
 import {
@@ -525,137 +523,113 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     .join(" · ");
 
   return (
-    <div className="min-h-screen pt-24 pb-8 relative">
-      <StarBackground />
-      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="mx-auto mb-8 max-w-3xl text-center animate-in fade-in slide-in-from-bottom-8 duration-700">
-          <p className="text-xs tracking-[0.24em] uppercase text-white/60 mb-3">
-            Milkywayy Portal
-          </p>
-          <h1 className="font-heading text-white text-4xl sm:text-5xl lg:text-7xl font-bold leading-tight mb-4">
-            Book Your Shoot
-          </h1>
-          <p className="text-white/80 text-base md:text-xl max-w-2xl mx-auto">
-            Premium property media for Dubai&apos;s finest real estate
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit(onContinue)}>
-              <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
-                <div className="space-y-6">
-                  {properties?.map((property, index) => (
-                    <PropertyCard
-                      key={`property-${index}`}
-                      index={index}
-                      property={property}
-                      isOpen={index === openPropertyIndex}
-                      onToggle={() =>
-                        setOpenPropertyIndex(
-                          index === openPropertyIndex ? -1 : index,
-                        )
-                      }
-                      onDuplicate={duplicateProperty}
-                      onRemove={removeProperty}
-                      control={control}
-                      setValue={setValue}
-                      errors={errors}
-                      pricingConfig={PRICING_CONFIG}
-                      getPropertyPrice={getPropertyPrice}
-                      getPropertyDurationAndEvening={
-                        getPropertyDurationAndEvening
-                      }
-                      getOccupiedSlots={getOccupiedSlots}
-                      toggleService={toggleService}
-                      updatePropertyField={updatePropertyField}
-                      isOnlyProperty={properties.length === 1}
-                    />
-                  ))}
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={addProperty}
-                    className="w-full text-muted-foreground border border-white/15 border-dashed hover:border-white/30 hover:bg-white/[0.03] hover:text-foreground transition-all duration-200 group py-6 rounded-2xl"
-                  >
-                    <Plus
-                      size={18}
-                      className="mr-2 group-hover:rotate-90 transition-transform duration-200"
-                    />
-                    Add Another Property
-                  </Button>
-                </div>
-
-                <aside className="xl:sticky xl:top-28 rounded-2xl border border-white/10 bg-[#141519]/90 p-5 backdrop-blur-sm">
-                  <p className="text-xs uppercase tracking-wider text-white/60 mb-4">
-                    Order Summary
-                  </p>
-
-                  <div className="rounded-xl border border-white/10 bg-black/20 p-4 mb-6">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-sm text-white">
-                          {primaryTitle || "Property Summary"}
-                        </p>
-                        <p className="text-xs text-white/60 mt-1">
-                          {primaryServices}
-                        </p>
-                        <p className="text-[11px] text-white/60 mt-2">
-                          {primarySchedule || "Select date and time"}
-                        </p>
-                      </div>
-                      <span className="font-semibold text-sm whitespace-nowrap text-white">
-                        AED {totalAmount.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mb-6 pt-2 border-t border-white/10">
-                    <p className="text-white/60">Grand Total</p>
-                    <p className="text-3xl font-semibold text-white">
-                      AED {totalAmount.toLocaleString()}
-                    </p>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    size="lg"
-                    disabled={isSubmitting || isProcessingPayment}
-                    className="w-full rounded-xl bg-gradient-to-b from-white to-zinc-300 text-black hover:from-zinc-100 hover:to-zinc-300 font-medium"
-                  >
-                    {isSubmitting || isProcessingPayment
-                      ? <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Redirecting to Payment...
-                        </>
-                      : "Continue to Payment"}
-                  </Button>
-
-                  <p className="text-[11px] leading-relaxed text-white/60 mt-4">
-                    Media is licensed for client marketing use. Milkywayy may
-                    showcase selected work for portfolio and promotional
-                    purposes.
-                  </p>
-                </aside>
-              </div>
-            </form>
-
-        <footer className="mt-24 border-t border-white/10 pt-14 pb-6 text-center">
-          <div className="flex items-center justify-center mb-4">
-            <Image
-              src="/logo-texxt.png"
-              height={40}
-              width={220}
-              alt="Milkywayy"
-            />
-          </div>
-          <p className="text-white/60 mb-10">
-            Don&apos;t Just List. Dominate.
-          </p>
-          <p className="text-sm text-white/40">
-            &copy; 2026 Milkywayy LLC | All Rights Reserved
-          </p>
-        </footer>
+    <div className="container mx-auto px-6 py-8 max-w-6xl">
+      <div className="text-center mb-8 fade-in">
+        <p className="text-xs tracking-[0.24em] uppercase text-muted-foreground mb-3">
+          Milkywayy Portal
+        </p>
+        <h1 className="text-4xl font-bold text-foreground mb-4">
+          Book Your Shoot
+        </h1>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Premium property media for Dubai&apos;s finest real estate
+        </p>
       </div>
+
+      <form onSubmit={handleSubmit(onContinue)}>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="lg:col-span-2 space-y-6">
+            {properties?.map((property, index) => (
+              <PropertyCard
+                key={`property-${index}`}
+                index={index}
+                property={property}
+                isOpen={index === openPropertyIndex}
+                onToggle={() =>
+                  setOpenPropertyIndex(index === openPropertyIndex ? -1 : index)
+                }
+                onDuplicate={duplicateProperty}
+                onRemove={removeProperty}
+                control={control}
+                setValue={setValue}
+                errors={errors}
+                pricingConfig={PRICING_CONFIG}
+                getPropertyPrice={getPropertyPrice}
+                getPropertyDurationAndEvening={getPropertyDurationAndEvening}
+                getOccupiedSlots={getOccupiedSlots}
+                toggleService={toggleService}
+                updatePropertyField={updatePropertyField}
+                isOnlyProperty={properties.length === 1}
+              />
+            ))}
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addProperty}
+              className="w-full border-border bg-secondary/40 text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+            >
+              <Plus size={18} className="mr-2" />
+              Add Another Property
+            </Button>
+          </div>
+
+          <aside className="lg:col-span-1 premium-card rounded-2xl p-6 md:p-8 lg:sticky lg:top-28">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
+              Order Summary
+            </p>
+
+            <div className="rounded-xl border border-border/40 bg-secondary/30 p-4 mb-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-sm text-foreground">
+                    {primaryTitle || "Property Summary"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {primaryServices}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    {primarySchedule || "Select date and time"}
+                  </p>
+                </div>
+                <span className="font-semibold text-sm whitespace-nowrap text-foreground">
+                  AED {totalAmount.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between mb-6 pt-4 border-t border-border/50">
+              <p className="text-muted-foreground">Grand Total</p>
+              <p className="text-3xl font-semibold text-foreground">
+                AED {totalAmount.toLocaleString()}
+              </p>
+            </div>
+
+            <Button
+              type="submit"
+              size="lg"
+              disabled={isSubmitting || isProcessingPayment}
+              className="w-full btn-primary-premium text-lg py-4"
+            >
+              {isSubmitting || isProcessingPayment ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Redirecting to Payment...
+                </>
+              ) : (
+                "Continue to Payment"
+              )}
+            </Button>
+
+            <p className="text-[11px] leading-relaxed text-muted-foreground mt-4">
+              Media is licensed for client marketing use. Milkywayy may showcase
+              selected work for portfolio and promotional purposes.
+            </p>
+          </aside>
+        </div>
+      </form>
     </div>
   );
 }
+
+

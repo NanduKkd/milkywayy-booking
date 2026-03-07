@@ -67,9 +67,9 @@ const ReviewsSection = () => {
             <div className="flex items-center gap-1">
               {renderStars(5, "headline", "w-4 h-4")}
             </div>
-            <span className="text-muted-foreground text-lg">
+            {/* <span className="text-muted-foreground text-lg">
               {reviewsCount} review{reviewsCount === 1 ? "" : "s"} on Google
-            </span>
+            </span> */}
           </div>
           <h2 className="font-heading text-4xl md:text-6xl font-bold mb-4">
             Trusted by Real Estate Professionals Across Dubai

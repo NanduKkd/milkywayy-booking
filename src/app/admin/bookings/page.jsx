@@ -72,7 +72,7 @@ export default function BookingsPage() {
         );
         alert("Booking marked as completed");
       } else {
-        alert("Failed: " + (res.message || "Unknown error"));
+        alert(`Failed: ${res.message || "Unknown error"}`);
       }
     } catch (e) {
       console.error(e);
@@ -104,7 +104,7 @@ export default function BookingsPage() {
         );
         alert("File uploaded successfully");
       } else {
-        alert("Upload failed: " + (data.error || "Unknown error"));
+        alert(`Upload failed: ${data.error || "Unknown error"}`);
       }
     } catch (error) {
       console.error(error);
@@ -169,13 +169,18 @@ export default function BookingsPage() {
                       <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/25 border-red-500/20">
                         Cancelled
                       </Badge>
-                    ) : booking.status === "COMPLETED" || booking.completedAt ? (
+                    ) : booking.status === "COMPLETED" ||
+                      booking.completedAt ? (
                       <Badge className="bg-green-500/15 text-green-500 hover:bg-green-500/25 border-green-500/20">
                         Completed
                       </Badge>
                     ) : booking.status === "CONFIRMED" ? (
                       <Badge className="bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border-blue-500/20">
                         Confirmed
+                      </Badge>
+                    ) : booking.status === "DRAFT" ? (
+                      <Badge className="bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border-amber-500/20">
+                        Awaiting Payment
                       </Badge>
                     ) : (
                       <Badge className="bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25 border-yellow-500/20">

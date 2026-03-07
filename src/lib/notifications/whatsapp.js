@@ -9,90 +9,126 @@ const TEMPLATE_ENV_KEYS = {
   shoot_cancelled: "TWILIO_CONTENT_SID_SHOOT_CANCELLED",
 };
 
+const TEMPLATE_VARIABLE_ORDER = {
+  shoot_confirmation: [
+    "Property_Name",
+    "Location",
+    "Shoot_Date",
+    "Arrival_Window",
+    "Invoice_URL",
+    "Client_Name",
+  ],
+  shoot_reminder: [
+    "Property_Name",
+    "Shoot_Date",
+    "Arrival_Window",
+    "Client_Name",
+  ],
+  team_on_the_way: ["Property_Name", "Arrival_Window", "Client_Name"],
+  team_arrived: ["Property_Name", "Client_Name"],
+  shoot_rescheduled: ["Property_Name", "New_Shoot_Date", "New_Arrival_Window"],
+  shoot_cancelled: ["Property_Name", "Shoot_Date"],
+};
+
 const TEMPLATES_FALLBACK = {
-  shoot_confirmation: ({ Property_Name, Location, Shoot_Date, Arrival_Window }) =>
+  shoot_confirmation: ({
+    Property_Name,
+    Location,
+    Shoot_Date,
+    Arrival_Window,
+    Invoice_URL,
+    Client_Name,
+  }) =>
     [
-      "✅ Property Shoot Confirmed",
+      "Property Shoot Confirmed",
       "",
       "Your booking has been successfully confirmed. Here are the details:",
       "",
-      `📍 Property: ${Property_Name}, ${Location}`,
-      `📅 Date: ${Shoot_Date}`,
-      `⏳ Arrival Window: ${Arrival_Window}`,
+      Client_Name ? `Hi ${Client_Name},` : null,
+      `Property: ${Property_Name}, ${Location}`,
+      `Date: ${Shoot_Date}`,
+      `Arrival Window: ${Arrival_Window}`,
       "",
       "Our team will arrive within the mentioned time window.",
       "Please ensure the property is clean, ready, and accessible during this period.",
       "",
       "Need to make changes?",
       "",
-      "• To reschedule or cancel, tap Reschedule below",
-      "• You’ll be redirected to your dashboard to:",
-      "  - Modify your booking",
-      "  - Download your invoice",
-      "",
-      "If you’d like to request a different arrival window, simply reply to this message.",
-      "Our team will check availability and get back to you shortly.",
-    ].join("\n"),
-  shoot_reminder: ({ Property_Name, Shoot_Date, Arrival_Window }) =>
+      "- To reschedule or cancel, use your dashboard",
+      "- You can modify your booking and download your invoice",
+      Invoice_URL ? `Invoice: ${Invoice_URL}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+
+  shoot_reminder: ({
+    Property_Name,
+    Shoot_Date,
+    Arrival_Window,
+    Client_Name,
+  }) =>
     [
-      "⏰ Upcoming Property Shoot Reminder",
+      "Upcoming Property Shoot Reminder",
       "",
       "This is a reminder for your scheduled property shoot:",
       "",
-      `📍 Property: ${Property_Name}`,
-      `📅 Date: ${Shoot_Date}`,
-      `⏳ Arrival Window: ${Arrival_Window}`,
+      Client_Name ? `Hi ${Client_Name},` : null,
+      `Property: ${Property_Name}`,
+      `Date: ${Shoot_Date}`,
+      `Arrival Window: ${Arrival_Window}`,
       "",
       "Please ensure:",
-      "• Property access is arranged",
-      "• All lights are working",
-      "• Rooms are clean and clutter-free",
-      "",
-      "If you need to make any changes, you can reschedule directly from your dashboard or reply to this message for assistance.",
+      "- Property access is arranged",
+      "- All lights are working",
+      "- Rooms are clean and clutter-free",
     ].join("\n"),
-  team_on_the_way: ({ Property_Name, Arrival_Window }) =>
+
+  team_on_the_way: ({ Property_Name, Arrival_Window, Client_Name }) =>
     [
-      "🚗 Our Team Is On the Way",
+      "Our Team Is On the Way",
       "",
+      Client_Name ? `Hi ${Client_Name},` : null,
       "Our shoot team is currently en route to your property:",
       "",
-      `📍 Property: ${Property_Name}`,
-      `⏳ Expected Arrival: Within ${Arrival_Window}`,
+      `Property: ${Property_Name}`,
+      `Expected Arrival: Within ${Arrival_Window}`,
       "",
       "Please ensure access is available.",
-      "If there are any last-minute instructions, feel free to reply to this message.",
     ].join("\n"),
-  team_arrived: ({ Property_Name }) =>
+
+  team_arrived: ({ Property_Name, Client_Name }) =>
     [
-      "📸 Our Team Has Arrived",
+      "Our Team Has Arrived",
       "",
+      Client_Name ? `Hi ${Client_Name},` : null,
       "Our team has arrived at the property:",
       "",
-      `📍 Property: ${Property_Name}`,
+      `Property: ${Property_Name}`,
       "",
-      "We’ll begin the shoot shortly.",
-      "If you need anything during the shoot, you can reach us here.",
+      "We will begin the shoot shortly.",
     ].join("\n"),
+
   shoot_rescheduled: ({ Property_Name, New_Shoot_Date, New_Arrival_Window }) =>
     [
-      "🔁 Shoot Rescheduled Successfully",
+      "Shoot Rescheduled Successfully",
       "",
       "Your property shoot has been rescheduled with the following details:",
       "",
-      `📍 Property: ${Property_Name}`,
-      `📅 New Date: ${New_Shoot_Date}`,
-      `⏳ New Arrival Window: ${New_Arrival_Window}`,
+      `Property: ${Property_Name}`,
+      `New Date: ${New_Shoot_Date}`,
+      `New Arrival Window: ${New_Arrival_Window}`,
       "",
       "You can view updated details and download the revised invoice from your dashboard.",
     ].join("\n"),
+
   shoot_cancelled: ({ Property_Name, Shoot_Date }) =>
     [
-      "❌ Property Shoot Cancelled",
+      "Property Shoot Cancelled",
       "",
       "Your booking for the following property has been cancelled:",
       "",
-      `📍 Property: ${Property_Name}`,
-      `📅 Original Date: ${Shoot_Date}`,
+      `Property: ${Property_Name}`,
+      `Original Date: ${Shoot_Date}`,
       "",
       "If applicable, refund or credit details will be shared as per the cancellation policy.",
       "You can book a new shoot anytime through the portal.",
@@ -114,13 +150,33 @@ const formatWhatsAppNumber = (value) => {
   return `whatsapp:${trimmed}`;
 };
 
-export async function sendWhatsAppTemplate({
-  to,
-  templateName,
-  variables,
-}) {
+const maskPhone = (value) => {
+  if (!value) return "";
+  const normalized = String(value).replace("whatsapp:", "");
+  if (normalized.length <= 4) return normalized;
+  return `${normalized.slice(0, 4)}***${normalized.slice(-2)}`;
+};
+
+const toTwilioContentVariables = (templateName, variables) => {
+  const order = TEMPLATE_VARIABLE_ORDER[templateName];
+  if (!order) {
+    return variables || {};
+  }
+
+  const normalized = {};
+  order.forEach((key, idx) => {
+    const slot = String(idx + 1);
+    const value = variables?.[key];
+    normalized[slot] = value == null ? "" : String(value);
+  });
+
+  return normalized;
+};
+
+export async function sendWhatsAppTemplate({ to, templateName, variables }) {
   const authHeader = getTwilioAuthHeader();
   if (!authHeader) {
+    console.error("[WHATSAPP] Missing Twilio credentials");
     return { success: false, error: "Twilio credentials missing" };
   }
 
@@ -131,6 +187,7 @@ export async function sendWhatsAppTemplate({
   const toValue = formatWhatsAppNumber(to);
 
   if (!toValue) {
+    console.error("[WHATSAPP] Recipient phone missing", { templateName });
     return { success: false, error: "Recipient phone missing" };
   }
 
@@ -147,13 +204,22 @@ export async function sendWhatsAppTemplate({
   }
 
   if (contentSid) {
+    const contentVariables = toTwilioContentVariables(templateName, variables);
     payload.append("ContentSid", contentSid);
-    payload.append("ContentVariables", JSON.stringify(variables || {}));
+    payload.append("ContentVariables", JSON.stringify(contentVariables));
   } else if (body) {
     payload.append("Body", body);
   } else {
+    console.error("[WHATSAPP] No template configured", { templateName });
     return { success: false, error: "No template content configured" };
   }
+
+  console.log("[WHATSAPP] Sending template", {
+    templateName,
+    to: maskPhone(toValue),
+    viaMessagingService: Boolean(messagingServiceSid),
+    hasContentSid: Boolean(contentSid),
+  });
 
   const res = await fetch(
     `${TWILIO_API_BASE}/Accounts/${accountSid}/Messages.json`,
@@ -169,9 +235,22 @@ export async function sendWhatsAppTemplate({
 
   if (!res.ok) {
     const text = await res.text();
+    console.error("[WHATSAPP] Send failed", {
+      templateName,
+      to: maskPhone(toValue),
+      status: res.status,
+      statusText: res.statusText,
+      error: text || "Twilio send failed",
+    });
     return { success: false, error: text || "Twilio send failed" };
   }
 
   const data = await res.json();
+  console.log("[WHATSAPP] Send success", {
+    templateName,
+    to: maskPhone(toValue),
+    sid: data?.sid,
+    status: data?.status,
+  });
   return { success: true, data };
 }

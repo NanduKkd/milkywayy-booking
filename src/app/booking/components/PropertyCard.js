@@ -199,6 +199,236 @@ export function PropertyCard({
     property.videographySubService || "",
   );
 
+  const renderVideographySubServiceSelection = (className = "") => (
+    <div className={cn("animate-in fade-in slide-in-from-top-4 duration-300", className)}>
+      <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
+        {property.propertyType === "Commercial" ? "Videography Package" : "Videography Duration"}
+      </label>
+
+      <Controller
+        name={`properties.${index}.videographySubService`}
+        control={control}
+        render={({ field }) => (
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-[#14161a]/80 p-3 md:p-4">
+            <div className={property.propertyType === "Commercial" && property.propertySize === "Basic" ? "grid grid-cols-1 gap-4 w-full" : "grid grid-cols-1 lg:grid-cols-2 gap-4 w-full"}>
+              {VIDEOGRAPHY_SUB_SERVICE_ORDER.map((subService) => {
+                if (property.propertyType === "Commercial" && property.propertySize === "Basic") {
+                  if (subService !== VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) return null;
+                }
+
+                const typeConfig = pricingConfig[property.propertyType];
+                const sizeConfig = typeConfig?.sizes?.find((s) => s.label === property.propertySize);
+                const servicePriceConfig = sizeConfig?.prices?.["Videography"]?.[subService];
+
+                let basePrice;
+                if (property.propertyType === "Commercial") {
+                  basePrice = servicePriceConfig?.price || 0;
+                } else if (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) {
+                  basePrice = servicePriceConfig?.price || 0;
+                } else if (!servicePriceConfig || typeof servicePriceConfig !== "object") {
+                  basePrice = 0;
+                } else {
+                  const values = Object.values(servicePriceConfig);
+                  basePrice = values.length
+                    ? Math.min(
+                        ...values.map((cat) =>
+                          typeof cat?.price === "number" ? cat.price : Infinity,
+                        ),
+                      )
+                    : 0;
+                  if (basePrice === Infinity) basePrice = 0;
+                }
+
+                return (
+                  <OptionCard
+                    key={subService}
+                    className="py-3"
+                    selectedClassName="border-white bg-white text-black"
+                    unselectedClassName="border-white/10 bg-[#1a1d22] text-muted-foreground hover:border-white/20 hover:text-white"
+                    isSelected={
+                      subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
+                        ? hasShortFormSelection
+                        : Boolean(selectedLongForm)
+                    }
+                    onClick={() => {
+                      const currentSelections = parseVideographySelections(field.value);
+                      const withoutLong = currentSelections.filter(
+                        (v) =>
+                          !v.startsWith(`${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`) &&
+                          v !== VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
+                      );
+                      const hasLong = currentSelections.some(
+                        (v) =>
+                          v.startsWith(`${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`) ||
+                          v === VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
+                      );
+                      const hasShort = currentSelections.includes(
+                        VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM,
+                      );
+
+                      if (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) {
+                        const nextSelections = hasShort
+                          ? currentSelections.filter(
+                              (v) => v !== VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM,
+                            )
+                          : [...currentSelections, VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM];
+                        updatePropertyField(
+                          index,
+                          "videographySubService",
+                          serializeVideographySelections(nextSelections),
+                        );
+                        return;
+                      }
+
+                      if (property.propertyType === "Commercial") {
+                        const nextSelections = hasLong
+                          ? withoutLong
+                          : [...withoutLong, VIDEOGRAPHY_SUB_SERVICES.LONG_FORM];
+                        updatePropertyField(
+                          index,
+                          "videographySubService",
+                          serializeVideographySelections(nextSelections),
+                        );
+                        return;
+                      }
+
+                      if (hasLong) {
+                        updatePropertyField(
+                          index,
+                          "videographySubService",
+                          serializeVideographySelections(withoutLong),
+                        );
+                        return;
+                      }
+
+                      const categoriesObj = VIDEOGRAPHY_SUB_CATEGORIES?.[subService];
+                      const firstCategoryLabel = categoriesObj
+                        ? Object.values(categoriesObj)[0]
+                        : undefined;
+                      const longSelection = firstCategoryLabel
+                        ? `${subService}.${firstCategoryLabel}`
+                        : subService;
+                      updatePropertyField(
+                        index,
+                        "videographySubService",
+                        serializeVideographySelections([
+                          ...currentSelections,
+                          longSelection,
+                        ]),
+                      );
+                    }}
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="font-semibold">{subService}</div>
+                      {property.propertyType === "Commercial" ? (
+                        <div className="text-sm text-muted-foreground">AED {basePrice}</div>
+                      ) : (
+                        subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM && (
+                          <div className="text-sm text-muted-foreground">AED {basePrice}</div>
+                        )
+                      )}
+                    </div>
+                  </OptionCard>
+                );
+              })}
+            </div>
+
+            <div className="mt-1 text-2xl font-bold text-foreground">
+              {(() => {
+                const typeConfig = pricingConfig[property.propertyType];
+                const sizeConfig = typeConfig?.sizes?.find(
+                  (s) => s.label === property.propertySize,
+                );
+                const videographyPriceConfig = sizeConfig?.prices?.["Videography"];
+                if (!videographyPriceConfig) return "AED 0";
+
+                const selectedSelections = parseVideographySelections(field.value);
+                const effectiveSelections =
+                  selectedSelections.length > 0
+                    ? selectedSelections
+                    : [VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM];
+
+                const total = effectiveSelections.reduce((sum, selection) => {
+                  const resolved = resolveVideographyPriceConfig(
+                    videographyPriceConfig,
+                    selection,
+                  );
+                  const amount =
+                    typeof resolved === "object"
+                      ? Number(resolved?.price || 0)
+                      : Number(resolved || 0);
+                  return sum + (Number.isFinite(amount) ? amount : 0);
+                }, 0);
+
+                return `AED ${total}`;
+              })()}
+            </div>
+
+            {selectedLongForm?.startsWith(`${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`) && property.propertyType !== "Commercial" && (
+              <div className="mt-4">
+                <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
+                  Lighting Preference
+                </label>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {(() => {
+                    const [mainService, selectedCategoryLabel] = selectedLongForm.split('.') || [];
+                    const categories = VIDEOGRAPHY_SUB_CATEGORIES[mainService];
+                    if (!categories) return null;
+
+                    const currentCategory =
+                      selectedCategoryLabel || Object.values(categories)[0];
+
+                    return Object.entries(categories).map(([categoryKey, categoryName]) => (
+                      <OptionCard
+                        key={categoryKey}
+                        className="relative py-3"
+                        selectedClassName="border-white/40 bg-[#1f232a] text-white"
+                        unselectedClassName="border-white/10 bg-[#15181d] text-muted-foreground hover:border-white/25 hover:text-white"
+                        isSelected={currentCategory === categoryName}
+                        onClick={() => {
+                          const currentSelections = parseVideographySelections(field.value);
+                          const withoutLong = currentSelections.filter(
+                            (v) =>
+                              !v.startsWith(`${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`) &&
+                              v !== VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
+                          );
+                          updatePropertyField(
+                            index,
+                            "videographySubService",
+                            serializeVideographySelections([
+                              ...withoutLong,
+                              `${mainService}.${categoryName}`,
+                            ]),
+                          );
+                        }}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="font-medium text-sm">{categoryName}</div>
+                          {currentCategory === categoryName && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                              <Check className="h-3 w-3" />
+                            </span>
+                          )}
+                        </div>
+                      </OptionCard>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      />
+
+      {errors.properties?.[index]?.videographySubService && (
+        <p className="text-red-500 text-xs mt-1">
+          {errors.properties[index].videographySubService.message}
+        </p>
+      )}
+    </div>
+  );
+
 
 
   return (
@@ -463,7 +693,7 @@ export function PropertyCard({
 
                 render={({ field }) => (
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-3 md:gap-4">
 
                     {PROPERTY_TYPE_ORDER.map((type) => {
 
@@ -477,7 +707,7 @@ export function PropertyCard({
 
                           key={type}
 
-                          className="relative p-4 text-center flex flex-col items-center justify-center gap-3 min-h-24"
+                          className="relative p-2.5 md:p-4 text-center flex flex-col items-center justify-center gap-2 md:gap-3 min-h-[92px] md:min-h-24"
                           selectedClassName="border-white/30 bg-white/[0.06] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
                           unselectedClassName="border-white/10 bg-[#17191d] text-muted-foreground hover:border-white/20 hover:text-white"
 
@@ -495,9 +725,9 @@ export function PropertyCard({
 
                         >
 
-                          <Icon size={24} />
+                          <Icon size={18} className="md:h-6 md:w-6" />
 
-                          <span className="text-sm font-medium">{String(type).replace("/", " / ")}</span>
+                          <span className="text-[11px] md:text-sm font-medium whitespace-nowrap">{String(type).replace("/", " / ")}</span>
                           {field.value === type && (
                             <span className="absolute right-3 top-3 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
                               <Check className="h-3 w-3" />
@@ -537,8 +767,8 @@ export function PropertyCard({
               <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                 {property.propertyType === "Commercial" && (
                   <div className="mb-4">
-                    <h3 className="text-3xl font-bold text-foreground">Commercial Property Booking</h3>
-                    <p className="text-muted-foreground mt-1">Select property scale. Then choose services.</p>
+                    <h3 className="text-xl font-bold text-foreground">Commercial Property Booking</h3>
+                    <p className="text-xs md:text-sm text-muted-foreground mt-1">Select property scale. Then choose services.</p>
                   </div>
                 )}
 
@@ -556,7 +786,7 @@ export function PropertyCard({
 
                   render={({ field }) => (
 
-                    <div className={property.propertyType === "Commercial" ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 w-full" : "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 w-full"}>
+                    <div className={property.propertyType === "Commercial" ? "grid grid-cols-2 gap-3 w-full lg:grid-cols-2 xl:grid-cols-4" : "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 w-full"}>
 
                       {pricingConfig[property.propertyType].sizes.map((sizeObj) => {
 
@@ -610,10 +840,6 @@ export function PropertyCard({
 
                           const meta = TIER_META[sizeObj.label];
 
-                          const Icon = meta?.icon || Building;
-
-
-
                           return (
 
                             <div
@@ -630,13 +856,13 @@ export function PropertyCard({
 
                               className={cn(
 
-                                "relative cursor-pointer rounded-xl border transition-all duration-300 p-6 text-center flex flex-col items-center justify-center gap-3",
+                                "relative cursor-pointer rounded-xl border transition-all duration-300 p-3 md:p-4 text-left flex flex-col items-start justify-center gap-1.5 min-h-[74px] md:min-h-[86px]",
 
                                 isSelected
 
-                                  ? "border-yellow-500 bg-zinc-900 shadow-lg scale-[1.02]"
+                                  ? "border-white/35 bg-white/[0.06]"
 
-                                  : "border-zinc-700 bg-[#1f1f1f] hover:border-zinc-500"
+                                  : "border-white/12 bg-[#17191d] hover:border-white/25"
 
                               )}
 
@@ -650,7 +876,7 @@ export function PropertyCard({
 
                                   className={cn(
 
-                                    "absolute -top-3 px-3 py-1 text-xs font-medium rounded-full",
+                                    "absolute top-2 right-2 px-2 py-0.5 text-[9px] tracking-[0.08em] uppercase font-semibold rounded-full",
 
                                     meta.badge === "Most Popular"
 
@@ -670,39 +896,7 @@ export function PropertyCard({
 
 
 
-                              <div
-
-                                className={cn(
-
-                                  "p-3 rounded-full",
-
-                                  isSelected
-
-                                    ? "bg-yellow-500/20"
-
-                                    : "bg-zinc-800"
-
-                                )}
-
-                              >
-
-                                <Icon
-
-                                  size={28}
-
-                                  className={
-
-                                    isSelected ? "text-yellow-400" : "text-muted-foreground"
-
-                                  }
-
-                                />
-
-                              </div>
-
-
-
-                              <div className="font-semibold text-lg text-foreground">
+                              <div className="font-semibold text-sm md:text-base text-foreground">
 
                                 {sizeObj.label === "Elite" ? "Executive" : sizeObj.label}
 
@@ -710,7 +904,7 @@ export function PropertyCard({
 
 
 
-                              <div className="text-sm text-muted-foreground">
+                              <div className="text-[10px] md:text-xs text-muted-foreground leading-snug">
 
                                 {meta?.subtitle}
 
@@ -897,57 +1091,33 @@ export function PropertyCard({
 
                           const isSelected = field.value?.includes(serviceName);
 
-                          return (
-
+                          return [
                             <OptionCard
-
                               key={serviceName}
-
                               isSelected={isSelected}
                               className="relative min-h-[132px] px-4 py-4"
                               selectedClassName="border-white/30 bg-white/[0.07] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
                               unselectedClassName="border-white/10 bg-[#17191d] text-muted-foreground hover:border-white/20 hover:text-white"
-
                               onClick={() =>
-
                                 toggleService(
-
                                   index,
-
                                   serviceName,
-
                                   field.value || [],
-
                                 )
-
                               }
-
                             >
-
                               <div className="flex flex-col items-start gap-3 text-left">
-
                                 <Icon
-
                                   size={20}
-
                                   className={
-
                                     isSelected
-
                                       ? "text-foreground"
-
                                       : "text-muted-foreground"
-
                                   }
-
                                 />
-
                                 <div className="w-full">
-
                                   <div className="font-semibold mb-1 text-sm">
-
                                     {serviceName}
-
                                   </div>
 
                                   <div className="text-[11px] text-muted-foreground mb-1">
@@ -957,35 +1127,33 @@ export function PropertyCard({
                                   </div>
 
                                   {property.propertyType === "Commercial" ? (
-
                                     <div className="text-sm text-foreground/90">
-
                                       {serviceName !== "Videography" && `AED ${price}`}
-
                                     </div>
-
                                   ) : serviceName !== "Videography" && (
-
                                     <div className="text-sm text-foreground/90">
-
                                       AED {price}
-
                                     </div>
-
                                   )}
-
                                 </div>
                                 {isSelected && (
                                   <span className="absolute right-3 top-3 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
                                     <Check className="h-3 w-3" />
                                   </span>
                                 )}
-
                               </div>
-
-                            </OptionCard>
-
-                          );
+                            </OptionCard>,
+                            serviceName === "Videography" && isSelected
+                              ? (
+                                <div
+                                  key={`${serviceName}-mobile-options`}
+                                  className="lg:hidden"
+                                >
+                                  {renderVideographySubServiceSelection()}
+                                </div>
+                              )
+                              : null,
+                          ];
 
                         });
 
@@ -1017,7 +1185,7 @@ export function PropertyCard({
 
             {property.services?.includes("Videography") && (
 
-              <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="hidden lg:block animate-in fade-in slide-in-from-top-4 duration-300">
 
                 <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
 

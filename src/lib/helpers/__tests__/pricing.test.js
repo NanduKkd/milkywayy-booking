@@ -62,8 +62,11 @@ describe("normalizePricingConfig", () => {
     };
 
     const normalized = normalizePricingConfig(config);
+    const essentialSize = normalized.Commercial.sizes.find(
+      (size) => size.label === "Essential",
+    );
     expect(
-      normalized.Commercial.sizes[0].prices[SERVICES.VIDEOGRAPHY][
+      essentialSize.prices[SERVICES.VIDEOGRAPHY][
         VIDEOGRAPHY_SUB_SERVICES.LONG_FORM
       ],
     ).toEqual({

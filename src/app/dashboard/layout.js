@@ -46,8 +46,8 @@ export default function DashboardLayout({ children }) {
     <div className="min-h-screen bg-background text-white">
       <StarBackground />
       <CustomerHeader />
-      <main className="relative mx-auto w-full max-w-7xl px-4 pb-8 pt-30">
-        <div className="mx-auto w-full max-w-5xl">
+      <main className="relative mx-auto w-full max-w-7xl px-4 pb-8 pt-24 md:pt-28">
+        <div className="mx-auto w-full max-w-6xl">
           <h1 className="text-4xl font-bold mb-8 text-foreground font-heading">
             My Dashboard
           </h1>

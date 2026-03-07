@@ -1,10 +1,11 @@
-import CustomerHeader from "@/components/CustomerHeader";
+import NewNavbar from "@/components/NewNavbar";
 
 export default function BookingLayout({ children }) {
   return (
-    <div className="min-h-screen bg-background">
-      <CustomerHeader mode="booking" />
-      <main>{children}</main>
+    <div className="min-h-screen bg-background relative">
+      <div className="starfield" />
+      <NewNavbar />
+      <main className="pt-20">{children}</main>
     </div>
   );
 }

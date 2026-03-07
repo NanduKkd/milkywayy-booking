@@ -65,10 +65,10 @@ describe("OurWorkPreview", () => {
       json: async () => [],
     });
 
-    render(<OurWorkPreview />);
+    const { container } = render(<OurWorkPreview />);
 
     await waitFor(() => {
-      expect(screen.getByText(/no works to display/i)).toBeInTheDocument();
+      expect(container.querySelectorAll("div.bg-gradient-to-br").length).toBe(6);
     });
   });
 });
