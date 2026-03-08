@@ -70,9 +70,6 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
         return;
       }
       setUserId(result.userId);
-      if (result?.debugOtp) {
-        alert(`OTP: ${result.debugOtp}`);
-      }
       setActiveTab("otp");
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -128,9 +125,6 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
       }
 
       setUserId(otpData.userId);
-      if (otpData?.debugOtp) {
-        alert(`OTP: ${otpData.debugOtp}`);
-      }
       setActiveTab("otp");
       setError("");
     } catch (err) {

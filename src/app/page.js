@@ -23,6 +23,8 @@ export default function Page() {
         <AnnouncementBar />
         <NewNavbar />
       </div>
+
+      
       <main className="pt-[100px]">
         <HeroSection onWatchVideo={() => setShowVideoModal(true)} />
         <PainSolutionSection />

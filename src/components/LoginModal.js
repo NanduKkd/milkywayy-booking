@@ -59,9 +59,6 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
         throw new Error("No account found for this phone number. Please create an account first.");
       }
       setUserId(result.userId);
-      if (result?.debugOtp) {
-        alert(`OTP: ${result.debugOtp}`);
-      }
       setStep(2);
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -101,9 +98,6 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
         throw new Error(res.message);
       }
       const result = res.data;
-      if (result?.debugOtp) {
-        alert(`OTP: ${result.debugOtp}`);
-      }
     } catch (err) {
       setError(err.message || "Failed to resend OTP");
     } finally {
