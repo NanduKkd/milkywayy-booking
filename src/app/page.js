@@ -24,6 +24,8 @@ export default function Page() {
         <NewNavbar />
       </div>
 
+
+
       
       <main className="pt-[100px]">
         <HeroSection onWatchVideo={() => setShowVideoModal(true)} />
