@@ -398,9 +398,9 @@
   display: none;
 }
 
-/* Custom Space Theme Tokens */
+/* Custom Space Theme Tokens — uses --font-space-grotesk from layout */
 .font-heading {
-  font-family: var(--font-space-grotesk);
+  font-family: var(--font-space-grotesk), var(--font-sans);
 }
 
 button {

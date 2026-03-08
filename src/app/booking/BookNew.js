@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus } from "lucide-react";
 import { use, useEffect, useState } from "react";
@@ -523,18 +523,20 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     .join(" · ");
 
   return (
-    <div className="container mx-auto px-6 py-8 max-w-6xl">
-      <div className="text-center mb-8 fade-in">
-        <p className="text-xs tracking-[0.24em] uppercase text-muted-foreground mb-3">
-          Milkywayy Portal
-        </p>
-        <h1 className="text-4xl font-bold text-foreground mb-4">
-          Book Your Shoot
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Premium property media for Dubai&apos;s finest real estate
-        </p>
-      </div>
+    <section className="relative min-h-screen py-12 md:py-20">
+      <div className="container mx-auto px-4 md:px-6 relative z-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 fade-in">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
+              MILKYWAYY PORTAL
+            </p>
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold mb-3 tracking-tight text-foreground">
+              Book Your Shoot
+            </h1>
+            <p className="text-sm md:text-base text-muted-foreground max-w-md mx-auto">
+              Premium property media for Dubai&apos;s finest real estate
+            </p>
+          </div>
 
       <form onSubmit={handleSubmit(onContinue)}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -567,40 +569,42 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               type="button"
               variant="outline"
               onClick={addProperty}
-              className="w-full border-border bg-secondary/40 text-muted-foreground hover:bg-secondary/70 hover:text-foreground"
+              className="w-full p-4 rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
-              <Plus size={18} className="mr-2" />
+              <Plus size={18} className="shrink-0" />
               Add Another Property
             </Button>
           </div>
 
-          <aside className="lg:col-span-1 premium-card rounded-2xl p-6 md:p-8 lg:sticky lg:top-28">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
+          <aside className="lg:col-span-1 glass rounded-2xl p-6 md:p-8 lg:sticky lg:top-28">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
               Order Summary
-            </p>
+            </h3>
 
-            <div className="rounded-xl border border-border/40 bg-secondary/30 p-4 mb-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-sm text-foreground">
-                    {primaryTitle || "Property Summary"}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {primaryServices}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground mt-2">
-                    {primarySchedule || "Select date and time"}
-                  </p>
-                </div>
+            <div className="rounded-xl border border-border/40 bg-secondary/30 p-4 mb-6 space-y-2">
+              <div className="flex justify-between items-start gap-3">
+                <p className="font-semibold text-sm text-foreground">
+                  {primaryTitle || "Property Summary"}
+                </p>
                 <span className="font-semibold text-sm whitespace-nowrap text-foreground">
                   AED {totalAmount.toLocaleString()}
                 </span>
               </div>
+              {primaryServices && primaryServices !== "Select services" && (
+                <p className="text-xs text-muted-foreground">
+                  {primaryServices}
+                </p>
+              )}
+              {primarySchedule && (
+                <p className="text-[11px] text-muted-foreground">
+                  {primarySchedule}
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between mb-6 pt-4 border-t border-border/50">
-              <p className="text-muted-foreground">Grand Total</p>
-              <p className="text-3xl font-semibold text-foreground">
+              <p className="text-sm font-medium text-muted-foreground">Grand Total</p>
+              <p className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
                 AED {totalAmount.toLocaleString()}
               </p>
             </div>
@@ -609,7 +613,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               type="submit"
               size="lg"
               disabled={isSubmitting || isProcessingPayment}
-              className="w-full btn-primary-premium text-lg py-4"
+              className="w-full btn-primary-premium py-3.5"
             >
               {isSubmitting || isProcessingPayment ? (
                 <>
@@ -628,7 +632,9 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
           </aside>
         </div>
       </form>
-    </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

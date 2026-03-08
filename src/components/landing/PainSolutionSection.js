@@ -1,4 +1,4 @@
-﻿import { Check, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 const PainSolutionSection = () => {
   const beforeItems = [
@@ -18,57 +18,54 @@ const PainSolutionSection = () => {
   ];
 
   return (
-    <section className="py-24 relative border-t border-border/40">
+    <section className="py-24 relative bg-secondary/20">
+      <div className="starfield opacity-10" aria-hidden />
       <div className="container mx-auto px-6 relative z-10">
-        <div className="text-center mb-14 fade-in">
-          <h2 className="font-heading text-4xl md:text-5xl font-bold">
+        <div className="text-center mb-16 fade-in">
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
             Stop Coordinating. Start Listing.
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-7 max-w-6xl mx-auto">
-          <div className="bg-card/40 border border-border rounded-2xl p-8 fade-in">
-            <div className="flex items-center gap-3 mb-7">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <X className="w-5 h-5 text-muted-foreground" />
+        <div className="max-w-5xl mx-auto fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-card border border-border rounded-2xl p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <X className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold text-muted-foreground/60">
+                  Traditional Booking
+                </h3>
               </div>
-              <h3 className="font-heading text-4xl font-semibold text-muted-foreground">
-                Traditional Booking
-              </h3>
+              <div className="space-y-5">
+                {beforeItems.map((item) => (
+                  <div key={item} className="flex items-center gap-4">
+                    <X className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
+                    <p className="text-muted-foreground/60">{item}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <ul className="space-y-4">
-              {beforeItems.map((item) => (
-                <li
-                  key={item}
-                  className="flex items-center gap-3 text-muted-foreground/80 text-xl"
-                >
-                  <X className="w-4 h-4 text-muted-foreground/60 flex-shrink-0" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
 
-          <div
-            className="bg-card/40 border border-border rounded-2xl p-8 fade-in"
-            style={{ animationDelay: "0.1s" }}
-          >
-            <div className="flex items-center gap-3 mb-7">
-              <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
-                <Check className="w-5 h-5 text-accent" />
+            <div className="bg-card border border-border rounded-2xl p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                  <Check className="w-5 h-5 text-foreground" />
+                </div>
+                <h3 className="text-xl font-semibold text-foreground">
+                  Milkywayy Portal
+                </h3>
               </div>
-              <h3 className="font-heading text-4xl font-semibold">
-                Milkywayy Portal
-              </h3>
+              <div className="space-y-5">
+                {afterItems.map((item) => (
+                  <div key={item} className="flex items-center gap-4">
+                    <Check className="w-4 h-4 text-foreground/70 flex-shrink-0" />
+                    <p className="text-foreground font-medium">{item}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <ul className="space-y-4">
-              {afterItems.map((item) => (
-                <li key={item} className="flex items-center gap-3 text-xl">
-                  <Check className="w-4 h-4 text-accent flex-shrink-0" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         </div>
       </div>

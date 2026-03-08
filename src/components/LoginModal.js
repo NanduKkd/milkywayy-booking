@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { Info } from "lucide-react";
 import PhoneNumberInput from "@/components/PhoneInput";
 import { Button } from "@/components/ui/button";
 import {
@@ -154,8 +155,14 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
                   control={phoneForm.control}
                   render={({ field }) => (
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        Phone Number
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5">
+                        WhatsApp Number
+                        <span
+                          className="inline-flex text-muted-foreground cursor-help"
+                          title="Enter the phone number linked to your WhatsApp. OTP will be sent to your WhatsApp."
+                        >
+                          <Info size={14} />
+                        </span>
                       </label>
                       <PhoneNumberInput
                         value={field.value}
@@ -178,7 +185,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
                   )}
                 />
                 <p className="text-sm text-muted-foreground">
-                  We will send an OTP to verify your phone number.
+                  We will send an OTP to your WhatsApp number to verify.
                 </p>
                 <Button type="submit" disabled={isLoading} className="w-full">
                   {isLoading ? "Sending..." : "Send OTP"}

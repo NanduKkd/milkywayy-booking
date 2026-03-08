@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { Info } from "lucide-react";
 import PhoneNumberInput from "@/components/PhoneInput";
 import { Button } from "@/components/ui/button";
 import {
@@ -202,7 +203,15 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                     control={phoneForm.control}
                     render={({ field }) => (
                       <div className="flex flex-col gap-2">
-                        <Label>Phone Number *</Label>
+                        <Label className="flex items-center gap-1.5">
+                          WhatsApp Number *
+                          <span
+                            className="inline-flex text-muted-foreground cursor-help"
+                            title="Enter the phone number linked to your WhatsApp. OTP will be sent to your WhatsApp."
+                          >
+                            <Info size={14} />
+                          </span>
+                        </Label>
                         <PhoneNumberInput
                           value={field.value}
                           onChange={field.onChange}
@@ -304,7 +313,15 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
+                  <Label htmlFor="phone" className="flex items-center gap-1.5">
+                    WhatsApp Number *
+                    <span
+                      className="inline-flex text-muted-foreground cursor-help"
+                      title="Enter the phone number linked to your WhatsApp. OTP will be sent to your WhatsApp."
+                    >
+                      <Info size={14} />
+                    </span>
+                  </Label>
                   <Controller
                     name="phone"
                     control={createAccountForm.control}

@@ -1,16 +1,17 @@
-﻿import { MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 const FinalCTASection = () => {
   return (
-    <section className="py-24 relative overflow-hidden border-y border-border/40 bg-secondary/20">
+    <section className="py-24 relative overflow-hidden border-y border-border/50">
+      <div className="starfield opacity-10" aria-hidden />
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-3xl mx-auto text-center fade-in">
-          <h2 className="font-heading text-5xl md:text-6xl font-bold mb-4">
+          <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-foreground">
             Ready to Book Smarter?
           </h2>
-          <p className="text-2xl text-muted-foreground mb-8">
+          <p className="text-lg text-muted-foreground mb-8">
             Book in minutes. Deliver faster. Keep everything organized.
           </p>
 
@@ -18,7 +19,7 @@ const FinalCTASection = () => {
             <Link href="/booking">
               <Button
                 size="lg"
-                className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 px-10 rounded-2xl"
+                className="w-full sm:w-auto btn-primary-premium px-8"
               >
                 Book Now
               </Button>
@@ -31,7 +32,7 @@ const FinalCTASection = () => {
               <Button
                 size="lg"
                 variant="outline"
-                className="w-full sm:w-auto border-border hover:bg-secondary rounded-2xl px-10"
+                className="w-full sm:w-auto border-border hover:bg-secondary"
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
                 WhatsApp Us
@@ -39,7 +40,7 @@ const FinalCTASection = () => {
             </a>
           </div>
 
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Launch Offer: Flat 50% off your first booking.
           </p>
         </div>

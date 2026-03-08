@@ -32,11 +32,7 @@ import { Controller } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-
 import { Input } from "@/components/ui/input";
-
-import { Separator } from "@/components/ui/separator";
 
 import DateSlotPicker from "@/components/DateSlotPicker";
 
@@ -433,161 +429,99 @@ export function PropertyCard({
 
   return (
 
-    <Card
+    <div
 
       className={cn(
 
-        "bg-gradient-to-br from-[#141517]/95 via-[#16171a]/95 to-[#121316]/95 border border-white/10 shadow-[0_18px_50px_rgba(0,0,0,0.35)] transition-all duration-300 overflow-visible backdrop-blur-sm rounded-2xl",
+        "premium-card rounded-2xl overflow-hidden card-hover-lift border border-border transition-all duration-300",
 
-        isOpen ? "relative z-10 ring-2 ring-primary/20" : "relative z-0 hover:border-border/60",
+        isOpen ? "relative z-10 ring-2 ring-primary/20" : "relative z-0",
 
       )}
 
     >
 
-      <CardHeader
-
-        className="flex flex-row justify-between items-center pb-5 cursor-pointer space-y-0 hover:bg-white/[0.02] transition-colors duration-200 rounded-t-2xl"
-
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        className="w-full flex flex-row justify-between items-center p-5 md:p-6 text-left hover:bg-muted/20 transition-colors cursor-pointer"
         onClick={onToggle}
-
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
       >
 
-        <div className="flex flex-1 min-w-0 flex-wrap items-center gap-3 text-lg md:text-2xl font-bold text-foreground">
-
-          {!isOpen && titleParts.length > 0 ? (
-
-            titleParts.map((part, idx) => (
-
-              <div
-
-                key={idx}
-
-                className="flex items-center gap-2 whitespace-nowrap"
-
-              >
-
-                <span>{part}</span>
-
-                {idx < titleParts.length - 1 && (
-
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground"></span>
-
-                )}
-
-              </div>
-
-            ))
-
-          ) : (
-
-            <span>Property {index + 1}</span>
-
-          )}
-
-          {price > 0 && (
-
-            <div className="w-full md:hidden mt-1">
-
-              <span className="bg-zinc-800 px-3 py-1 rounded-md text-sm font-medium text-foreground">
-
-                AED {price}
-
-              </span>
-
-            </div>
-
-          )}
-
-        </div>
-
-        <div className="flex items-center gap-2">
-
-          {price > 0 && (
-
-            <div className="hidden md:block bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-sm font-semibold text-foreground backdrop-blur-sm mr-3">
-
-              AED {price}
-
-            </div>
-
-          )}
-
-          <Button
-
-            size="icon"
-
-            variant="ghost"
-
-            className="text-muted-foreground hover:text-accent-foreground hover:bg-accent/20 h-9 w-9 rounded-lg transition-all duration-200"
-
-            onClick={(e) => {
-
-              e.stopPropagation();
-
-              onDuplicate(index);
-
-            }}
-
-            title="Duplicate"
-
-          >
-
-            <Copy size={18} />
-
-          </Button>
-
-          {!isOnlyProperty && (
-
-            <Button
-
-              size="icon"
-
-              variant="ghost"
-
-              className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-9 w-9 rounded-lg transition-all duration-200"
-
-              onClick={(e) => {
-
-                e.stopPropagation();
-
-                onRemove(index);
-
-              }}
-
-              title="Remove"
-
-            >
-
-              <Trash2 size={18} />
-
-            </Button>
-
-          )}
-
-          <div className="ml-3 text-muted-foreground">
-
-            {isOpen ? (
-
-              <ChevronUp size={22} className="transition-transform duration-200" />
-
-            ) : (
-
-              <ChevronDown size={22} className="transition-transform duration-200" />
-
-            )}
-
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-muted/40 flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
+            {index + 1}
           </div>
-
+          <div className="min-w-0">
+            {!isOpen && titleParts.length > 0 ? (
+              <p className="text-sm font-semibold text-foreground truncate">
+                {titleParts.join(" · ")}
+              </p>
+            ) : (
+              <p className="text-sm font-semibold text-foreground">
+                Property {index + 1}
+              </p>
+            )}
+            {!isOpen && titleParts.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                {property.services?.length ? property.services.join(", ") : "Select services"}
+              </p>
+            )}
+          </div>
         </div>
 
-      </CardHeader>
+        <div className="flex items-center gap-2 shrink-0">
+          {price > 0 && (
+            <span className="text-sm font-semibold text-foreground mr-1">
+              AED {price.toLocaleString()}
+            </span>
+          )}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted h-8 w-8 rounded-lg"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate(index);
+            }}
+            title="Duplicate"
+          >
+            <Copy size={16} />
+          </Button>
+          {!isOnlyProperty && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-destructive hover:bg-destructive/10 h-8 w-8 rounded-lg"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(index);
+              }}
+              title="Remove"
+            >
+              <Trash2 size={16} />
+            </Button>
+          )}
+          {isOpen ? (
+            <ChevronUp size={20} className="text-muted-foreground" />
+          ) : (
+            <ChevronDown size={20} className="text-muted-foreground" />
+          )}
+        </div>
+      </div>
 
 
 
       {!isOpen && (
 
-        <CardContent className="pt-0 pb-4 space-y-4">
+        <div className="px-5 md:px-6 pb-5 pt-0 space-y-4 border-t border-border/50">
 
           <div className="flex items-center gap-6 text-muted-foreground text-sm">
 
@@ -617,7 +551,7 @@ export function PropertyCard({
 
           <div>
 
-            <div className="text-md text-foreground mb-2">Services:</div>
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">SERVICES</div>
 
             <div className="flex flex-wrap gap-2">
 
@@ -629,7 +563,7 @@ export function PropertyCard({
 
                     key={s}
 
-                    className="bg-zinc-800 text-muted-foreground px-3 py-1 rounded-full text-xs"
+                    className="bg-secondary text-muted-foreground px-3 py-1 rounded-full text-xs"
 
                   >
 
@@ -657,11 +591,11 @@ export function PropertyCard({
 
           {errors.properties?.[index] && (
 
-            <p className="text-red-500 text-xs mt-2">Please fill all fields</p>
+            <p className="text-red-500 text-xs mt-2">Please fill all required fields</p>
 
           )}
 
-        </CardContent>
+        </div>
 
       )}
 
@@ -671,18 +605,16 @@ export function PropertyCard({
 
         <>
 
-          <Separator className="bg-border" />
+          <div className="border-t border-border" />
 
-          <CardContent className="pt-6 space-y-8 overflow-visible">
+          <div className="pt-6 px-5 md:px-6 pb-6 space-y-8 overflow-visible">
 
             {/* Property Type Selection */}
 
             <div>
 
-              <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
-
-                Property Type
-
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                PROPERTY TYPE
               </label>
 
               <Controller
@@ -772,10 +704,8 @@ export function PropertyCard({
                   </div>
                 )}
 
-                <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
-
-                  {property.propertyType === "Commercial" ? "Step 1 — Property Scale" : "Property Size"}
-
+                <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                  {property.propertyType === "Commercial" ? "Step 1 — Property Scale" : "PROPERTY SIZE"}
                 </label>
 
                 <Controller
@@ -984,10 +914,8 @@ export function PropertyCard({
 
               <div className="animate-in fade-in slide-in-from-top-4 duration-300">
 
-                <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
-
-                  {property.propertyType === "Commercial" ? "Step 2 — Select Services" : "Services"}
-
+                <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                  {property.propertyType === "Commercial" ? "Step 2 — Select Services" : "SERVICES"}
                 </label>
 
                 <Controller
@@ -1569,384 +1497,134 @@ export function PropertyCard({
 
 
 
-            {/* Date and Time Details */}
-
+            {/* Location Details — order: Community/Area, Building/Tower, Unit */}
             <div>
-
-              <DateSlotPicker
-
-                date={property.preferredDate}
-
-                slot={property.startTime}
-
-                duration={property.duration || 1}
-
-                isNightService={isNightService}
-
-                blockedSlotsMap={getOccupiedSlots(index)}
-
-                propertyType={property.propertyType}
-
-                propertySize={property.propertySize}
-
-                serviceType={property.services?.[0] || ''}
-
-                onDateChange={(d) =>
-
-                  updatePropertyField(index, "preferredDate", d)
-
-                }
-
-                onSlotChange={(s) => updatePropertyField(index, "startTime", s)}
-
-                error={
-
-                  errors.properties?.[index]?.preferredDate?.message ||
-
-                  errors.properties?.[index]?.startTime?.message
-
-                }
-
-              />
-
-            </div>
-
-
-
-            <Separator className="bg-zinc-800 my-2" />
-
-
-
-            {/* Location Details */}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-
-              <Controller
-
-                name={`properties.${index}.building`}
-
-                control={control}
-
-                render={({ field, fieldState }) => (
-
-                  <div className="group flex flex-col gap-1.5">
-
-                    <label className="text-sm text-muted-foreground">
-
-                      Building / Tower Name
-
-                    </label>
-
-                    <Input
-
-                      {...field}
-
-                      placeholder="eg. Burj Khalifa"
-
-                      className="bg-[#272727] border-zinc-700 hover:border-zinc-500 focus-visible:border-white text-foreground"
-
-                    />
-
-                    <div className="min-h-[18px]">
-
-                      {fieldState.error && (
-
-                        <div className="text-red-500 text-xs ml-1 mt-1">
-
-                          {fieldState.error.message}
-
-                        </div>
-
-                      )}
-
-                    </div>
-
-                  </div>
-
-                )}
-
-              />
-
-
-
-              <Controller
-
-                name={`properties.${index}.community`}
-
-                control={control}
-
-                render={({ field, fieldState }) => (
-
-                  <div className="group flex flex-col gap-1.5">
-
-                    <label className="text-sm text-muted-foreground">
-
-                      Community / Area
-
-                    </label>
-
-                    <Input
-
-                      {...field}
-
-                      placeholder="eg. Downtown"
-
-                      className="bg-[#272727] border-zinc-700 hover:border-zinc-500 focus-visible:border-white text-foreground"
-
-                    />
-
-                    <div className="min-h-[18px]">
-
-                      {fieldState.error && (
-
-                        <div className="text-red-500 text-xs ml-1 mt-1">
-
-                          {fieldState.error.message}
-
-                        </div>
-
-                      )}
-
-                    </div>
-
-                  </div>
-
-                )}
-
-              />
-
-
-
-              <Controller
-
-                name={`properties.${index}.unitNumber`}
-
-                control={control}
-
-                render={({ field, fieldState }) => (
-
-                  <div className="group flex flex-col gap-1.5">
-
-                    <label className="text-sm text-muted-foreground">
-
-                      Unit Number (Optional)
-
-                    </label>
-
-                    <Input
-
-                      {...field}
-
-                      placeholder="eg. 1205"
-
-                      className="bg-[#272727] border-zinc-700 hover:border-zinc-500 focus-visible:border-white text-foreground"
-
-                    />
-
-                    <div className="min-h-[18px]">
-
-                      {fieldState.error && (
-
-                        <div className="text-red-500 text-xs ml-1 mt-1">
-
-                          {fieldState.error.message}
-
-                        </div>
-
-                      )}
-
-                    </div>
-
-                  </div>
-
-                )}
-
-              />
-
-            </div>
-
-
-
-            <Separator className="bg-zinc-800 my-2" />
-
-
-
-            {/* Point of Contact */}
-
-            {/*
-
-            <div>
-
-              <h3 className="text-md font-medium text-foreground mb-4">
-
-                Point of Contact
-
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                LOCATION
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Controller
-
-                  name={`properties.${index}.contactName`}
-
+                  name={`properties.${index}.community`}
                   control={control}
-
                   render={({ field, fieldState }) => (
-
-                    <div className="group flex flex-col gap-1.5">
-
-                      <label className="text-sm text-muted-foreground">
-
-                        Name
-
-                      </label>
-
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-muted-foreground">Community / Area</label>
                       <Input
-
                         {...field}
-
-                        placeholder="Enter contact name"
-
-                        className="bg-[#272727] border-zinc-700 hover:border-zinc-500 focus-visible:border-white text-foreground"
-
+                        placeholder="e.g., Dubai Marina"
+                        className="bg-secondary border-border hover:border-muted focus-visible:ring-ring text-foreground rounded-xl h-10"
                       />
-
                       {fieldState.error && (
-
-                        <div className="text-red-500 text-xs ml-1 mt-1">
-
-                          {fieldState.error.message}
-
-                        </div>
-
+                        <p className="text-red-500 text-xs">{fieldState.error.message}</p>
                       )}
-
                     </div>
-
                   )}
-
                 />
-
-
-
                 <Controller
-
-                  name={`properties.${index}.contactPhone`}
-
+                  name={`properties.${index}.building`}
                   control={control}
-
                   render={({ field, fieldState }) => (
-
-                    <div className="group flex flex-col gap-1.5">
-
-                      <label className="block text-sm text-muted-foreground">
-
-                        Phone Number
-
-                      </label>
-
-                      <PhoneNumberInput
-
-                        value={field.value}
-
-                        onChange={(v) => field.onChange(v)}
-
-                        name={field.name}
-
-                        classNames={{
-
-                          inputWrapper:
-
-                            "flex items-center w-full px-3 rounded-xl bg-[#272727] border-2 border-zinc-700 hover:border-zinc-500 focus-within:!border-white transition-colors h-10",
-
-                          input:
-
-                            "bg-transparent border-none outline-none text-foreground w-full placeholder:text-muted-foreground text-sm h-full",
-
-                          countryIcon: "mr-2 flex items-center h-full",
-
-                        }}
-
-                      />
-
-                      {fieldState.error && (
-
-                        <div className="text-red-500 text-xs ml-1 mt-1">
-
-                          {fieldState.error.message}
-
-                        </div>
-
-                      )}
-
-                    </div>
-
-                  )}
-
-                />
-
-
-
-                <Controller
-
-                  name={`properties.${index}.contactEmail`}
-
-                  control={control}
-
-                  render={({ field, fieldState }) => (
-
-                    <div className="group flex flex-col gap-1.5">
-
-                      <label className="text-sm text-muted-foreground">
-
-                        Email Address (Optional)
-
-                      </label>
-
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-muted-foreground">Building / Tower</label>
                       <Input
-
                         {...field}
-
-                        type="email"
-
-                        placeholder="Enter email address"
-
-                        className="bg-[#272727] border-zinc-700 hover:border-zinc-500 focus-visible:border-white text-foreground"
-
+                        placeholder="e.g., Marina Heights"
+                        className="bg-secondary border-border hover:border-muted focus-visible:ring-ring text-foreground rounded-xl h-10"
                       />
-
                       {fieldState.error && (
-
-                        <div className="text-red-500 text-xs ml-1 mt-1">
-
-                          {fieldState.error.message}
-
-                        </div>
-
+                        <p className="text-red-500 text-xs">{fieldState.error.message}</p>
                       )}
-
                     </div>
-
                   )}
-
                 />
-
+                <Controller
+                  name={`properties.${index}.unitNumber`}
+                  control={control}
+                  render={({ field, fieldState }) => (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-muted-foreground">Unit Number</label>
+                      <Input
+                        {...field}
+                        placeholder="e.g., 1205"
+                        className="bg-secondary border-border hover:border-muted focus-visible:ring-ring text-foreground rounded-xl h-10"
+                      />
+                      {fieldState.error && (
+                        <p className="text-red-500 text-xs">{fieldState.error.message}</p>
+                      )}
+                    </div>
+                  )}
+                />
               </div>
-
             </div>
 
-          */}
+            {/* Date and Time Details */}
+            <div>
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                DATE & TIME
+              </label>
+              {!property.community?.trim() ? (
+                <div className="rounded-xl border border-border bg-secondary/20 px-4 py-4 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Enter a location above to unlock date & time selection.
+                  </p>
+                </div>
+              ) : (
+                <DateSlotPicker
+                  date={property.preferredDate}
+                  slot={property.startTime}
+                  duration={property.duration || 1}
+                  isNightService={isNightService}
+                  blockedSlotsMap={getOccupiedSlots(index)}
+                  propertyType={property.propertyType}
+                  propertySize={property.propertySize}
+                  serviceType={property.services?.[0] || ''}
+                  onDateChange={(d) => updatePropertyField(index, "preferredDate", d)}
+                  onSlotChange={(s) => updatePropertyField(index, "startTime", s)}
+                  error={
+                    errors.properties?.[index]?.preferredDate?.message ||
+                    errors.properties?.[index]?.startTime?.message
+                  }
+                />
+              )}
+            </div>
 
-          </CardContent>
-
+            {/* Card footer: Duplicate + Subtotal */}
+            <div className="flex items-center justify-between pt-4 border-t border-border/50">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground text-xs"
+                  onClick={() => onDuplicate(index)}
+                >
+                  <Copy size={14} className="mr-1.5" />
+                  Duplicate
+                </Button>
+                {!isOnlyProperty && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive text-xs"
+                    onClick={() => onRemove(index)}
+                  >
+                    <Trash2 size={14} className="mr-1.5" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+              {price > 0 && (
+                <p className="text-sm font-semibold text-foreground">
+                  Subtotal: AED {price.toLocaleString()}
+                </p>
+              )}
+            </div>
+          </div>
         </>
-
       )}
-
-    </Card>
-
+    </div>
   );
-
 }
 
 

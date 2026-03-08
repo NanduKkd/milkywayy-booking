@@ -60,13 +60,13 @@ const OurWorkPreview = () => {
   };
 
   return (
-    <section id="our-work" className="py-24">
+    <section id="our-work" className="py-24 bg-secondary/20">
       <div className="container mx-auto px-6 lg:px-2">
         <div className="text-center mb-12 fade-in">
-          <h2 className="font-heading text-5xl md:text-6xl font-bold mb-4">
+          <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-foreground">
             Our Work
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-xl">
+          <p className="text-muted-foreground max-w-xl mx-auto">
             Showcase of recent real estate projects across Dubai.
           </p>
         </div>
@@ -77,10 +77,10 @@ const OurWorkPreview = () => {
               key={category.value}
               type="button"
               onClick={() => setActiveCategory(category.value)}
-              className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all ${
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-[180ms] ${
                 activeCategory === category.value
-                  ? "bg-accent text-accent-foreground"
-                  : "bg-secondary hover:bg-secondary/80 text-foreground"
+                  ? "bg-foreground text-background"
+                  : "bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground"
               }`}
             >
               {category.label}
@@ -163,7 +163,7 @@ const OurWorkPreview = () => {
             <Button
               size="lg"
               variant="outline"
-              className="border-border text-foreground hover:bg-secondary px-8 rounded-xl"
+              className="border-border text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200"
             >
               See All Work
             </Button>

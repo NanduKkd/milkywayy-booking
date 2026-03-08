@@ -28,6 +28,7 @@ export default function BookingsPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [notifyingType, setNotifyingType] = useState(null);
   const [file, setFile] = useState(null);
 
   useEffect(() => {
@@ -112,6 +113,37 @@ export default function BookingsPage() {
     } finally {
       setUploading(false);
       setFile(null);
+    }
+  };
+
+  const handleSendNotification = async (type) => {
+    if (!selectedBooking?.id) return;
+    setNotifyingType(type);
+    try {
+      const res = await fetch("/api/notifications/whatsapp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          bookingId: selectedBooking.id,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to send notification");
+      }
+
+      alert(
+        type === "team_on_the_way"
+          ? "Team on the way notification sent."
+          : "Team arrived notification sent.",
+      );
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Failed to send notification");
+    } finally {
+      setNotifyingType(null);
     }
   };
 
@@ -346,6 +378,47 @@ export default function BookingsPage() {
                     {completing ? "Updating..." : "Mark as Completed"}
                   </Button>
                 )}
+              </div>
+
+              <div className="border-t border-zinc-800 pt-4">
+                <h3 className="font-semibold text-zinc-300 mb-1">
+                  Manual WhatsApp Triggers
+                </h3>
+                <p className="text-sm text-zinc-400 mb-3">
+                  Send operational updates manually from admin.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    disabled={
+                      notifyingType !== null ||
+                      selectedBooking.cancelledAt ||
+                      selectedBooking.status === "COMPLETED" ||
+                      selectedBooking.completedAt
+                    }
+                    onClick={() => handleSendNotification("team_on_the_way")}
+                  >
+                    {notifyingType === "team_on_the_way"
+                      ? "Sending..."
+                      : "Send Team On The Way"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    disabled={
+                      notifyingType !== null ||
+                      selectedBooking.cancelledAt ||
+                      selectedBooking.status === "COMPLETED" ||
+                      selectedBooking.completedAt
+                    }
+                    onClick={() => handleSendNotification("team_arrived")}
+                  >
+                    {notifyingType === "team_arrived"
+                      ? "Sending..."
+                      : "Send Team Arrived"}
+                  </Button>
+                </div>
               </div>
 
               {(selectedBooking.status === "COMPLETED" ||

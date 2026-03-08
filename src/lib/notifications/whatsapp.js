@@ -1,6 +1,7 @@
 const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
 
 const TEMPLATE_ENV_KEYS = {
+  login_otp: "TWILIO_CONTENT_SID_LOGIN_OTP",
   shoot_confirmation: "TWILIO_CONTENT_SID_SHOOT_CONFIRMATION",
   shoot_reminder: "TWILIO_CONTENT_SID_SHOOT_REMINDER",
   team_on_the_way: "TWILIO_CONTENT_SID_TEAM_ON_THE_WAY",
@@ -10,6 +11,7 @@ const TEMPLATE_ENV_KEYS = {
 };
 
 const TEMPLATE_VARIABLE_ORDER = {
+  login_otp: ["Code", "Expiry_Minutes"],
   shoot_confirmation: [
     "Property_Name",
     "Location",
@@ -31,6 +33,13 @@ const TEMPLATE_VARIABLE_ORDER = {
 };
 
 const TEMPLATES_FALLBACK = {
+  login_otp: ({ Code, Expiry_Minutes }) =>
+    [
+      `${Code} is your verification code. For your security, do not share this code.`,
+      "",
+      `This code expires in ${Expiry_Minutes || "5"} minutes.`,
+    ].join("\n"),
+
   shoot_confirmation: ({
     Property_Name,
     Location,

@@ -6,15 +6,33 @@ import { USER_ROLES } from "@/lib/config/app.config";
 import models from "@/lib/db/models";
 import { setSessionUser } from "@/lib/helpers/auth";
 import { actionWrapper } from "./utils";
+import { sendWhatsAppTemplate } from "@/lib/notifications/whatsapp";
 
 const TWILIO_VERIFY_API_BASE = "https://verify.twilio.com/v2";
 const ALLOWED_VERIFY_CHANNELS = new Set(["sms", "whatsapp"]);
+
+/** Normalize phone for WhatsApp: ensure whatsapp:+971... format */
+const toWhatsAppPhone = (phone) => {
+  if (!phone) return null;
+  const cleaned = String(phone).replace(/\s/g, "").trim();
+  if (!cleaned) return null;
+  if (cleaned.startsWith("whatsapp:")) return cleaned;
+  return `whatsapp:${cleaned}`;
+};
 
 const hasTwilioVerifyConfig = () =>
   Boolean(
     process.env.TWILIO_ACCOUNT_SID &&
       process.env.TWILIO_AUTH_TOKEN &&
       process.env.TWILIO_VERIFY_SERVICE_SID,
+  );
+
+/** WhatsApp OTP via Messaging API (more reliable than Verify for WhatsApp) */
+const hasWhatsAppOtpConfig = () =>
+  Boolean(
+    process.env.TWILIO_ACCOUNT_SID &&
+      process.env.TWILIO_AUTH_TOKEN &&
+      (process.env.TWILIO_WHATSAPP_FROM || process.env.TWILIO_MESSAGING_SERVICE_SID),
   );
 
 const getTwilioAuthHeader = () => {
@@ -183,11 +201,42 @@ const customerSendOtpHandler = async ({ phone }) => {
   }
 
   let debugOtp = null;
-  if (hasTwilioVerifyConfig()) {
+
+  // Prefer WhatsApp Messaging API (more reliable for WhatsApp delivery)
+  if (hasWhatsAppOtpConfig()) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(otp, 10);
+    user.otp = hashedOtp;
+    await user.save();
+
+    const whatsappTo = toWhatsAppPhone(phone);
+    if (!whatsappTo) {
+      user.otp = null;
+      await user.save();
+      throw new Error("Invalid phone number for WhatsApp");
+    }
+    const result = await sendWhatsAppTemplate({
+      to: whatsappTo,
+      templateName: "login_otp",
+      variables: { Code: otp, Expiry_Minutes: "5" },
+    });
+    if (!result.success) {
+      user.otp = null;
+      await user.save();
+      throw new Error(result.error || "Failed to send OTP to WhatsApp");
+    }
+    if (process.env.NODE_ENV !== "production") {
+      debugOtp = otp;
+    }
+  } else if (hasTwilioVerifyConfig()) {
+    // Fallback: Twilio Verify API (SMS or WhatsApp channel)
     await sendTwilioOtp(phone);
     if (user.otp) {
       user.otp = null;
       await user.save();
+    }
+    if (process.env.NODE_ENV !== "production") {
+      debugOtp = "(Verify API - check Twilio logs)";
     }
   } else {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -224,7 +273,13 @@ const customerVerifyOtpHandler = async ({ userId, otp }) => {
   }
 
   let isValid = false;
-  if (hasTwilioVerifyConfig()) {
+  if (hasWhatsAppOtpConfig()) {
+    // WhatsApp Messaging API: we stored OTP in DB
+    if (!user.otp) {
+      throw new Error("OTP expired or not found. Please request a new one.");
+    }
+    isValid = await bcrypt.compare(otp, user.otp);
+  } else if (hasTwilioVerifyConfig()) {
     isValid = await verifyTwilioOtp(user.phone, otp);
   } else {
     if (!user.otp) {

@@ -12,34 +12,29 @@ import PortalUSPSection from "@/components/landing/PortalUSPSection";
 import ReviewsSection from "@/components/landing/ReviewsSection";
 import SeeItInActionSection from "@/components/landing/SeeItInActionSection";
 import NewNavbar from "@/components/NewNavbar";
-import StarBackground from "@/components/StarBackground";
 import VideoModal from "@/components/VideoModal";
 
 export default function Page() {
   const [showVideoModal, setShowVideoModal] = useState(false);
 
   return (
-    <div className="relative min-h-screen text-white bg-black">
-      <StarBackground />
-      <div className="relative z-10">
-        <div className="fixed top-0 left-0 right-0 z-50">
-          <AnnouncementBar />
-          <NewNavbar />
-        </div>
-        <main className="pt-[126px] md:pt-[100px]">
-          <HeroSection onWatchVideo={() => setShowVideoModal(true)} />
-          {/* <SocialProofStrip /> */}
-          <PainSolutionSection />
-          <SeeItInActionSection onWatchVideo={() => setShowVideoModal(true)} />
-          <PortalUSPSection />
-          <OurWorkPreview />
-          <ReviewsSection />
-          <FAQSection />
-          <FinalCTASection />
-          <ContactSection />
-        </main>
-        <Footer hideLinks />
+    <div className="relative min-h-screen bg-background text-foreground">
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <AnnouncementBar />
+        <NewNavbar />
       </div>
+      <main className="pt-[100px]">
+        <HeroSection onWatchVideo={() => setShowVideoModal(true)} />
+        <PainSolutionSection />
+        <SeeItInActionSection onWatchVideo={() => setShowVideoModal(true)} />
+        <PortalUSPSection />
+        <OurWorkPreview />
+        <ReviewsSection />
+        <FAQSection />
+        <FinalCTASection />
+        <ContactSection />
+      </main>
+      <Footer />
       <VideoModal open={showVideoModal} onOpenChange={setShowVideoModal} />
     </div>
   );

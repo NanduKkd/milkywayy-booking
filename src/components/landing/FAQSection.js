@@ -1,4 +1,4 @@
-﻿import {
+import {
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -10,36 +10,36 @@ const FAQSection = () => {
     {
       question: "How fast is delivery?",
       answer:
-        "Photos are delivered in 24 hours for standard listings. Video and 360 timelines are shown during booking.",
+        "All listing photos are delivered within 24 hours. Video walkthroughs and 360° tours are delivered within the timeframe shown during booking.",
     },
     {
       question: "How do I receive my files?",
       answer:
-        "All files are delivered directly inside your dashboard and remain available for download anytime.",
+        "All media is delivered directly inside your dashboard. You can download photos, videos, and invoices anytime from your account.",
     },
     {
       question: "What areas do you cover?",
       answer:
-        "We currently cover all key real estate communities across Dubai.",
+        "We currently cover all areas within Dubai. Simply select your location during booking to confirm availability.",
     },
     {
       question: "Is pricing transparent?",
       answer:
-        "Yes. The portal shows clear package pricing before payment, including applicable discounts.",
+        "Yes. All pricing is shown clearly inside the portal before checkout — no hidden costs, no custom quoting delays.",
     },
     {
       question: "Can I reschedule, cancel, or request a refund?",
       answer:
-        "Yes. You can reschedule or request support from your dashboard and our team for case-by-case requests.",
+        "Yes. Manage your booking directly from your dashboard. Cancellations or reschedules up to 4 hours before the shoot time receive a full refund. Changes within 4 hours incur a 100 AED operational fee.",
     },
   ];
 
   return (
-    <section id="faq" className="py-24">
+    <section id="faq" className="py-24 bg-secondary/20">
       <div className="container mx-auto px-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12 fade-in">
-            <h2 className="font-heading text-5xl md:text-6xl font-bold mb-4">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-foreground">
               FAQ
             </h2>
           </div>
@@ -49,12 +49,12 @@ const FAQSection = () => {
               <AccordionItem
                 key={faq.question}
                 value={`item-${index}`}
-                className="bg-card/50 border border-border rounded-xl px-6 data-[state=open]:border-accent/50"
+                className="bg-card border border-border rounded-xl px-6 data-[state=open]:border-accent/50"
               >
-                <AccordionTrigger className="text-left font-medium hover:no-underline py-4 text-xl">
+                <AccordionTrigger className="text-left font-medium hover:no-underline py-4 text-foreground">
                   {faq.question}
                 </AccordionTrigger>
-                <AccordionContent className="text-muted-foreground pb-4 text-lg">
+                <AccordionContent className="text-muted-foreground pb-4">
                   {faq.answer}
                 </AccordionContent>
               </AccordionItem>
