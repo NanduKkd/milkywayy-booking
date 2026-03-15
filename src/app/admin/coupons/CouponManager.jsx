@@ -47,6 +47,7 @@ export default function CouponManager({ initialCoupons }) {
     minimumAmount: 0,
     percentDiscount: 0,
     maxDiscount: 0,
+    uiText: "",
     isActive: true,
   });
 
@@ -120,6 +121,7 @@ export default function CouponManager({ initialCoupons }) {
               <TableHeader className="bg-[#272727]">
                 <TableRow className="border-zinc-800 hover:bg-[#272727]">
                   <TableHead className="text-gray-300">CODE</TableHead>
+                  <TableHead className="text-gray-300">UI TEXT</TableHead>
                   <TableHead className="text-gray-300">DISCOUNT</TableHead>
                   <TableHead className="text-gray-300">MIN SPEND</TableHead>
                   <TableHead className="text-gray-300">STATUS</TableHead>
@@ -132,7 +134,7 @@ export default function CouponManager({ initialCoupons }) {
                 {coupons.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={6}
                       className="text-center text-gray-400"
                     >
                       No coupons found
@@ -150,15 +152,32 @@ export default function CouponManager({ initialCoupons }) {
                           <span className="font-bold text-white tracking-wider">
                             {item.code}
                           </span>
+                          {item.isSystem && (
+                            <Badge
+                              variant="secondary"
+                              className="bg-blue-500/15 text-blue-300 hover:bg-blue-500/15"
+                            >
+                              System
+                            </Badge>
+                          )}
                         </div>
+                      </TableCell>
+                      <TableCell className="max-w-[260px] text-gray-300">
+                        <span className="block truncate" title={item.uiText || ""}>
+                          {item.uiText || "-"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="text-white font-medium">
-                            {item.percentDiscount}% OFF
+                            {item.percentDiscount
+                              ? `${item.percentDiscount}% OFF`
+                              : `AED ${item.maxDiscount} CREDIT`}
                           </span>
                           <span className="text-xs text-gray-500">
-                            Max AED {item.maxDiscount}
+                            {item.percentDiscount
+                              ? `Max AED ${item.maxDiscount}`
+                              : item.eligibilityLabel || "First booking only"}
                           </span>
                         </div>
                       </TableCell>
@@ -179,28 +198,36 @@ export default function CouponManager({ initialCoupons }) {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className={
-                              item.isActive
-                                ? "text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
-                                : "text-green-500 hover:text-green-400 hover:bg-green-500/10"
-                            }
-                            onClick={() => handleToggle(item.id, item.isActive)}
-                            title={item.isActive ? "Deactivate" : "Activate"}
-                          >
-                            <Power size={18} />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                            onClick={() => handleDelete(item.id)}
-                            title="Delete coupon"
-                          >
-                            <Trash2 size={18} />
-                          </Button>
+                          {item.isSystem ? (
+                            <span className="text-xs text-gray-500">
+                              Managed in backend
+                            </span>
+                          ) : (
+                            <>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className={
+                                  item.isActive
+                                    ? "text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
+                                    : "text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                                }
+                                onClick={() => handleToggle(item.id, item.isActive)}
+                                title={item.isActive ? "Deactivate" : "Activate"}
+                              >
+                                <Power size={18} />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                                onClick={() => handleDelete(item.id)}
+                                title="Delete coupon"
+                              >
+                                <Trash2 size={18} />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -306,6 +333,21 @@ export default function CouponManager({ initialCoupons }) {
                   className="bg-[#272727] border-zinc-700 text-white focus-visible:ring-offset-0"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="uiText">UI Text (Optional)</Label>
+              <Input
+                id="uiText"
+                placeholder="e.g. AED 500 welcome credit"
+                value={formData.uiText}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    uiText: e.target.value,
+                  })
+                }
+                className="bg-[#272727] border-zinc-700 text-white focus-visible:ring-offset-0"
+              />
             </div>
           </div>
           <DialogFooter>

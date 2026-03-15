@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 const Footer = () => {
   return (
@@ -8,7 +8,7 @@ const Footer = () => {
         <img
           src="/logo-with-title.png"
           alt="Milkywayy"
-          className="h-8 w-auto mb-4"
+          className="h-12 mb-4"
         />
 
         {/* Tagline */}

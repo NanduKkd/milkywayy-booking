@@ -19,7 +19,7 @@ export default async function FilesPage() {
 
   return (
     <div className="min-h-screen">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <FileList bookings={bookingsWithFiles} />
       </div>
     </div>

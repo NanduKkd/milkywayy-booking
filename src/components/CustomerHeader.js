@@ -23,14 +23,14 @@ export default function CustomerHeader({ mode = "default" }) {
 
   if (mode === "booking") {
     return (
-      <HeaderBackground className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/10 px-4 lg:px-8 bg-black/95 backdrop-blur">
+      <HeaderBackground className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/10 px-4 lg:px-8 bg-black/95 backdrop-blur-sm">
         <Link
           href="/"
           className="flex items-center gap-2 text-xl font-bold text-white"
         >
           <Image
             src="/logo-texxt.png"
-            height={34}
+            height={54}
             width={190}
             alt="Milkywayy"
           />
@@ -76,7 +76,13 @@ export default function CustomerHeader({ mode = "default" }) {
         href="/"
         className="flex items-center gap-2 text-xl font-bold text-white"
       >
-        <Image src="/logo-texxt.png" height={40} width={200} alt="Milkywayy" />
+        <Image
+          src="/logo-texxt.png"
+          width={190}
+          height={54}
+          className="h-12 w-auto"
+          alt="Milkywayy"
+        />
       </Link>
 
       {isAuthenticated

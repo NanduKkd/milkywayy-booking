@@ -4,8 +4,7 @@ import { Menu, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import HeaderBackground from "@/components/HeaderBackground";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/contexts/auth";
 import VideoModal from "./VideoModal";
@@ -21,13 +20,30 @@ const NewNavbar = () => {
   const pathname = usePathname();
   const router = useRouter();
   const { authState, login } = useAuth();
+  const frameRef = useRef(null);
+  const isScrolledRef = useRef(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      if (frameRef.current) return;
+      frameRef.current = window.requestAnimationFrame(() => {
+        const nextScrolled = window.scrollY > 20;
+        if (nextScrolled !== isScrolledRef.current) {
+          isScrolledRef.current = nextScrolled;
+          setIsScrolled(nextScrolled);
+        }
+        frameRef.current = null;
+      });
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (frameRef.current) {
+        window.cancelAnimationFrame(frameRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -71,11 +87,11 @@ const NewNavbar = () => {
   return (
     <>
       <nav
-        className={`transition-all duration-300 ${
-          isScrolled ? "bg-background/85 backdrop-blur-xl" : "bg-transparent"
+        className={`sticky top-0 z-50 transition-all duration-300 ${
+          isScrolled ? "bg-background/90 backdrop-blur-md" : "bg-transparent"
         }`}
       >
-        <div className="container mx-auto px-6 py-4">
+        <div className="container mx-auto px-4 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center">
               <Image
@@ -83,7 +99,7 @@ const NewNavbar = () => {
                 alt="Milkywayy Logo"
                 width={220}
                 height={40}
-                className="h-8 w-auto"
+                className="h-8 md:h-10 w-auto cursor-pointer hover:opacity-80 transition-opacity"
                 priority
               />
             </Link>
@@ -127,15 +143,15 @@ const NewNavbar = () => {
 
             <button
               type="button"
-              className="lg:hidden text-foreground p-2"
+              className="lg:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-foreground"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
-              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
 
           {isMobileMenuOpen && (
-            <div className="lg:hidden mt-4 pb-4 space-y-4 border-t border-border pt-4">
+            <div className="lg:hidden mt-3 rounded-2xl border border-white/10 bg-[#121212]/95 p-4 space-y-4">
               {navItems.map((item) =>
                 item.href ? (
                   <Link
@@ -159,7 +175,7 @@ const NewNavbar = () => {
                   </button>
                 )
               )}
-              <div className="space-y-2 pt-2">
+              <div className="space-y-2 pt-1">
                 <Link
                   href="/booking"
                   className="block"

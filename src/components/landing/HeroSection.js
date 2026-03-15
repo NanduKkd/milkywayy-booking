@@ -75,9 +75,9 @@ const HeroSection = ({ onWatchVideo }) => {
           <div className="relative fade-in" style={{ animationDelay: "0.2s" }}>
             <div className="relative">
               {/* Ambient glow behind card */}
-              <div className="absolute -inset-6 bg-muted/8 blur-[60px] rounded-3xl" />
+              <div className="absolute -inset-6 bg-muted/8 blur-[36px] rounded-3xl" />
               
-              <div className="relative bg-card/80 backdrop-blur-md border border-border/80 rounded-2xl overflow-hidden shadow-2xl">
+              <div className="relative bg-card/85 backdrop-blur-[6px] border border-border/80 rounded-2xl overflow-hidden shadow-2xl">
                 <div className="flex border-b border-border">
                   <button className="flex-1 py-3 px-4 text-sm font-medium bg-secondary/50 border-b-2 border-foreground/30">
                     Booking Flow

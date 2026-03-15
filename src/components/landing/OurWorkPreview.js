@@ -1,6 +1,7 @@
 "use client";
 
 import { Play } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -116,10 +117,12 @@ const OurWorkPreview = () => {
               >
                 <div className="relative aspect-[4/3] min-h-[240px] bg-card rounded-xl overflow-hidden border border-border/60">
                   {item.type === OUR_WORK_TYPES.THREE_SIXTY && item.thumbnail ? (
-                    <img
+                    <Image
                       src={item.thumbnail}
                       alt={item.title}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                     />
                   ) : (
                     <div
@@ -188,10 +191,12 @@ const OurWorkPreview = () => {
                     onClick={() => setShowInteractive360(true)}
                     className="h-full w-full relative"
                   >
-                    <img
+                    <Image
                       src={selectedItem.thumbnail}
                       alt={selectedItem.title}
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="92vw"
+                      className="object-cover"
                     />
                     <div className="absolute inset-0 bg-black/30" />
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -210,18 +215,15 @@ const OurWorkPreview = () => {
                 )}
               </div>
 
-              <div className="p-6 bg-[#17191d] border-t border-white/10">
-                <p className="text-4xl font-bold text-foreground mb-2">
+              <div className="p-3 bg-white/[0.03] border-t border-white/10">
+                <p className="text-2xl font-bold text-foreground mb-2">
                   {selectedItem.title}
                 </p>
-                <p className="text-muted-foreground text-xl mb-4">
+                <p className="text-muted-foreground text-xl">
                   {selectedItem.subtitle
                     ? `${selectedItem.subtitle} - ${categories.find((c) => c.value === selectedItem.type)?.label || "Work"}`
                     : categories.find((c) => c.value === selectedItem.type)?.label || "Work"}
                 </p>
-                <Button asChild className="rounded-xl bg-gradient-to-b from-white to-zinc-300 text-black hover:from-zinc-100 hover:to-zinc-300">
-                  <Link href="/booking">Book a similar shoot</Link>
-                </Button>
               </div>
             </>
           )}

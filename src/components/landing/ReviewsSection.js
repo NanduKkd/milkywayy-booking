@@ -127,7 +127,7 @@ const ReviewsSection = () => {
 
         <div className="text-center mt-8">
           <a
-            href="https://www.google.com/maps/search/milkywayy"
+            href="https://maps.app.goo.gl/UEiQFp3nshPgkaPE8"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"

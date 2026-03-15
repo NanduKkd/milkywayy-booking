@@ -105,7 +105,7 @@ const Booking = sequelize.define(
       field: "completed_at",
     },
     filesUrl: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: true,
       field: "files_url",
     },

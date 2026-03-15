@@ -79,7 +79,13 @@ describe('Admin Bookings Page', () => {
       }
       if (url === '/api/admin/upload' && init?.method === 'POST') {
         return Promise.resolve({
-          json: async () => ({ url: 'https://s3.example.com/file.jpg' }),
+          json: async () => ({
+            url: 'https://s3.example.com/file-1.jpg',
+            urls: [
+              'https://s3.example.com/file-1.jpg',
+              'https://s3.example.com/file-2.jpg',
+            ],
+          }),
         });
       }
       return Promise.resolve({
@@ -97,11 +103,14 @@ describe('Admin Bookings Page', () => {
     
     // In JSDOM, portals are rendered into document.body
     const fileInput = document.querySelector('input[type="file"]');
-    const file = new File(['test'], 'test.jpg', { type: 'image/jpeg' });
+    const fileOne = new File(['test'], 'test-1.jpg', { type: 'image/jpeg' });
+    const fileTwo = new File(['test'], 'test-2.jpg', { type: 'image/jpeg' });
     
-    fireEvent.change(fileInput, { target: { files: [file] } });
+    fireEvent.change(fileInput, { target: { files: [fileOne, fileTwo] } });
     
-    const uploadButton = screen.getByRole('button', { name: /upload to s3/i });
+    expect(screen.getByText('2 file(s) selected')).toBeInTheDocument();
+
+    const uploadButton = screen.getByRole('button', { name: /upload deliverable/i });
     fireEvent.click(uploadButton);
     
     await waitFor(() => {
@@ -110,6 +119,6 @@ describe('Admin Bookings Page', () => {
       }));
     });
     
-    expect(window.alert).toHaveBeenCalledWith('File uploaded successfully');
+    expect(window.alert).toHaveBeenCalledWith('2 file(s) uploaded successfully');
   });
 });

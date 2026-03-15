@@ -1,5 +1,6 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import puppeteer from "puppeteer";
+import Booking from "@/lib/db/models/booking";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -9,121 +10,275 @@ const s3Client = new S3Client({
   },
 });
 
-import Booking from "@/lib/db/models/booking";
-
 export async function generateAndUploadInvoice(transaction, user) {
   try {
+
     // Fetch bookings
     const bookings = await Booking.findAll({
       where: { transactionId: transaction.id },
     });
 
+    let subTotal = 0;
+
     const bookingRows = bookings
       .map((b) => {
-        const details = b.propertyDetails || {};
+
         const shoot = b.shootDetails || {};
+
         const services = Array.isArray(shoot.services)
-          ? shoot.services
-              .map((s) => s.replace(/_/g, " "))
-              .join(", ") // simple cleanup if needed
-          : "";
+          ? shoot.services.map((s) => s.replace(/_/g, " "))
+          : [];
 
-        let desc = `<strong>${details.type || "Property"} ${details.size ? `- ${details.size}` : ""}</strong>`;
-        desc += `<br/><span style="color: #666; font-size: 0.9em;">Date: ${b.date}</span>`;
-        if (services) {
-          desc += `<br/><span style="color: #666; font-size: 0.9em;">Services: ${services}</span>`;
-        }
+        subTotal += Number(b.total);
 
-        return `
-        <tr>
-          <td>${desc}</td>
-          <td>AED ${b.total}</td>
-        </tr>`;
+        return services
+          .map(
+            (service) => `
+<tr>
+<td>${service}</td>
+<td>AED ${b.total}</td>
+</tr>
+`
+          )
+          .join("");
       })
       .join("");
 
-    let discountRows = "";
-    if (transaction.bulkDeduction > 0) {
-      discountRows += `
-        <tr>
-          <td>Discount (Automatic)</td>
-          <td>- AED ${transaction.bulkDeduction}</td>
-        </tr>`;
-    }
-    if (transaction.couponDeduction > 0) {
-      discountRows += `
-        <tr>
-          <td>Coupon Discount</td>
-          <td>- AED ${transaction.couponDeduction}</td>
-        </tr>`;
-    }
+    // Hydration safe date
+    const invoiceDate = new Date().toLocaleDateString("en-GB");
 
-    // 1. Generate HTML
     const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: sans-serif; padding: 40px; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-          .title { font-size: 24px; font-weight: bold; }
-          .details { margin-bottom: 20px; }
-          .table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-          .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          .total { margin-top: 20px; text-align: right; font-size: 18px; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="title">INVOICE</div>
-          <div>
-            <p>MilkyWayy Booking</p>
-            <p>Date: ${new Date().toLocaleDateString()}</p>
-            <p>Invoice #: ${transaction.id}</p>
-          </div>
-        </div>
-        
-        <div class="details">
-          <p><strong>Bill To:</strong></p>
-          <p>${user.fullName}</p>
-          <p>${user.email}</p>
-        </div>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
 
-        <table class="table">
-          <thead>
-            <tr>
-              <th>Description</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${bookingRows}
-            ${discountRows}
-          </tbody>
-        </table>
+<style>
 
-        <div class="total">
-          Total: AED ${transaction.amount}
-        </div>
-      </body>
-      </html>
-    `;
+body{
+font-family: Arial, sans-serif;
+padding:40px;
+color:#333;
+}
 
-    // 2. Generate PDF with Puppeteer
+.header{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:30px;
+}
+
+.invoice-title{
+font-size:28px;
+font-weight:bold;
+}
+
+.logo{
+font-size:24px;
+font-weight:bold;
+}
+
+.invoice-info{
+margin-top:10px;
+line-height:1.6;
+}
+
+.section{
+margin-top:30px;
+}
+
+.company-bill{
+display:flex;
+justify-content:space-between;
+}
+
+.title{
+font-weight:bold;
+margin-bottom:6px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:30px;
+}
+
+table th,
+table td{
+border:1px solid #ddd;
+padding:10px;
+}
+
+table th{
+background:#f5f5f5;
+text-align:left;
+}
+
+.summary{
+width:300px;
+margin-left:auto;
+margin-top:20px;
+border:1px solid #ddd;
+}
+
+.summary div{
+display:flex;
+justify-content:space-between;
+padding:10px;
+border-bottom:1px solid #ddd;
+}
+
+.summary div:last-child{
+font-weight:bold;
+font-size:18px;
+}
+
+.footer{
+margin-top:40px;
+display:flex;
+justify-content:space-between;
+align-items:flex-end;
+}
+
+.signature{
+text-align:center;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+
+<div>
+<div class="invoice-title">INVOICE</div>
+
+<div class="invoice-info">
+Invoice No: MW-${transaction.id}<br/>
+Invoice Date: ${invoiceDate}<br/>
+Booking ID: ${transaction.bookingId || ""}
+</div>
+
+</div>
+
+<div class="logo">
+MILKYWAYY
+</div>
+
+</div>
+
+
+<div class="section company-bill">
+
+<div>
+<div class="title">MILKYWAYY LLC</div>
+Sharjah Media City, Sharjah<br/>
+United Arab Emirates<br/>
++971 50 726 3306<br/>
+hello@milkywayy.com
+</div>
+
+<div>
+<div class="title">BILL TO</div>
+${user.fullName}<br/>
+${user.address || ""}<br/>
+${user.phone || ""}<br/>
+${user.email}
+</div>
+
+</div>
+
+
+<table>
+
+<thead>
+<tr>
+<th>Description</th>
+<th style="width:150px">Amount</th>
+</tr>
+</thead>
+
+<tbody>
+${bookingRows}
+</tbody>
+
+</table>
+
+
+<div class="summary">
+
+<div>
+<span>Sub-Total</span>
+<span>AED ${subTotal}</span>
+</div>
+
+<div>
+<span>Tax (0%)</span>
+<span>AED 0.00</span>
+</div>
+
+<div>
+<span>Total</span>
+<span>AED ${transaction.amount}</span>
+</div>
+
+</div>
+
+
+<div class="footer">
+
+<div>
+<strong>Payment Method:</strong> Stripe<br/>
+<strong>Transaction ID:</strong> ${transaction.id}
+<br/><br/>
+
+Thank you for booking with Milkywayy.<br/>
+All media files will be delivered through the client portal.
+</div>
+
+<div class="signature">
+
+<br/><br/>
+
+<strong>AKASH PRASEED</strong><br/>
+Founder & CEO
+
+</div>
+
+</div>
+
+</body>
+</html>
+`;
+
+    // Generate PDF
     const browser = await puppeteer.launch({
       headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"], // Required for some environments
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
     });
+
     const page = await browser.newPage();
+
     await page.setContent(html);
-    const pdfBuffer = await page.pdf({ format: "A4" });
+
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
     await browser.close();
 
-    // 3. Upload to S3
-    const key = `invoices/${transaction.id}_${Date.now()}.pdf`;
+    // Create user-friendly filename
+    const date = new Date();
+    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const customerName = transaction.user?.fullName || transaction.user?.phone || 'Customer';
+    const sanitizedName = customerName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const key = `invoices/Milkywayy_Invoice_${sanitizedName}_${dateStr}_${transaction.id}.pdf`;
+
     const bucketName = process.env.AWS_BUCKET_NAME || "milkywayy-bookings";
 
-    // If no real creds, return a mock URL for dev
     if (process.env.AWS_ACCESS_KEY_ID === "mock") {
       console.log("Mocking S3 upload for invoice");
       return `https://mock-s3.com/${key}`;
@@ -139,6 +294,7 @@ export async function generateAndUploadInvoice(transaction, user) {
     await s3Client.send(command);
 
     return `https://${bucketName}.s3.amazonaws.com/${key}`;
+
   } catch (error) {
     console.error("Error generating invoice:", error);
     return null;

@@ -34,6 +34,11 @@ const Coupon = sequelize.define(
       allowNull: false,
       field: "max_discount",
     },
+    uiText: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: "ui_text",
+    },
     activatedAt: {
       type: DataTypes.DATE,
       allowNull: true,

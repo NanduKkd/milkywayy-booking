@@ -89,6 +89,25 @@ const SERVICE_ESTIMATES = {
   "360Â° Tour": "Est - 48-72 hrs",
 };
 
+const VIDEOGRAPHY_OPTION_META = {
+  [VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM]: {
+title: "Short Form",
+    subtitle: "Social Media Reels",
+    delivery: "Delivery: 24-48h",
+  },
+  [VIDEOGRAPHY_SUB_SERVICES.LONG_FORM]: {
+    title: "Long\nForm",
+    subtitle: "YouTube Walkthrough",
+    delivery: "Delivery: 48-72h",
+  },
+};
+
+const LIGHTING_OPTION_ICONS = {
+  Daylight: "☀",
+  "Night Light": "☾",
+  "Daylight + Night": "◌",
+};
+
 
 
 export function PropertyCard({
@@ -197,16 +216,16 @@ export function PropertyCard({
 
   const renderVideographySubServiceSelection = (className = "") => (
     <div className={cn("animate-in fade-in slide-in-from-top-4 duration-300", className)}>
-      <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
-        {property.propertyType === "Commercial" ? "Videography Package" : "Videography Duration"}
+      <label className="block text-[10px] md:text-[11px] tracking-[0.02em] md:tracking-[0.18em] font-medium text-muted-foreground/90 mb-2.5 md:mb-3">
+        {property.propertyType === "Commercial" ? "Videography Package" : "Video Format"}
       </label>
 
       <Controller
         name={`properties.${index}.videographySubService`}
         control={control}
         render={({ field }) => (
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-[#14161a]/80 p-3 md:p-4">
-            <div className={property.propertyType === "Commercial" && property.propertySize === "Basic" ? "grid grid-cols-1 gap-4 w-full" : "grid grid-cols-1 lg:grid-cols-2 gap-4 w-full"}>
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-3 md:p-4">
+            <div className={property.propertyType === "Commercial" && property.propertySize === "Basic" ? "grid grid-cols-1 gap-2 md:gap-4 w-full" : "grid grid-cols-2 lg:grid-cols-2 gap-2 md:gap-4 w-full"}>
               {VIDEOGRAPHY_SUB_SERVICE_ORDER.map((subService) => {
                 if (property.propertyType === "Commercial" && property.propertySize === "Basic") {
                   if (subService !== VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) return null;
@@ -238,9 +257,9 @@ export function PropertyCard({
                 return (
                   <OptionCard
                     key={subService}
-                    className="py-3"
+                    className="py-2.5 md:py-3"
                     selectedClassName="border-white bg-white text-black"
-                    unselectedClassName="border-white/10 bg-[#1a1d22] text-muted-foreground hover:border-white/20 hover:text-white"
+                    unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-white"
                     isSelected={
                       subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
                         ? hasShortFormSelection
@@ -264,10 +283,8 @@ export function PropertyCard({
 
                       if (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) {
                         const nextSelections = hasShort
-                          ? currentSelections.filter(
-                              (v) => v !== VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM,
-                            )
-                          : [...currentSelections, VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM];
+                          ? []
+                          : [VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM];
                         updatePropertyField(
                           index,
                           "videographySubService",
@@ -307,29 +324,72 @@ export function PropertyCard({
                       updatePropertyField(
                         index,
                         "videographySubService",
-                        serializeVideographySelections([
-                          ...currentSelections,
-                          longSelection,
-                        ]),
+                        serializeVideographySelections([longSelection]),
                       );
                     }}
                   >
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="font-semibold">{subService}</div>
-                      {property.propertyType === "Commercial" ? (
-                        <div className="text-sm text-muted-foreground">AED {basePrice}</div>
-                      ) : (
-                        subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM && (
-                          <div className="text-sm text-muted-foreground">AED {basePrice}</div>
-                        )
-                      )}
-                    </div>
+                 <div className="flex flex-col w-full text-left gap-1.5">
+
+  {/* Title + Price */}
+  <div className="flex items-center justify-between w-full">
+    <span className="text-sm md:text-base font-semibold">
+      {VIDEOGRAPHY_OPTION_META[subService]?.title || subService}
+    </span>
+
+<span className="text-sm md:text-base font-semibold">
+  AED {
+    (() => {
+      if (subService !== VIDEOGRAPHY_SUB_SERVICES.LONG_FORM) {
+        return basePrice;
+      }
+
+      const typeConfig = pricingConfig[property.propertyType];
+      const sizeConfig = typeConfig?.sizes?.find(
+        (s) => s.label === property.propertySize
+      );
+
+      const videographyPriceConfig = sizeConfig?.prices?.["Videography"];
+
+      const resolved = resolveVideographyPriceConfig(
+        videographyPriceConfig,
+        selectedLongForm || VIDEOGRAPHY_SUB_SERVICES.LONG_FORM
+      );
+
+      const amount =
+        typeof resolved === "object"
+          ? Number(resolved?.price || 0)
+          : Number(resolved || 0);
+
+      return amount || basePrice;
+    })()
+  }
+</span>
+
+  </div>
+
+  {/* Subtitle */}
+  {property.propertyType !== "Commercial" && (
+    <div className="text-xs text-muted-foreground">
+      {VIDEOGRAPHY_OPTION_META[subService]?.subtitle}
+    </div>
+  )}
+
+  {/* Delivery */}
+  {property.propertyType !== "Commercial" && (
+    <div className="flex items-center gap-1 text-xs text-muted-foreground/80">
+      <Clock className="h-3 w-3" />
+      {VIDEOGRAPHY_OPTION_META[subService]?.delivery}
+    </div>
+  )}
+
+</div>
+
                   </OptionCard>
                 );
               })}
             </div>
 
-            <div className="mt-1 text-2xl font-bold text-foreground">
+            {/* <div className="mt-1 text-2xl font-bold text-foreground">
               {(() => {
                 const typeConfig = pricingConfig[property.propertyType];
                 const sizeConfig = typeConfig?.sizes?.find(
@@ -358,15 +418,15 @@ export function PropertyCard({
 
                 return `AED ${total}`;
               })()}
-            </div>
+            </div> */}
 
             {selectedLongForm?.startsWith(`${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`) && property.propertyType !== "Commercial" && (
               <div className="mt-4">
-                <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
+                <label className="block text-[10px] md:text-[11px] tracking-[0.02em] md:tracking-[0.18em] font-medium text-muted-foreground/90 mb-2.5 md:mb-3">
                   Lighting Preference
                 </label>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 md:gap-3">
                   {(() => {
                     const [mainService, selectedCategoryLabel] = selectedLongForm.split('.') || [];
                     const categories = VIDEOGRAPHY_SUB_CATEGORIES[mainService];
@@ -378,9 +438,9 @@ export function PropertyCard({
                     return Object.entries(categories).map(([categoryKey, categoryName]) => (
                       <OptionCard
                         key={categoryKey}
-                        className="relative py-3"
-                        selectedClassName="border-white/40 bg-[#1f232a] text-white"
-                        unselectedClassName="border-white/10 bg-[#15181d] text-muted-foreground hover:border-white/25 hover:text-white"
+                        className="relative py-2.5 md:py-3"
+                        selectedClassName="border-white/35 bg-white/[0.06] text-white"
+                        unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/25 hover:text-white"
                         isSelected={currentCategory === categoryName}
                         onClick={() => {
                           const currentSelections = parseVideographySelections(field.value);
@@ -399,10 +459,15 @@ export function PropertyCard({
                           );
                         }}
                       >
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="font-medium text-sm">{categoryName}</div>
+                        <div className="flex items-center justify-center gap-1">
+                          <div className="text-[10px] md:text-xs text-muted-foreground/80">
+                            {LIGHTING_OPTION_ICONS[categoryName] || "•"}
+                          </div>
+                          <div className="font-medium text-[10px] md:text-sm">
+                            {categoryName}
+                          </div>
                           {currentCategory === categoryName && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                            <span className="absolute right-0 top-1/2 -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 rounded-full bg-white text-black flex items-center justify-end">
                               <Check className="h-3 w-3" />
                             </span>
                           )}
@@ -433,7 +498,7 @@ export function PropertyCard({
 
       className={cn(
 
-        "premium-card rounded-2xl overflow-hidden card-hover-lift border border-border transition-all duration-300",
+        "premium-card rounded-xl md:rounded-2xl overflow-hidden card-hover-lift border border-border transition-all duration-300",
 
         isOpen ? "relative z-10 ring-2 ring-primary/20" : "relative z-0",
 
@@ -445,7 +510,7 @@ export function PropertyCard({
         role="button"
         tabIndex={0}
         aria-expanded={isOpen}
-        className="w-full flex flex-row justify-between items-center p-5 md:p-6 text-left hover:bg-muted/20 transition-colors cursor-pointer"
+        className="w-full flex flex-row justify-between items-center p-4 md:p-6 text-left hover:bg-muted/20 transition-colors cursor-pointer"
         onClick={onToggle}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -456,16 +521,16 @@ export function PropertyCard({
       >
 
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-muted/40 flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
+          <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-muted/40 flex items-center justify-center text-[11px] md:text-xs font-semibold text-muted-foreground shrink-0">
             {index + 1}
           </div>
           <div className="min-w-0">
             {!isOpen && titleParts.length > 0 ? (
-              <p className="text-sm font-semibold text-foreground truncate">
+              <p className="text-[13px] md:text-sm font-semibold text-foreground truncate">
                 {titleParts.join(" · ")}
               </p>
             ) : (
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-[13px] md:text-sm font-semibold text-foreground">
                 Property {index + 1}
               </p>
             )}
@@ -479,7 +544,7 @@ export function PropertyCard({
 
         <div className="flex items-center gap-2 shrink-0">
           {price > 0 && (
-            <span className="text-sm font-semibold text-foreground mr-1">
+            <span className="text-[12px] md:text-sm font-semibold text-foreground mr-1">
               AED {price.toLocaleString()}
             </span>
           )}
@@ -607,13 +672,13 @@ export function PropertyCard({
 
           <div className="border-t border-border" />
 
-          <div className="pt-6 px-5 md:px-6 pb-6 space-y-8 overflow-visible">
+          <div className="pt-4 md:pt-6 px-4 md:px-6 pb-5 md:pb-6 space-y-6 md:space-y-8 overflow-visible">
 
             {/* Property Type Selection */}
 
             <div>
 
-              <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+              <label className="block text-[10px] md:text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-2.5 md:mb-3">
                 PROPERTY TYPE
               </label>
 
@@ -625,7 +690,7 @@ export function PropertyCard({
 
                 render={({ field }) => (
 
-                  <div className="grid grid-cols-3 gap-3 md:gap-4">
+                  <div className="grid grid-cols-3 gap-1.5 md:gap-4">
 
                     {PROPERTY_TYPE_ORDER.map((type) => {
 
@@ -639,9 +704,9 @@ export function PropertyCard({
 
                           key={type}
 
-                          className="relative p-2.5 md:p-4 text-center flex flex-col items-center justify-center gap-2 md:gap-3 min-h-[92px] md:min-h-24"
+                          className="relative p-2 md:p-4 text-center flex flex-col items-center justify-center gap-1.5 md:gap-3 min-h-[80px] md:min-h-24"
                           selectedClassName="border-white/30 bg-white/[0.06] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-                          unselectedClassName="border-white/10 bg-[#17191d] text-muted-foreground hover:border-white/20 hover:text-white"
+                          unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-white"
 
                           isSelected={field.value === type}
 
@@ -657,11 +722,18 @@ export function PropertyCard({
 
                         >
 
-                          <Icon size={18} className="md:h-6 md:w-6" />
+                          <Icon size={16} className="md:h-6 md:w-6" />
 
-                          <span className="text-[11px] md:text-sm font-medium whitespace-nowrap">{String(type).replace("/", " / ")}</span>
+                          <span className="text-[11px] md:text-sm font-medium whitespace-nowrap">
+                            <span className="md:hidden">
+                              {type === "Villa/Townhouse" ? "Villa / TH" : String(type).replace("/", " / ")}
+                            </span>
+                            <span className="hidden md:inline">
+                              {String(type).replace("/", " / ")}
+                            </span>
+                          </span>
                           {field.value === type && (
-                            <span className="absolute right-3 top-3 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                            <span className="absolute right-2 top-2 h-4 w-4 md:h-5 md:w-5 rounded-full bg-white text-black flex items-center justify-center">
                               <Check className="h-3 w-3" />
                             </span>
                           )}
@@ -675,7 +747,6 @@ export function PropertyCard({
                   </div>
 
                 )}
-
               />
 
               {errors.properties?.[index]?.propertyType && (
@@ -687,7 +758,6 @@ export function PropertyCard({
                 </p>
 
               )}
-
             </div>
 
 
@@ -704,7 +774,7 @@ export function PropertyCard({
                   </div>
                 )}
 
-                <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                <label className="block text-[10px] md:text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-2.5 md:mb-3">
                   {property.propertyType === "Commercial" ? "Step 1 — Property Scale" : "PROPERTY SIZE"}
                 </label>
 
@@ -716,7 +786,7 @@ export function PropertyCard({
 
                   render={({ field }) => (
 
-                    <div className={property.propertyType === "Commercial" ? "grid grid-cols-2 gap-3 w-full lg:grid-cols-2 xl:grid-cols-4" : "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2 w-full"}>
+                    <div className={property.propertyType === "Commercial" ? "grid grid-cols-2 gap-2 md:gap-3 w-full lg:grid-cols-2 xl:grid-cols-4" : "grid grid-cols-3 lg:grid-cols-3 xl:grid-cols-6 gap-1.5 md:gap-2 w-full"}>
 
                       {pricingConfig[property.propertyType].sizes.map((sizeObj) => {
 
@@ -792,7 +862,7 @@ export function PropertyCard({
 
                                   ? "border-white/35 bg-white/[0.06]"
 
-                                  : "border-white/12 bg-[#17191d] hover:border-white/25"
+                                  : "border-white/12 bg-white/[0.03] hover:border-white/25"
 
                               )}
 
@@ -854,9 +924,9 @@ export function PropertyCard({
 
                               key={sizeObj.label}
 
-                              className="px-4 py-2.5 min-h-[42px] text-sm font-medium"
-                              selectedClassName="border-white bg-white text-black shadow-none"
-                              unselectedClassName="border-white/10 bg-[#1b1d21] text-muted-foreground hover:border-white/25 hover:text-white"
+                              className="px-2.5 py-2 min-h-[32px] md:min-h-[42px] text-[9px] md:text-sm font-medium"
+                             selectedClassName="border-white bg-white text-black"
+unselectedClassName="border-white/10 bg-black/30 text-muted-foreground hover:border-white/20"
 
                               onClick={() => {
 
@@ -914,7 +984,7 @@ export function PropertyCard({
 
               <div className="animate-in fade-in slide-in-from-top-4 duration-300">
 
-                <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
+                <label className="block text-[10px] md:text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-2.5 md:mb-3">
                   {property.propertyType === "Commercial" ? "Step 2 — Select Services" : "SERVICES"}
                 </label>
 
@@ -926,7 +996,7 @@ export function PropertyCard({
 
                   render={({ field }) => (
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 w-full">
+                    <div className="grid grid-cols-1 gap-2.5 md:gap-4 lg:grid-cols-2 xl:grid-cols-3 w-full">
 
                       {(() => {
 
@@ -1023,9 +1093,9 @@ export function PropertyCard({
                             <OptionCard
                               key={serviceName}
                               isSelected={isSelected}
-                              className="relative min-h-[132px] px-4 py-4"
+                              className="relative min-h-[86px] md:min-h-[132px] px-4 md:px-4 py-3.5 md:py-4"
                               selectedClassName="border-white/30 bg-white/[0.07] text-white shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-                              unselectedClassName="border-white/10 bg-[#17191d] text-muted-foreground hover:border-white/20 hover:text-white"
+                              unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-white"
                               onClick={() =>
                                 toggleService(
                                   index,
@@ -1034,38 +1104,42 @@ export function PropertyCard({
                                 )
                               }
                             >
-                              <div className="flex flex-col items-start gap-3 text-left">
-                                <Icon
-                                  size={20}
-                                  className={
-                                    isSelected
-                                      ? "text-foreground"
-                                      : "text-muted-foreground"
-                                  }
-                                />
-                                <div className="w-full">
-                                  <div className="font-semibold mb-1 text-sm">
-                                    {serviceName}
-                                  </div>
+                              <div className="flex flex-row md:flex-col items-start gap-2.5 md:gap-3 text-left w-full">
+                                <div className="mt-0.5 rounded-full border border-white/8 bg-white/[0.03] p-1.5 shrink-0">
+                                  <Icon
+                                    size={12}
+                                    className={
+                                      isSelected
+                                        ? "text-foreground"
+                                        : "text-muted-foreground"
+                                    }
+                                  />
+                                </div>
+                                <div className="flex w-full items-start justify-between gap-3 md:block">
+                                  <div className="min-w-0">
+                                    <div className="font-semibold mb-1 md:mb-1 text-[12px] md:text-sm leading-4">
+                                      {serviceName}
+                                    </div>
 
-                                  <div className="text-[11px] text-muted-foreground mb-1">
-                                    {property.propertyType === "Commercial"
-                                      ? SERVICE_ESTIMATES[serviceName]
-                                      : SERVICE_SUBTITLES[serviceName] || SERVICE_ESTIMATES[serviceName]}
+                                    <div className="text-[9px] md:text-[11px] text-muted-foreground mb-0.5 md:mb-1 leading-3">
+                                      {property.propertyType === "Commercial"
+                                        ? SERVICE_ESTIMATES[serviceName]
+                                        : SERVICE_SUBTITLES[serviceName] || SERVICE_ESTIMATES[serviceName]}
+                                    </div>
                                   </div>
 
                                   {property.propertyType === "Commercial" ? (
-                                    <div className="text-sm text-foreground/90">
+                                    <div className="shrink-0 text-[11px] md:text-sm font-medium text-foreground/90">
                                       {serviceName !== "Videography" && `AED ${price}`}
                                     </div>
                                   ) : serviceName !== "Videography" && (
-                                    <div className="text-sm text-foreground/90">
+                                    <div className="shrink-0 text-[11px] md:text-sm font-medium text-foreground/90">
                                       AED {price}
                                     </div>
                                   )}
                                 </div>
                                 {isSelected && (
-                                  <span className="absolute right-3 top-3 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                                  <span className="absolute right-2.5 top-2.5 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
                                     <Check className="h-3 w-3" />
                                   </span>
                                 )}
@@ -1117,7 +1191,7 @@ export function PropertyCard({
 
                 <label className="block text-[11px] tracking-[0.18em] uppercase font-medium text-muted-foreground/90 mb-3">
 
-                  {property.propertyType === "Commercial" ? "Videography Package" : "Videography Duration"}
+                  {property.propertyType === "Commercial" ? "Videography Package" : "Video Format"}
 
                 </label>
 
@@ -1129,7 +1203,7 @@ export function PropertyCard({
 
                   render={({ field }) => (
 
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-[#14161a]/80 p-3 md:p-4">
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-3 md:p-4">
 
                       {/* Main Service Selection */}
 
@@ -1226,7 +1300,7 @@ export function PropertyCard({
                               key={subService}
                               className="py-3"
                               selectedClassName="border-white bg-white text-black"
-                              unselectedClassName="border-white/10 bg-[#1a1d22] text-muted-foreground hover:border-white/20 hover:text-white"
+                              unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-white"
 
                               isSelected={
                                 subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
@@ -1306,33 +1380,62 @@ export function PropertyCard({
 
                             >
 
-                              <div className="flex flex-col items-center gap-1">
+                           <div className="flex flex-col w-full text-left gap-1.5">
 
-                                <div className="font-semibold">{subService}</div>
+  {/* Title + Price */}
+  <div className="flex items-center justify-between w-full">
+    <span className="text-sm md:text-base font-semibold">
+      {VIDEOGRAPHY_OPTION_META[subService]?.title || subService}
+    </span>
 
-                                {property.propertyType === "Commercial" ? (
+<span className="text-sm md:text-base font-semibold">
+  AED {
+    (() => {
+      if (subService !== VIDEOGRAPHY_SUB_SERVICES.LONG_FORM) {
+        return basePrice;
+      }
 
-                                  <div className="text-sm text-muted-foreground">
+      const typeConfig = pricingConfig[property.propertyType];
+      const sizeConfig = typeConfig?.sizes?.find(
+        (s) => s.label === property.propertySize
+      );
 
-                                    AED {basePrice}
+      const videographyPriceConfig = sizeConfig?.prices?.["Videography"];
 
-                                  </div>
+      const resolved = resolveVideographyPriceConfig(
+        videographyPriceConfig,
+        selectedLongForm || VIDEOGRAPHY_SUB_SERVICES.LONG_FORM
+      );
 
-                                ) : (
+      const amount =
+        typeof resolved === "object"
+          ? Number(resolved?.price || 0)
+          : Number(resolved || 0);
 
-                                  subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM && (
+      return amount || basePrice;
+    })()
+  }
+</span>
 
-                                    <div className="text-sm text-muted-foreground">
+  </div>
 
-                                      AED {basePrice}
+  {/* Subtitle */}
+  {property.propertyType !== "Commercial" && (
+    <div className="text-xs text-muted-foreground">
+      {VIDEOGRAPHY_OPTION_META[subService]?.subtitle}
+    </div>
+  )}
 
-                                    </div>
+  {/* Delivery */}
+  {property.propertyType !== "Commercial" && (
+    <div className="flex items-center gap-1 text-xs text-muted-foreground/80">
+      <Clock className="h-3 w-3" />
+      {VIDEOGRAPHY_OPTION_META[subService]?.delivery}
+    </div>
+  )}
 
-                                  )
+</div>
 
-                                )}
-
-                              </div>
 
                             </OptionCard>
 
@@ -1341,7 +1444,7 @@ export function PropertyCard({
                         })}
 
                       </div>
-                      <div className="mt-1 text-2xl font-bold text-foreground">
+                      {/* <div className="mt-1 text-2xl font-bold text-foreground">
                         {(() => {
                           const typeConfig = pricingConfig[property.propertyType];
                           const sizeConfig = typeConfig?.sizes?.find(
@@ -1371,7 +1474,7 @@ export function PropertyCard({
 
                           return `AED ${total}`;
                         })()}
-                      </div>
+                      </div> */}
 
 
 
@@ -1427,8 +1530,8 @@ export function PropertyCard({
 
                                     key={categoryKey}
                                     className="relative py-3"
-                                    selectedClassName="border-white/40 bg-[#1f232a] text-white"
-                                    unselectedClassName="border-white/10 bg-[#15181d] text-muted-foreground hover:border-white/25 hover:text-white"
+                                    selectedClassName="border-white/40 bg-white/[0.08] text-white"
+                                    unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/25 hover:text-white"
 
                                     isSelected={currentCategory === categoryName}
 
@@ -1502,7 +1605,7 @@ export function PropertyCard({
               <label className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground mb-3">
                 LOCATION
               </label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
                 <Controller
                   name={`properties.${index}.community`}
                   control={control}

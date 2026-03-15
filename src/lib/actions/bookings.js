@@ -12,6 +12,11 @@ import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
+import {
+  LAUNCH_PROMO_CODE,
+  LAUNCH_PROMO_DISCOUNT,
+  LAUNCH_PROMO_MIN_AMOUNT,
+} from "@/lib/config/promo";
 import { auth } from "@/lib/helpers/auth";
 import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
 import { getPricingConfig } from "@/lib/helpers/pricing";
@@ -1005,20 +1010,57 @@ const createTransactionAndPaymentIntentHandler = async (
   let finalAmount = currentAmount;
   let couponId = null;
   let couponDeduction = 0;
+  let appliedCouponCode = null;
+  const normalizedCouponCode = String(couponCode || "")
+    .trim()
+    .toUpperCase();
 
-  if (couponCode) {
-    const coupon = await Coupon.findOne({
-      where: { code: couponCode.toUpperCase() },
-    });
+  if (normalizedCouponCode) {
+    if (normalizedCouponCode === LAUNCH_PROMO_CODE) {
+      const existingBookings = await Booking.count({
+        where: {
+          userId,
+          status: { [Op.ne]: "DRAFT" },
+        },
+      });
 
-    // Validate coupon against the amount AFTER automatic discounts
-    if (coupon && coupon.isActive && finalAmount >= coupon.minimumAmount) {
+      if (existingBookings > 0) {
+        throw new Error("Launch credit is valid only for your first booking");
+      }
+
+      if (finalAmount < LAUNCH_PROMO_MIN_AMOUNT) {
+        throw new Error(
+          `Minimum spend of AED ${LAUNCH_PROMO_MIN_AMOUNT} required`,
+        );
+      }
+
+      couponDeduction = Math.min(LAUNCH_PROMO_DISCOUNT, finalAmount);
+      finalAmount = Math.max(0, finalAmount - couponDeduction);
+      appliedCouponCode = LAUNCH_PROMO_CODE;
+    } else {
+      const coupon = await Coupon.findOne({
+        where: { code: normalizedCouponCode },
+      });
+
+      if (!coupon) {
+        throw new Error("Invalid coupon code");
+      }
+
+      if (!coupon.isActive) {
+        throw new Error("Coupon is inactive or expired");
+      }
+
+      if (finalAmount < Number(coupon.minimumAmount)) {
+        throw new Error(`Minimum spend of AED ${coupon.minimumAmount} required`);
+      }
+
       couponDeduction = Math.min(
-        (finalAmount * coupon.percentDiscount) / 100,
-        coupon.maxDiscount,
+        (finalAmount * Number(coupon.percentDiscount)) / 100,
+        Number(coupon.maxDiscount),
       );
       finalAmount = Math.max(0, finalAmount - couponDeduction);
       couponId = coupon.id;
+      appliedCouponCode = coupon.code;
     }
   }
 
@@ -1030,7 +1072,11 @@ const createTransactionAndPaymentIntentHandler = async (
     couponId: couponId,
     couponDeduction: couponDeduction,
     bulkDeduction: directDiscount, // Store automatic direct discounts here
-    metadata: { appliedDiscounts, creditExpiresAt: walletExpiryDate },
+    metadata: {
+      appliedDiscounts,
+      creditExpiresAt: walletExpiryDate,
+      appliedCouponCode,
+    },
   });
 
   if (walletCredits > 0) {

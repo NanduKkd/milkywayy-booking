@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import AnnouncementBar from "@/components/landing/AnnouncementBar";
 import NewNavbar from "@/components/NewNavbar";
 import MediaRenderer from "@/components/portfolio/MediaRenderer";
 import StarBackground from "@/components/StarBackground";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
@@ -75,10 +75,12 @@ export default function PortfolioPage() {
         >
           <div className={`relative min-w-[60vw] md:min-w-[35vw] lg:min-w-[25vw] ${item.type !== "SHORT_VIDEO" ? "aspect-4/3" : ""} bg-card rounded-2xl overflow-hidden shadow-xl border border-white/10`}>
             {item.type === OUR_WORK_TYPES.THREE_SIXTY && item.thumbnail ? (
-              <img
+              <Image
                 src={item.thumbnail}
                 alt={item.title}
-                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                fill
+                sizes="(max-width: 768px) 60vw, (max-width: 1200px) 35vw, 25vw"
+                className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               />
             ) : (
               <div className={item.type === OUR_WORK_TYPES.IMAGE && !isTouch ? "photography-grayscale h-full w-full" : "h-full w-full"}>
@@ -180,10 +182,12 @@ export default function PortfolioPage() {
                     onClick={() => setShowInteractive360(true)}
                     className="h-full w-full relative"
                   >
-                    <img
+                    <Image
                       src={selectedItem.thumbnail}
                       alt={selectedItem.title}
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="92vw"
+                      className="object-cover"
                     />
                     <div className="absolute inset-0 bg-black/30" />
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -202,18 +206,15 @@ export default function PortfolioPage() {
                 )}
               </div>
 
-              <div className="p-6 bg-[#17191d] border-t border-white/10">
-                <p className="text-4xl font-bold text-foreground mb-2">
+              <div className="p-6 bg-white/[0.03] border-t border-white/10">
+                <p className="text-2xl font-bold text-foreground mb-2">
                   {selectedItem.title}
                 </p>
-                <p className="text-muted-foreground text-xl mb-4">
+                <p className="text-muted-foreground text-xl">
                   {selectedItem.subtitle
                     ? `${selectedItem.subtitle} - ${categories.find((c) => c.value === selectedItem.type)?.label || "Work"}`
                     : categories.find((c) => c.value === selectedItem.type)?.label || "Work"}
                 </p>
-                <Button asChild className="rounded-xl bg-gradient-to-b from-white to-zinc-300 text-black hover:from-zinc-100 hover:to-zinc-300">
-                  <Link href="/booking">Book a similar shoot</Link>
-                </Button>
               </div>
             </>
           )}

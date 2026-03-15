@@ -1,22 +1,53 @@
 "use server";
 
+import { Op } from "sequelize";
 import { revalidatePath } from "next/cache";
 import { actionWrapper } from "@/lib/actions/utils";
+import Booking from "@/lib/db/models/booking";
 import Coupon from "@/lib/db/models/coupon";
+import { auth } from "@/lib/helpers/auth";
+import {
+  LAUNCH_PROMO_CODE,
+  LAUNCH_PROMO_DISCOUNT,
+  LAUNCH_PROMO_MIN_AMOUNT,
+} from "@/lib/config/promo";
+
+const buildLaunchPromoCoupon = () => ({
+  id: `system-${LAUNCH_PROMO_CODE}`,
+  code: LAUNCH_PROMO_CODE,
+  perUser: 1,
+  minimumAmount: LAUNCH_PROMO_MIN_AMOUNT,
+  percentDiscount: null,
+  maxDiscount: LAUNCH_PROMO_DISCOUNT,
+  uiText: "AED 500 welcome credit on your first booking.",
+  isActive: true,
+  isSystem: true,
+  eligibilityLabel: "First booking only",
+});
 
 const getCouponsHandler = async () => {
   const coupons = await Coupon.findAll({
     order: [["createdAt", "DESC"]],
   });
-  // Serialize to plain objects to avoid serialization issues with Client Components
-  return coupons.map((c) => c.get({ plain: true }));
+  const serializedCoupons = coupons.map((c) => c.get({ plain: true }));
+  const hasLaunchPromo = serializedCoupons.some(
+    (coupon) => coupon.code === LAUNCH_PROMO_CODE,
+  );
+
+  return hasLaunchPromo
+    ? serializedCoupons
+    : [buildLaunchPromoCoupon(), ...serializedCoupons];
 };
 export const getCoupons = actionWrapper(getCouponsHandler);
 
 const createCouponHandler = async (data) => {
+  const normalizedCode = String(data.code || "")
+    .trim()
+    .toUpperCase();
+
   // Basic validation
   if (
-    !data.code ||
+    !normalizedCode ||
     !data.minimumAmount ||
     !data.percentDiscount ||
     !data.maxDiscount
@@ -24,12 +55,17 @@ const createCouponHandler = async (data) => {
     throw new Error("Missing required fields");
   }
 
+  if (normalizedCode === LAUNCH_PROMO_CODE) {
+    throw new Error("This promo code is system-managed and already available");
+  }
+
   await Coupon.create({
-    code: data.code.toUpperCase(),
+    code: normalizedCode,
     perUser: data.perUser || 1,
     minimumAmount: data.minimumAmount,
     percentDiscount: data.percentDiscount,
     maxDiscount: data.maxDiscount,
+    uiText: data.uiText?.trim() || null,
     activatedAt: data.isActive ? new Date() : null,
   });
 
@@ -70,8 +106,56 @@ const deleteCouponHandler = async (id) => {
 export const deleteCoupon = actionWrapper(deleteCouponHandler);
 
 const validateCouponHandler = async (code, amount) => {
+  const normalizedCode = String(code || "")
+    .trim()
+    .toUpperCase();
+  const safeAmount = Number(amount || 0);
+
+  if (!normalizedCode) {
+    return { valid: false, message: "Enter a coupon code" };
+  }
+
+  if (normalizedCode === LAUNCH_PROMO_CODE) {
+    const session = await auth();
+    if (!session?.id) {
+      return { valid: false, message: "Please log in to apply this promo code" };
+    }
+
+    const existingBookings = await Booking.count({
+      where: {
+        userId: session.id,
+        status: { [Op.ne]: "DRAFT" },
+      },
+    });
+
+    if (existingBookings > 0) {
+      return {
+        valid: false,
+        message: "Launch credit is valid only for your first booking",
+      };
+    }
+
+    if (safeAmount < LAUNCH_PROMO_MIN_AMOUNT) {
+      return {
+        valid: false,
+        message: `Minimum spend of AED ${LAUNCH_PROMO_MIN_AMOUNT} required`,
+      };
+    }
+
+    return {
+      valid: true,
+      discount: Math.min(LAUNCH_PROMO_DISCOUNT, safeAmount),
+      coupon: {
+        code: LAUNCH_PROMO_CODE,
+        percentDiscount: null,
+        maxDiscount: LAUNCH_PROMO_DISCOUNT,
+        uiText: "AED 500 welcome credit on your first booking.",
+      },
+    };
+  }
+
   const coupon = await Coupon.findOne({
-    where: { code: code.toUpperCase() },
+    where: { code: normalizedCode },
   });
 
   if (!coupon) {
@@ -82,7 +166,7 @@ const validateCouponHandler = async (code, amount) => {
     return { valid: false, message: "Coupon is inactive or expired" };
   }
 
-  if (amount < coupon.minimumAmount) {
+  if (safeAmount < Number(coupon.minimumAmount)) {
     return {
       valid: false,
       message: `Minimum spend of AED ${coupon.minimumAmount} required`,
@@ -90,8 +174,8 @@ const validateCouponHandler = async (code, amount) => {
   }
 
   const discount = Math.min(
-    (amount * coupon.percentDiscount) / 100,
-    coupon.maxDiscount,
+    (safeAmount * Number(coupon.percentDiscount)) / 100,
+    Number(coupon.maxDiscount),
   );
 
   return {
@@ -101,6 +185,7 @@ const validateCouponHandler = async (code, amount) => {
       code: coupon.code,
       percentDiscount: coupon.percentDiscount,
       maxDiscount: coupon.maxDiscount,
+      uiText: coupon.uiText,
     },
   };
 };

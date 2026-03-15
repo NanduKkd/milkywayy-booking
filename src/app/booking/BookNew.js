@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus } from "lucide-react";
 import { use, useEffect, useState } from "react";
@@ -7,11 +7,18 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/contexts/auth";
 import {
+  LAUNCH_PROMO_CODE,
+  LAUNCH_PROMO_DISCOUNT,
+  LAUNCH_PROMO_LABEL,
+  LAUNCH_PROMO_MIN_AMOUNT,
+} from "@/lib/config/promo";
+import {
   createBookings,
   createTransactionAndPaymentIntent,
   getDrafts,
   saveDrafts,
 } from "@/lib/actions/bookings";
+import { validateCoupon } from "@/lib/actions/coupons";
 import { PRICING_CONFIG as STATIC_PRICING_CONFIG } from "@/lib/config/pricing";
 import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
 import { bookingSchema } from "@/lib/schema/booking.schema";
@@ -27,6 +34,12 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   const PRICING_CONFIG = pricings || STATIC_PRICING_CONFIG;
   const [openPropertyIndex, setOpenPropertyIndex] = useState(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isLaunchPromoApplied, setIsLaunchPromoApplied] = useState(true);
+  const [couponInputValue, setCouponInputValue] = useState("");
+  const [selectedCouponCode, setSelectedCouponCode] = useState("");
+  const [selectedCouponDiscount, setSelectedCouponDiscount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponError, setCouponError] = useState("");
   const { authState, login } = useAuth();
 
   const {
@@ -35,6 +48,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     setValue,
     getValues,
     trigger,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(bookingSchema),
@@ -140,6 +154,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
 
   const addProperty = () => {
     const currentProperties = getValues("properties");
+    const nextIndex = currentProperties.length;
     setValue(
       "properties",
       [
@@ -160,9 +175,10 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
           contactEmail: "",
         },
       ],
-      { shouldValidate: true },
+      { shouldValidate: false },
     );
-    setOpenPropertyIndex(currentProperties.length);
+    clearErrors(`properties.${nextIndex}`);
+    setOpenPropertyIndex(nextIndex);
   };
 
   const duplicateProperty = (index) => {
@@ -174,10 +190,12 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
       startTime: "",
       duration: 0,
     };
+    const nextIndex = currentProperties.length;
     setValue("properties", [...currentProperties, propertyToDuplicate], {
-      shouldValidate: true,
+      shouldValidate: false,
     });
-    setOpenPropertyIndex(currentProperties.length);
+    clearErrors(`properties.${nextIndex}`);
+    setOpenPropertyIndex(nextIndex);
   };
 
   const removeProperty = (index) => {
@@ -485,7 +503,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
 
       const paymentRes = await createTransactionAndPaymentIntent(
         newBookingIds,
-        "",
+        selectedCouponCode || (isLaunchPromoApplied ? LAUNCH_PROMO_CODE : ""),
       );
       if (!paymentRes.success) throw new Error(paymentRes.message);
 
@@ -506,6 +524,71 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   };
 
   const totalAmount = calculateTotal();
+  const launchPromoDiscount =
+    isLaunchPromoApplied && totalAmount >= LAUNCH_PROMO_MIN_AMOUNT
+      ? Math.min(LAUNCH_PROMO_DISCOUNT, totalAmount)
+      : 0;
+  const launchPromoRemaining = Math.max(0, LAUNCH_PROMO_MIN_AMOUNT - totalAmount);
+  const activeCouponDiscount = selectedCouponCode ? selectedCouponDiscount : 0;
+  const payableAmount = Math.max(
+    0,
+    totalAmount - activeCouponDiscount - launchPromoDiscount,
+  );
+
+  const applyCouponSelection = async (couponCode) => {
+    setCouponError("");
+    setCouponMessage("");
+
+    const normalizedCode = String(couponCode || "").trim().toUpperCase();
+
+    if (!normalizedCode) {
+      setSelectedCouponCode("");
+      setSelectedCouponDiscount(0);
+      return;
+    }
+
+    const res = await validateCoupon(normalizedCode, totalAmount);
+    const couponResult = res?.success ? res.data : null;
+
+    if (!couponResult?.valid) {
+      setSelectedCouponCode("");
+      setSelectedCouponDiscount(0);
+      setCouponError(couponResult?.message || "Unable to apply coupon");
+      return;
+    }
+
+    setIsLaunchPromoApplied(false);
+    setSelectedCouponCode(normalizedCode);
+    setCouponInputValue(normalizedCode);
+    setSelectedCouponDiscount(Number(couponResult.discount || 0));
+    setCouponMessage(
+      couponResult.coupon?.uiText ||
+        `${normalizedCode} applied successfully`,
+    );
+  };
+
+  useEffect(() => {
+    if (!selectedCouponCode) return;
+
+    applyCouponSelection(selectedCouponCode);
+  }, [totalAmount]);
+
+  // Validate launch promo on component mount
+  useEffect(() => {
+    const validateLaunchPromo = async () => {
+      if (!isLaunchPromoApplied) return;
+      
+      const res = await validateCoupon(LAUNCH_PROMO_CODE, totalAmount);
+      const couponResult = res?.success ? res.data : null;
+      
+      if (!couponResult?.valid) {
+        setIsLaunchPromoApplied(false);
+        setCouponError(couponResult?.message || "Launch promo not available");
+      }
+    };
+    
+    validateLaunchPromo();
+  }, [totalAmount]);
 
   const primaryProperty = properties?.[0] || {};
   const primaryTitle = [
@@ -523,24 +606,24 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     .join(" · ");
 
   return (
-    <section className="relative min-h-screen py-12 md:py-20">
-      <div className="container mx-auto px-4 md:px-6 relative z-10">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-10 fade-in">
+    <section className="relative min-h-screen">
+      <div className="container mx-auto px-3 md:px-6 relative z-10">
+        <div className="max-w-[360px] sm:max-w-[390px] md:max-w-6xl mx-auto">
+          <div className="text-center mb-6 md:mb-10 fade-in pt-2 md:pt-6">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
               MILKYWAYY PORTAL
             </p>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold mb-3 tracking-tight text-foreground">
+            <h1 className="text-[2rem] md:text-4xl lg:text-5xl font-semibold mb-2 md:mb-3 tracking-tight text-foreground">
               Book Your Shoot
             </h1>
-            <p className="text-sm md:text-base text-muted-foreground max-w-md mx-auto">
+            <p className="text-[13px] md:text-base text-muted-foreground max-w-[19rem] md:max-w-md mx-auto">
               Premium property media for Dubai&apos;s finest real estate
             </p>
           </div>
 
       <form onSubmit={handleSubmit(onContinue)}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 items-start">
+          <div className="lg:col-span-2 space-y-4 md:space-y-6">
             {properties?.map((property, index) => (
               <PropertyCard
                 key={`property-${index}`}
@@ -569,51 +652,147 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               type="button"
               variant="outline"
               onClick={addProperty}
-              className="w-full p-4 rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              className="w-full p-3.5 md:p-4 rounded-xl md:rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
               <Plus size={18} className="shrink-0" />
               Add Another Property
             </Button>
           </div>
 
-          <aside className="lg:col-span-1 glass rounded-2xl p-6 md:p-8 lg:sticky lg:top-28">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+          <aside className="lg:col-span-1 glass rounded-xl md:rounded-2xl p-4 md:p-5 lg:sticky lg:top-24 mt-1 md:mt-0">
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
               Order Summary
             </h3>
 
-            <div className="rounded-xl border border-border/40 bg-secondary/30 p-4 mb-6 space-y-2">
+            <div className="rounded-xl border border-white/8 bg-white/[0.025] px-3.5 py-3 mb-3.5 space-y-1">
               <div className="flex justify-between items-start gap-3">
-                <p className="font-semibold text-sm text-foreground">
+                <p className="font-semibold text-[13px] leading-5 text-foreground">
                   {primaryTitle || "Property Summary"}
                 </p>
-                <span className="font-semibold text-sm whitespace-nowrap text-foreground">
+                <span className="font-semibold text-[13px] whitespace-nowrap text-foreground">
                   AED {totalAmount.toLocaleString()}
                 </span>
               </div>
               {primaryServices && primaryServices !== "Select services" && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] leading-4 text-muted-foreground">
                   {primaryServices}
                 </p>
               )}
               {primarySchedule && (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/80">
                   {primarySchedule}
                 </p>
               )}
             </div>
 
-            <div className="flex items-center justify-between mb-6 pt-4 border-t border-border/50">
-              <p className="text-sm font-medium text-muted-foreground">Grand Total</p>
-              <p className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-                AED {totalAmount.toLocaleString()}
+            <div className="space-y-2.5 border-t border-white/8 pt-3.5 mb-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[13px] font-medium text-muted-foreground">Subtotal</p>
+                <p className="text-lg md:text-xl font-semibold tracking-tight text-foreground">
+                  AED {totalAmount.toLocaleString()}
+                </p>
+              </div>
+
+              {isLaunchPromoApplied && launchPromoDiscount > 0 && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-[12px]">
+                  <p className="text-muted-foreground">
+                    {LAUNCH_PROMO_LABEL} ({LAUNCH_PROMO_CODE})
+                  </p>
+                  <p className="font-semibold text-emerald-300">
+                    - AED {launchPromoDiscount.toLocaleString()}
+                  </p>
+                </div>
+              )}
+
+              {!selectedCouponCode && launchPromoRemaining > 0 && (
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  Add AED {launchPromoRemaining.toLocaleString()} more to unlock your AED {LAUNCH_PROMO_DISCOUNT.toLocaleString()} launch credit.
+                </p>
+              )}
+
+              {selectedCouponCode && selectedCouponDiscount > 0 && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-[12px]">
+                  <p className="text-muted-foreground">
+                    Coupon ({selectedCouponCode})
+                  </p>
+                  <p className="font-semibold text-emerald-300">
+                    - AED {selectedCouponDiscount.toLocaleString()}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.025))] px-3.5 py-3 mb-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Grand Total
+                </p>
+                <p className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
+                  AED {payableAmount.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4 space-y-1.5">
+              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                Coupon Code
               </p>
+              <p className="text-[10px] leading-4 text-muted-foreground">
+                Have a private coupon? Enter the code below.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  value={couponInputValue}
+                  onChange={(e) => setCouponInputValue(e.target.value.toUpperCase())}
+                  placeholder="Enter coupon code"
+                  className="h-9 flex-1 rounded-lg border border-white/8 bg-white/[0.02] px-3 text-[12px] text-foreground placeholder:text-muted-foreground outline-none"
+                />
+                {selectedCouponCode ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-3 text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/5"
+                    onClick={() => {
+                      setSelectedCouponCode("");
+                      setSelectedCouponDiscount(0);
+                      setCouponInputValue("");
+                      setCouponMessage("");
+                      setCouponError("");
+                      setIsLaunchPromoApplied(true);
+                    }}
+                  >
+                    Remove
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-9 px-3 text-[11px]"
+                    onClick={() => applyCouponSelection(couponInputValue)}
+                  >
+                    Apply
+                  </Button>
+                )}
+              </div>
+
+              {couponError && (
+                <p className="text-[10px] leading-4 text-destructive">
+                  {couponError}
+                </p>
+              )}
+              {couponMessage && (
+                <p className="text-[10px] leading-4 text-emerald-300">
+                  {couponMessage}
+                </p>
+              )}
             </div>
 
             <Button
               type="submit"
               size="lg"
               disabled={isSubmitting || isProcessingPayment}
-              className="w-full btn-primary-premium py-3.5"
+              className="w-full btn-primary-premium py-2.5"
             >
               {isSubmitting || isProcessingPayment ? (
                 <>
@@ -625,7 +804,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               )}
             </Button>
 
-            <p className="text-[11px] leading-relaxed text-muted-foreground mt-4">
+            <p className="text-[9px] leading-4 text-muted-foreground mt-3">
               Media is licensed for client marketing use. Milkywayy may showcase
               selected work for portfolio and promotional purposes.
             </p>
