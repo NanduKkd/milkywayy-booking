@@ -1,22 +1,50 @@
-"use client";
+﻿"use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus } from "lucide-react";
+import { Info, Loader2, Plus } from "lucide-react";
 import { use, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/contexts/auth";
 import {
+  LAUNCH_PROMO_CODE,
+  LAUNCH_PROMO_DISCOUNT,
+  LAUNCH_PROMO_LABEL,
+  LAUNCH_PROMO_MIN_AMOUNT,
+} from "@/lib/config/promo";
+import {
   createBookings,
   createTransactionAndPaymentIntent,
   getDrafts,
   saveDrafts,
 } from "@/lib/actions/bookings";
+import { validateCoupon } from "@/lib/actions/coupons";
 import { PRICING_CONFIG as STATIC_PRICING_CONFIG } from "@/lib/config/pricing";
 import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
 import { bookingSchema } from "@/lib/schema/booking.schema";
 // Modular Components
 import { PropertyCard } from "./components/PropertyCard";
+
+const formatScheduleLabel = (property) => {
+  const slotLabel =
+    property.startTime ||
+    (property.timeSlot
+      ? property.timeSlot.charAt(0).toUpperCase() + property.timeSlot.slice(1)
+      : "");
+
+  return [property.preferredDate, slotLabel].filter(Boolean).join(" · ");
+};
+
+const buildSummaryLabel = (property) =>
+  [property.propertySize, property.propertyType].filter(Boolean).join(" ");
+
+const buildServicesLabel = (property) =>
+  property.services?.length > 0 ? property.services.join(" + ") : "";
+
+const buildLocationLabel = (property) =>
+  [property.unitNumber, property.building, property.community]
+    .filter(Boolean)
+    .join(", ");
 
 export default function BookNew({ pricingsPromise, discountsPromise }) {
   const pricingsRes = use(pricingsPromise);
@@ -27,6 +55,12 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   const PRICING_CONFIG = pricings || STATIC_PRICING_CONFIG;
   const [openPropertyIndex, setOpenPropertyIndex] = useState(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [isLaunchPromoApplied, setIsLaunchPromoApplied] = useState(true);
+  const [couponInputValue, setCouponInputValue] = useState("");
+  const [selectedCouponCode, setSelectedCouponCode] = useState("");
+  const [selectedCouponDiscount, setSelectedCouponDiscount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponError, setCouponError] = useState("");
   const { authState, login } = useAuth();
 
   const {
@@ -35,6 +69,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     setValue,
     getValues,
     trigger,
+    clearErrors,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: zodResolver(bookingSchema),
@@ -140,6 +175,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
 
   const addProperty = () => {
     const currentProperties = getValues("properties");
+    const nextIndex = currentProperties.length;
     setValue(
       "properties",
       [
@@ -160,9 +196,10 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
           contactEmail: "",
         },
       ],
-      { shouldValidate: true },
+      { shouldValidate: false },
     );
-    setOpenPropertyIndex(currentProperties.length);
+    clearErrors(`properties.${nextIndex}`);
+    setOpenPropertyIndex(nextIndex);
   };
 
   const duplicateProperty = (index) => {
@@ -174,10 +211,12 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
       startTime: "",
       duration: 0,
     };
+    const nextIndex = currentProperties.length;
     setValue("properties", [...currentProperties, propertyToDuplicate], {
-      shouldValidate: true,
+      shouldValidate: false,
     });
-    setOpenPropertyIndex(currentProperties.length);
+    clearErrors(`properties.${nextIndex}`);
+    setOpenPropertyIndex(nextIndex);
   };
 
   const removeProperty = (index) => {
@@ -459,7 +498,6 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   };
 
   const onContinue = async (data) => {
-    console.log("onContinue called with data:", data);
     if (!authState?.isAuthenticated) {
       toast.error("Please login to continue to payment");
       login();
@@ -470,22 +508,15 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     try {
       // Create bookings first
       const res = await createBookings(data.properties);
-      console.log("Create bookings response:", res);
 
       if (!res.success) throw new Error(res.message);
       const bookingData = res.data;
-      console.log("Booking data received:", bookingData);
 
       const newBookingIds = bookingData.map((b) => b.id);
-      console.log("Extracted booking IDs:", newBookingIds);
-      console.log(
-        "Booking codes generated:",
-        bookingData.map((b) => b.bookingCode),
-      );
 
       const paymentRes = await createTransactionAndPaymentIntent(
         newBookingIds,
-        "",
+        selectedCouponCode || (isLaunchPromoApplied ? LAUNCH_PROMO_CODE : ""),
       );
       if (!paymentRes.success) throw new Error(paymentRes.message);
 
@@ -506,21 +537,81 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   };
 
   const totalAmount = calculateTotal();
+  const launchPromoDiscount =
+    isLaunchPromoApplied && totalAmount >= LAUNCH_PROMO_MIN_AMOUNT
+      ? Math.min(LAUNCH_PROMO_DISCOUNT, totalAmount)
+      : 0;
+  const launchPromoRemaining = Math.max(0, LAUNCH_PROMO_MIN_AMOUNT - totalAmount);
+  const activeCouponDiscount = selectedCouponCode ? selectedCouponDiscount : 0;
+  const payableAmount = Math.max(
+    0,
+    totalAmount - activeCouponDiscount - launchPromoDiscount,
+  );
 
-  const primaryProperty = properties?.[0] || {};
-  const primaryTitle = [
-    primaryProperty.propertySize,
-    primaryProperty.propertyType,
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const primaryServices =
-    primaryProperty.services?.length > 0
-      ? primaryProperty.services.join(" + ")
-      : "Select services";
-  const primarySchedule = [primaryProperty.preferredDate, primaryProperty.startTime]
-    .filter(Boolean)
-    .join(" · ");
+  const applyCouponSelection = async (couponCode) => {
+    setCouponError("");
+    setCouponMessage("");
+
+    const normalizedCode = String(couponCode || "").trim().toUpperCase();
+
+    if (!normalizedCode) {
+      setSelectedCouponCode("");
+      setSelectedCouponDiscount(0);
+      return;
+    }
+
+    const res = await validateCoupon(normalizedCode, totalAmount);
+    const couponResult = res?.success ? res.data : null;
+
+    if (!couponResult?.valid) {
+      setSelectedCouponCode("");
+      setSelectedCouponDiscount(0);
+      setCouponError(couponResult?.message || "Unable to apply coupon");
+      return;
+    }
+
+    setIsLaunchPromoApplied(false);
+    setSelectedCouponCode(normalizedCode);
+    setCouponInputValue(normalizedCode);
+    setSelectedCouponDiscount(Number(couponResult.discount || 0));
+    setCouponMessage(
+      couponResult.coupon?.uiText ||
+        `${normalizedCode} applied successfully`,
+    );
+  };
+
+  useEffect(() => {
+    if (!selectedCouponCode) return;
+
+    applyCouponSelection(selectedCouponCode);
+  }, [totalAmount]);
+
+  // Validate launch promo on component mount
+  useEffect(() => {
+    const validateLaunchPromo = async () => {
+      if (!isLaunchPromoApplied) return;
+      
+      const res = await validateCoupon(LAUNCH_PROMO_CODE, totalAmount);
+      const couponResult = res?.success ? res.data : null;
+      
+      if (!couponResult?.valid) {
+        setIsLaunchPromoApplied(false);
+      }
+    };
+    
+    validateLaunchPromo();
+  }, [totalAmount]);
+
+  const summaryItems = properties
+    .map((property, index) => ({
+      index,
+      amount: getPropertyPrice(property),
+      title: buildSummaryLabel(property),
+      services: buildServicesLabel(property),
+      location: buildLocationLabel(property),
+      schedule: formatScheduleLabel(property),
+    }))
+    .filter((item) => item.amount > 0);
 
   return (
     <section className="relative min-h-screen py-12 md:py-20">
@@ -540,7 +631,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
 
       <form onSubmit={handleSubmit(onContinue)}>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4">
             {properties?.map((property, index) => (
               <PropertyCard
                 key={`property-${index}`}
@@ -576,44 +667,158 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
             </Button>
           </div>
 
-          <aside className="lg:col-span-1 glass rounded-2xl p-6 md:p-8 lg:sticky lg:top-28">
-            <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+          <aside className="lg:col-span-1 glass rounded-xl md:rounded-2xl p-4 md:p-5 lg:sticky lg:top-24 mt-1 md:mt-0">
+            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
               Order Summary
             </h3>
 
-            <div className="rounded-xl border border-border/40 bg-secondary/30 p-4 mb-6 space-y-2">
-              <div className="flex justify-between items-start gap-3">
-                <p className="font-semibold text-sm text-foreground">
-                  {primaryTitle || "Property Summary"}
-                </p>
-                <span className="font-semibold text-sm whitespace-nowrap text-foreground">
-                  AED {totalAmount.toLocaleString()}
-                </span>
+            {summaryItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-4 text-center">
+                Select services to see your summary
+              </p>
+            ) : (
+              <div className="space-y-3 mb-3.5">
+                {summaryItems.map(({ index, title, amount, services, location, schedule }) => (
+                  <div
+                    key={`summary-${index}`}
+                    className="rounded-xl border border-white/8 bg-white/[0.025] px-3.5 py-3 space-y-1"
+                  >
+                    <div className="flex justify-between items-start gap-3">
+                      <p className="font-semibold text-[13px] leading-5 text-foreground">
+                        {title || `Property ${index + 1}`}
+                      </p>
+                      <span className="font-semibold text-[13px] whitespace-nowrap text-foreground">
+                        AED {amount.toLocaleString()}
+                      </span>
+                    </div>
+                    {location && (
+                      <p className="text-[10px] leading-4 text-muted-foreground">
+                        {location}
+                      </p>
+                    )}
+                    {services && (
+                      <p className="text-[10px] leading-4 text-muted-foreground">
+                        {services}
+                      </p>
+                    )}
+                    {schedule && (
+                      <p className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                        {schedule}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
-              {primaryServices && primaryServices !== "Select services" && (
-                <p className="text-xs text-muted-foreground">
-                  {primaryServices}
+            )}
+
+            <div className="space-y-2.5 border-t border-white/8 pt-3.5 mb-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[13px] font-medium text-muted-foreground">Subtotal</p>
+                <p className="text-lg md:text-xl font-semibold tracking-tight text-foreground">
+                  AED {totalAmount.toLocaleString()}
+                </p>
+              </div>
+
+              {isLaunchPromoApplied && launchPromoDiscount > 0 && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-[12px]">
+                  <p className="text-muted-foreground">
+                    {LAUNCH_PROMO_LABEL} ({LAUNCH_PROMO_CODE})
+                  </p>
+                  <p className="font-semibold text-emerald-300">
+                    - AED {launchPromoDiscount.toLocaleString()}
+                  </p>
+                </div>
+              )}
+
+              {!selectedCouponCode && launchPromoRemaining > 0 && (
+                <p className="text-[11px] leading-4 text-muted-foreground">
+                  Add AED {launchPromoRemaining.toLocaleString()} more to unlock your AED {LAUNCH_PROMO_DISCOUNT.toLocaleString()} launch credit.
                 </p>
               )}
-              {primarySchedule && (
-                <p className="text-[11px] text-muted-foreground">
-                  {primarySchedule}
-                </p>
+
+              {selectedCouponCode && selectedCouponDiscount > 0 && (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-[12px]">
+                  <p className="text-muted-foreground">
+                    Coupon ({selectedCouponCode})
+                  </p>
+                  <p className="font-semibold text-emerald-300">
+                    - AED {selectedCouponDiscount.toLocaleString()}
+                  </p>
+                </div>
               )}
             </div>
 
-            <div className="flex items-center justify-between mb-6 pt-4 border-t border-border/50">
-              <p className="text-sm font-medium text-muted-foreground">Grand Total</p>
-              <p className="text-2xl md:text-3xl font-semibold tracking-tight text-foreground">
-                AED {totalAmount.toLocaleString()}
+            <div className="rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.025))] px-3.5 py-3 mb-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                  Grand Total
+                </p>
+                <p className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
+                  AED {payableAmount.toLocaleString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="mb-4 space-y-1.5">
+              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                Coupon Code
               </p>
+              <p className="text-[10px] leading-4 text-muted-foreground">
+                Have a private coupon? Enter the code below.
+              </p>
+              <div className="flex items-center gap-2">
+                <input
+                  value={couponInputValue}
+                  onChange={(e) => setCouponInputValue(e.target.value.toUpperCase())}
+                  placeholder="Enter coupon code"
+                  className="h-9 flex-1 rounded-lg border border-white/8 bg-white/[0.02] px-3 text-[12px] text-foreground placeholder:text-muted-foreground outline-none"
+                />
+                {selectedCouponCode ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-3 text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/5"
+                    onClick={() => {
+                      setSelectedCouponCode("");
+                      setSelectedCouponDiscount(0);
+                      setCouponInputValue("");
+                      setCouponMessage("");
+                      setCouponError("");
+                      setIsLaunchPromoApplied(true);
+                    }}
+                  >
+                    Remove
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-9 px-3 text-[11px]"
+                    onClick={() => applyCouponSelection(couponInputValue)}
+                  >
+                    Apply
+                  </Button>
+                )}
+              </div>
+
+              {couponError && (
+                <p className="text-[10px] leading-4 text-destructive">
+                  {couponError}
+                </p>
+              )}
+              {couponMessage && (
+                <p className="text-[10px] leading-4 text-emerald-300">
+                  {couponMessage}
+                </p>
+              )}
             </div>
 
             <Button
               type="submit"
               size="lg"
-              disabled={isSubmitting || isProcessingPayment}
-              className="w-full btn-primary-premium py-3.5"
+              disabled={summaryItems.length === 0 || isSubmitting || isProcessingPayment}
+              className="w-full btn-primary-premium py-2.5"
             >
               {isSubmitting || isProcessingPayment ? (
                 <>
@@ -625,10 +830,13 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               )}
             </Button>
 
-            <p className="text-[11px] leading-relaxed text-muted-foreground mt-4">
-              Media is licensed for client marketing use. Milkywayy may showcase
-              selected work for portfolio and promotional purposes.
-            </p>
+            <div className="flex items-start gap-1.5 mt-3">
+              <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-[9px] leading-4 text-muted-foreground">
+                Media is licensed for client marketing use. Milkywayy may
+                showcase selected work for portfolio and promotional purposes.
+              </p>
+            </div>
           </aside>
         </div>
       </form>

@@ -13,6 +13,7 @@ const VideoModal = ({ open, onOpenChange }) => {
         <div className="relative">
           {/* Close button */}
           <button
+            type="button"
             onClick={() => onOpenChange(false)}
             className="absolute top-4 right-4 z-10 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
           >
@@ -27,6 +28,7 @@ const VideoModal = ({ open, onOpenChange }) => {
                 className="w-full h-full"
                 src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0"
                 title="How Milkywayy Portal Works"
+                loading="lazy"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               />
@@ -34,7 +36,7 @@ const VideoModal = ({ open, onOpenChange }) => {
           </div>
 
           {/* Content below video */}
-          <div className="px-6 pt-4 pb-4 space-y-4">
+          <div className="p-6 space-y-4">
             <h3 className="font-heading text-xl font-bold">
               How Milkywayy Portal Works (Founder Walkthrough)
             </h3>

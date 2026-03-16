@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { getPricingConfig } from "@/app/admin/prices/actions";
 import { getDiscounts } from "@/lib/actions/discounts";
-// import BookingPortal from "./BookingPortal";
 import BookNew from "./BookNew";
 export const dynamic = "force-dynamic";
 
@@ -21,7 +20,6 @@ export default async function Booking() {
       }
     >
       <BookNew
-        // BookingPortal
         pricingsPromise={pricingsPromise}
         discountsPromise={discountsPromise}
       />

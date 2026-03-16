@@ -15,16 +15,16 @@ export default function AdminHeader() {
   };
 
   return (
-    <nav className="flex h-16 w-full items-center justify-between border-b px-4 lg:px-6 bg-background">
-      <div className="flex items-center">
-        <Link href="/admin" className="font-bold text-inherit">
-          ADMIN PANEL
+    <nav className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-white/10 bg-background/90 px-4 backdrop-blur-sm lg:px-6">
+      <div className="flex items-center gap-3">
+        <Link href="/admin" className="text-sm font-semibold tracking-[0.16em] text-foreground">
+          MILKYWAYY ADMIN
         </Link>
       </div>
       <div className="flex items-center justify-end">
         <Button
           variant="ghost"
-          className="text-red-600 hover:text-red-600 hover:bg-red-50"
+          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 text-red-300 hover:bg-red-500/20 hover:text-red-200"
           onClick={handleLogout}
         >
           Log Out

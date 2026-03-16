@@ -71,6 +71,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("folder", "portfolio");
+        formData.append("deliverableType", watchType);
 
         const res = await fetch("/api/admin/upload", {
           method: "POST",
@@ -308,6 +309,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
                   const formData = new FormData();
                   formData.append("file", file);
                   formData.append("folder", "portfolio");
+                  formData.append("deliverableType", watchType);
                   const res = await fetch("/api/admin/upload", {
                     method: "POST",
                     body: formData,

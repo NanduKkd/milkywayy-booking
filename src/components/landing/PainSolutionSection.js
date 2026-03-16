@@ -1,7 +1,7 @@
-import { Check, X } from "lucide-react";
+import { X, Check } from "lucide-react";
 
 const PainSolutionSection = () => {
-  const beforeItems = [
+  const painPoints = [
     "Availability ping-pong",
     "Unclear packages & pricing",
     "No tracking",
@@ -9,7 +9,7 @@ const PainSolutionSection = () => {
     "Varying styles across listings",
   ];
 
-  const afterItems = [
+  const solutions = [
     "Book instantly",
     "Clear options upfront",
     "Track every shoot",
@@ -19,10 +19,10 @@ const PainSolutionSection = () => {
 
   return (
     <section className="py-24 relative bg-secondary/20">
-      <div className="starfield opacity-10" aria-hidden />
+      <div className="starfield opacity-10" />
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center mb-16 fade-in">
-          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
+          <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight">
             Stop Coordinating. Start Listing.
           </h2>
         </div>
@@ -34,15 +34,13 @@ const PainSolutionSection = () => {
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                   <X className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold text-muted-foreground/60">
-                  Traditional Booking
-                </h3>
+                <h3 className="text-xl font-semibold text-muted-foreground/60">Traditional Booking</h3>
               </div>
               <div className="space-y-5">
-                {beforeItems.map((item) => (
-                  <div key={item} className="flex items-center gap-4">
+                {painPoints.map((point, index) => (
+                  <div key={index} className="flex items-center gap-4">
                     <X className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
-                    <p className="text-muted-foreground/60">{item}</p>
+                    <p className="text-muted-foreground/60">{point}</p>
                   </div>
                 ))}
               </div>
@@ -53,15 +51,13 @@ const PainSolutionSection = () => {
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                   <Check className="w-5 h-5 text-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground">
-                  Milkywayy Portal
-                </h3>
+                <h3 className="text-xl font-semibold text-foreground">Milkywayy Portal</h3>
               </div>
               <div className="space-y-5">
-                {afterItems.map((item) => (
-                  <div key={item} className="flex items-center gap-4">
+                {solutions.map((point, index) => (
+                  <div key={index} className="flex items-center gap-4">
                     <Check className="w-4 h-4 text-foreground/70 flex-shrink-0" />
-                    <p className="text-foreground font-medium">{item}</p>
+                    <p className="text-foreground font-medium">{point}</p>
                   </div>
                 ))}
               </div>
@@ -74,3 +70,4 @@ const PainSolutionSection = () => {
 };
 
 export default PainSolutionSection;
+

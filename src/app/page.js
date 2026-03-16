@@ -1,4 +1,5 @@
 "use client";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import Footer from "@/components/Footer";
 import AnnouncementBar from "@/components/landing/AnnouncementBar";
@@ -12,7 +13,10 @@ import PortalUSPSection from "@/components/landing/PortalUSPSection";
 import ReviewsSection from "@/components/landing/ReviewsSection";
 import SeeItInActionSection from "@/components/landing/SeeItInActionSection";
 import NewNavbar from "@/components/NewNavbar";
-import VideoModal from "@/components/VideoModal";
+
+const VideoModal = dynamic(() => import("@/components/VideoModal"), {
+  ssr: false,
+});
 
 export default function Page() {
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -39,7 +43,9 @@ export default function Page() {
         <ContactSection />
       </main>
       <Footer />
-      <VideoModal open={showVideoModal} onOpenChange={setShowVideoModal} />
+      {showVideoModal ? (
+        <VideoModal open={showVideoModal} onOpenChange={setShowVideoModal} />
+      ) : null}
     </div>
   );
 }

@@ -137,7 +137,7 @@ export function PaymentStep({
                   </span>
                 </div>
                 {autoWalletCredits > 0 && (
-                  <div className="text-xs text-purple-400 text-right mt-1">
+                  <div className="text-xs text-muted-foreground text-right mt-1">
                     You will earn AED {autoWalletCredits.toLocaleString()} in
                     wallet credits
                   </div>

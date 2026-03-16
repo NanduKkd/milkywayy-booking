@@ -12,6 +12,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  formatBookingReferenceList,
+  formatInvoiceNumber,
+} from "@/lib/helpers/invoice-format";
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState([]);
@@ -37,6 +41,7 @@ export default function InvoicesPage() {
           <TableHeader className="bg-zinc-900">
             <TableRow className="border-zinc-800 hover:bg-zinc-900">
               <TableHead className="text-zinc-400">INVOICE ID</TableHead>
+              <TableHead className="text-zinc-400">BOOKING REF</TableHead>
               <TableHead className="text-zinc-400">USER</TableHead>
               <TableHead className="text-zinc-400">DATE</TableHead>
               <TableHead className="text-zinc-400">AMOUNT</TableHead>
@@ -47,7 +52,7 @@ export default function InvoicesPage() {
           <TableBody>
             {invoices.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-zinc-500">
+                <TableCell colSpan={7} className="text-center text-zinc-500">
                   No invoices found
                 </TableCell>
               </TableRow>
@@ -57,7 +62,12 @@ export default function InvoicesPage() {
                   key={invoice.id}
                   className="hover:bg-zinc-800 border-zinc-800"
                 >
-                  <TableCell className="text-zinc-300">#{invoice.id}</TableCell>
+                  <TableCell className="text-zinc-300">
+                    {formatInvoiceNumber(invoice.id)}
+                  </TableCell>
+                  <TableCell className="text-zinc-300">
+                    {formatBookingReferenceList(invoice.bookings) || "-"}
+                  </TableCell>
                   <TableCell className="text-zinc-300">
                     <div>
                       <p>{invoice.user?.fullName}</p>

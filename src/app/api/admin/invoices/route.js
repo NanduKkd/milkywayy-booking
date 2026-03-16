@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import "@/lib/db/relations";
@@ -11,6 +12,11 @@ export async function GET() {
           model: User,
           as: "user",
           attributes: ["id", "fullName", "email"],
+        },
+        {
+          model: Booking,
+          as: "bookings",
+          attributes: ["id", "bookingCode"],
         },
       ],
       order: [["createdAt", "DESC"]],

@@ -309,9 +309,11 @@ export default function DateSlotPicker({
       </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-2xl bg-background text-foreground p-0 gap-0 overflow-hidden max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="p-6 border-b border-zinc-800">
-            <DialogTitle>Select Date & Time</DialogTitle>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-[320px] md:sm:max-w-2xl bg-background text-foreground p-0 gap-0 overflow-hidden max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10">
+          <DialogHeader className="px-4 py-3 md:p-6 border-b border-zinc-800">
+            <DialogTitle className="text-sm md:text-base text-center md:text-left">
+              Select Date & Time
+            </DialogTitle>
             <DialogDescription className="sr-only">
               Choose a date and a time slot for your booking.
             </DialogDescription>
@@ -319,17 +321,17 @@ export default function DateSlotPicker({
 
           <div className="grid grid-cols-1 md:grid-cols-2">
             {/* Calendar Section */}
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
+            <div className="p-4 md:p-6">
+              <div className="flex justify-between items-center mb-3 md:mb-4">
                 <Button
                   onClick={handlePrevMonth}
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 text-foreground hover:bg-zinc-800 hover:text-foreground"
+                  className="h-7 w-7 md:h-8 md:w-8 rounded-full text-foreground hover:bg-zinc-800 hover:text-foreground"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
-                <h2 className="text-lg font-semibold text-foreground">
+                <h2 className="text-sm md:text-lg font-semibold text-foreground">
                   {new Date(currentYear, currentMonth).toLocaleDateString(
                     "en-US",
                     {
@@ -342,9 +344,9 @@ export default function DateSlotPicker({
                   onClick={handleNextMonth}
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 text-foreground hover:bg-zinc-800 hover:text-foreground"
+                  className="h-7 w-7 md:h-8 md:w-8 rounded-full text-foreground hover:bg-zinc-800 hover:text-foreground"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
               </div>
 
@@ -352,14 +354,14 @@ export default function DateSlotPicker({
                 {daysOfWeek.map((day) => (
                   <div
                     key={day}
-                    className="text-center text-xs font-medium text-muted-foreground py-1"
+                    className="text-center text-[10px] md:text-xs font-medium text-muted-foreground py-1"
                   >
                     {day}
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-1 relative min-h-[200px]">
+              <div className="grid grid-cols-7 gap-1 relative min-h-[186px] md:min-h-[200px]">
                 {loading && (
                   <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center rounded-lg">
                     <Loader2 className="h-6 w-6 animate-spin text-foreground" />
@@ -374,7 +376,7 @@ export default function DateSlotPicker({
                       disabled={disabled}
                       type="button"
                       className={cn(
-                        "h-9 w-full rounded-lg text-sm flex items-center justify-center transition-colors relative",
+                        "h-8 md:h-9 w-full rounded-lg text-xs md:text-sm flex items-center justify-center transition-colors relative",
                         !day && "invisible",
                         isSelected(day)
                           ? "bg-white text-black font-semibold"
@@ -393,20 +395,17 @@ export default function DateSlotPicker({
             </div>
 
             {/* Slot Selection Section */}
-            <div className="border-t md:border-t-0 md:border-l border-zinc-800 p-6 flex flex-col bg-background max-h-[400px] md:max-h-none overflow-y-auto">
-              <h3 className="text-md font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Clock size={18} />
+            <div className="border-t md:border-t-0 md:border-l border-zinc-800 px-4 pb-4 pt-3 md:p-6 flex flex-col bg-background max-h-[320px] md:max-h-none overflow-y-auto">
+              <h3 className="text-sm md:text-md font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
+                <Clock size={16} />
                 Available Slots
               </h3>
 
               {!date
-                ? <div className="flex-1 flex items-center justify-center text-gray-500 text-sm italic min-h-[100px]">
+                  ? <div className="flex-1 flex items-center justify-center text-gray-500 text-xs md:text-sm italic min-h-[80px] md:min-h-[100px]">
                     Select a date to view slots
                   </div>
                 : <div className="space-y-3">
-                    <p className="text-sm text-gray-400 mb-2">
-                      For {new Date(date).toLocaleDateString()}
-                    </p>
                     <div className="grid grid-cols-1 gap-2">
                       {visibleSlots.map((timeSlot) => {
                         const isAvailable = isSlotAvailable(
@@ -422,19 +421,19 @@ export default function DateSlotPicker({
                               isAvailable && onSlotChange(timeSlot.value)
                             }
                             disabled={!isAvailable}
-                            type="button"
-                            className={cn(
-                              "px-3 py-2 rounded-lg border text-xs font-medium transition-all flex justify-between items-center w-full",
+                          type="button"
+                          className={cn(
+                              "px-3 py-2.5 rounded-xl border text-xs font-medium transition-all flex justify-between items-center w-full",
                               isSelectedSlot
                                 ? "bg-white text-black border-white"
-                                : "bg-secondary text-secondary-foreground border",
+                                : "bg-secondary/40 text-secondary-foreground border border-white/8",
                              !isAvailable &&
                                 "cursor-not-allowed bg-muted text-muted-foreground opacity-50",
                             )}
                           >
                             <div className="flex flex-col items-start">
                               <span className="font-medium">{timeSlot.label}</span>
-                              <span className="text-xs text-gray-400">
+                              <span className="text-[10px] text-gray-400">
                                 {timeSlot.startTime} - {timeSlot.endTime}
                               </span>
                             </div>
@@ -449,7 +448,7 @@ export default function DateSlotPicker({
             </div>
           </div>
 
-          <DialogFooter className="p-6 border-t border-zinc-800">
+          <DialogFooter className="hidden md:flex p-6 border-t border-zinc-800">
             <Button
               variant="ghost"
               onClick={() => setIsOpen(false)}

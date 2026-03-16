@@ -1,16 +1,18 @@
 "use client";
 
 import { Menu, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import HeaderBackground from "@/components/HeaderBackground";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/contexts/auth";
-import VideoModal from "./VideoModal";
 
-const logo = "/logo-with-title.png";
+const logo = "/logo.png";
+const VideoModal = dynamic(() => import("./VideoModal"), {
+  ssr: false,
+});
 
 const NewNavbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -24,9 +26,12 @@ const NewNavbar = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      const nextScrolled = window.scrollY > 20;
+      setIsScrolled((prev) => (prev === nextScrolled ? prev : nextScrolled));
     };
-    window.addEventListener("scroll", handleScroll);
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -36,6 +41,13 @@ const NewNavbar = () => {
       setPendingDashboardRedirect(false);
     }
   }, [authState.isAuthenticated, pendingDashboardRedirect, router]);
+
+  useEffect(() => {
+    document.body.style.overflow = isMobileMenuOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileMenuOpen]);
 
   const scrollToSection = (id) => {
     if (pathname !== "/") {
@@ -71,21 +83,14 @@ const NewNavbar = () => {
   return (
     <>
       <nav
-        className={`transition-all duration-300 ${
-          isScrolled ? "bg-background/85 backdrop-blur-xl" : "bg-transparent"
+        className={`relative transition-all duration-300 ${
+          isScrolled ? "bg-background/92 backdrop-blur-sm" : "bg-transparent"
         }`}
       >
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center">
-              <Image
-                src={logo}
-                alt="Milkywayy Logo"
-                width={220}
-                height={40}
-                className="h-8 w-auto"
-                priority
-              />
+              <Image src={logo} alt="Milkywayy Logo" width={220} height={40} className="h-8 w-auto" priority />
             </Link>
 
             <div className="hidden lg:flex items-center space-x-6">
@@ -101,12 +106,13 @@ const NewNavbar = () => {
                 ) : (
                   <button
                     key={item.label}
+                    type="button"
                     onClick={item.action}
                     className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {item.label}
                   </button>
-                )
+                ),
               )}
             </div>
 
@@ -135,59 +141,65 @@ const NewNavbar = () => {
           </div>
 
           {isMobileMenuOpen && (
-            <div className="lg:hidden mt-4 pb-4 space-y-4 border-t border-border pt-4">
-              {navItems.map((item) =>
-                item.href ? (
+            <div className="absolute inset-x-6 top-full z-50 mt-3 max-h-[calc(100vh-120px)] overflow-y-auto rounded-2xl border border-border bg-background/96 p-4 shadow-2xl backdrop-blur-sm lg:hidden">
+              <div className="space-y-4">
+                {navItems.map((item) =>
+                  item.href ? (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        item.action?.();
+                        if (item.label !== "How it works") setIsMobileMenuOpen(false);
+                      }}
+                      className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {item.label}
+                    </button>
+                  ),
+                )}
+                <div className="space-y-2 border-t border-border pt-3">
                   <Link
-                    key={item.label}
-                    href={item.href}
-                    className="block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    href="/booking"
+                    className="block"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    {item.label}
+                    <Button className="w-full btn-primary-premium">
+                      Book Now
+                    </Button>
                   </Link>
-                ) : (
-                  <button
-                    key={item.label}
+                  <Button
                     onClick={() => {
-                      item.action?.();
-                      if (item.label !== "How it works") setIsMobileMenuOpen(false);
+                      handleDashboardClick();
+                      setIsMobileMenuOpen(false);
                     }}
-                    className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    variant="outline"
+                    className="w-full border-border text-muted-foreground hover:bg-secondary"
                   >
-                    {item.label}
-                  </button>
-                )
-              )}
-              <div className="space-y-2 pt-2">
-                <Link
-                  href="/booking"
-                  className="block"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Button className="w-full btn-primary-premium">
-                    Book Now
+                    Dashboard
                   </Button>
-                </Link>
-                <Button
-                  onClick={() => {
-                    handleDashboardClick();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  variant="outline"
-                  className="w-full border-border text-muted-foreground hover:bg-secondary"
-                >
-                  Dashboard
-                </Button>
+                </div>
               </div>
             </div>
           )}
         </div>
       </nav>
 
-      <VideoModal open={showVideoModal} onOpenChange={setShowVideoModal} />
+      {showVideoModal ? (
+        <VideoModal open={showVideoModal} onOpenChange={setShowVideoModal} />
+      ) : null}
     </>
   );
 };
 
 export default NewNavbar;
+

@@ -45,21 +45,21 @@ export default function DashboardLayout({ children }) {
   return (
     <div className="min-h-screen bg-background text-white">
       <StarBackground />
-      <CustomerHeader />
-      <main className="relative mx-auto w-full max-w-7xl px-4 pb-8 pt-24 md:pt-28">
+      <CustomerHeader mode="dashboard" />
+      <main className="relative mx-auto w-full max-w-7xl px-6 pb-10 pt-12 md:pt-16">
         <div className="mx-auto w-full max-w-6xl">
-          <h1 className="text-4xl font-bold mb-8 text-foreground font-heading">
+          <h1 className="mb-8 font-heading text-4xl font-bold tracking-tight text-foreground">
             My Dashboard
           </h1>
 
           <Tabs value={currentTab} className="mb-8 w-full">
-            <TabsList className="bg-secondary w-full p-1 rounded-lg gap-1 h-auto flex text-muted-foreground text-sm">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl border border-border bg-secondary p-1 text-sm">
               {tabs.map((item) => (
                 <TabsTrigger
                   key={item.key}
                   value={item.key}
                   asChild
-                  className="py-1.5 px-4 data-[state=active]:bg-accent data-[state=active]:text-accent-foreground transition-colors rounded-lg flex items-center gap-2 flex-1 justify-center text-center"
+                  className="flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-center text-muted-foreground transition-colors data-[state=active]:bg-muted data-[state=active]:text-foreground"
                 >
                   <Link href={item.href}>
                     {item.icon}

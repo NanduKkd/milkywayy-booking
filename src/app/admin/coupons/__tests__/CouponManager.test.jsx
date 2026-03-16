@@ -10,7 +10,19 @@ const mockCoupons = [
     percentDiscount: 10,
     maxDiscount: 100,
     minimumAmount: 500,
+    uiText: 'Save on your first order',
     isActive: true,
+  },
+  {
+    id: 'system-LAUNCH500',
+    code: 'LAUNCH500',
+    percentDiscount: null,
+    maxDiscount: 500,
+    minimumAmount: 500,
+    uiText: 'AED 500 welcome credit on your first booking.',
+    isActive: true,
+    isSystem: true,
+    eligibilityLabel: 'First booking only',
   },
 ];
 
@@ -35,7 +47,15 @@ describe('CouponManager', () => {
   it('renders coupon list', () => {
     render(<CouponManager initialCoupons={mockCoupons} />);
     expect(screen.getByText('SAVE10')).toBeInTheDocument();
+    expect(screen.getByText('Save on your first order')).toBeInTheDocument();
     expect(screen.getByText('10% OFF')).toBeInTheDocument();
+    expect(screen.getByText('LAUNCH500')).toBeInTheDocument();
+    expect(screen.getByText('AED 500 CREDIT')).toBeInTheDocument();
+    expect(
+      screen.getByText('AED 500 welcome credit on your first booking.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('First booking only')).toBeInTheDocument();
+    expect(screen.getByText('Managed in backend')).toBeInTheDocument();
   });
 
   it('handles delete coupon', async () => {
@@ -58,6 +78,7 @@ describe('CouponManager', () => {
     fireEvent.change(screen.getByLabelText(/Discount Percentage/i), { target: { value: '15' } });
     fireEvent.change(screen.getByLabelText(/Max Discount/i), { target: { value: '150' } });
     fireEvent.change(screen.getByLabelText(/Min Spend/i), { target: { value: '300' } });
+    fireEvent.change(screen.getByLabelText(/UI Text/i), { target: { value: 'Visible on UI' } });
     
     // Click the button in the dialog footer
     const createButtons = screen.getAllByRole('button', { name: /Create Coupon/i });
@@ -67,6 +88,7 @@ describe('CouponManager', () => {
       expect(createCoupon).toHaveBeenCalledWith(expect.objectContaining({
         code: 'WELCOME',
         percentDiscount: '15',
+        uiText: 'Visible on UI',
       }));
     });
   });

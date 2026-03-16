@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,19 @@ import {
 } from "@/components/ui/table";
 import { completeBooking } from "@/lib/actions/bookings";
 
+const parseDeliverables = (filesUrl) => {
+  if (!filesUrl) return [];
+  try {
+    const parsed = JSON.parse(filesUrl);
+    if (Array.isArray(parsed?.deliverables)) return parsed.deliverables;
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // Legacy plain URL fallback
+    return [{ label: "Files", type: "Files", url: filesUrl, deliveryMode: "download" }];
+  }
+  return [];
+};
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -29,7 +42,11 @@ export default function BookingsPage() {
   const [uploading, setUploading] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [notifyingType, setNotifyingType] = useState(null);
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  const [deliverableType, setDeliverableType] = useState("Photography");
+  const [fileCount, setFileCount] = useState("");
+  const [externalUrl, setExternalUrl] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetch("/api/admin/bookings")
@@ -84,11 +101,18 @@ export default function BookingsPage() {
   };
 
   const handleUpload = async () => {
-    if (!file || !selectedBooking) return;
+    const is360 =
+      deliverableType.toLowerCase().includes("360") ||
+      deliverableType.toLowerCase().includes("tour");
+    const hasExternalUrl = Boolean(externalUrl.trim());
+    if ((files.length === 0 && !hasExternalUrl) || !selectedBooking) return;
     setUploading(true);
     const formData = new FormData();
-    formData.append("file", file);
+    files.forEach((file) => formData.append("file", file));
     formData.append("bookingId", selectedBooking.id);
+    formData.append("deliverableType", deliverableType);
+    if (fileCount) formData.append("fileCount", fileCount);
+    if (hasExternalUrl) formData.append("externalUrl", externalUrl.trim());
 
     try {
       const res = await fetch("/api/admin/upload", {
@@ -98,12 +122,16 @@ export default function BookingsPage() {
       const data = await res.json();
       if (data.url) {
         // Update local state
-        const updatedBooking = { ...selectedBooking, filesUrl: data.url };
+        const updatedBooking = { ...selectedBooking, filesUrl: data.filesUrl || data.url };
         setSelectedBooking(updatedBooking);
         setBookings((prev) =>
           prev.map((b) => (b.id === selectedBooking.id ? updatedBooking : b)),
         );
-        alert("File uploaded successfully");
+        alert(
+          is360
+            ? "360 link uploaded successfully"
+            : `${data.urls?.length || files.length || 1} file(s) uploaded successfully`,
+        );
       } else {
         alert(`Upload failed: ${data.error || "Unknown error"}`);
       }
@@ -112,7 +140,12 @@ export default function BookingsPage() {
       alert("Upload failed");
     } finally {
       setUploading(false);
-      setFile(null);
+      setFiles([]);
+      setFileCount("");
+      setExternalUrl("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -148,17 +181,22 @@ export default function BookingsPage() {
   };
 
   return (
-    <div className="p-8 bg-[#121212] min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-6">Bookings</h1>
-      <div className="rounded-md border border-zinc-800 bg-[#181818]">
+    <div className="space-y-6 text-white">
+      <div>
+        <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          Operations
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">Bookings</h1>
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#181818]">
         <Table>
-          <TableHeader className="bg-zinc-900">
-            <TableRow className="border-zinc-800 hover:bg-zinc-900">
-              <TableHead className="text-zinc-400">ID</TableHead>
-              <TableHead className="text-zinc-400">PROPERTY</TableHead>
-              <TableHead className="text-zinc-400">DATE</TableHead>
-              <TableHead className="text-zinc-400">AMOUNT</TableHead>
-              <TableHead className="text-zinc-400">STATUS</TableHead>
+          <TableHeader className="bg-zinc-900/80">
+            <TableRow className="border-white/10 hover:bg-zinc-900/80">
+              <TableHead className="text-muted-foreground">ID</TableHead>
+              <TableHead className="text-muted-foreground">PROPERTY</TableHead>
+              <TableHead className="text-muted-foreground">DATE</TableHead>
+              <TableHead className="text-muted-foreground">AMOUNT</TableHead>
+              <TableHead className="text-muted-foreground">STATUS</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -425,32 +463,109 @@ export default function BookingsPage() {
                 selectedBooking.completedAt) && (
                 <div className="border-t border-zinc-800 pt-4">
                   <h3 className="font-semibold mb-3 text-zinc-300">Files</h3>
-                  {selectedBooking.filesUrl && (
-                    <div className="mb-4 p-3 bg-blue-900/20 border border-blue-900/50 rounded-lg">
+                  {parseDeliverables(selectedBooking.filesUrl).length > 0 && (
+                    <div className="mb-4 p-3 bg-blue-900/20 border border-blue-900/50 rounded-lg space-y-2">
                       <p className="text-xs text-blue-300 mb-1">
-                        Current File:
+                        Current Deliverables
                       </p>
-                      <Link
-                        href={selectedBooking.filesUrl}
-                        target="_blank"
-                        className="text-blue-400 hover:text-blue-300 hover:underline break-all"
-                      >
-                        {selectedBooking.filesUrl}
-                      </Link>
+                      {parseDeliverables(selectedBooking.filesUrl).map((item, i) => (
+                        <div key={`${item.type || item.label}-${i}`} className="text-sm text-zinc-300">
+                          {(() => {
+                            const itemUrls = Array.isArray(item.urls) && item.urls.length > 0
+                              ? item.urls
+                              : item.url
+                                ? [item.url]
+                                : [];
+                            const primaryUrl = itemUrls[0];
+
+                            return (
+                              <>
+                          <span className="font-medium">{item.label || item.type || "Files"}:</span>{" "}
+                          <Link
+                            href={primaryUrl}
+                            target="_blank"
+                            className="text-blue-400 hover:text-blue-300 hover:underline break-all"
+                          >
+                            {primaryUrl}
+                          </Link>
+                          {item.count ? (
+                            <span className="text-zinc-400"> ({item.count} files)</span>
+                          ) : null}
+                          {itemUrls.length > 1 ? (
+                            <span className="text-zinc-400"> (+{itemUrls.length - 1} more)</span>
+                          ) : null}
+                          {item.deliveryMode === "copy_link" ? (
+                            <span className="ml-2 text-amber-300 text-xs">Copy Link</span>
+                          ) : null}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <div className="flex gap-3 items-center">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+                    <div className="md:col-span-1">
+                      <label className="text-xs text-zinc-400 block mb-1">
+                        Deliverable Type
+                      </label>
+                      <select
+                        value={deliverableType}
+                        onChange={(e) => setDeliverableType(e.target.value)}
+                        className="w-full h-10 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-300 px-3 text-sm"
+                      >
+                        <option>Photography</option>
+                        <option>Videography</option>
+                        <option>360 Virtual Tour</option>
+                      </select>
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="text-xs text-zinc-400 block mb-1">
+                        File Count
+                      </label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={fileCount}
+                        onChange={(e) => setFileCount(e.target.value)}
+                        placeholder="e.g. 30"
+                        className="bg-zinc-900 border-zinc-700 text-zinc-300"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-xs text-zinc-400 block mb-1">
+                        External Link (use for 360)
+                      </label>
+                      <Input
+                        type="url"
+                        value={externalUrl}
+                        onChange={(e) => setExternalUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="bg-zinc-900 border-zinc-700 text-zinc-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 items-center mt-3">
                     <Input
+                      ref={fileInputRef}
                       type="file"
-                      onChange={(e) => setFile(e.target.files[0])}
+                      multiple
+                      onChange={(e) => setFiles(Array.from(e.target.files || []))}
                       className="max-w-xs bg-zinc-900 border-zinc-700 text-zinc-300"
                     />
+                    {files.length > 0 ? (
+                      <span className="text-xs text-zinc-400">
+                        {files.length} file(s) selected
+                      </span>
+                    ) : null}
                     <Button
                       onClick={handleUpload}
-                      disabled={uploading || !file}
+                      disabled={
+                        uploading || (files.length === 0 && !externalUrl.trim())
+                      }
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      {uploading ? "Uploading..." : "Upload to S3"}
+                      {uploading ? "Uploading..." : "Upload Deliverable"}
                     </Button>
                   </div>
                 </div>

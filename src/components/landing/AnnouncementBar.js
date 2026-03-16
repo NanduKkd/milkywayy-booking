@@ -1,20 +1,36 @@
-﻿"use client";
+"use client";
 
 import { Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const AnnouncementBar = ({ onHeightChange }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
+  const frameRef = useRef(null);
+  const progressRef = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
-      const progress = Math.min(window.scrollY / 50, 1);
-      setScrollProgress(progress);
-      onHeightChange?.(36 * (1 - progress));
+      if (frameRef.current) return;
+
+      frameRef.current = window.requestAnimationFrame(() => {
+        const progress = Math.min(window.scrollY / 50, 1);
+        if (progress !== progressRef.current) {
+          progressRef.current = progress;
+          setScrollProgress(progress);
+          onHeightChange?.(36 * (1 - progress));
+        }
+        frameRef.current = null;
+      });
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (frameRef.current) {
+        window.cancelAnimationFrame(frameRef.current);
+      }
+    };
   }, [onHeightChange]);
 
   return (
@@ -29,7 +45,7 @@ const AnnouncementBar = ({ onHeightChange }) => {
     >
       <div className="container mx-auto flex items-center justify-center gap-2 px-4">
         <Sparkles className="w-4 h-4 text-muted-foreground" />
-        <span className="text-muted-foreground">🚀 Launch Offer: Flat 50% off your first property shoot</span>
+        <span className="text-muted-foreground">Launch Offer: AED 500 welcome credit on your first property shoot</span>
         <Sparkles className="w-4 h-4 text-muted-foreground" />
       </div>
     </div>
@@ -37,3 +53,4 @@ const AnnouncementBar = ({ onHeightChange }) => {
 };
 
 export default AnnouncementBar;
+

@@ -1,10 +1,11 @@
 "use server";
 
 import { actionWrapper } from "@/lib/actions/utils";
-import { sequelize as db } from "@/lib/db/db";
+import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
 import { auth } from "@/lib/helpers/auth";
+import "@/lib/db/relations";
 
 const getWalletDataHandler = async () => {
   const session = await auth();
@@ -41,6 +42,13 @@ const getInvoicesHandler = async () => {
       userId,
       status: "success",
     },
+    include: [
+      {
+        model: Booking,
+        as: "bookings",
+        attributes: ["id", "bookingCode", "propertyDetails", "date"],
+      },
+    ],
     order: [["createdAt", "DESC"]],
   });
 
