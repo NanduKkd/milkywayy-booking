@@ -12,3 +12,16 @@ export function formatBookingReferenceList(bookings) {
   if (!Array.isArray(bookings) || bookings.length === 0) return "";
   return bookings.map(formatBookingReference).filter(Boolean).join(", ");
 }
+
+export function formatInvoiceCardProperty(bookings) {
+  if (!Array.isArray(bookings) || bookings.length === 0) return "Property booking";
+
+  const firstBooking = bookings[0];
+  const property = firstBooking?.propertyDetails || {};
+  const size = property.propertySize || "";
+  const type = property.propertyType || "";
+  const community = property.community || "";
+
+  const primary = [size, type].filter(Boolean).join(" ");
+  return [primary, community].filter(Boolean).join(" - ") || "Property booking";
+}

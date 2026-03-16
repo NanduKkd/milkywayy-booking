@@ -3,6 +3,7 @@
 import { Download } from "lucide-react";
 import {
   formatBookingReferenceList,
+  formatInvoiceCardProperty,
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
 
@@ -20,33 +21,35 @@ export default function InvoiceList({ invoices }) {
       {invoices.map((invoice) => (
         <div
           key={invoice.id}
-          className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-white/10 bg-card/70 p-6 md:flex-row md:items-center"
+          className="grid gap-5 rounded-[28px] border border-white/10 bg-card/70 px-6 py-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-8"
         >
-          <div>
-            <div className="mb-2 text-xl font-semibold text-white">
+          <div className="min-w-0">
+            <div className="mb-2 text-[18px] font-semibold leading-tight text-white md:text-[22px]">
               Invoice #{formatInvoiceNumber(invoice.id)}
             </div>
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <p>{new Date(invoice.createdAt).toLocaleDateString()}</p>
-              <p>
-                Booking
-                {invoice.bookings?.length > 1 ? "s" : ""}:{" "}
-                {formatBookingReferenceList(invoice.bookings) || "N/A"}
-              </p>
-            </div>
+            <p className="truncate text-[15px] text-foreground/80 md:text-[16px]">
+              {formatInvoiceCardProperty(invoice.bookings)}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Booking ID: {formatBookingReferenceList(invoice.bookings) || "N/A"} •{" "}
+              {new Date(invoice.createdAt).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </p>
           </div>
 
-          <div className="flex items-end flex-col gap-2">
-            <span className="font-bold text-foreground">AED {invoice.amount}</span>
+          <div className="flex items-center justify-start md:justify-end">
             {invoice.invoiceUrl ? (
               <a
                 href={invoice.invoiceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/20"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/12 bg-transparent px-5 py-3 text-sm font-medium text-white/85 transition-colors hover:bg-white/[0.04] hover:text-white"
               >
                 <Download size={16} />
-                Download
+                Download PDF
               </a>
             ) : (
               <span className="text-sm italic text-muted-foreground">

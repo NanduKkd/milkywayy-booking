@@ -35,11 +35,45 @@ async function getPublicAssetDataUrl(fileName) {
   }
 }
 
+function formatDisplayDate(date) {
+  return new Intl.DateTimeFormat("en-GB").format(date);
+}
+
+function getBookingDisplayTitle(booking) {
+  const property = booking.propertyDetails || {};
+  const type = property.propertyType || booking.propertyType || "";
+  const size = property.propertySize || booking.propertySize || "";
+  const community = property.community || "";
+
+  return [type, size, community].filter(Boolean).join(" - ");
+}
+
+function getBookingServiceSummary(booking) {
+  const shoot = booking.shootDetails || {};
+  const services = Array.isArray(shoot.services)
+    ? shoot.services.map((service) => String(service).replace(/_/g, " "))
+    : [];
+
+  const videoFormat = shoot.videographySubService
+    ? String(shoot.videographySubService)
+        .split("|")
+        .map((value) => value.replace(/\./g, " - "))
+        .join(", ")
+    : "";
+
+  const details = [...services];
+  if (videoFormat && services.includes("Videography")) {
+    details.push(videoFormat);
+  }
+
+  return details.join(", ");
+}
+
 export async function generateAndUploadInvoice(transaction, user) {
   try {
     const [logoSrc, signatureSrc] = await Promise.all([
-      getPublicAssetDataUrl("E-sign.png"),
       getPublicAssetDataUrl("Horizontal Logo 3.png"),
+      getPublicAssetDataUrl("E-sign.png"),
     ]);
 
     // Fetch bookings
@@ -52,30 +86,34 @@ export async function generateAndUploadInvoice(transaction, user) {
     const invoiceNumber = formatInvoiceNumber(transaction.id);
 
     const bookingRows = bookings
-      .map((b) => {
-        const shoot = b.shootDetails || {};
+      .map((booking) => {
+        const bookingTotal = Number(booking.total || 0);
+        subTotal += bookingTotal;
 
-        const services = Array.isArray(shoot.services)
-          ? shoot.services.map((s) => s.replace(/_/g, " "))
-          : [];
+        const bookingTitle =
+          getBookingDisplayTitle(booking) ||
+          formatBookingReferenceList([booking]) ||
+          "Booking";
+        const bookingServices = getBookingServiceSummary(booking);
 
-        subTotal += Number(b.total);
-
-        return services
-          .map(
-            (service) => `
+        return `
 <tr>
-<td>${service}</td>
-<td>AED ${b.total}</td>
+  <td>
+    <div class="item-title">${bookingTitle}</div>
+    ${
+      bookingServices
+        ? `<div class="item-subtitle">${bookingServices}</div>`
+        : ""
+    }
+  </td>
+  <td class="amount">AED ${bookingTotal.toFixed(2)}</td>
 </tr>
-`,
-          )
-          .join("");
+`;
       })
       .join("");
 
     // Hydration safe date
-    const invoiceDate = new Date().toLocaleDateString("en-GB");
+    const invoiceDate = formatDisplayDate(new Date());
 
     const billToName = user.companyName || user.fullName || "Customer";
     const billToAddress = user.billingAddress || user.address || "";
@@ -93,78 +131,122 @@ export async function generateAndUploadInvoice(transaction, user) {
 
 body{
 font-family: Arial, sans-serif;
-padding:60px;
-color:#111;
+padding:44px 54px 38px;
+color:#0f172a;
+background:#ffffff;
+}
+
+.invoice-shell{
+position:relative;
+}
+
+.invoice-shell::before{
+content:"";
+position:absolute;
+left:0;
+top:8px;
+width:72px;
+height:4px;
+background:#123d6b;
+border-radius:999px;
 }
 
 .header{
 display:flex;
 justify-content:space-between;
 align-items:flex-start;
-margin-bottom:10px;
+margin-bottom:22px;
+padding-top:6px;
 }
 
 .title{
-font-size:40px;
+font-size:26px;
 font-weight:800;
-letter-spacing:2px;
+letter-spacing:-0.03em;
+margin-bottom:8px;
 }
 
 .logo{
-height:40px;
+height:26px;
+max-width:180px;
+object-fit:contain;
 }
 
 .invoice-meta{
-margin-top:8px;
-font-size:14px;
-line-height:1.6;
-margin-bottom:40px;
+font-size:12px;
+line-height:1.55;
+margin-bottom:26px;
+}
+
+.invoice-meta strong{
+font-weight:700;
 }
 
 .section{
 display:grid;
 grid-template-columns:1fr 1fr;
-gap:80px;
-margin-bottom:40px;
+gap:52px;
+margin-bottom:28px;
 }
 
 .section-title{
-font-weight:bold;
-font-size:13px;
-letter-spacing:1px;
-margin-bottom:6px;
+font-weight:700;
+font-size:12px;
+letter-spacing:0.05em;
+margin-bottom:8px;
+text-transform:uppercase;
+}
+
+.party-block{
+font-size:12px;
+line-height:1.55;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
-font-size:14px;
+font-size:12px;
 }
 
 table th,
 table td{
-border:1px solid #ddd;
-padding:12px;
+border:1px solid #d8dee8;
+padding:12px 14px;
+vertical-align:top;
 }
 
 thead td{
-font-weight:bold;
+font-weight:700;
+background:#f7f9fc;
+}
+
+.item-title{
+font-weight:700;
+margin-bottom:4px;
+}
+
+.item-subtitle{
+font-size:11px;
+line-height:1.45;
+color:#475569;
 }
 
 .amount{
 text-align:right;
+white-space:nowrap;
+font-weight:700;
 }
 
 .summary{
-width:280px;
+width:270px;
 margin-left:auto;
-margin-top:20px;
+margin-top:10px;
 border-collapse:collapse;
 }
 
 .summary td{
-border:1px solid #ddd;
-padding:10px;
+border:1px solid #d8dee8;
+padding:10px 12px;
 }
 
 .summary td:last-child{
@@ -172,34 +254,43 @@ text-align:right;
 }
 
 .summary .total td{
-font-weight:bold;
+font-weight:800;
 }
 
 .footer{
-margin-top:60px;
+margin-top:120px;
 display:flex;
 justify-content:space-between;
 align-items:flex-end;
+gap:24px;
+}
+
+.footer-copy{
+font-size:12px;
+line-height:1.55;
+max-width:320px;
 }
 
 .signature{
 text-align:center;
+min-width:180px;
 }
 
 .signature img{
-height:100px;
-opacity:0.8;
+height:92px;
+object-fit:contain;
+margin-bottom:2px;
 }
 
 .signature-line{
-width:160px;
-border-top:1px solid #000;
-margin:6px auto;
+width:138px;
+border-top:1px solid #111827;
+margin:4px auto 8px;
 }
 
 .small{
-font-size:12px;
-color:#555;
+font-size:11px;
+color:#475569;
 }
 
 </style>
@@ -208,100 +299,82 @@ color:#555;
 
 <body>
 
+<div class="invoice-shell">
 <div class="header">
+  <div>
+    <div class="title">INVOICE</div>
+    <div class="invoice-meta">
+      <strong>Invoice No:</strong> ${invoiceNumber}<br/>
+      <strong>Invoice Date:</strong> ${invoiceDate}<br/>
+      <strong>Booking ID${bookings.length > 1 ? "s" : ""}:</strong> ${bookingReferences || "N/A"}
+    </div>
+  </div>
 
-<div class="title">INVOICE</div>
-
-<img src="${logoSrc || "https://milkywayy.com/logo.png"}" class="logo"/>
-
-</div>
-
-<div class="invoice-meta">
-<strong>Invoice No:</strong> ${invoiceNumber}<br/>
-<strong>Invoice Date:</strong> ${invoiceDate}<br/>
-<strong>Booking Reference${bookings.length > 1 ? "s" : ""}:</strong> ${bookingReferences || "N/A"}
+  <img src="${logoSrc || "https://milkywayy.com/logo.png"}" class="logo"/>
 </div>
 
 <div class="section">
+  <div class="party-block">
+    <div class="section-title">MILKYWAYY LLC</div>
+    Sharjah Media City, Sharjah<br/>
+    United Arab Emirates<br/>
+    +971 50 726 3306<br/>
+    hello@milkywayy.com
+  </div>
 
-<div>
-<div class="section-title">MILKYWAYY LLC</div>
-Sharjah Media City, Sharjah<br/>
-United Arab Emirates<br/>
-+971 50 726 3306<br/>
-hello@milkywayy.com
-</div>
-
-<div>
-<div class="section-title">BILL TO</div>
-<strong>${billToName}</strong><br/>
-${billToAddress || ""}${billToAddress ? "<br/>" : ""}
-${billToPhone || ""}${billToPhone ? "<br/>" : ""}
-${billToEmail}
-${billToTrn}
-</div>
-
+  <div class="party-block">
+    <div class="section-title">Bill To</div>
+    <strong>${billToName}</strong><br/>
+    ${billToAddress || ""}${billToAddress ? "<br/>" : ""}
+    ${billToPhone || ""}${billToPhone ? "<br/>" : ""}
+    ${billToEmail}
+    ${billToTrn}
+  </div>
 </div>
 
 <table>
-
-<thead>
-<tr>
-<td>Description</td>
-<td class="amount">Amount</td>
-</tr>
-</thead>
-
-<tbody>
-${bookingRows}
-</tbody>
-
+  <thead>
+    <tr>
+      <td>Description</td>
+      <td class="amount">Amount</td>
+    </tr>
+  </thead>
+  <tbody>
+    ${bookingRows}
+  </tbody>
 </table>
 
 <table class="summary">
-
-<tr>
-<td>Sub-Total</td>
-<td>AED ${subTotal}</td>
-</tr>
-
-<tr>
-<td>Tax (0%)</td>
-<td>AED 0.00</td>
-</tr>
-
-<tr class="total">
-<td>Total</td>
-<td>AED ${transaction.amount}</td>
-</tr>
-
+  <tr>
+    <td>Sub-Total</td>
+    <td>AED ${subTotal.toFixed(2)}</td>
+  </tr>
+  <tr>
+    <td>Tax (0%)</td>
+    <td>AED 0.00</td>
+  </tr>
+  <tr class="total">
+    <td>Total</td>
+    <td>AED ${Number(transaction.amount || 0).toFixed(2)}</td>
+  </tr>
 </table>
 
 <div class="footer">
+  <div class="footer-copy">
+    <p><strong>Payment Method:</strong> Stripe</p>
+    <p><strong>Transaction ID:</strong> ${transaction.id}</p>
+    <br/>
+    <p><strong>Thank you for booking with Milkywayy.</strong></p>
+    <p class="small">All media files will be delivered through the client portal.</p>
+  </div>
 
-<div>
-
-<p><strong>Payment Method:</strong> Stripe</p>
-<p><strong>Transaction ID:</strong> ${transaction.id}</p>
-
-<br/>
-
-<p><strong>Thank you for booking with Milkywayy.</strong></p>
-<p class="small">All media files will be delivered through the client portal.</p>
-
+  <div class="signature">
+    <img src="${signatureSrc || "https://milkywayy.com/signature.png"}"/>
+    <div class="signature-line"></div>
+    <strong>AKASH PRASEED</strong><br/>
+    <span class="small">Founder & CEO</span>
+  </div>
 </div>
-
-<div class="signature">
-
-<img src="${signatureSrc || "https://milkywayy.com/signature.png"}"/>
-
-<div class="signature-line"></div>
-
-<strong>AKASH PRASEED</strong><br/>
-<span class="small">Founder & CEO</span>
-
-</div>
-
 </div>
 
 </body>

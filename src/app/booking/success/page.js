@@ -1,7 +1,7 @@
 import { CheckCheck, ClipboardList, Clock3, Zap } from "lucide-react";
 import Link from "next/link";
-import { verifyStripeSession } from "@/lib/actions/bookings";
 import { Button } from "@/components/ui/button";
+import { verifyStripeSession } from "@/lib/actions/bookings";
 
 export default async function BookingSuccessPage({ searchParams }) {
   const { session_id } = await searchParams;
@@ -36,8 +36,8 @@ export default async function BookingSuccessPage({ searchParams }) {
           )}
         </div>
 
-        <div className="max-w-xl mx-auto fade-in space-y-6">
-          <section className="rounded-2xl border border-white/10 bg-gradient-to-br from-[#141517]/95 via-[#16171a]/95 to-[#121316]/95 backdrop-blur-sm overflow-hidden">
+        <div className="mx-auto max-w-4xl fade-in space-y-6">
+          <section className="overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-br from-[#141517]/95 via-[#16171a]/95 to-[#121316]/95 backdrop-blur-sm">
             <div className="p-8 md:p-12 text-center space-y-6">
             <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center mx-auto">
               <CheckCheck className="h-8 w-8 text-foreground" />
@@ -51,14 +51,14 @@ export default async function BookingSuccessPage({ searchParams }) {
             </div>
           </div>
 
-          <div className="border-t border-border/30 mx-6 md:mx-8"></div>
+          <div className="mx-6 border-t border-border/30 md:mx-10"></div>
 
-          <div className="p-6 md:p-8">
+          <div className="p-6 md:p-10">
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-5">
               What Happens Next
             </p>
 
-            <div className="flex items-start gap-4 py-4 border-b border-border/30">
+            <div className="grid gap-4 border-b border-border/30 py-4 md:grid-cols-[44px_minmax(0,1fr)] md:items-start">
                 <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center shrink-0">
                   <Clock3 className="h-4 w-4 text-muted-foreground" />
                 </div>
@@ -70,7 +70,7 @@ export default async function BookingSuccessPage({ searchParams }) {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 py-4 border-b border-border/30">
+              <div className="grid gap-4 border-b border-border/30 py-4 md:grid-cols-[44px_minmax(0,1fr)] md:items-start">
                 <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center shrink-0">
                   <ClipboardList className="h-4 w-4 text-muted-foreground" />
                 </div>
@@ -86,7 +86,7 @@ export default async function BookingSuccessPage({ searchParams }) {
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 py-4">
+              <div className="grid gap-4 py-4 md:grid-cols-[44px_minmax(0,1fr)] md:items-start">
                 <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center shrink-0">
                   <Zap className="h-4 w-4 text-muted-foreground" />
                 </div>
@@ -100,7 +100,7 @@ export default async function BookingSuccessPage({ searchParams }) {
           </div>
         </section>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Button asChild className="rounded-xl bg-gradient-to-b from-white to-zinc-300 text-black hover:from-zinc-100 hover:to-zinc-300 h-11">
             <Link href="/dashboard/bookings">View Dashboard</Link>
           </Button>

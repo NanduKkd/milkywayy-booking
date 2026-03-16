@@ -136,28 +136,28 @@ const SERVICE_SUBTITLES = {
 
   // Videography: "30 - 90 secs walkthroughs",
 
-  Videography: "Walkthrough Reels",
+  Videography: "Choose Options Below",
 
   // Videography: "Short-Form Walkthroughs (30-90s)",
 
 };
 
 const SERVICE_ESTIMATES = {
-  Photography: "Est - 24 hrs",
-  Videography: "Est - 48-72 hrs",
-  "360Ã‚Â° Tour": "Est - 48-72 hrs",
+  Photography: "24h",
+  Videography: "24-48h",
+  "360Ã‚Â° Tour": "48-72h",
 };
 
 const VIDEOGRAPHY_OPTION_META = {
   [VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM]: {
 title: "Short Form",
     subtitle: "Social Media Reels",
-    delivery: "Delivery: 24-48h",
+    delivery: "24-48h",
   },
   [VIDEOGRAPHY_SUB_SERVICES.LONG_FORM]: {
     title: "Long\nForm",
     subtitle: "YouTube Walkthrough",
-    delivery: "Delivery: 48-72h",
+    delivery: "48-72h",
   },
 };
 
@@ -165,6 +165,58 @@ const LIGHTING_OPTION_ICONS = {
   Daylight: "â˜€",
   "Night Light": "â˜¾",
   "Daylight + Night": "â—Œ",
+};
+
+const formatDeliveryLabel = (value) => {
+  if (!value) return "";
+  return String(value).toLowerCase().startsWith("delivery:")
+    ? value
+    : `Delivery: ${value}`;
+};
+
+const getServiceDeliveryText = (propertyType, serviceName) => {
+  if (serviceName === "Photography") return "24h";
+  if (serviceName === "Videography") return "24-48h";
+  if (serviceName === "360° Tour" || serviceName === "360Ã‚Â° Tour") {
+    return "48-72h";
+  }
+  return SERVICE_ESTIMATES[serviceName] || "";
+};
+
+const getLongFormDeliveryText = (propertyType, propertySize) => {
+  if (propertyType === "Apartment") {
+    if (["Studio", "1 Bed", "2 Bed"].includes(propertySize)) {
+      return "24-48h";
+    }
+    return "48-72h";
+  }
+
+  if (
+    propertyType === "Villa" ||
+    propertyType === "Villa/Townhouse" ||
+    propertyType === "Townhouse/Penthouse" ||
+    propertyType === "Commercial"
+  ) {
+    return "48-72h";
+  }
+
+  return "48-72h";
+};
+
+const getVideographyOptionDeliveryText = (
+  propertyType,
+  propertySize,
+  subService,
+) => {
+  if (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) {
+    return "24-48h";
+  }
+
+  if (subService === VIDEOGRAPHY_SUB_SERVICES.LONG_FORM) {
+    return getLongFormDeliveryText(propertyType, propertySize);
+  }
+
+  return "";
 };
 
 
@@ -292,8 +344,8 @@ const packageInfo =
         name={`properties.${index}.videographySubService`}
         control={control}
         render={({ field }) => (
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-2.5 md:p-3">
-            <div className={property.propertyType === "Commercial" && property.propertySize === "Basic" ? "grid grid-cols-1 gap-2 md:gap-3 w-full" : "grid grid-cols-2 lg:grid-cols-2 gap-2 md:gap-3 w-full"}>
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-2 md:p-2.5">
+            <div className={property.propertyType === "Commercial" && property.propertySize === "Basic" ? "grid grid-cols-1 gap-2.5 w-full" : "grid grid-cols-2 lg:grid-cols-2 gap-2.5 w-full"}>
               {VIDEOGRAPHY_SUB_SERVICE_ORDER.map((subService) => {
                 if (property.propertyType === "Commercial" && property.propertySize === "Basic") {
                   if (subService !== VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) return null;
@@ -325,7 +377,7 @@ const packageInfo =
                 return (
                   <OptionCard
                     key={subService}
-                    className="py-2 md:py-2.5"
+                    className="!rounded-[18px] !px-4 !py-3 md:!rounded-[20px] md:!px-5 md:!py-3.5"
                     selectedClassName="border-white bg-white text-black"
                     unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-white"
                     isSelected={
@@ -443,12 +495,16 @@ const packageInfo =
   )}
 
   {/* Delivery */}
-  {property.propertyType !== "Commercial" && (
-    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/80 md:text-xs">
-      <Clock className="h-3 w-3" />
-      {VIDEOGRAPHY_OPTION_META[subService]?.delivery}
-    </div>
-  )}
+  <div className="flex items-center gap-1 text-[10px] text-muted-foreground/80 md:text-xs">
+    <Clock className="h-3 w-3" />
+    {formatDeliveryLabel(
+      getVideographyOptionDeliveryText(
+        property.propertyType,
+        property.propertySize,
+        subService,
+      ),
+    )}
+  </div>
 
 </div>
 
@@ -494,7 +550,7 @@ const packageInfo =
                   Lighting Preference
                 </label>
 
-                <div className="grid grid-cols-3 gap-2 md:gap-2.5">
+                <div className="grid grid-cols-3 gap-2.5">
                   {(() => {
                     const [mainService, selectedCategoryLabel] = selectedLongForm.split('.') || [];
                     const categories = VIDEOGRAPHY_SUB_CATEGORIES[mainService];
@@ -506,7 +562,7 @@ const packageInfo =
                     return Object.entries(categories).map(([categoryKey, categoryName]) => (
                       <OptionCard
                         key={categoryKey}
-                        className="relative py-2 md:py-2.5"
+                        className="relative !rounded-[18px] !px-4 !py-3 md:!rounded-[20px] md:!py-3.5"
                         selectedClassName="border-white/35 bg-white/[0.06] text-white"
                         unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/25 hover:text-white"
                         isSelected={currentCategory === categoryName}
@@ -782,41 +838,19 @@ const packageInfo =
                           
 
                           const TIER_META = {
-
                             Basic: {
-
-                              icon: Building,
-
                               subtitle: "Small spaces",
-
                             },
-
                             Essential: {
-
-                              icon: Building2,
-
                               subtitle: "Most offices",
-
                               badge: "Most Popular",
-
                             },
-
                             Premium: {
-
-                              icon: Video,
-
                               subtitle: "Large commercial spaces",
-
                             },
-
                             Elite: {
-
-                              icon: Calendar,
-
                               subtitle: "HQ / Warehouses",
-
                             },
-
                           };
 
 
@@ -880,13 +914,7 @@ const packageInfo =
 
                               </div>
 
-                              {meta?.icon && (
-                                <meta.icon className="w-4 h-4 text-muted-foreground/80" strokeWidth={1.5} />
-                              )}
-
-
-
-                              <div className="text-[10px] md:text-xs text-muted-foreground leading-snug">
+                              <div className="text-[9px] md:text-[11px] text-muted-foreground leading-snug">
 
                                 {meta?.subtitle}
 
@@ -1137,8 +1165,20 @@ const packageInfo =
 
                                     <div className="mb-0.5 text-[9px] leading-3 text-muted-foreground md:mb-1 md:text-[10px]">
                                       {property.propertyType === "Commercial"
-                                        ? SERVICE_ESTIMATES[serviceName]
-                                        : SERVICE_SUBTITLES[serviceName] || SERVICE_ESTIMATES[serviceName]}
+                                        ? formatDeliveryLabel(
+                                            getServiceDeliveryText(
+                                              property.propertyType,
+                                              serviceName,
+                                            ),
+                                          )
+                                        : serviceName === "Videography"
+                                          ? SERVICE_SUBTITLES[serviceName]
+                                          : formatDeliveryLabel(
+                                              getServiceDeliveryText(
+                                                property.propertyType,
+                                                serviceName,
+                                              ),
+                                            )}
                                     </div>
                                   </div>
 
@@ -1217,11 +1257,11 @@ const packageInfo =
 
                   render={({ field }) => (
 
-                    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-2.5 md:p-3">
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-2 md:p-2.5">
 
                       {/* Main Service Selection */}
 
-                      <div className={property.propertyType === "Commercial" && property.propertySize === "Basic" ? "grid grid-cols-1 gap-3 w-full" : "grid grid-cols-1 lg:grid-cols-2 gap-3 w-full"}>
+                      <div className={property.propertyType === "Commercial" && property.propertySize === "Basic" ? "grid grid-cols-1 gap-2.5 w-full" : "grid grid-cols-1 lg:grid-cols-2 gap-2.5 w-full"}>
 
                         {VIDEOGRAPHY_SUB_SERVICE_ORDER.map((subService) => {
 
@@ -1312,7 +1352,7 @@ const packageInfo =
                             <OptionCard
 
                               key={subService}
-                              className="py-2.5"
+                              className="!rounded-[18px] !px-4 !py-3 md:!rounded-[20px] md:!px-5 md:!py-3.5"
                               selectedClassName="border-white bg-white text-black"
                               unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-white"
 
@@ -1441,12 +1481,16 @@ const packageInfo =
   )}
 
   {/* Delivery */}
-  {property.propertyType !== "Commercial" && (
-    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/80 md:text-xs">
-      <Clock className="h-3 w-3" />
-      {VIDEOGRAPHY_OPTION_META[subService]?.delivery}
-    </div>
-  )}
+  <div className="flex items-center gap-1 text-[10px] text-muted-foreground/80 md:text-xs">
+    <Clock className="h-3 w-3" />
+    {formatDeliveryLabel(
+      getVideographyOptionDeliveryText(
+        property.propertyType,
+        property.propertySize,
+        subService,
+      ),
+    )}
+  </div>
 
 </div>
 
@@ -1543,7 +1587,7 @@ const packageInfo =
                                   <OptionCard
 
                                     key={categoryKey}
-                                    className="relative py-2.5"
+                                    className="relative !rounded-[18px] !px-4 !py-3 md:!rounded-[20px] md:!py-3.5"
                                     selectedClassName="border-white/40 bg-white/[0.08] text-white"
                                     unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/25 hover:text-white"
 

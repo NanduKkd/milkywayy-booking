@@ -46,7 +46,7 @@ const getInvoicesHandler = async () => {
       {
         model: Booking,
         as: "bookings",
-        attributes: ["id", "bookingCode"],
+        attributes: ["id", "bookingCode", "propertyDetails", "date"],
       },
     ],
     order: [["createdAt", "DESC"]],

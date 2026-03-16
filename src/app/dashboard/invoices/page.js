@@ -12,7 +12,7 @@ export default async function InvoicesPage() {
 
   return (
     <div>
-      <div className="max-w-4xl mx-auto">
+      <div className="mx-auto max-w-6xl">
         <InvoiceList invoices={invoices} />
       </div>
     </div>

@@ -391,7 +391,7 @@ export default function FileList({ bookings }) {
         {bookings.map((booking) => (
           <div
             key={booking.id}
-            className="rounded-2xl border border-white/10 bg-[#111316]/85 px-6 py-6 flex flex-col md:flex-row justify-between md:items-center gap-5 shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
+            className="rounded-2xl border border-white/10 px-6 py-6 flex flex-col md:flex-row justify-between md:items-center gap-5 shadow-[0_10px_30px_rgba(0,0,0,0.25)]"
           >
             <div className="space-y-1">
               <div className="text-xl mb-1 font-semibold text-white">
