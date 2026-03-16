@@ -187,6 +187,26 @@ export default function BookingList({ bookings }) {
     }
   };
 
+  const formatTime = (booking) => {
+    if (booking?.startTime) {
+      const [h, m] = String(booking.startTime).split(":").map(Number);
+      if (Number.isFinite(h) && Number.isFinite(m)) {
+        const dt = new Date();
+        dt.setHours(h, m, 0, 0);
+        return new Intl.DateTimeFormat("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }).format(dt);
+      }
+      return booking.startTime;
+    }
+
+    if (booking?.slot === 1) return "10:00 AM";
+    if (booking?.slot === 2) return "1:00 PM";
+    if (booking?.slot === 3) return "4:00 PM";
+    return "Scheduled";
+  };
+
   const getServiceDetails = (booking) => {
     const services = Array.isArray(booking?.shootDetails?.services)
       ? booking.shootDetails.services
@@ -222,8 +242,8 @@ export default function BookingList({ bookings }) {
 
   if (!bookings || bookings.length === 0) {
     return (
-      <div className="text-center py-12 rounded-xl border">
-        <p className="">No bookings found.</p>
+      <div className="rounded-2xl border border-white/10 bg-card/70 py-12 text-center">
+        <p className="text-muted-foreground">No bookings found.</p>
       </div>
     );
   }
@@ -238,15 +258,12 @@ export default function BookingList({ bookings }) {
       {sortedBookings.map((booking) => (
         <div
           key={booking.id}
-          className="bg-card/70 p-5 rounded-xl border hover:bg-secondary transition-all cursor-pointer group"
+          className={`group cursor-pointer rounded-2xl border border-border bg-card p-6 transition-colors hover:bg-card/90 ${booking.completedAt ? "opacity-60" : ""}`}
           onClick={() => handleBookingClick(booking)}
         >
           <div className="flex justify-between items-start mb-4">
             <div className="space-y-1">
-              <div className="text-xs font-mono text-[#f59e0b] bg-[#f59e0b]/10 px-2 py-1 rounded inline-block">
-                {booking.bookingCode || `MWY-${String(booking.id).padStart(6, '0')}`}
-              </div>
-              <h3 className="text-lg font-bold text-zinc-100 leading-tight">
+              <h3 className="font-heading text-lg leading-tight font-bold text-foreground">
                 {[
                   booking.propertyDetails?.unit,
                   booking.propertyDetails?.building,
@@ -255,16 +272,22 @@ export default function BookingList({ bookings }) {
                   .filter(Boolean)
                   .join(", ") || "Property Shoot"}
               </h3>
-              <p className="text-zinc-500 text-sm font-medium">
+              <p className="text-sm text-muted-foreground">
                 {booking.shootDetails?.services?.join(" + ") ||
                   "Standard Shoot"}
               </p>
             </div>
             <div className="text-right">
-              <div className="text-zinc-100 font-bold">
+              <div className="leading-tight font-semibold text-foreground text-lg">
                 {formatDate(booking.date)}
               </div>
-              <div className="mt-1">{getStatusChip(booking)}</div>
+              <div className="mt-1 text-sm text-muted-foreground">
+                {booking.cancelledAt
+                  ? "Cancelled"
+                  : booking.completedAt
+                    ? "Completed"
+                    : formatTime(booking)}
+              </div>
             </div>
           </div>
 
@@ -276,7 +299,7 @@ export default function BookingList({ bookings }) {
                     e.stopPropagation();
                     handleReschedule(booking);
                   }}
-                  className="px-4 py-1.5 border border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800 text-zinc-300 rounded-lg text-sm font-medium transition-all"
+                  className="rounded-xl border border-border px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
                   Reschedule
                 </button>
@@ -288,7 +311,7 @@ export default function BookingList({ bookings }) {
                   setCancelOpen(true);
                 }}
                 disabled={loadingId === booking.id}
-                className="px-4 py-1.5 border border-zinc-700 hover:border-zinc-600 hover:bg-zinc-800 text-red-500 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                className="rounded-xl border border-border px-4 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-destructive/10 disabled:opacity-50"
               >
                 {loadingId === booking.id
                   ? "Cancelling..."
@@ -302,8 +325,8 @@ export default function BookingList({ bookings }) {
       ))}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-2xl bg-[#181818] border-zinc-800 text-white max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="border-b border-zinc-800 pb-4">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#181818] text-white sm:max-w-2xl">
+          <DialogHeader className="border-b border-white/10 pb-4">
             <DialogTitle>Booking Details #{selectedBooking?.id}</DialogTitle>
             <DialogDescription className="hidden">
               Details for booking #{selectedBooking?.id}
@@ -314,9 +337,9 @@ export default function BookingList({ bookings }) {
             <div className="space-y-6 py-4">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <p className="text-zinc-500 text-sm mb-1">Date & Slot</p>
+                  <p className="mb-1 text-sm text-muted-foreground">Date & Slot</p>
                   <p className="font-medium">{selectedBooking.date}</p>
-                  <p className="text-sm text-zinc-400">
+                  <p className="text-sm text-muted-foreground">
                     Slot:{" "}
                     {selectedBooking.slot === 1
                       ? "Morning"
@@ -326,25 +349,25 @@ export default function BookingList({ bookings }) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-zinc-500 text-sm mb-1">Status</p>
+                  <p className="mb-1 text-sm text-muted-foreground">Status</p>
                   {getStatusChip(selectedBooking)}
                 </div>
               </div>
 
-              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-                <h3 className="font-semibold mb-3 text-zinc-300">Services</h3>
-                <div className="text-sm text-zinc-400 space-y-1">
+              <div className="rounded-lg border border-white/10 bg-zinc-900/50 p-4">
+                <h3 className="mb-3 font-semibold text-zinc-200">Services</h3>
+                <div className="space-y-1 text-sm text-muted-foreground">
                   {getServiceDetails(selectedBooking).map((serviceDetail) => (
                     <p key={serviceDetail}>- {serviceDetail}</p>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-                <h3 className="font-semibold mb-3 text-zinc-300">
+              <div className="rounded-lg border border-white/10 bg-zinc-900/50 p-4">
+                <h3 className="mb-3 font-semibold text-zinc-200">
                   Property Details
                 </h3>
-                <div className="text-sm text-zinc-400 space-y-1">
+                <div className="space-y-1 text-sm text-muted-foreground">
                   <p>
                     <span className="font-medium text-zinc-300">Type:</span>{" "}
                     {selectedBooking.propertyDetails?.type}
@@ -366,13 +389,13 @@ export default function BookingList({ bookings }) {
                 </div>
               </div>
 
-              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-                <h3 className="font-semibold mb-3 text-zinc-300">
+              <div className="rounded-lg border border-white/10 bg-zinc-900/50 p-4">
+                <h3 className="mb-3 font-semibold text-zinc-200">
                   Transaction
                 </h3>
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-zinc-500 text-sm">Amount</p>
+                    <p className="text-sm text-muted-foreground">Amount</p>
                     <p className="font-medium">
                       AED {selectedBooking.transaction?.amount}
                     </p>
@@ -387,7 +410,7 @@ export default function BookingList({ bookings }) {
                       </Link>
                     </Button>
                   ) : (
-                    <span className="text-xs text-zinc-500 italic">
+                    <span className="text-xs italic text-muted-foreground">
                       No invoice available
                     </span>
                   )}
@@ -396,7 +419,7 @@ export default function BookingList({ bookings }) {
             </div>
           )}
 
-          <DialogFooter className="border-t border-zinc-800 pt-4">
+          <DialogFooter className="border-t border-white/10 pt-4">
             <Button
               variant="ghost"
               onClick={() => setIsOpen(false)}
@@ -410,8 +433,8 @@ export default function BookingList({ bookings }) {
 
       {/* Reschedule Dialog */}
       <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
-        <DialogContent className="sm:max-w-2xl bg-[#181818] border-zinc-800 text-white max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="border-b border-zinc-800 pb-4">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#181818] text-white sm:max-w-2xl">
+          <DialogHeader className="border-b border-white/10 pb-4">
             <DialogTitle>Reschedule Booking</DialogTitle>
             <DialogDescription>
               Select a new date and time for your booking
@@ -419,9 +442,9 @@ export default function BookingList({ bookings }) {
           </DialogHeader>
 
           <div className="space-y-6 py-4">
-            <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-              <h3 className="font-semibold mb-3 text-zinc-300">Current Booking</h3>
-              <div className="text-sm text-zinc-400 space-y-1">
+            <div className="rounded-lg border border-white/10 bg-zinc-900/50 p-4">
+              <h3 className="mb-3 font-semibold text-zinc-200">Current Booking</h3>
+              <div className="space-y-1 text-sm text-muted-foreground">
                 <p>
                   <span className="font-medium text-zinc-300">Booking Code:</span>{" "}
                   <span className="font-mono text-[#f59e0b]">
@@ -448,8 +471,8 @@ export default function BookingList({ bookings }) {
               </div>
             </div>
 
-            <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-              <h3 className="font-semibold mb-3 text-zinc-300">Select New Date & Time</h3>
+            <div className="rounded-lg border border-white/10 bg-zinc-900/50 p-4">
+              <h3 className="mb-3 font-semibold text-zinc-200">Select New Date & Time</h3>
               <DateSlotPicker
                 date={rescheduleDate}
                 slot={rescheduleSlot}
@@ -465,7 +488,7 @@ export default function BookingList({ bookings }) {
             </div>
           </div>
 
-          <DialogFooter className="border-t border-zinc-800 pt-4">
+          <DialogFooter className="border-t border-white/10 pt-4">
             <Button
               variant="ghost"
               onClick={() => setRescheduleOpen(false)}
@@ -486,23 +509,23 @@ export default function BookingList({ bookings }) {
 
       {/* Cancel Confirmation Dialog */}
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent className="sm:max-w-lg bg-[#181818] border-zinc-800 text-white">
-          <DialogHeader className="border-b border-zinc-800 pb-4">
+        <DialogContent className="border-white/10 bg-[#181818] text-white sm:max-w-lg">
+          <DialogHeader className="border-b border-white/10 pb-4">
             <DialogTitle>Cancel Booking</DialogTitle>
-            <DialogDescription className="text-zinc-400">
+            <DialogDescription className="text-muted-foreground">
               Please confirm you want to cancel this booking.
             </DialogDescription>
           </DialogHeader>
           {selectedCancelBooking && (
-            <div className="py-4 space-y-3 text-sm text-zinc-300">
+            <div className="space-y-3 py-4 text-sm text-zinc-300">
               <div>
-                <span className="text-zinc-500">Booking Code:</span>{" "}
+                <span className="text-muted-foreground">Booking Code:</span>{" "}
                 <span className="font-mono">
                   {selectedCancelBooking.bookingCode || `MWY-${String(selectedCancelBooking.id).padStart(6, "0")}`}
                 </span>
               </div>
               <div>
-                <span className="text-zinc-500">Date:</span>{" "}
+                <span className="text-muted-foreground">Date:</span>{" "}
                 {selectedCancelBooking.date}
               </div>
               {getActionPolicy(selectedCancelBooking).partialRefundEligible && (
@@ -512,7 +535,7 @@ export default function BookingList({ bookings }) {
               )}
             </div>
           )}
-          <DialogFooter className="border-t border-zinc-800 pt-4">
+          <DialogFooter className="border-t border-white/10 pt-4">
             <Button
               variant="ghost"
               onClick={() => setCancelOpen(false)}

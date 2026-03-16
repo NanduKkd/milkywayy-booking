@@ -14,6 +14,26 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    accountType: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "INDIVIDUAL",
+      validate: {
+        isIn: [["INDIVIDUAL", "COMPANY"]],
+      },
+    },
+    companyName: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    billingAddress: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    trn: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     email: {
       type: DataTypes.STRING,
       allowNull: true,

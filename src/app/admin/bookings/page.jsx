@@ -181,17 +181,22 @@ export default function BookingsPage() {
   };
 
   return (
-    <div className="p-8 bg-[#121212] min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-6">Bookings</h1>
-      <div className="rounded-md border border-zinc-800 bg-[#181818]">
+    <div className="space-y-6 text-white">
+      <div>
+        <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          Operations
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">Bookings</h1>
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#181818]">
         <Table>
-          <TableHeader className="bg-zinc-900">
-            <TableRow className="border-zinc-800 hover:bg-zinc-900">
-              <TableHead className="text-zinc-400">ID</TableHead>
-              <TableHead className="text-zinc-400">PROPERTY</TableHead>
-              <TableHead className="text-zinc-400">DATE</TableHead>
-              <TableHead className="text-zinc-400">AMOUNT</TableHead>
-              <TableHead className="text-zinc-400">STATUS</TableHead>
+          <TableHeader className="bg-zinc-900/80">
+            <TableRow className="border-white/10 hover:bg-zinc-900/80">
+              <TableHead className="text-muted-foreground">ID</TableHead>
+              <TableHead className="text-muted-foreground">PROPERTY</TableHead>
+              <TableHead className="text-muted-foreground">DATE</TableHead>
+              <TableHead className="text-muted-foreground">AMOUNT</TableHead>
+              <TableHead className="text-muted-foreground">STATUS</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

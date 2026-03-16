@@ -11,7 +11,7 @@ export default async function InvoicesPage() {
   const invoices = res.success ? res.data : [];
 
   return (
-    <div className="min-h-screen">
+    <div>
       <div className="max-w-4xl mx-auto">
         <InvoiceList invoices={invoices} />
       </div>

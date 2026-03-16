@@ -41,7 +41,7 @@ const FinalCTASection = () => {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Launch Offer: AED 500 welcome credit on your first property shoot.
+            Launch Offer: Flat 50% off your first booking.
           </p>
         </div>
       </div>

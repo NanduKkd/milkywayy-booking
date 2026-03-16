@@ -1,23 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Play } from "lucide-react";
+import { Play, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import Footer from "@/components/Footer";
-import AnnouncementBar from "@/components/landing/AnnouncementBar";
 import NewNavbar from "@/components/NewNavbar";
 import MediaRenderer from "@/components/portfolio/MediaRenderer";
 import StarBackground from "@/components/StarBackground";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import { isTouchDevice } from "@/lib/helpers/ui";
+
+const filters = [
+  { key: OUR_WORK_TYPES.IMAGE, label: "Photography" },
+  { key: OUR_WORK_TYPES.THREE_SIXTY, label: "360°" },
+  { key: OUR_WORK_TYPES.SHORT_VIDEO, label: "Short-form Videos" },
+  { key: OUR_WORK_TYPES.VIDEO, label: "Long-form Videos" },
+];
 
 export default function PortfolioPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isTouch, setIsTouch] = useState(false);
+  const [activeFilter, setActiveFilter] = useState(OUR_WORK_TYPES.IMAGE);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showInteractive360, setShowInteractive360] = useState(false);
 
@@ -39,12 +47,32 @@ export default function PortfolioPage() {
     fetchWorks();
   }, []);
 
-  const categories = [
-    { label: "Photography", value: OUR_WORK_TYPES.IMAGE },
-    { label: "Short-form", value: OUR_WORK_TYPES.SHORT_VIDEO },
-    { label: "Long-form", value: OUR_WORK_TYPES.VIDEO },
-    { label: "360\u00B0", value: OUR_WORK_TYPES.THREE_SIXTY },
-  ];
+  const filteredItems = useMemo(
+    () => items.filter((item) => item.type === activeFilter),
+    [items, activeFilter],
+  );
+
+  const getGridClass = () => {
+    switch (activeFilter) {
+      case OUR_WORK_TYPES.SHORT_VIDEO:
+        return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6";
+      case OUR_WORK_TYPES.VIDEO:
+        return "grid-cols-1 md:grid-cols-2";
+      default:
+        return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+    }
+  };
+
+  const getAspectClass = () => {
+    switch (activeFilter) {
+      case OUR_WORK_TYPES.SHORT_VIDEO:
+        return "aspect-[9/16]";
+      case OUR_WORK_TYPES.VIDEO:
+        return "aspect-video";
+      default:
+        return "aspect-[4/3]";
+    }
+  };
 
   const openPreview = (item) => {
     setSelectedItem(item);
@@ -56,139 +84,167 @@ export default function PortfolioPage() {
     setShowInteractive360(false);
   };
 
-  const renderGrid = (filteredItems) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 justify-between gap-y-6 py-8 items-center">
-      {filteredItems.map((item, index) => (
-        <div
-          key={item.id}
-          role="button"
-          tabIndex={0}
-          onClick={() => openPreview(item)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              openPreview(item);
-            }
-          }}
-          className="group flex flex-col gap-4 fade-in mx-auto cursor-pointer"
-          style={{ animationDelay: `${index * 0.05}s` }}
-        >
-          <div className={`relative min-w-[60vw] md:min-w-[35vw] lg:min-w-[25vw] ${item.type !== "SHORT_VIDEO" ? "aspect-4/3" : ""} bg-card rounded-2xl overflow-hidden shadow-xl border border-white/10`}>
-            {item.type === OUR_WORK_TYPES.THREE_SIXTY && item.thumbnail ? (
-              <Image
-                src={item.thumbnail}
-                alt={item.title}
-                fill
-                sizes="(max-width: 768px) 60vw, (max-width: 1200px) 35vw, 25vw"
-                className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-              />
-            ) : (
-              <div className={item.type === OUR_WORK_TYPES.IMAGE && !isTouch ? "photography-grayscale h-full w-full" : "h-full w-full"}>
-                <MediaRenderer
-                  type={item.type}
-                  url={item.mediaContent}
-                  title={item.title}
-                />
-              </div>
-            )}
-          </div>
-          <div className="px-2">
-            <h3 className="font-bold text-xl text-white">{item.title}</h3>
-            {item.subtitle && (
-              <p className="text-white/60 text-sm mt-1">{item.subtitle}</p>
-            )}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-
   return (
-    <div className="relative min-h-screen text-white bg-background">
+    <div className="relative min-h-screen bg-background text-foreground">
       <StarBackground />
-      <div className="relative z-10">
-        <div className="fixed top-0 left-0 right-0 z-50">
-          <AnnouncementBar />
-          <NewNavbar />
-        </div>
+      <NewNavbar />
 
-        <main className="pt-40 pb-24 container mx-auto px-6 md:px-4 lg:px-0">
-          <div className="max-w-3xl mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white to-white/50 font-heading">
+      <section className="pt-32 pb-16 relative">
+        <div className="starfield opacity-10" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="text-center max-w-3xl mx-auto fade-in">
+            <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
               Our Works
             </h1>
-            <p className="text-xl text-muted-foreground">
-              A collection of our premium real estate media across the UAE.
+            <p className="text-lg text-muted-foreground">
+              Explore photography, 360° tours, and video work built for Dubai listings.
             </p>
           </div>
+        </div>
+      </section>
 
-          {loading
-            ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 py-8">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="flex flex-col gap-4">
-                    <div className="aspect-video bg-white/5 animate-pulse rounded-2xl" />
-                    <div className="h-5 w-2/3 bg-white/5 animate-pulse rounded" />
-                    <div className="h-4 w-1/2 bg-white/5 animate-pulse rounded" />
+      <Tabs value={activeFilter} onValueChange={setActiveFilter}>
+        <section className="pb-8 sticky top-16 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
+          <div className="container mx-auto px-6">
+            <div className="overflow-x-auto pb-2 scrollbar-hide">
+              <TabsList className="h-auto bg-transparent gap-2">
+                {filters.map((filter) => (
+                  <TabsTrigger
+                    key={filter.key}
+                    value={filter.key}
+                    className="px-5 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all data-[state=active]:bg-accent data-[state=active]:text-accent-foreground bg-secondary text-foreground hover:bg-secondary/80"
+                  >
+                    {filter.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-12">
+          <div className="container mx-auto px-6">
+            {loading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="aspect-[4/3] bg-white/5 animate-pulse rounded-xl" />
+                ))}
+              </div>
+            ) : (
+              <div className={`grid ${getGridClass()} gap-4`}>
+                {filteredItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    onClick={() => openPreview(item)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openPreview(item);
+                      }
+                    }}
+                    className={`group relative ${getAspectClass()} bg-card rounded-xl overflow-hidden cursor-pointer hover-lift fade-in ${
+                      activeFilter === OUR_WORK_TYPES.VIDEO && index % 3 === 0 ? "md:col-span-2" : ""
+                    }`}
+                    style={{ animationDelay: `${index * 0.03}s` }}
+                  >
+                  <div className="absolute inset-0 bg-gradient-to-br from-secondary via-muted/50 to-secondary" />
+
+                  <div className="relative h-full w-full">
+                    {item.type === OUR_WORK_TYPES.THREE_SIXTY && item.thumbnail ? (
+                      <Image
+                        src={item.thumbnail}
+                        alt={item.title}
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div
+                        className={
+                          item.type === OUR_WORK_TYPES.IMAGE && !isTouch
+                            ? "photography-grayscale h-full w-full"
+                            : "h-full w-full"
+                        }
+                      >
+                        <MediaRenderer type={item.type} url={item.mediaContent} title={item.title} />
+                      </div>
+                    )}
+                  </div>
+
+                  {(activeFilter === OUR_WORK_TYPES.SHORT_VIDEO || activeFilter === OUR_WORK_TYPES.VIDEO) && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                      <div className="w-14 h-14 rounded-full bg-accent/90 flex items-center justify-center shadow-lg">
+                        <Play className="w-6 h-6 text-accent-foreground ml-1" />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeFilter === OUR_WORK_TYPES.THREE_SIXTY && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <div className="px-2 py-1 bg-accent/90 rounded-full text-xs font-medium text-accent-foreground">
+                        360°
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                    <p className="font-medium text-sm">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">{item.subtitle || "Dubai"}</p>
+                  </div>
                   </div>
                 ))}
               </div>
-            : <Tabs defaultValue={categories[0].value} className="w-full">
-                <div className="overflow-x-auto pb-4 scrollbar-hide">
-                  <TabsList className="bg-white/5 border border-white/10 h-auto md:p-1.5 gap-1 md:gap-1.5 rounded-full">
-                    {categories.map((cat) => (
-                      <TabsTrigger
-                        key={cat.value}
-                        value={cat.value}
-                        className="rounded-full px-2 md:px-8 py-2.5 data-[state=active]:bg-white data-[state=active]:text-black transition-all font-medium"
-                      >
-                        {cat.label}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                </div>
+            )}
 
-                {categories.map((cat) => (
-                  <TabsContent key={cat.value} value={cat.value}>
-                    {renderGrid(items.filter((i) => i.type === cat.value))}
-                  </TabsContent>
-                ))}
+            {!loading && filteredItems.length === 0 && (
+              <div className="text-center py-16 text-muted-foreground">No entries found in this category.</div>
+            )}
+          </div>
+        </section>
+      </Tabs>
 
-                {!loading && items.length === 0 && (
-                  <div className="text-center py-24 text-muted-foreground bg-white/5 rounded-3xl border border-white/5">
-                    <p className="text-lg">
-                      No entries found in this category.
-                    </p>
-                  </div>
-                )}
-              </Tabs>}
-        </main>
+      <section className="py-16 bg-secondary/30">
+        <div className="container mx-auto px-6">
+          <div className="max-w-2xl mx-auto text-center fade-in">
+            <h2 className="font-heading text-2xl md:text-3xl font-bold mb-4">
+              Want content like this for your next listing?
+            </h2>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/booking">
+                <Button size="lg" className="w-full sm:w-auto bg-accent text-accent-foreground hover:bg-accent/90 glow-pulse">
+                  Book Now
+                </Button>
+              </Link>
+              <a href="https://wa.me/971507263306" target="_blank" rel="noopener noreferrer">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-border">
+                  WhatsApp Us
+                </Button>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <Footer />
-      </div>
+      <Footer />
 
       <Dialog open={Boolean(selectedItem)} onOpenChange={(open) => !open && closePreview()}>
-        <DialogContent className="max-w-[760px] w-[92vw] p-0 gap-0 border border-white/10 rounded-2xl bg-[#111318]/95 overflow-hidden">
-          <DialogTitle className="sr-only">
-            {selectedItem?.title || "Work Preview"}
-          </DialogTitle>
+        <DialogContent className="sm:max-w-4xl bg-card border-border p-0 overflow-hidden">
+          <DialogTitle className="sr-only">{selectedItem?.title || "Work Preview"}</DialogTitle>
           {selectedItem && (
-            <>
-              <div className="relative h-[420px] bg-[#222428]">
-                {selectedItem.type === OUR_WORK_TYPES.THREE_SIXTY &&
-                selectedItem.thumbnail &&
-                !showInteractive360 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowInteractive360(true)}
-                    className="h-full w-full relative"
-                  >
-                    <Image
-                      src={selectedItem.thumbnail}
-                      alt={selectedItem.title}
-                      fill
-                      sizes="92vw"
-                      className="object-cover"
-                    />
+            <div className="relative">
+              <button
+                onClick={() => setSelectedItem(null)}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-background/80 hover:bg-background transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className={`${selectedItem.type === OUR_WORK_TYPES.SHORT_VIDEO ? "aspect-[9/16] max-h-[80vh]" : "aspect-video"} bg-secondary`}>
+                {selectedItem.type === OUR_WORK_TYPES.THREE_SIXTY && selectedItem.thumbnail && !showInteractive360 ? (
+                  <button type="button" onClick={() => setShowInteractive360(true)} className="h-full w-full relative">
+                    <Image src={selectedItem.thumbnail} alt={selectedItem.title} fill sizes="92vw" className="object-cover" />
                     <div className="absolute inset-0 bg-black/30" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="h-16 w-16 rounded-full border border-white/40 bg-black/30 flex items-center justify-center">
@@ -206,21 +262,19 @@ export default function PortfolioPage() {
                 )}
               </div>
 
-              <div className="p-6 bg-white/[0.03] border-t border-white/10">
-                <p className="text-2xl font-bold text-foreground mb-2">
-                  {selectedItem.title}
-                </p>
-                <p className="text-muted-foreground text-xl">
-                  {selectedItem.subtitle
-                    ? `${selectedItem.subtitle} - ${categories.find((c) => c.value === selectedItem.type)?.label || "Work"}`
-                    : categories.find((c) => c.value === selectedItem.type)?.label || "Work"}
-                </p>
+              <div className="p-6">
+                <h3 className="font-heading text-xl font-bold mb-1">{selectedItem.title}</h3>
+                <p className="text-sm text-muted-foreground mb-4">{selectedItem.subtitle || "Dubai"}</p>
+                <Link href="/booking">
+                  <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
+                    Book a similar shoot
+                  </Button>
+                </Link>
               </div>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-

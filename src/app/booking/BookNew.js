@@ -1,6 +1,6 @@
 ﻿"use client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus } from "lucide-react";
+import { Info, Loader2, Plus } from "lucide-react";
 import { use, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -24,6 +24,27 @@ import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
 import { bookingSchema } from "@/lib/schema/booking.schema";
 // Modular Components
 import { PropertyCard } from "./components/PropertyCard";
+
+const formatScheduleLabel = (property) => {
+  const slotLabel =
+    property.startTime ||
+    (property.timeSlot
+      ? property.timeSlot.charAt(0).toUpperCase() + property.timeSlot.slice(1)
+      : "");
+
+  return [property.preferredDate, slotLabel].filter(Boolean).join(" · ");
+};
+
+const buildSummaryLabel = (property) =>
+  [property.propertySize, property.propertyType].filter(Boolean).join(" ");
+
+const buildServicesLabel = (property) =>
+  property.services?.length > 0 ? property.services.join(" + ") : "";
+
+const buildLocationLabel = (property) =>
+  [property.unitNumber, property.building, property.community]
+    .filter(Boolean)
+    .join(", ");
 
 export default function BookNew({ pricingsPromise, discountsPromise }) {
   const pricingsRes = use(pricingsPromise);
@@ -477,7 +498,6 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   };
 
   const onContinue = async (data) => {
-    console.log("onContinue called with data:", data);
     if (!authState?.isAuthenticated) {
       toast.error("Please login to continue to payment");
       login();
@@ -488,18 +508,11 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     try {
       // Create bookings first
       const res = await createBookings(data.properties);
-      console.log("Create bookings response:", res);
 
       if (!res.success) throw new Error(res.message);
       const bookingData = res.data;
-      console.log("Booking data received:", bookingData);
 
       const newBookingIds = bookingData.map((b) => b.id);
-      console.log("Extracted booking IDs:", newBookingIds);
-      console.log(
-        "Booking codes generated:",
-        bookingData.map((b) => b.bookingCode),
-      );
 
       const paymentRes = await createTransactionAndPaymentIntent(
         newBookingIds,
@@ -583,47 +596,42 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
       
       if (!couponResult?.valid) {
         setIsLaunchPromoApplied(false);
-        setCouponError(couponResult?.message || "Launch promo not available");
       }
     };
     
     validateLaunchPromo();
   }, [totalAmount]);
 
-  const primaryProperty = properties?.[0] || {};
-  const primaryTitle = [
-    primaryProperty.propertySize,
-    primaryProperty.propertyType,
-  ]
-    .filter(Boolean)
-    .join(" ");
-  const primaryServices =
-    primaryProperty.services?.length > 0
-      ? primaryProperty.services.join(" + ")
-      : "Select services";
-  const primarySchedule = [primaryProperty.preferredDate, primaryProperty.startTime]
-    .filter(Boolean)
-    .join(" · ");
+  const summaryItems = properties
+    .map((property, index) => ({
+      index,
+      amount: getPropertyPrice(property),
+      title: buildSummaryLabel(property),
+      services: buildServicesLabel(property),
+      location: buildLocationLabel(property),
+      schedule: formatScheduleLabel(property),
+    }))
+    .filter((item) => item.amount > 0);
 
   return (
-    <section className="relative min-h-screen">
-      <div className="container mx-auto px-3 md:px-6 relative z-10">
-        <div className="max-w-[360px] sm:max-w-[390px] md:max-w-6xl mx-auto">
-          <div className="text-center mb-6 md:mb-10 fade-in pt-2 md:pt-6">
+    <section className="relative min-h-screen py-12 md:py-20">
+      <div className="container mx-auto px-4 md:px-6 relative z-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 fade-in">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
               MILKYWAYY PORTAL
             </p>
-            <h1 className="text-[2rem] md:text-4xl lg:text-5xl font-semibold mb-2 md:mb-3 tracking-tight text-foreground">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold mb-3 tracking-tight text-foreground">
               Book Your Shoot
             </h1>
-            <p className="text-[13px] md:text-base text-muted-foreground max-w-[19rem] md:max-w-md mx-auto">
+            <p className="text-sm md:text-base text-muted-foreground max-w-md mx-auto">
               Premium property media for Dubai&apos;s finest real estate
             </p>
           </div>
 
       <form onSubmit={handleSubmit(onContinue)}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 items-start">
-          <div className="lg:col-span-2 space-y-4 md:space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="lg:col-span-2 space-y-4">
             {properties?.map((property, index) => (
               <PropertyCard
                 key={`property-${index}`}
@@ -652,7 +660,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               type="button"
               variant="outline"
               onClick={addProperty}
-              className="w-full p-3.5 md:p-4 rounded-xl md:rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              className="w-full p-4 rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
             >
               <Plus size={18} className="shrink-0" />
               Add Another Property
@@ -664,26 +672,44 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               Order Summary
             </h3>
 
-            <div className="rounded-xl border border-white/8 bg-white/[0.025] px-3.5 py-3 mb-3.5 space-y-1">
-              <div className="flex justify-between items-start gap-3">
-                <p className="font-semibold text-[13px] leading-5 text-foreground">
-                  {primaryTitle || "Property Summary"}
-                </p>
-                <span className="font-semibold text-[13px] whitespace-nowrap text-foreground">
-                  AED {totalAmount.toLocaleString()}
-                </span>
+            {summaryItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-4 text-center">
+                Select services to see your summary
+              </p>
+            ) : (
+              <div className="space-y-3 mb-3.5">
+                {summaryItems.map(({ index, title, amount, services, location, schedule }) => (
+                  <div
+                    key={`summary-${index}`}
+                    className="rounded-xl border border-white/8 bg-white/[0.025] px-3.5 py-3 space-y-1"
+                  >
+                    <div className="flex justify-between items-start gap-3">
+                      <p className="font-semibold text-[13px] leading-5 text-foreground">
+                        {title || `Property ${index + 1}`}
+                      </p>
+                      <span className="font-semibold text-[13px] whitespace-nowrap text-foreground">
+                        AED {amount.toLocaleString()}
+                      </span>
+                    </div>
+                    {location && (
+                      <p className="text-[10px] leading-4 text-muted-foreground">
+                        {location}
+                      </p>
+                    )}
+                    {services && (
+                      <p className="text-[10px] leading-4 text-muted-foreground">
+                        {services}
+                      </p>
+                    )}
+                    {schedule && (
+                      <p className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/80">
+                        {schedule}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
-              {primaryServices && primaryServices !== "Select services" && (
-                <p className="text-[10px] leading-4 text-muted-foreground">
-                  {primaryServices}
-                </p>
-              )}
-              {primarySchedule && (
-                <p className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/80">
-                  {primarySchedule}
-                </p>
-              )}
-            </div>
+            )}
 
             <div className="space-y-2.5 border-t border-white/8 pt-3.5 mb-3.5">
               <div className="flex items-center justify-between gap-3">
@@ -791,7 +817,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
             <Button
               type="submit"
               size="lg"
-              disabled={isSubmitting || isProcessingPayment}
+              disabled={summaryItems.length === 0 || isSubmitting || isProcessingPayment}
               className="w-full btn-primary-premium py-2.5"
             >
               {isSubmitting || isProcessingPayment ? (
@@ -804,10 +830,13 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               )}
             </Button>
 
-            <p className="text-[9px] leading-4 text-muted-foreground mt-3">
-              Media is licensed for client marketing use. Milkywayy may showcase
-              selected work for portfolio and promotional purposes.
-            </p>
+            <div className="flex items-start gap-1.5 mt-3">
+              <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-[9px] leading-4 text-muted-foreground">
+                Media is licensed for client marketing use. Milkywayy may
+                showcase selected work for portfolio and promotional purposes.
+              </p>
+            </div>
           </aside>
         </div>
       </form>

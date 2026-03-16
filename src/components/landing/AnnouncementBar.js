@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -11,9 +11,10 @@ const AnnouncementBar = ({ onHeightChange }) => {
   useEffect(() => {
     const handleScroll = () => {
       if (frameRef.current) return;
+
       frameRef.current = window.requestAnimationFrame(() => {
         const progress = Math.min(window.scrollY / 50, 1);
-        if (Math.abs(progress - progressRef.current) > 0.01) {
+        if (progress !== progressRef.current) {
           progressRef.current = progress;
           setScrollProgress(progress);
           onHeightChange?.(36 * (1 - progress));
@@ -44,7 +45,7 @@ const AnnouncementBar = ({ onHeightChange }) => {
     >
       <div className="container mx-auto flex items-center justify-center gap-2 px-4">
         <Sparkles className="w-4 h-4 text-muted-foreground" />
-        <span className="text-muted-foreground">🚀 Launch Offer: AED 500 welcome credit on your first property shoot</span>
+        <span className="text-muted-foreground">Launch Offer: AED 500 welcome credit on your first property shoot</span>
         <Sparkles className="w-4 h-4 text-muted-foreground" />
       </div>
     </div>
@@ -52,3 +53,4 @@ const AnnouncementBar = ({ onHeightChange }) => {
 };
 
 export default AnnouncementBar;
+

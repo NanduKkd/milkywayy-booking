@@ -18,7 +18,7 @@ export default async function FilesPage() {
     .filter((b) => b.filesUrl);
 
   return (
-    <div className="min-h-screen">
+    <div>
       <div className="max-w-6xl mx-auto">
         <FileList bookings={bookingsWithFiles} />
       </div>

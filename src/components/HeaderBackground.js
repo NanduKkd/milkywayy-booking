@@ -38,7 +38,7 @@ export default function HeaderBackground({ children, className, ...props }) {
       className={cn(
         "transition-all duration-300",
         isScrolled
-          ? "bg-background/90 backdrop-blur-lg shadow-lg"
+          ? "bg-background/92 backdrop-blur-sm shadow-lg"
           : "bg-transparent",
         className,
       )}

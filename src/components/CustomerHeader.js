@@ -21,6 +21,32 @@ export default function CustomerHeader({ mode = "default" }) {
       .map((part) => part[0]?.toUpperCase())
       .join("") || "U";
 
+  if (mode === "dashboard") {
+    return (
+      <HeaderBackground className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/logo.png"
+              width={190}
+              height={36}
+              className="h-6 w-auto sm:h-7"
+              alt="Milkywayy"
+            />
+          </Link>
+
+          <Button
+            variant="outline"
+            className="h-12 rounded-2xl border-border px-6 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            onClick={logout}
+          >
+            Logout
+          </Button>
+        </div>
+      </HeaderBackground>
+    );
+  }
+
   if (mode === "booking") {
     return (
       <HeaderBackground className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center justify-between border-b border-white/10 px-4 lg:px-8 bg-black/95 backdrop-blur-sm">

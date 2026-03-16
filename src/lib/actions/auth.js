@@ -5,8 +5,8 @@ import bcrypt from "bcrypt";
 import { USER_ROLES } from "@/lib/config/app.config";
 import models from "@/lib/db/models";
 import { setSessionUser } from "@/lib/helpers/auth";
-import { actionWrapper } from "./utils";
 import { sendWhatsAppTemplate } from "@/lib/notifications/whatsapp";
+import { actionWrapper } from "./utils";
 
 const TWILIO_VERIFY_API_BASE = "https://verify.twilio.com/v2";
 const ALLOWED_VERIFY_CHANNELS = new Set(["sms", "whatsapp"]);
@@ -32,7 +32,8 @@ const hasWhatsAppOtpConfig = () =>
   Boolean(
     process.env.TWILIO_ACCOUNT_SID &&
       process.env.TWILIO_AUTH_TOKEN &&
-      (process.env.TWILIO_WHATSAPP_FROM || process.env.TWILIO_MESSAGING_SERVICE_SID),
+      (process.env.TWILIO_WHATSAPP_FROM ||
+        process.env.TWILIO_MESSAGING_SERVICE_SID),
   );
 
 const getTwilioAuthHeader = () => {
@@ -56,6 +57,24 @@ const parseTwilioErrorMessage = (raw) => {
     return raw;
   }
 };
+
+const normalizeOptionalString = (value) => {
+  const normalized = String(value ?? "").trim();
+  return normalized || null;
+};
+
+const buildSessionUserData = (user) => ({
+  id: user.id,
+  fullName: user.fullName,
+  email: user.email,
+  phone: user.phone,
+  role: user.role,
+  accountType: user.accountType || "INDIVIDUAL",
+  companyName: user.companyName,
+  billingAddress: user.billingAddress,
+  trn: user.trn,
+  createdAt: user.createdAt,
+});
 
 const sendTwilioOtp = async (phone) => {
   const sid = process.env.TWILIO_ACCOUNT_SID;
@@ -92,7 +111,10 @@ const sendTwilioOtp = async (phone) => {
 
     if (res.ok) return { ok: true, error: null };
     const text = await res.text();
-    return { ok: false, error: parseTwilioErrorMessage(text) || "Failed to send OTP via Twilio" };
+    return {
+      ok: false,
+      error: parseTwilioErrorMessage(text) || "Failed to send OTP via Twilio",
+    };
   };
 
   const primary = await sendWithChannel(primaryChannel);
@@ -100,7 +122,9 @@ const sendTwilioOtp = async (phone) => {
 
   const shouldFallback =
     String(primary.error || "").includes("channel is disabled") ||
-    String(primary.error || "").toLowerCase().includes("channel not configured");
+    String(primary.error || "")
+      .toLowerCase()
+      .includes("channel not configured");
 
   if (!shouldFallback) {
     throw new Error(primary.error);
@@ -165,14 +189,7 @@ const adminLoginHandler = async ({ email, password }) => {
 
   // Check if password matches
   if (await bcrypt.compare(password, user.password)) {
-    const userData = {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      createdAt: user.createdAt,
-    };
+    const userData = buildSessionUserData(user);
 
     await setSessionUser(userData);
 
@@ -254,11 +271,7 @@ const customerSendOtpHandler = async ({ phone }) => {
     requiresRegistration: false,
     debugOtp,
     userData: {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
+      ...buildSessionUserData(user),
     },
   };
 };
@@ -297,13 +310,7 @@ const customerVerifyOtpHandler = async ({ userId, otp }) => {
   await user.save();
 
   // Generate auth token and save session
-  const userData = {
-    id: user.id,
-    fullName: user.fullName,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-  };
+  const userData = buildSessionUserData(user);
 
   await setSessionUser(userData);
 
@@ -326,41 +333,75 @@ const updateCustomerProfileHandler = async ({ userId, fullName, email }) => {
   });
 
   // Return updated user data
-  const userData = {
-    id: user.id,
-    fullName: user.fullName,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-  };
+  const userData = buildSessionUserData(user);
 
   return userData;
 };
 
-export const updateCustomerProfile = actionWrapper(updateCustomerProfileHandler);
+export const updateCustomerProfile = actionWrapper(
+  updateCustomerProfileHandler,
+);
 
-const createCustomerHandler = async ({ fullName, phone, email }) => {
+const createCustomerHandler = async ({
+  accountType,
+  fullName,
+  companyName,
+  phone,
+  email,
+  billingAddress,
+  trn,
+}) => {
   // Check if user already exists with this phone
   const existingUser = await models.User.findOne({ where: { phone } });
   if (existingUser) {
     throw new Error("An account with this phone number already exists");
   }
 
+  const normalizedEmail = normalizeOptionalString(email);
+  if (normalizedEmail) {
+    const existingEmailUser = await models.User.findOne({
+      where: { email: normalizedEmail },
+    });
+    if (existingEmailUser) {
+      throw new Error("An account with this email already exists");
+    }
+  }
+
+  const normalizedAccountType =
+    accountType === "COMPANY" ? "COMPANY" : "INDIVIDUAL";
+  const normalizedFullName =
+    normalizedAccountType === "COMPANY"
+      ? normalizeOptionalString(companyName)
+      : normalizeOptionalString(fullName);
+
+  if (!normalizedFullName) {
+    throw new Error(
+      normalizedAccountType === "COMPANY"
+        ? "Company name is required"
+        : "Full name is required",
+    );
+  }
+
   // Create new customer
   const user = await models.User.create({
-    fullName,
+    fullName: normalizedFullName,
     phone,
-    email,
+    email: normalizedEmail,
+    accountType: normalizedAccountType,
+    companyName:
+      normalizedAccountType === "COMPANY"
+        ? normalizeOptionalString(companyName)
+        : null,
+    billingAddress:
+      normalizedAccountType === "COMPANY"
+        ? normalizeOptionalString(billingAddress)
+        : null,
+    trn:
+      normalizedAccountType === "COMPANY" ? normalizeOptionalString(trn) : null,
     role: USER_ROLES.CUSTOMER,
   });
 
-  const userData = {
-    id: user.id,
-    fullName: user.fullName,
-    email: user.email,
-    phone: user.phone,
-    role: user.role,
-  };
+  const userData = buildSessionUserData(user);
 
   return {
     ...userData,

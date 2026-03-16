@@ -1,6 +1,12 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import puppeteer from "puppeteer";
 import Booking from "@/lib/db/models/booking";
+import {
+  formatBookingReferenceList,
+  formatInvoiceNumber,
+} from "@/lib/helpers/invoice-format";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -10,8 +16,31 @@ const s3Client = new S3Client({
   },
 });
 
+async function getPublicAssetDataUrl(fileName) {
+  try {
+    const filePath = path.join(process.cwd(), "public", fileName);
+    const fileBuffer = await fs.readFile(filePath);
+    const extension = path.extname(fileName).toLowerCase();
+
+    const mimeType =
+      extension === ".svg"
+        ? "image/svg+xml"
+        : extension === ".jpg" || extension === ".jpeg"
+          ? "image/jpeg"
+          : "image/png";
+
+    return `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+  } catch (_error) {
+    return null;
+  }
+}
+
 export async function generateAndUploadInvoice(transaction, user) {
   try {
+    const [logoSrc, signatureSrc] = await Promise.all([
+      getPublicAssetDataUrl("E-sign.png"),
+      getPublicAssetDataUrl("Horizontal Logo 3.png"),
+    ]);
 
     // Fetch bookings
     const bookings = await Booking.findAll({
@@ -19,10 +48,11 @@ export async function generateAndUploadInvoice(transaction, user) {
     });
 
     let subTotal = 0;
+    const bookingReferences = formatBookingReferenceList(bookings);
+    const invoiceNumber = formatInvoiceNumber(transaction.id);
 
     const bookingRows = bookings
       .map((b) => {
-
         const shoot = b.shootDetails || {};
 
         const services = Array.isArray(shoot.services)
@@ -38,7 +68,7 @@ export async function generateAndUploadInvoice(transaction, user) {
 <td>${service}</td>
 <td>AED ${b.total}</td>
 </tr>
-`
+`,
           )
           .join("");
       })
@@ -46,6 +76,12 @@ export async function generateAndUploadInvoice(transaction, user) {
 
     // Hydration safe date
     const invoiceDate = new Date().toLocaleDateString("en-GB");
+
+    const billToName = user.companyName || user.fullName || "Customer";
+    const billToAddress = user.billingAddress || user.address || "";
+    const billToEmail = user.email || "";
+    const billToPhone = user.phone || "";
+    const billToTrn = user.trn ? `<br/><strong>TRN:</strong> ${user.trn}` : "";
 
     const html = `
 <!DOCTYPE html>
@@ -57,84 +93,90 @@ export async function generateAndUploadInvoice(transaction, user) {
 
 body{
 font-family: Arial, sans-serif;
-padding:40px;
-color:#333;
+padding:60px;
+color:#111;
 }
 
 .header{
 display:flex;
 justify-content:space-between;
-align-items:center;
-margin-bottom:30px;
-}
-
-.invoice-title{
-font-size:28px;
-font-weight:bold;
-}
-
-.logo{
-font-size:24px;
-font-weight:bold;
-}
-
-.invoice-info{
-margin-top:10px;
-line-height:1.6;
-}
-
-.section{
-margin-top:30px;
-}
-
-.company-bill{
-display:flex;
-justify-content:space-between;
+align-items:flex-start;
+margin-bottom:10px;
 }
 
 .title{
+font-size:40px;
+font-weight:800;
+letter-spacing:2px;
+}
+
+.logo{
+height:40px;
+}
+
+.invoice-meta{
+margin-top:8px;
+font-size:14px;
+line-height:1.6;
+margin-bottom:40px;
+}
+
+.section{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:80px;
+margin-bottom:40px;
+}
+
+.section-title{
 font-weight:bold;
+font-size:13px;
+letter-spacing:1px;
 margin-bottom:6px;
 }
 
 table{
 width:100%;
 border-collapse:collapse;
-margin-top:30px;
+font-size:14px;
 }
 
 table th,
 table td{
 border:1px solid #ddd;
-padding:10px;
+padding:12px;
 }
 
-table th{
-background:#f5f5f5;
-text-align:left;
+thead td{
+font-weight:bold;
+}
+
+.amount{
+text-align:right;
 }
 
 .summary{
-width:300px;
+width:280px;
 margin-left:auto;
 margin-top:20px;
+border-collapse:collapse;
+}
+
+.summary td{
 border:1px solid #ddd;
-}
-
-.summary div{
-display:flex;
-justify-content:space-between;
 padding:10px;
-border-bottom:1px solid #ddd;
 }
 
-.summary div:last-child{
+.summary td:last-child{
+text-align:right;
+}
+
+.summary .total td{
 font-weight:bold;
-font-size:18px;
 }
 
 .footer{
-margin-top:40px;
+margin-top:60px;
 display:flex;
 justify-content:space-between;
 align-items:flex-end;
@@ -142,6 +184,22 @@ align-items:flex-end;
 
 .signature{
 text-align:center;
+}
+
+.signature img{
+height:100px;
+opacity:0.8;
+}
+
+.signature-line{
+width:160px;
+border-top:1px solid #000;
+margin:6px auto;
+}
+
+.small{
+font-size:12px;
+color:#555;
 }
 
 </style>
@@ -152,28 +210,22 @@ text-align:center;
 
 <div class="header">
 
-<div>
-<div class="invoice-title">INVOICE</div>
+<div class="title">INVOICE</div>
 
-<div class="invoice-info">
-Invoice No: MW-${transaction.id}<br/>
-Invoice Date: ${invoiceDate}<br/>
-Booking ID: ${transaction.bookingId || ""}
-</div>
+<img src="${logoSrc || "https://milkywayy.com/logo.png"}" class="logo"/>
 
 </div>
 
-<div class="logo">
-MILKYWAYY
+<div class="invoice-meta">
+<strong>Invoice No:</strong> ${invoiceNumber}<br/>
+<strong>Invoice Date:</strong> ${invoiceDate}<br/>
+<strong>Booking Reference${bookings.length > 1 ? "s" : ""}:</strong> ${bookingReferences || "N/A"}
 </div>
 
-</div>
-
-
-<div class="section company-bill">
+<div class="section">
 
 <div>
-<div class="title">MILKYWAYY LLC</div>
+<div class="section-title">MILKYWAYY LLC</div>
 Sharjah Media City, Sharjah<br/>
 United Arab Emirates<br/>
 +971 50 726 3306<br/>
@@ -181,22 +233,22 @@ hello@milkywayy.com
 </div>
 
 <div>
-<div class="title">BILL TO</div>
-${user.fullName}<br/>
-${user.address || ""}<br/>
-${user.phone || ""}<br/>
-${user.email}
+<div class="section-title">BILL TO</div>
+<strong>${billToName}</strong><br/>
+${billToAddress || ""}${billToAddress ? "<br/>" : ""}
+${billToPhone || ""}${billToPhone ? "<br/>" : ""}
+${billToEmail}
+${billToTrn}
 </div>
 
 </div>
-
 
 <table>
 
 <thead>
 <tr>
-<th>Description</th>
-<th style="width:150px">Amount</th>
+<td>Description</td>
+<td class="amount">Amount</td>
 </tr>
 </thead>
 
@@ -206,44 +258,47 @@ ${bookingRows}
 
 </table>
 
+<table class="summary">
 
-<div class="summary">
+<tr>
+<td>Sub-Total</td>
+<td>AED ${subTotal}</td>
+</tr>
 
-<div>
-<span>Sub-Total</span>
-<span>AED ${subTotal}</span>
-</div>
+<tr>
+<td>Tax (0%)</td>
+<td>AED 0.00</td>
+</tr>
 
-<div>
-<span>Tax (0%)</span>
-<span>AED 0.00</span>
-</div>
+<tr class="total">
+<td>Total</td>
+<td>AED ${transaction.amount}</td>
+</tr>
 
-<div>
-<span>Total</span>
-<span>AED ${transaction.amount}</span>
-</div>
-
-</div>
-
+</table>
 
 <div class="footer">
 
 <div>
-<strong>Payment Method:</strong> Stripe<br/>
-<strong>Transaction ID:</strong> ${transaction.id}
-<br/><br/>
 
-Thank you for booking with Milkywayy.<br/>
-All media files will be delivered through the client portal.
+<p><strong>Payment Method:</strong> Stripe</p>
+<p><strong>Transaction ID:</strong> ${transaction.id}</p>
+
+<br/>
+
+<p><strong>Thank you for booking with Milkywayy.</strong></p>
+<p class="small">All media files will be delivered through the client portal.</p>
+
 </div>
 
 <div class="signature">
 
-<br/><br/>
+<img src="${signatureSrc || "https://milkywayy.com/signature.png"}"/>
+
+<div class="signature-line"></div>
 
 <strong>AKASH PRASEED</strong><br/>
-Founder & CEO
+<span class="small">Founder & CEO</span>
 
 </div>
 
@@ -252,7 +307,6 @@ Founder & CEO
 </body>
 </html>
 `;
-
     // Generate PDF
     const browser = await puppeteer.launch({
       headless: "new",
@@ -272,10 +326,16 @@ Founder & CEO
 
     // Create user-friendly filename
     const date = new Date();
-    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
-    const customerName = transaction.user?.fullName || transaction.user?.phone || 'Customer';
-    const sanitizedName = customerName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-    const key = `invoices/Milkywayy_Invoice_${sanitizedName}_${dateStr}_${transaction.id}.pdf`;
+    const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD format
+    const customerName =
+      transaction.user?.companyName ||
+      transaction.user?.fullName ||
+      transaction.user?.phone ||
+      "Customer";
+    const sanitizedName = customerName
+      .replace(/[^a-zA-Z0-9]/g, "_")
+      .toLowerCase();
+    const key = `invoices/Milkywayy_Invoice_${invoiceNumber}_${sanitizedName}_${dateStr}.pdf`;
 
     const bucketName = process.env.AWS_BUCKET_NAME || "milkywayy-bookings";
 
@@ -294,7 +354,6 @@ Founder & CEO
     await s3Client.send(command);
 
     return `https://${bucketName}.s3.amazonaws.com/${key}`;
-
   } catch (error) {
     console.error("Error generating invoice:", error);
     return null;

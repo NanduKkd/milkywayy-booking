@@ -97,15 +97,15 @@
   /* Glass morphism */
   .glass {
     background: hsl(var(--glass));
-    backdrop-filter: blur(12px) saturate(1.04);
-    -webkit-backdrop-filter: blur(12px) saturate(1.04);
+    backdrop-filter: blur(10px) saturate(1.05);
+    -webkit-backdrop-filter: blur(10px) saturate(1.05);
     border: 1px solid hsl(var(--glass-border));
   }
 
   .glass-strong {
     background: hsl(0 0% 8% / 0.85);
-    backdrop-filter: blur(16px) saturate(1.06);
-    -webkit-backdrop-filter: blur(16px) saturate(1.06);
+    backdrop-filter: blur(16px) saturate(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.08);
     border: 1px solid hsl(0 0% 100% / 0.06);
   }
 
@@ -201,11 +201,8 @@
 
   /* Starfield — Milky Way style */
   .starfield {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    inset: 0;
     pointer-events: none;
     z-index: 0;
     background-image: 
@@ -228,7 +225,7 @@
       190% 190%, 210% 210%, 230% 230%, 170% 170%,
       240% 240%, 200% 200%, 180% 180%, 220% 220%,
       190% 190%, 210% 210%;
-    opacity: 0.18;
+    opacity: 0.12;
   }
 
   /* Fade in */
@@ -270,12 +267,12 @@
 
   /* Glow pulse — now silver/white subtle */
   .glow-pulse {
-    box-shadow: 0 0 15px hsl(0 0% 100% / 0.04);
-    transition: box-shadow 0.2s ease;
+    box-shadow: 0 0 12px hsl(0 0% 100% / 0.04);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
 
   .glow-pulse:hover {
-    box-shadow: 0 0 20px hsl(0 0% 100% / 0.08);
+    box-shadow: 0 0 18px hsl(0 0% 100% / 0.08);
   }
 
   /* Rotating planet — grey tones */
@@ -287,8 +284,14 @@
     background: radial-gradient(circle at 30% 30%, hsl(0 0% 20%), hsl(0 0% 8%));
     opacity: 0.05;
     filter: blur(2px);
+    animation: rotate-planet 30s linear infinite;
     z-index: 0;
     pointer-events: none;
+  }
+
+  @keyframes rotate-planet {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 
   /* Price update animation */
@@ -316,7 +319,7 @@
   .shimmer {
     background: linear-gradient(90deg, hsl(0 0% 10%) 0%, hsl(0 0% 14%) 50%, hsl(0 0% 10%) 100%);
     background-size: 200% 100%;
-    animation: shimmer 2.2s linear infinite;
+    animation: shimmer 1.5s ease-in-out infinite;
   }
 
   @keyframes shimmer {
@@ -349,7 +352,6 @@
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
     .starfield {
-      animation: none;
       opacity: 0.1;
     }
     .fade-in, .step-enter, .section-reveal {
@@ -364,19 +366,6 @@
       transform: none;
     }
   }
-
-  @media (update: slow) {
-    .glass,
-    .glass-strong {
-      backdrop-filter: none;
-      -webkit-backdrop-filter: none;
-      background: hsl(0 0% 10% / 0.88);
-    }
-    .shimmer {
-      animation: none;
-      background-position: 0 0;
-    }
-  }
 }
 
 /* Scrollbar */
@@ -386,25 +375,4 @@
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* Custom Space Theme Tokens — uses --font-space-grotesk from layout */
-.font-heading {
-  font-family: var(--font-space-grotesk), var(--font-sans);
-}
-
-button {
-  @apply hover:cursor-pointer;
-}
-
-/* Grayscale effect for photography items */
-@media (hover: hover) {
-  .photography-grayscale {
-    filter: grayscale(100%);
-    transition: filter 0.5s ease-in-out;
-  }
-
-  .photography-grayscale:hover {
-    filter: grayscale(0%);
-  }
 }
