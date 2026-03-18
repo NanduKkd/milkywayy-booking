@@ -1,6 +1,6 @@
 "use client";
 
-import { Play } from "lucide-react";
+import { Play, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -140,12 +140,26 @@ const OurWorkPreview = () => {
                     </div>
                   )}
 
-                  <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/35 to-transparent">
-                    <p className="font-semibold text-white text-xl">{item.title}</p>
-                    {item.subtitle && (
-                      <p className="text-white/70 text-base mt-0.5">{item.subtitle}</p>
-                    )}
-                  </div>
+                  {item.type === OUR_WORK_TYPES.THREE_SIXTY ? (
+                    <div className="pointer-events-none absolute inset-0 flex flex-col justify-between gap-3 bg-gradient-to-b from-black/70 via-black/50 to-black/5 px-4 py-6 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                      <div>
+                        <p className="text-lg font-semibold text-white">{item.title}</p>
+                        <p className="text-xs text-white/70 mt-1">
+                          {item.subtitle || "360° Tour"}
+                        </p>
+                      </div>
+                      <span className="text-[11px] font-semibold tracking-[0.3em] uppercase text-white/70">
+                        Click to see it in action
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 via-black/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                      <p className="font-semibold text-white text-xl">{item.title}</p>
+                      {item.subtitle && (
+                        <p className="text-white/70 text-sm mt-1">{item.subtitle}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -175,7 +189,16 @@ const OurWorkPreview = () => {
       </div>
 
       <Dialog open={Boolean(selectedItem)} onOpenChange={(open) => !open && closePreview()}>
-        <DialogContent className="max-w-[760px] w-[92vw] p-0 gap-0 border border-white/10 rounded-2xl bg-[#111318]/95 overflow-hidden">
+        <DialogContent className="relative max-w-[760px] w-[92vw] p-0 gap-0 border border-white/10 rounded-2xl bg-[#111318]/95 overflow-hidden">
+          {selectedItem && (
+            <button
+              type="button"
+              onClick={closePreview}
+              className="absolute right-4 top-4 z-10 h-9 w-9 rounded-full bg-white/10 text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
           <DialogTitle className="sr-only">
             {selectedItem?.title || "Our Work Preview"}
           </DialogTitle>
@@ -216,10 +239,10 @@ const OurWorkPreview = () => {
               </div>
 
               <div className="p-3 bg-white/[0.03] border-t border-white/10">
-                <p className="text-2xl font-bold text-foreground mb-2">
+                <p className="text-3xl md:text-4xl font-semibold text-white mb-2">
                   {selectedItem.title}
                 </p>
-                <p className="text-muted-foreground text-xl">
+                <p className="text-sm md:text-base text-white/70">
                   {selectedItem.subtitle
                     ? `${selectedItem.subtitle} - ${categories.find((c) => c.value === selectedItem.type)?.label || "Work"}`
                     : categories.find((c) => c.value === selectedItem.type)?.label || "Work"}
@@ -234,4 +257,3 @@ const OurWorkPreview = () => {
 };
 
 export default OurWorkPreview;
-

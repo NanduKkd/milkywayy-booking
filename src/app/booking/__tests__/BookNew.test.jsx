@@ -162,7 +162,7 @@ describe('BookNew', () => {
     expect(calculateBookingDuration).toHaveBeenCalled();
   });
 
-  it('allows entering and applying a coupon code manually', async () => {
+  it('allows entering and applying a promo code manually', async () => {
     render(
       <Suspense fallback={<div>Loading...</div>}>
         <BookNew pricingsPromise={mockPricingsPromise} discountsPromise={mockDiscountsPromise} />
@@ -170,10 +170,10 @@ describe('BookNew', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Enter coupon code/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Enter promo code/i)).toBeInTheDocument();
     });
 
-    fireEvent.change(screen.getByPlaceholderText(/Enter coupon code/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Enter promo code/i), {
       target: { value: 'SAVE10' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Apply/i }));

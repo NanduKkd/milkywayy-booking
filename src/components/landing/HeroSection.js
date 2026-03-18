@@ -35,7 +35,7 @@ const HeroSection = ({ onWatchVideo }) => {
   ];
 
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden pt-20 pb-16">
+    <section className="relative flex min-h-[90vh] items-center justify-center overflow-hidden">
       <div className="absolute inset-0 bg-background" />
 
       <div className="container relative z-10 mx-auto px-6">
@@ -82,9 +82,6 @@ const HeroSection = ({ onWatchVideo }) => {
               ))}
             </div>
 
-            <p className="text-xs text-muted-foreground/60">
-              *Photos for any property are delivered within 24h.
-            </p>
           </div>
 
           <div className="fade-in relative" style={{ animationDelay: "0.2s" }}>
@@ -173,10 +170,10 @@ const HeroSection = ({ onWatchVideo }) => {
                       Schedule
                     </p>
                     <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-xl bg-secondary p-3 text-center text-xs text-muted-foreground">
+                      <div className="rounded-xl bg-secondary p-3 flex flex-col items-center justify-center text-center text-xs text-muted-foreground">
                         Dec 15, 2024
                       </div>
-                      <div className="rounded-xl bg-secondary p-3 text-center text-xs text-muted-foreground">
+                      <div className="rounded-xl bg-secondary p-3 flex flex-col items-center justify-center text-center text-xs text-muted-foreground">
                         <p>Morning</p>
                         <p className="mt-0.5 text-[10px] text-muted-foreground/60">
                           Arrival: 9:30 - 10 AM

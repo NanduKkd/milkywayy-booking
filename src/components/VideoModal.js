@@ -26,7 +26,7 @@ const VideoModal = ({ open, onOpenChange }) => {
             <div className="w-full h-full flex items-center justify-center">
               <iframe
                 className="w-full h-full"
-                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0"
+                src="https://www.youtube.com/embed/5Ic32MjDsRw?autoplay=0"
                 title="How Milkywayy Portal Works"
                 loading="lazy"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

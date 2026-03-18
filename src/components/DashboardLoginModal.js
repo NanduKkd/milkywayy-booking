@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Info, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import PhoneNumberInput from "@/components/PhoneInput";
 import { Button } from "@/components/ui/button";
@@ -89,11 +89,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
 
   const accountType = createAccountForm.watch("accountType");
 
-  const createTitle = useMemo(() => {
-    return accountType === "COMPANY"
-      ? "Create a company account to access the dashboard"
-      : "Create an account to access the dashboard";
-  }, [accountType]);
+  const createTitle = "Create an account to access the dashboard";
 
   const handleSendOtp = async (data) => {
     setIsLoading(true);
@@ -247,7 +243,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
 
           <TabsContent
             value="login"
-            className="mt-0 min-h-0 flex-1 overflow-y-auto px-5 py-5"
+            className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-5"
           >
             <div className="space-y-2">
               <h2 className="max-w-md text-lg font-semibold tracking-tight">
@@ -307,14 +303,14 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
 
           <TabsContent
             value="otp"
-            className="mt-0 min-h-0 flex-1 overflow-y-auto px-5 py-5"
+            className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-5"
           >
             <div className="space-y-2">
               <h2 className="text-lg font-semibold tracking-tight">
                 Verify your WhatsApp code
               </h2>
               <p className="text-sm text-muted-foreground">
-                Enter the 6-digit code sent to your WhatsApp number.
+                Enter the code sent to your WhatsApp number.
               </p>
             </div>
 
@@ -337,34 +333,19 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                       maxLength={6}
                       value={field.value}
                       onChange={field.onChange}
-                    >
-                      <InputOTPGroup>
-                        <InputOTPSlot
-                          index={0}
-                          char={field.value.substring(0, 1)}
-                        />
-                        <InputOTPSlot
-                          index={1}
-                          char={field.value.substring(1, 2)}
-                        />
-                        <InputOTPSlot
-                          index={2}
-                          char={field.value.substring(2, 3)}
-                        />
-                        <InputOTPSlot
-                          index={3}
-                          char={field.value.substring(3, 4)}
-                        />
-                        <InputOTPSlot
-                          index={4}
-                          char={field.value.substring(4, 5)}
-                        />
-                        <InputOTPSlot
-                          index={5}
-                          char={field.value.substring(5, 6)}
-                        />
-                      </InputOTPGroup>
-                    </InputOTP>
+                      render={({ slots }) => (
+                        <InputOTPGroup>
+                          {slots.slice(0, 6).map((slot, index) => (
+                            <InputOTPSlot
+                              key={index}
+                              index={index}
+                              char={slot.char ?? ""}
+                              hasFakeCaret={slot.isActive}
+                            />
+                          ))}
+                        </InputOTPGroup>
+                      )}
+                    />
                   )}
                 />
               </div>
@@ -395,7 +376,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
 
           <TabsContent
             value="create"
-            className="mt-0 min-h-0 flex-1 overflow-y-auto px-5 py-5"
+            className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-5"
           >
             <div className="space-y-2">
               <h2 className="max-w-md text-lg font-semibold tracking-tight">

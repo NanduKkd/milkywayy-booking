@@ -21,6 +21,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { completeBooking } from "@/lib/actions/bookings";
+import {
+  buildInvoiceDownloadUrl,
+  formatInvoiceNumber,
+} from "@/lib/helpers/invoice-format";
 
 const parseDeliverables = (filesUrl) => {
   if (!filesUrl) return [];
@@ -47,6 +51,17 @@ export default function BookingsPage() {
   const [fileCount, setFileCount] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
   const fileInputRef = useRef(null);
+  const selectedTransaction = selectedBooking?.transaction;
+  const selectedInvoiceNumber = selectedTransaction?.id
+    ? formatInvoiceNumber(selectedTransaction.id)
+    : null;
+  const selectedInvoiceDownloadUrl =
+    selectedTransaction?.invoiceUrl && selectedInvoiceNumber
+      ? buildInvoiceDownloadUrl(
+          selectedTransaction.invoiceUrl,
+          selectedInvoiceNumber,
+        )
+      : null;
 
   useEffect(() => {
     fetch("/api/admin/bookings")
@@ -369,12 +384,9 @@ export default function BookingsPage() {
                       {selectedBooking.transaction?.status}
                     </p>
                   </div>
-                  {selectedBooking.transaction?.invoiceUrl ? (
+                  {selectedInvoiceDownloadUrl ? (
                     <Button asChild variant="secondary" size="sm">
-                      <Link
-                        href={selectedBooking.transaction.invoiceUrl}
-                        target="_blank"
-                      >
+                      <Link href={selectedInvoiceDownloadUrl} target="_blank">
                         Download Invoice
                       </Link>
                     </Button>

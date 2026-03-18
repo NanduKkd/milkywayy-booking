@@ -25,3 +25,11 @@ export function formatInvoiceCardProperty(bookings) {
   const primary = [size, type].filter(Boolean).join(" ");
   return [primary, community].filter(Boolean).join(" - ") || "Property booking";
 }
+
+export function buildInvoiceDownloadUrl(sourceUrl, invoiceNumber) {
+  if (!sourceUrl) return null;
+  const safeName = `Milkywayy_${invoiceNumber || "invoice"}.pdf`;
+  const encodedName = encodeURIComponent(safeName);
+  const encodedUrl = encodeURIComponent(sourceUrl);
+  return `/api/files/download?url=${encodedUrl}&name=${encodedName}`;
+}

@@ -711,35 +711,29 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               </div>
             )}
 
-            <div className="space-y-2.5 border-t border-white/8 pt-3.5 mb-3.5">
+            <div className="space-y-2.5 px-3 border-t border-white/8 pt-3.5 mb-3.5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[13px] font-medium text-muted-foreground">Subtotal</p>
-                <p className="text-lg md:text-xl font-semibold tracking-tight text-foreground">
+                <p className="text-sm md:text-sm font-semibold text-foreground">
                   AED {totalAmount.toLocaleString()}
                 </p>
               </div>
 
-              {isLaunchPromoApplied && launchPromoDiscount > 0 && (
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-[12px]">
-                  <p className="text-muted-foreground">
+              {(isLaunchPromoApplied && launchPromoDiscount > 0) && (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-muted-foreground text-[13px]">
                     {LAUNCH_PROMO_LABEL} ({LAUNCH_PROMO_CODE})
                   </p>
-                  <p className="font-semibold text-emerald-300">
+                  <p className="text-sm md:text-sm font-semibold text-emerald-300">
                     - AED {launchPromoDiscount.toLocaleString()}
                   </p>
                 </div>
               )}
 
-              {!selectedCouponCode && launchPromoRemaining > 0 && (
-                <p className="text-[11px] leading-4 text-muted-foreground">
-                  Add AED {launchPromoRemaining.toLocaleString()} more to unlock your AED {LAUNCH_PROMO_DISCOUNT.toLocaleString()} launch credit.
-                </p>
-              )}
-
-              {selectedCouponCode && selectedCouponDiscount > 0 && (
-                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-[12px]">
+              {(selectedCouponCode && selectedCouponDiscount > 0) && (
+                <div className="flex items-center -mx-3 justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-[13px]">
                   <p className="text-muted-foreground">
-                    Coupon ({selectedCouponCode})
+                    Coupon ({selectedCouponCode}LAUNCH500)
                   </p>
                   <p className="font-semibold text-emerald-300">
                     - AED {selectedCouponDiscount.toLocaleString()}
@@ -748,7 +742,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
               )}
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.025))] px-3.5 py-3 mb-3.5">
+            <div className="px-3.5 py-3 mb-3.5 border-t">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                   Grand Total
@@ -761,16 +755,13 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
 
             <div className="mb-4 space-y-1.5">
               <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                Coupon Code
-              </p>
-              <p className="text-[10px] leading-4 text-muted-foreground">
-                Have a private coupon? Enter the code below.
+                Promo Code
               </p>
               <div className="flex items-center gap-2">
                 <input
                   value={couponInputValue}
                   onChange={(e) => setCouponInputValue(e.target.value.toUpperCase())}
-                  placeholder="Enter coupon code"
+                  placeholder="Enter promo code"
                   className="h-9 flex-1 rounded-lg border border-white/8 bg-white/[0.02] px-3 text-[12px] text-foreground placeholder:text-muted-foreground outline-none"
                 />
                 {selectedCouponCode ? (
@@ -845,5 +836,4 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     </section>
   );
 }
-
 

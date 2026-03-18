@@ -69,8 +69,7 @@ export default function MediaRenderer({ type, url, title, className = "" }) {
             url={url}
             height="100%"
             width="100%"
-            placeholder={"Hey There"}
-            youTubeProps={{className: "w-full aspect-4/3"}}
+            youTubeProps={{className: "w-full h-auto aspect-[4/3]"}}
           />
         </div>
       );

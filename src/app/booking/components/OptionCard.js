@@ -12,7 +12,7 @@ export function OptionCard({
     <div
       className={cn(
         className || "",
-        "cursor-pointer rounded-lg md:rounded-xl border py-4 md:py-6 px-3 md:px-4 text-center transition-all",
+        "cursor-pointer rounded-lg md:rounded-xl border py-2 md:py-3 px-3 md:px-4 text-center transition-all",
         isSelected
           ? selectedClassName ||
               "border-white/12 bg-white/[0.065] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"

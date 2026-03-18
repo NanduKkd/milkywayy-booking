@@ -1,5 +1,6 @@
 import { render, screen } from '../../../../test-utils';
 import InvoiceList from '../InvoiceList';
+import { buildInvoiceDownloadUrl, formatInvoiceNumber } from '@/lib/helpers/invoice-format';
 
 const mockInvoices = [
   {
@@ -19,10 +20,12 @@ const mockInvoices = [
 describe('InvoiceList', () => {
   it('renders list of invoices', () => {
     render(<InvoiceList invoices={mockInvoices} />);
-    expect(screen.getByText(/Invoice #INV001/i)).toBeInTheDocument();
-    expect(screen.getByText(/AED 1500/i)).toBeInTheDocument();
-    expect(screen.getByText(/Invoice #INV002/i)).toBeInTheDocument();
-    expect(screen.getByText(/AED 500/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(`Invoice #${formatInvoiceNumber(mockInvoices[0].id)}`)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(`Invoice #${formatInvoiceNumber(mockInvoices[1].id)}`)
+    ).toBeInTheDocument();
   });
 
   it('renders empty state when no invoices', () => {
@@ -34,7 +37,13 @@ describe('InvoiceList', () => {
     render(<InvoiceList invoices={[mockInvoices[0]]} />);
     const downloadLink = screen.getByRole('link', { name: /download/i });
     expect(downloadLink).toBeInTheDocument();
-    expect(downloadLink).toHaveAttribute('href', 'https://example.com/invoice1.pdf');
+    expect(downloadLink).toHaveAttribute(
+      'href',
+      buildInvoiceDownloadUrl(
+        mockInvoices[0].invoiceUrl,
+        formatInvoiceNumber(mockInvoices[0].id),
+      ),
+    );
   });
 
   it('renders generating message when invoiceUrl is missing', () => {

@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  buildInvoiceDownloadUrl,
   formatBookingReferenceList,
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
@@ -57,69 +58,76 @@ export default function InvoicesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              invoices.map((invoice) => (
-                <TableRow
-                  key={invoice.id}
-                  className="hover:bg-zinc-800 border-zinc-800"
-                >
-                  <TableCell className="text-zinc-300">
-                    {formatInvoiceNumber(invoice.id)}
-                  </TableCell>
-                  <TableCell className="text-zinc-300">
-                    {formatBookingReferenceList(invoice.bookings) || "-"}
-                  </TableCell>
-                  <TableCell className="text-zinc-300">
-                    <div>
-                      <p>{invoice.user?.fullName}</p>
-                      <p className="text-xs text-zinc-500">
-                        {invoice.user?.email}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-zinc-300">
-                    {invoice.createdAt
-                      ? new Date(invoice.createdAt).toLocaleDateString()
-                      : "-"}
-                  </TableCell>
-                  <TableCell className="text-zinc-300">
-                    AED {invoice.amount}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        invoice.status === "success" ? "success" : "secondary"
-                      }
-                      className={
-                        invoice.status === "success"
-                          ? "bg-green-500/15 text-green-500 hover:bg-green-500/25 border-green-500/20"
-                          : "bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25 border-yellow-500/20"
-                      }
-                    >
-                      {invoice.status || "Pending"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {invoice.invoiceUrl ? (
-                      <Button
-                        asChild
-                        variant="ghost"
-                        size="icon"
-                        className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+              invoices.map((invoice) => {
+                const invoiceNumber = formatInvoiceNumber(invoice.id);
+                const downloadUrl = buildInvoiceDownloadUrl(
+                  invoice.invoiceUrl,
+                  invoiceNumber,
+                );
+                return (
+                  <TableRow
+                    key={invoice.id}
+                    className="hover:bg-zinc-800 border-zinc-800"
+                  >
+                    <TableCell className="text-zinc-300">
+                      {invoiceNumber}
+                    </TableCell>
+                    <TableCell className="text-zinc-300">
+                      {formatBookingReferenceList(invoice.bookings) || "-"}
+                    </TableCell>
+                    <TableCell className="text-zinc-300">
+                      <div>
+                        <p>{invoice.user?.fullName}</p>
+                        <p className="text-xs text-zinc-500">
+                          {invoice.user?.email}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-zinc-300">
+                      {invoice.createdAt
+                        ? new Date(invoice.createdAt).toLocaleDateString()
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="text-zinc-300">
+                      AED {invoice.amount}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          invoice.status === "success" ? "success" : "secondary"
+                        }
+                        className={
+                          invoice.status === "success"
+                            ? "bg-green-500/15 text-green-500 hover:bg-green-500/25 border-green-500/20"
+                            : "bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/25 border-yellow-500/20"
+                        }
                       >
-                        <Link
-                          href={invoice.invoiceUrl}
-                          target="_blank"
-                          aria-label="Download Invoice"
+                        {invoice.status || "Pending"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {downloadUrl ? (
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
                         >
-                          <Download size={20} />
-                        </Link>
-                      </Button>
-                    ) : (
-                      <span className="text-zinc-600">-</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+                          <Link
+                            href={downloadUrl}
+                            target="_blank"
+                            aria-label="Download Invoice"
+                          >
+                            <Download size={20} />
+                          </Link>
+                        </Button>
+                      ) : (
+                        <span className="text-zinc-600">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

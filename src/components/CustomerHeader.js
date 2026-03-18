@@ -35,13 +35,24 @@ export default function CustomerHeader({ mode = "default" }) {
             />
           </Link>
 
-          <Button
-            variant="outline"
-            className="h-12 rounded-2xl border-border px-6 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            onClick={logout}
-          >
-            Logout
-          </Button>
+          <div className="flex items-center gap-6">
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                Hello
+              </p>
+              <p className="text-base font-semibold text-foreground">
+                {userDisplay}
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              className="h-12 rounded-2xl border-border px-6 text-muted-foreground hover:bg-secondary hover:text-foreground"
+              onClick={logout}
+            >
+              Logout
+            </Button>
+          </div>
         </div>
       </HeaderBackground>
     );

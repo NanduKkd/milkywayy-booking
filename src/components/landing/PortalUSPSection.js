@@ -8,7 +8,7 @@ const PortalUSPSection = () => {
     { icon: DollarSign, text: "Transparent pricing" },
     { icon: FolderDown, text: "Files stored permanently (photo / video / 360°)" },
     { icon: FileText, text: "Invoices downloadable anytime" },
-    { icon: CheckCircle2, text: "Clear status tracking (Booked ? Scheduled ? Delivered)" }
+    { icon: CheckCircle2, text: "Clear status tracking (Booked / Scheduled / Delivered)" }
   ];
 
   return (
@@ -84,4 +84,3 @@ const PortalUSPSection = () => {
 };
 
 export default PortalUSPSection;
-

@@ -17,6 +17,10 @@ import { cancelBooking, rescheduleBookingByCode } from "@/lib/actions/bookings";
 import { isNightServiceSelected } from "@/lib/helpers/bookingUtils";
 import { toast } from "sonner";
 import DateSlotPicker from "@/components/DateSlotPicker";
+import {
+  buildInvoiceDownloadUrl,
+  formatInvoiceNumber,
+} from "@/lib/helpers/invoice-format";
 
 const RESCHEDULE_CUTOFF_HOURS = 6;
 const PARTIAL_REFUND_CUTOFF_HOURS = 3;
@@ -33,6 +37,14 @@ export default function BookingList({ bookings }) {
   const [selectedRescheduleBooking, setSelectedRescheduleBooking] = useState(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [selectedCancelBooking, setSelectedCancelBooking] = useState(null);
+  const selectedTransaction = selectedBooking?.transaction;
+  const selectedInvoiceNumber = selectedTransaction?.id
+    ? formatInvoiceNumber(selectedTransaction.id)
+    : null;
+  const selectedInvoiceDownloadUrl =
+    selectedTransaction?.invoiceUrl && selectedInvoiceNumber
+      ? buildInvoiceDownloadUrl(selectedTransaction.invoiceUrl, selectedInvoiceNumber)
+      : null;
 
   const getBookingDateTime = (booking) => {
     if (!booking?.date) return null;
@@ -400,12 +412,9 @@ export default function BookingList({ bookings }) {
                       AED {selectedBooking.transaction?.amount}
                     </p>
                   </div>
-                  {selectedBooking.transaction?.invoiceUrl ? (
+                  {selectedInvoiceDownloadUrl ? (
                     <Button asChild variant="secondary" size="sm">
-                      <Link
-                        href={selectedBooking.transaction.invoiceUrl}
-                        target="_blank"
-                      >
+                      <Link href={selectedInvoiceDownloadUrl} target="_blank">
                         Download Invoice
                       </Link>
                     </Button>

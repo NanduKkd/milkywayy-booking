@@ -27,7 +27,11 @@ import {
   sendRescheduleConfirmation,
 } from "@/lib/actions/notifications";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+let stripe;
+if(process.env.STRIPE_SECRET_KEY)
+	stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+else
+	stripe = {};
 
 const SLOT_MAPPING = {
   morning: 1,
@@ -67,6 +71,121 @@ const PERIOD_ORDER = ["morning", "afternoon", "evening"];
 const RESCHEDULE_CUTOFF_HOURS = 6;
 const PARTIAL_REFUND_CUTOFF_HOURS = 3;
 const PARTIAL_REFUND_PERCENT = 50;
+
+const SERVICE_DELIVERY_ESTIMATES = {
+  Photography: "Photos delivered within 24h",
+  Videography: "Video walkthrough delivered within 24-48h",
+  "360° Tour": "360° tour delivered within 48-72h",
+};
+
+const formatArrivalWindowLabel = (booking) => {
+  if (!booking) return "";
+  const dateLabel = booking.date
+    ? new Date(`${booking.date}T00:00:00`).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "";
+  const timeLabel = booking.startTime || REVERSE_SLOT_MAPPING[booking.slot] || "";
+  if (!dateLabel && !timeLabel) return "";
+  return [dateLabel, timeLabel].filter(Boolean).join(" · ");
+};
+
+const formatDeliveryTimelineText = (services) => {
+  if (!services || services.length === 0) {
+    return "Delivery timeline will be shared shortly.";
+  }
+  const uniqueServices = Array.from(new Set(services));
+  return uniqueServices
+    .map((service) =>
+      SERVICE_DELIVERY_ESTIMATES[service]
+        ? SERVICE_DELIVERY_ESTIMATES[service]
+        : `${service} delivery timing coming soon`,
+    )
+    .join(" · ");
+};
+
+const formatBookingReference = (booking) => {
+  if (!booking) return "";
+  if (booking.bookingCode) return booking.bookingCode;
+  return booking.id ? `MWY-${String(booking.id).padStart(6, "0")}` : "";
+};
+
+const getUniqueBookingServices = (booking) =>
+  Array.from(
+    new Set(
+      Array.isArray(booking?.shootDetails?.services)
+        ? booking.shootDetails.services
+        : [],
+    ),
+  );
+
+const buildBookingSummaryPayload = (booking, fallbackAmount = 0) => {
+  if (!booking) return null;
+  const property = booking.propertyDetails || {};
+  const services = getUniqueBookingServices(booking);
+  const locationParts = [
+    property.unitNumber || property.unit,
+    property.building,
+    property.community,
+  ].filter(Boolean);
+
+  const propertyTitle = [
+    property.propertySize,
+    property.propertyType,
+    property.community,
+  ]
+    .filter(Boolean)
+    .join(" - ");
+
+  return {
+    bookingReference: formatBookingReference(booking),
+    propertyTitle: propertyTitle || "Property booking",
+    location: locationParts.join(", "),
+    services: services.join(", "),
+    arrivalWindow: formatArrivalWindowLabel(booking),
+    deliveryTimeline: formatDeliveryTimelineText(services),
+    amount: Number(booking.total || fallbackAmount || 0),
+  };
+};
+
+const buildDummyVerifyStripeSessionResponse = () => {
+  const bookingSummaries = [
+    {
+      bookingReference: "MWY-000321",
+      propertyTitle: "2 Bed Apartment - Dubai Marina",
+      location: "1204, Marina Gate, Dubai Marina",
+      services: "Photography, Videography",
+      arrivalWindow: "17 Mar 2026 · 09:00",
+      deliveryTimeline:
+        "Photos delivered within 24h · Video walkthrough delivered within 24-48h",
+      amount: 600,
+    },
+    {
+      bookingReference: "MWY-000322",
+      propertyTitle: "Villa - Palm Jumeirah",
+      location: "Villa 14, Frond A, Palm Jumeirah",
+      services: "360° Tour",
+      arrivalWindow: "17 Mar 2026 · 13:00",
+      deliveryTimeline: "360° tour delivered within 48-72h",
+      amount: 650,
+    },
+  ];
+
+  return {
+    message: "Payment verified and bookings confirmed",
+    bookingSummary: bookingSummaries[0],
+    bookingSummaries,
+    bookingReferences: bookingSummaries.map(
+      (summary) => summary.bookingReference,
+    ),
+    totalPaidAmount: bookingSummaries.reduce(
+      (sum, summary) => sum + Number(summary.amount || 0),
+      0,
+    ),
+  };
+};
 
 const isNightServiceFromProperty = (property) => {
   const services = Array.isArray(property?.services) ? property.services : [];
@@ -1272,6 +1391,16 @@ const verifyStripeSessionHandler = async (sessionId) => {
   if (!sessionId) throw new Error("No session ID");
   console.log("[PAYMENT] verifyStripeSession start", { sessionId });
 
+  if (
+    process.env.NODE_ENV !== "production" &&
+    String(sessionId).toLowerCase().startsWith("dummy-success")
+  ) {
+    console.log("[PAYMENT] Using dummy verifyStripeSession response", {
+      sessionId,
+    });
+    return buildDummyVerifyStripeSessionResponse();
+  }
+
   const session = await stripe.checkout.sessions.retrieve(sessionId);
   console.log("[PAYMENT] Stripe session retrieved", {
     sessionId,
@@ -1345,13 +1474,14 @@ const verifyStripeSessionHandler = async (sessionId) => {
 
     }
 
+    const confirmedBookings = await Booking.findAll({
+      where: { transactionId: transaction.id },
+    });
+
     if (!confirmationAlreadySent) {
       try {
         const user = await db.models.User.findByPk(transaction.userId);
         if (user) {
-          const confirmedBookings = await Booking.findAll({
-            where: { transactionId: transaction.id },
-          });
           const notifyResults = await Promise.allSettled(
             confirmedBookings.map((b) =>
               sendBookingConfirmation(b, user, {
@@ -1404,8 +1534,19 @@ const verifyStripeSessionHandler = async (sessionId) => {
       }
     }
 
+    const bookingSummaries = confirmedBookings
+      .map((booking) => buildBookingSummaryPayload(booking))
+      .filter(Boolean);
+    const bookingReferences = confirmedBookings
+      .map((booking) => formatBookingReference(booking))
+      .filter(Boolean);
+
     return {
       message: "Payment verified and bookings confirmed",
+      bookingSummary: bookingSummaries[0] || null,
+      bookingSummaries,
+      bookingReferences,
+      totalPaidAmount: Number(transaction.amount || 0),
     };
   }
   return {};

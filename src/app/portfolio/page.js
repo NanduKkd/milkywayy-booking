@@ -265,11 +265,6 @@ export default function PortfolioPage() {
               <div className="p-6">
                 <h3 className="font-heading text-xl font-bold mb-1">{selectedItem.title}</h3>
                 <p className="text-sm text-muted-foreground mb-4">{selectedItem.subtitle || "Dubai"}</p>
-                <Link href="/booking">
-                  <Button className="bg-accent text-accent-foreground hover:bg-accent/90">
-                    Book a similar shoot
-                  </Button>
-                </Link>
               </div>
             </div>
           )}
