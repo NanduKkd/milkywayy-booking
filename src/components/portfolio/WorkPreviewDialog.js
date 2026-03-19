@@ -15,7 +15,7 @@ export default function WorkPreviewDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose?.()}>
-      <DialogContent className="sm:max-w-4xl bg-card border-border p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-4xl bg-card border-border rounded-xl p-0 overflow-hidden">
         <DialogTitle className="sr-only">
           {item?.title || "Work Preview"}
         </DialogTitle>
@@ -68,11 +68,11 @@ export default function WorkPreviewDialog({
                   />}
             </div>
 
-            <div className="p-6">
+            <div className="p-2 lg:p-6">
               <h3 className="font-heading text-xl font-bold mb-1">
                 {item.title}
               </h3>
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-muted-foreground lg:mb-4">
                 {item.subtitle || "Dubai"}
               </p>
             </div>

@@ -764,7 +764,7 @@ export default function BookNew({
                               </p>
                             )}
                             {schedule && (
-                              <p className="text-2xs uppercase tracking-[0.14em] text-muted-foreground/80">
+                              <p className="text-2xs uppercase text-muted-foreground/80">
                                 {schedule}
                               </p>
                             )}

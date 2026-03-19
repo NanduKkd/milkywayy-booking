@@ -38,11 +38,6 @@ export function PropertyServicesSection({
       <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
         {property.propertyType === "Commercial" ? "Step 2 — Select Services" : "SERVICES"}
       </label>
-      <p className="mb-4 text-2xs text-muted-foreground/60">
-        {property.propertyType === "Commercial"
-          ? "Service availability depends on the selected commercial scale."
-          : "Choose one or more services. Videography opens format and lighting options."}
-      </p>
 
       <Controller
         name={`properties.${index}.services`}

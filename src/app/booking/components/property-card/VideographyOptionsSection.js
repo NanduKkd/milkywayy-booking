@@ -109,7 +109,7 @@ export function VideographyOptionsSection({
     property.propertyType === "Commercial" && property.propertySize === "Basic";
 
   const containerClassName = cn(
-    "animate-in fade-in slide-in-from-top-4 duration-300 border rounded-2xl p-4 bg-secondary/40",
+    "animate-in fade-in slide-in-from-top-4 duration-300 border rounded-xl p-4 bg-secondary/40",
     isMobile ? "" : "hidden lg:block",
   );
 
@@ -282,7 +282,7 @@ export function VideographyOptionsSection({
                                 "relative",
                                 isMobile
                                   ? "!rounded-[18px] !rounded-lg py-1.5 px-1 md:!py-3.5"
-                                  : "!rounded-[18px] !px-4 !py-3 md:!rounded-[20px] md:!py-3.5",
+                                  : "!px-4 !py-3 md:!py-3.5",
                               )}
                               selectedClassName={
                                 isMobile
@@ -315,9 +315,6 @@ export function VideographyOptionsSection({
                             >
                               {isMobile ? (
                                 <div className="flex items-center justify-center gap-1">
-                                  <div className="text-md md:text-xs text-muted-foreground/80">
-                                    {LIGHTING_OPTION_ICONS[categoryName] || "\u2022"}
-                                  </div>
                                   <div className="font-medium text-2xs md:text-sm">
                                     {categoryTitle}
                                   </div>

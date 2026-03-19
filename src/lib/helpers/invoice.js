@@ -141,17 +141,6 @@ background:#ffffff;
 position:relative;
 }
 
-.invoice-shell::before{
-content:"";
-position:absolute;
-left:0;
-top:8px;
-width:72px;
-height:4px;
-background:#123d6b;
-border-radius:999px;
-}
-
 .header{
 display:flex;
 justify-content:space-between;
@@ -168,8 +157,7 @@ margin-bottom:8px;
 }
 
 .logo{
-height:26px;
-max-width:180px;
+height:60px;
 object-fit:contain;
 }
 

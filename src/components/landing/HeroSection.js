@@ -74,7 +74,7 @@ const HeroSection = ({ onWatchVideo }) => {
               {trustChips.map((chip) => (
                 <div
                   key={chip.text}
-                  className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3.5 py-1.5 text-2xs md:text-sm"
+                  className="flex items-center gap-1 rounded-full border border-border bg-secondary/50 px-2 py-1.5 text-2xs md:text-sm"
                 >
                   <chip.icon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">{chip.text}</span>

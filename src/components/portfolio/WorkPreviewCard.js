@@ -76,7 +76,7 @@ export default function WorkPreviewCard({
       )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-        <p className="font-medium text-sm">{item.title}</p>
+        <p className="font-bold text-md">{item.title}</p>
         <p className="text-xs text-muted-foreground">
           {item.subtitle || "Dubai"}
         </p>

@@ -105,7 +105,7 @@ export function PropertySizeSection({
                 <OptionCard
                   isSelected={field.value === sizeObj.label}
                   key={sizeObj.label}
-                  className="min-w-0 whitespace-nowrap rounded-xl px-1.5 py-1 text-2xs font-medium text-center transition-all duration-200 active:scale-[0.98] md:px-1 md:py-[6px] md:text-sm"
+                  className="min-w-0 whitespace-nowrap rounded-xl px-1.5 py-2 text-2xs font-medium text-center transition-all duration-200 active:scale-[0.98] md:px-1 md:py-[6px] md:text-sm"
                   selectedClassName="bg-foreground text-background"
                   unselectedClassName="bg-secondary text-muted-foreground hover:bg-muted hover:text-foreground"
                   onClick={() => {

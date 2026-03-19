@@ -69,7 +69,7 @@ export default function ImageCarousel({ images, title, className = "" }) {
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {images.map((url, index) => (
-          <div key={`${url}-${index}`} className="relative flex-shrink-0 w-full h-[200px] md:h-full">
+          <div key={`${url}-${index}`} className="relative flex-shrink-0 w-full md:h-full">
             <Image
               src={url}
               alt={`${title} - image ${index + 1}`}

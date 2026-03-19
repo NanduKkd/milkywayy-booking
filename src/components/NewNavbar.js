@@ -171,7 +171,7 @@ const NewNavbar = () => {
           </div>
 
           {isMobileMenuOpen && (
-            <div className="absolute inset-x-6 top-full z-50 mt-3 max-h-[calc(100vh-120px)] overflow-y-auto rounded-2xl border border-border bg-background/96 p-4 shadow-2xl backdrop-blur-sm lg:hidden">
+            <div className="absolute inset-x-6 top-full z-50 mt-3 max-h-[calc(100vh-120px)] overflow-y-auto rounded-2xl border border-border bg-background/90 p-4 shadow-2xl backdrop-blur-sm lg:hidden">
               <div className="space-y-4">
                 {navItems.map((item) =>
                   item.href

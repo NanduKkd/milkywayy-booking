@@ -44,9 +44,9 @@ const AnnouncementBar = ({ onHeightChange }) => {
       }}
     >
       <div className="container mx-auto flex items-center justify-center gap-2 px-4">
-        <Sparkles className="w-4 h-4 text-muted-foreground" />
-        <span className="text-muted-foreground">Launch Offer: AED 500 welcome credit on your first property shoot</span>
-        <Sparkles className="w-4 h-4 text-muted-foreground" />
+        <Sparkles className="w-4 h-4 hidden md:block text-muted-foreground" />
+        <span className="text-muted-foreground">Launch Offer: AED 500 off your 1st shoot</span>
+        <Sparkles className="w-4 h-4 hidden md:block text-muted-foreground" />
       </div>
     </div>
   );
