@@ -88,7 +88,7 @@ export default async function BookingSuccessPage({ searchParams }) {
           <div className="mx-6 border-t border-border/30 md:mx-10"></div>
 
           <div className="p-6 md:p-10">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-5">
+            <p className="text-2xs uppercase tracking-[0.2em] text-muted-foreground font-medium mb-5">
               What Happens Next
             </p>
 
@@ -144,7 +144,7 @@ export default async function BookingSuccessPage({ searchParams }) {
                                 {summary.propertyTitle}
                               </p>
                               {summary.bookingReference && (
-                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                <p className="text-xs text-muted-foreground mt-0.5">
                                   {summary.bookingReference}
                                 </p>
                               )}

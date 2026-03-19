@@ -1,12 +1,11 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { sendBookingConfirmation } from "@/lib/actions/notifications";
 import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
-import WalletTransaction from "@/lib/db/models/wallettransaction";
-import { generateAndUploadInvoice } from "@/lib/helpers/invoice";
-import { sendBookingConfirmation } from "@/lib/actions/notifications";
+import { ensureTransactionInvoiceUrl } from "@/lib/helpers/invoice";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -89,17 +88,16 @@ async function handleCheckoutSessionCompleted(session) {
   });
 
   // Generate Invoice
-  let invoiceUrl = transaction.invoiceUrl || null;
+  const hadInvoiceUrl = Boolean(transaction.invoiceUrl);
   const user = await User.findByPk(transaction.userId);
-  if (user && !invoiceUrl) {
-    const generatedInvoiceUrl = await generateAndUploadInvoice(transaction, user);
-    if (generatedInvoiceUrl) {
-      invoiceUrl = generatedInvoiceUrl;
-      await transaction.update({ invoiceUrl: generatedInvoiceUrl });
-      console.log(
-        `Invoice generated for transaction ${transactionId}: ${generatedInvoiceUrl}`,
-      );
-    }
+  const invoiceUrl =
+    (await ensureTransactionInvoiceUrl(transaction, user)) ||
+    transaction.invoiceUrl ||
+    null;
+  if (invoiceUrl && !hadInvoiceUrl) {
+    console.log(
+      `Invoice generated for transaction ${transactionId}: ${invoiceUrl}`,
+    );
   }
 
   // Update Bookings to CONFIRMED

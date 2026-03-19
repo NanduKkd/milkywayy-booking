@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getPricingConfig } from "@/app/admin/prices/actions";
+import { getPublicLaunchPromo } from "@/lib/actions/coupons";
 import { getDiscounts } from "@/lib/actions/discounts";
 import BookNew from "./BookNew";
 export const dynamic = "force-dynamic";
@@ -7,6 +8,10 @@ export const dynamic = "force-dynamic";
 export default async function Booking() {
   const pricingsPromise = getPricingConfig();
   const discountsPromise = getDiscounts();
+  const launchPromoRes = await getPublicLaunchPromo();
+  const launchPromoAvailability = launchPromoRes?.success
+    ? launchPromoRes.data
+    : null;
 
   return (
     <Suspense
@@ -22,6 +27,7 @@ export default async function Booking() {
       <BookNew
         pricingsPromise={pricingsPromise}
         discountsPromise={discountsPromise}
+        launchPromoAvailability={launchPromoAvailability}
       />
     </Suspense>
   );

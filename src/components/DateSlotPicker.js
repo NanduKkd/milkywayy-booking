@@ -354,7 +354,7 @@ export default function DateSlotPicker({
                 {daysOfWeek.map((day) => (
                   <div
                     key={day}
-                    className="text-center text-[10px] md:text-xs font-medium text-muted-foreground py-1"
+                    className="text-center text-2xs md:text-xs font-medium text-muted-foreground py-1"
                   >
                     {day}
                   </div>
@@ -433,7 +433,7 @@ export default function DateSlotPicker({
                           >
                             <div className="flex flex-col items-start">
                               <span className="font-medium">{timeSlot.label}</span>
-                              <span className="text-[10px] text-gray-400">
+                              <span className="text-2xs text-gray-400">
                                 {timeSlot.startTime} - {timeSlot.endTime}
                               </span>
                             </div>

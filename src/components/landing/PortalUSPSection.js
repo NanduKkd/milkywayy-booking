@@ -6,9 +6,17 @@ const PortalUSPSection = () => {
   const features = [
     { icon: Calendar, text: "Instant booking & scheduling" },
     { icon: DollarSign, text: "Transparent pricing" },
-    { icon: FolderDown, text: "Files stored permanently (photo / video / 360°)" },
+    {
+      icon: FolderDown,
+      text: "Files stored permanently",
+      mobileBreakSuffix: "(photo / video / 360°)"
+    },
     { icon: FileText, text: "Invoices downloadable anytime" },
-    { icon: CheckCircle2, text: "Clear status tracking (Booked / Scheduled / Delivered)" }
+    {
+      icon: CheckCircle2,
+      text: "Clear status tracking",
+      mobileBreakSuffix: "(Booked / Scheduled / Delivered)"
+    }
   ];
 
   return (
@@ -63,11 +71,16 @@ const PortalUSPSection = () => {
             </h2>
             <ul className="space-y-4 mb-8">
               {features.map((feature, index) =>
-              <li key={index} className="flex items-center gap-4 text-lg">
+                <li key={index} className="flex items-center gap-4 text-sm lg:text-lg">
                   <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
                     <feature.icon className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <span>{feature.text}</span>
+                  <span className="leading-snug">
+                    {feature.text}
+                    {feature.mobileBreakSuffix && (
+                      <span className="block md:inline md:ml-1">{feature.mobileBreakSuffix}</span>
+                    )}
+                  </span>
                 </li>
               )}
             </ul>

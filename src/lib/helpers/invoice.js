@@ -3,6 +3,7 @@ import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import puppeteer from "puppeteer";
 import Booking from "@/lib/db/models/booking";
+import User from "@/lib/db/models/user";
 import {
   formatBookingReferenceList,
   formatInvoiceNumber,
@@ -431,4 +432,30 @@ color:#475569;
     console.error("Error generating invoice:", error);
     return null;
   }
+}
+
+export async function ensureTransactionInvoiceUrl(transaction, user = null) {
+  if (!transaction) return null;
+  if (transaction.invoiceUrl) return transaction.invoiceUrl;
+
+  const resolvedUser =
+    user ||
+    transaction.user ||
+    (transaction.userId ? await User.findByPk(transaction.userId) : null);
+  if (!resolvedUser) return null;
+
+  const generatedInvoiceUrl = await generateAndUploadInvoice(
+    transaction,
+    resolvedUser,
+  );
+  if (!generatedInvoiceUrl) return null;
+
+  await transaction.update({ invoiceUrl: generatedInvoiceUrl });
+  if (typeof transaction.setDataValue === "function") {
+    transaction.setDataValue("invoiceUrl", generatedInvoiceUrl);
+  } else {
+    transaction.invoiceUrl = generatedInvoiceUrl;
+  }
+
+  return generatedInvoiceUrl;
 }

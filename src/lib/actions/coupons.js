@@ -1,16 +1,16 @@
 "use server";
 
-import { Op } from "sequelize";
 import { revalidatePath } from "next/cache";
+import { Op } from "sequelize";
 import { actionWrapper } from "@/lib/actions/utils";
-import Booking from "@/lib/db/models/booking";
-import Coupon from "@/lib/db/models/coupon";
-import { auth } from "@/lib/helpers/auth";
 import {
   LAUNCH_PROMO_CODE,
   LAUNCH_PROMO_DISCOUNT,
   LAUNCH_PROMO_MIN_AMOUNT,
 } from "@/lib/config/promo";
+import Booking from "@/lib/db/models/booking";
+import Coupon from "@/lib/db/models/coupon";
+import { auth } from "@/lib/helpers/auth";
 
 const buildLaunchPromoCoupon = () => ({
   id: `system-${LAUNCH_PROMO_CODE}`,
@@ -24,6 +24,30 @@ const buildLaunchPromoCoupon = () => ({
   isSystem: true,
   eligibilityLabel: "First booking only",
 });
+
+const getPublicLaunchPromoHandler = async () => {
+  const coupon = await Coupon.findOne({
+    where: { code: LAUNCH_PROMO_CODE },
+  });
+
+  if (coupon && !coupon.isActive) {
+    return null;
+  }
+
+  const launchPromo = coupon?.get
+    ? coupon.get({ plain: true })
+    : buildLaunchPromoCoupon();
+
+  return {
+    code: launchPromo.code,
+    minimumAmount: LAUNCH_PROMO_MIN_AMOUNT,
+    maxDiscount: LAUNCH_PROMO_DISCOUNT,
+    uiText:
+      launchPromo.uiText?.trim() ||
+      "AED 500 welcome credit on your first booking.",
+  };
+};
+export const getPublicLaunchPromo = actionWrapper(getPublicLaunchPromoHandler);
 
 const getCouponsHandler = async () => {
   const coupons = await Coupon.findAll({
@@ -118,7 +142,10 @@ const validateCouponHandler = async (code, amount) => {
   if (normalizedCode === LAUNCH_PROMO_CODE) {
     const session = await auth();
     if (!session?.id) {
-      return { valid: false, message: "Please log in to apply this promo code" };
+      return {
+        valid: false,
+        message: "Please log in to apply this promo code",
+      };
     }
 
     const existingBookings = await Booking.count({

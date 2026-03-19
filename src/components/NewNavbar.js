@@ -18,11 +18,17 @@ const NewNavbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
-  const [pendingDashboardRedirect, setPendingDashboardRedirect] = useState(false);
+  const [pendingDashboardRedirect, setPendingDashboardRedirect] =
+    useState(false);
 
   const pathname = usePathname();
   const router = useRouter();
   const { authState, login } = useAuth();
+  const isBookingPage = pathname === "/booking";
+  const showBookingGreeting = isBookingPage && authState.isAuthenticated;
+  const showLoginCta = isBookingPage && !authState.isAuthenticated;
+  const userDisplay =
+    authState.user?.fullName || authState.user?.email || "User";
 
   useEffect(() => {
     const handleScroll = () => {
@@ -71,6 +77,15 @@ const NewNavbar = () => {
     }
   };
 
+  const handlePrimaryCtaClick = () => {
+    if (showLoginCta) {
+      login();
+      return;
+    }
+
+    router.push("/booking");
+  };
+
   const navItems = [
     { label: "Services", action: () => scrollToSection("services") },
     { label: "How it works", action: () => setShowVideoModal(true) },
@@ -83,45 +98,60 @@ const NewNavbar = () => {
   return (
     <>
       <nav
-        className={`relative transition-all duration-300 ${
+        className={`transition-all duration-300 relative top-0 ${
           isScrolled ? "bg-background/92 backdrop-blur-sm" : "bg-transparent"
         }`}
       >
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center">
-              <Image src={logo} alt="Milkywayy Logo" width={220} height={40} className="h-8 w-auto" priority />
+              <Image
+                src={logo}
+                alt="Milkywayy Logo"
+                width={220}
+                height={40}
+                className="h-8 w-auto"
+                priority
+              />
             </Link>
 
             <div className="hidden lg:flex items-center space-x-6">
               {navItems.map((item) =>
-                item.href ? (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                ) : (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={item.action}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {item.label}
-                  </button>
-                ),
+                item.href
+                  ? <Link
+                      key={item.label}
+                      href={item.href}
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  : <button
+                      key={item.label}
+                      type="button"
+                      onClick={item.action}
+                      className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {item.label}
+                    </button>,
               )}
             </div>
 
             <div className="hidden lg:flex items-center space-x-4">
-              <Link href="/booking">
-                <Button className="btn-primary-premium px-6 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200">
-                  Book Now
-                </Button>
-              </Link>
+              {showBookingGreeting
+                ? <div className="text-right">
+                    <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                      Hello
+                    </p>
+                    <p className="text-base font-semibold text-foreground max-w-[220px] truncate">
+                      {userDisplay}
+                    </p>
+                  </div>
+                : <Button
+                    onClick={handlePrimaryCtaClick}
+                    className="btn-primary-premium px-6 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200"
+                  >
+                    {showLoginCta ? "Login" : "Book Now"}
+                  </Button>}
               <Button
                 onClick={handleDashboardClick}
                 variant="outline"
@@ -144,39 +174,47 @@ const NewNavbar = () => {
             <div className="absolute inset-x-6 top-full z-50 mt-3 max-h-[calc(100vh-120px)] overflow-y-auto rounded-2xl border border-border bg-background/96 p-4 shadow-2xl backdrop-blur-sm lg:hidden">
               <div className="space-y-4">
                 {navItems.map((item) =>
-                  item.href ? (
-                    <Link
-                      key={item.label}
-                      href={item.href}
-                      className="block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ) : (
-                    <button
-                      key={item.label}
-                      type="button"
-                      onClick={() => {
-                        item.action?.();
-                        if (item.label !== "How it works") setIsMobileMenuOpen(false);
-                      }}
-                      className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {item.label}
-                    </button>
-                  ),
+                  item.href
+                    ? <Link
+                        key={item.label}
+                        href={item.href}
+                        className="block text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {item.label}
+                      </Link>
+                    : <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => {
+                          item.action?.();
+                          if (item.label !== "How it works")
+                            setIsMobileMenuOpen(false);
+                        }}
+                        className="block w-full text-left text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {item.label}
+                      </button>,
                 )}
                 <div className="space-y-2 border-t border-border pt-3">
-                  <Link
-                    href="/booking"
-                    className="block"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Button className="w-full btn-primary-premium">
-                      Book Now
-                    </Button>
-                  </Link>
+                  {showBookingGreeting
+                    ? <div className="rounded-2xl border border-border bg-secondary/40 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                          Hello
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-foreground">
+                          {userDisplay}
+                        </p>
+                      </div>
+                    : <Button
+                        onClick={() => {
+                          handlePrimaryCtaClick();
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className="w-full btn-primary-premium"
+                      >
+                        {showLoginCta ? "Login" : "Book Now"}
+                      </Button>}
                   <Button
                     onClick={() => {
                       handleDashboardClick();
@@ -194,12 +232,11 @@ const NewNavbar = () => {
         </div>
       </nav>
 
-      {showVideoModal ? (
-        <VideoModal open={showVideoModal} onOpenChange={setShowVideoModal} />
-      ) : null}
+      {showVideoModal
+        ? <VideoModal open={showVideoModal} onOpenChange={setShowVideoModal} />
+        : null}
     </>
   );
 };
 
 export default NewNavbar;
-

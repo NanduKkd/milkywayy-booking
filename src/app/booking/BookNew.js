@@ -5,13 +5,6 @@ import { use, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/contexts/auth";
-import {
-  LAUNCH_PROMO_CODE,
-  LAUNCH_PROMO_DISCOUNT,
-  LAUNCH_PROMO_LABEL,
-  LAUNCH_PROMO_MIN_AMOUNT,
-} from "@/lib/config/promo";
 import {
   createBookings,
   createTransactionAndPaymentIntent,
@@ -20,6 +13,13 @@ import {
 } from "@/lib/actions/bookings";
 import { validateCoupon } from "@/lib/actions/coupons";
 import { PRICING_CONFIG as STATIC_PRICING_CONFIG } from "@/lib/config/pricing";
+import {
+  LAUNCH_PROMO_CODE,
+  LAUNCH_PROMO_DISCOUNT,
+  LAUNCH_PROMO_LABEL,
+  LAUNCH_PROMO_MIN_AMOUNT,
+} from "@/lib/config/promo";
+import { useAuth } from "@/lib/contexts/auth";
 import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
 import { bookingSchema } from "@/lib/schema/booking.schema";
 // Modular Components
@@ -46,7 +46,32 @@ const buildLocationLabel = (property) =>
     .filter(Boolean)
     .join(", ");
 
-export default function BookNew({ pricingsPromise, discountsPromise }) {
+const createPropertyLocalId = () =>
+  globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+
+const createEmptyProperty = () => ({
+  localId: createPropertyLocalId(),
+  propertyType: "",
+  propertySize: "",
+  services: [],
+  videographySubService: "",
+  preferredDate: "",
+  timeSlot: "",
+  startTime: "",
+  duration: 0,
+  building: "",
+  community: "",
+  unitNumber: "",
+  contactName: "",
+  contactPhone: "+971",
+  contactEmail: "",
+});
+
+export default function BookNew({
+  pricingsPromise,
+  discountsPromise,
+  launchPromoAvailability = null,
+}) {
   const pricingsRes = use(pricingsPromise);
   use(discountsPromise);
 
@@ -55,7 +80,9 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   const PRICING_CONFIG = pricings || STATIC_PRICING_CONFIG;
   const [openPropertyIndex, setOpenPropertyIndex] = useState(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [isLaunchPromoApplied, setIsLaunchPromoApplied] = useState(true);
+  const [isLaunchPromoApplied, setIsLaunchPromoApplied] = useState(
+    Boolean(launchPromoAvailability),
+  );
   const [couponInputValue, setCouponInputValue] = useState("");
   const [selectedCouponCode, setSelectedCouponCode] = useState("");
   const [selectedCouponDiscount, setSelectedCouponDiscount] = useState(0);
@@ -75,24 +102,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     resolver: zodResolver(bookingSchema),
     mode: "all",
     defaultValues: {
-      properties: [
-        {
-          propertyType: "",
-          propertySize: "",
-          services: [],
-          videographySubService: "",
-          preferredDate: "",
-          timeSlot: "",
-          startTime: "",
-          duration: 0,
-          building: "",
-          community: "",
-          unitNumber: "",
-          contactName: "",
-          contactPhone: "+971",
-          contactEmail: "",
-        },
-      ],
+      properties: [createEmptyProperty()],
     },
   });
 
@@ -111,6 +121,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
         const drafts = res.success ? res.data : [];
         if (drafts && drafts.length > 0) {
           const mappedProperties = drafts.map((draft) => ({
+            localId: String(draft.id || createPropertyLocalId()),
             propertyType: draft.propertyDetails?.type || "",
             propertySize: draft.propertyDetails?.size || "",
             services: draft.shootDetails?.services || [],
@@ -164,7 +175,11 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
           await saveDrafts(properties);
         }
       } catch (err) {
-        if (!String(err?.message || "").toLowerCase().includes("unauthorized")) {
+        if (
+          !String(err?.message || "")
+            .toLowerCase()
+            .includes("unauthorized")
+        ) {
           console.error("Auto-save failed", err);
         }
       }
@@ -176,28 +191,9 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   const addProperty = () => {
     const currentProperties = getValues("properties");
     const nextIndex = currentProperties.length;
-    setValue(
-      "properties",
-      [
-        ...currentProperties,
-        {
-          propertyType: "",
-          propertySize: "",
-          services: [],
-          preferredDate: "",
-          timeSlot: "",
-          startTime: "",
-          duration: 0,
-          building: "",
-          community: "",
-          unitNumber: "",
-          contactName: "",
-          contactPhone: "",
-          contactEmail: "",
-        },
-      ],
-      { shouldValidate: false },
-    );
+    setValue("properties", [...currentProperties, createEmptyProperty()], {
+      shouldValidate: false,
+    });
     clearErrors(`properties.${nextIndex}`);
     setOpenPropertyIndex(nextIndex);
   };
@@ -206,6 +202,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     const currentProperties = getValues("properties");
     const propertyToDuplicate = {
       ...currentProperties[index],
+      localId: createPropertyLocalId(),
       preferredDate: "",
       timeSlot: "",
       startTime: "",
@@ -525,7 +522,11 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
       window.location.href = paymentUrl;
     } catch (error) {
       console.error("Booking submission error:", error);
-      if (String(error?.message || "").toLowerCase().includes("unauthorized")) {
+      if (
+        String(error?.message || "")
+          .toLowerCase()
+          .includes("unauthorized")
+      ) {
         toast.error("Please login to continue to payment");
         login();
         return;
@@ -541,7 +542,6 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     isLaunchPromoApplied && totalAmount >= LAUNCH_PROMO_MIN_AMOUNT
       ? Math.min(LAUNCH_PROMO_DISCOUNT, totalAmount)
       : 0;
-  const launchPromoRemaining = Math.max(0, LAUNCH_PROMO_MIN_AMOUNT - totalAmount);
   const activeCouponDiscount = selectedCouponCode ? selectedCouponDiscount : 0;
   const payableAmount = Math.max(
     0,
@@ -552,7 +552,9 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     setCouponError("");
     setCouponMessage("");
 
-    const normalizedCode = String(couponCode || "").trim().toUpperCase();
+    const normalizedCode = String(couponCode || "")
+      .trim()
+      .toUpperCase();
 
     if (!normalizedCode) {
       setSelectedCouponCode("");
@@ -575,32 +577,81 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     setCouponInputValue(normalizedCode);
     setSelectedCouponDiscount(Number(couponResult.discount || 0));
     setCouponMessage(
-      couponResult.coupon?.uiText ||
-        `${normalizedCode} applied successfully`,
+      couponResult.coupon?.uiText || `${normalizedCode} applied successfully`,
     );
   };
 
   useEffect(() => {
     if (!selectedCouponCode) return;
 
-    applyCouponSelection(selectedCouponCode);
-  }, [totalAmount]);
+    let isCancelled = false;
 
-  // Validate launch promo on component mount
+    const revalidateSelectedCoupon = async () => {
+      const res = await validateCoupon(selectedCouponCode, totalAmount);
+      const couponResult = res?.success ? res.data : null;
+
+      if (isCancelled) return;
+
+      if (!couponResult?.valid) {
+        setSelectedCouponCode("");
+        setSelectedCouponDiscount(0);
+        setCouponError(couponResult?.message || "Unable to apply coupon");
+        return;
+      }
+
+      setCouponError("");
+      setSelectedCouponDiscount(Number(couponResult.discount || 0));
+      setCouponMessage(
+        couponResult.coupon?.uiText ||
+          `${selectedCouponCode} applied successfully`,
+      );
+    };
+
+    revalidateSelectedCoupon();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedCouponCode, totalAmount]);
+
   useEffect(() => {
+    if (!launchPromoAvailability) {
+      setIsLaunchPromoApplied(false);
+      return;
+    }
+
+    if (selectedCouponCode) {
+      setIsLaunchPromoApplied(false);
+      return;
+    }
+
+    if (!authState?.isAuthenticated) {
+      setIsLaunchPromoApplied(true);
+      return;
+    }
+
+    let isCancelled = false;
+
     const validateLaunchPromo = async () => {
-      if (!isLaunchPromoApplied) return;
-      
       const res = await validateCoupon(LAUNCH_PROMO_CODE, totalAmount);
       const couponResult = res?.success ? res.data : null;
-      
-      if (!couponResult?.valid) {
-        setIsLaunchPromoApplied(false);
+
+      if (!isCancelled) {
+        setIsLaunchPromoApplied(Boolean(couponResult?.valid));
       }
     };
-    
+
     validateLaunchPromo();
-  }, [totalAmount]);
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    authState?.isAuthenticated,
+    launchPromoAvailability,
+    selectedCouponCode,
+    totalAmount,
+  ]);
 
   const summaryItems = properties
     .map((property, index) => ({
@@ -614,7 +665,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     .filter((item) => item.amount > 0);
 
   return (
-    <section className="relative min-h-screen py-12 md:py-20">
+    <section className="relative min-h-[90vh] py-12 md:py-16">
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 fade-in">
@@ -629,211 +680,228 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
             </p>
           </div>
 
-      <form onSubmit={handleSubmit(onContinue)}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          <div className="lg:col-span-2 space-y-4">
-            {properties?.map((property, index) => (
-              <PropertyCard
-                key={`property-${index}`}
-                index={index}
-                property={property}
-                isOpen={index === openPropertyIndex}
-                onToggle={() =>
-                  setOpenPropertyIndex(index === openPropertyIndex ? -1 : index)
-                }
-                onDuplicate={duplicateProperty}
-                onRemove={removeProperty}
-                control={control}
-                setValue={setValue}
-                errors={errors}
-                pricingConfig={PRICING_CONFIG}
-                getPropertyPrice={getPropertyPrice}
-                getPropertyDurationAndEvening={getPropertyDurationAndEvening}
-                getOccupiedSlots={getOccupiedSlots}
-                toggleService={toggleService}
-                updatePropertyField={updatePropertyField}
-                isOnlyProperty={properties.length === 1}
-              />
-            ))}
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addProperty}
-              className="w-full p-4 rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <Plus size={18} className="shrink-0" />
-              Add Another Property
-            </Button>
-          </div>
-
-          <aside className="lg:col-span-1 glass rounded-xl md:rounded-2xl p-4 md:p-5 lg:sticky lg:top-24 mt-1 md:mt-0">
-            <h3 className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
-              Order Summary
-            </h3>
-
-            {summaryItems.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">
-                Select services to see your summary
-              </p>
-            ) : (
-              <div className="space-y-3 mb-3.5">
-                {summaryItems.map(({ index, title, amount, services, location, schedule }) => (
-                  <div
-                    key={`summary-${index}`}
-                    className="rounded-xl border border-white/8 bg-white/[0.025] px-3.5 py-3 space-y-1"
-                  >
-                    <div className="flex justify-between items-start gap-3">
-                      <p className="font-semibold text-[13px] leading-5 text-foreground">
-                        {title || `Property ${index + 1}`}
-                      </p>
-                      <span className="font-semibold text-[13px] whitespace-nowrap text-foreground">
-                        AED {amount.toLocaleString()}
-                      </span>
-                    </div>
-                    {location && (
-                      <p className="text-[10px] leading-4 text-muted-foreground">
-                        {location}
-                      </p>
-                    )}
-                    {services && (
-                      <p className="text-[10px] leading-4 text-muted-foreground">
-                        {services}
-                      </p>
-                    )}
-                    {schedule && (
-                      <p className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground/80">
-                        {schedule}
-                      </p>
-                    )}
-                  </div>
+          <form onSubmit={handleSubmit(onContinue)}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              <div className="lg:col-span-2 space-y-4">
+                {properties?.map((property, index) => (
+                  <PropertyCard
+                    key={property.localId || `property-${index}`}
+                    index={index}
+                    property={property}
+                    isOpen={index === openPropertyIndex}
+                    onToggle={() =>
+                      setOpenPropertyIndex(
+                        index === openPropertyIndex ? -1 : index,
+                      )
+                    }
+                    onDuplicate={duplicateProperty}
+                    onRemove={removeProperty}
+                    control={control}
+                    setValue={setValue}
+                    errors={errors}
+                    pricingConfig={PRICING_CONFIG}
+                    getPropertyPrice={getPropertyPrice}
+                    getPropertyDurationAndEvening={
+                      getPropertyDurationAndEvening
+                    }
+                    getOccupiedSlots={getOccupiedSlots}
+                    toggleService={toggleService}
+                    updatePropertyField={updatePropertyField}
+                    isOnlyProperty={properties.length === 1}
+                  />
                 ))}
-              </div>
-            )}
 
-            <div className="space-y-2.5 px-3 border-t border-white/8 pt-3.5 mb-3.5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[13px] font-medium text-muted-foreground">Subtotal</p>
-                <p className="text-sm md:text-sm font-semibold text-foreground">
-                  AED {totalAmount.toLocaleString()}
-                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addProperty}
+                  className="w-full p-4 rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <Plus size={18} className="shrink-0" />
+                  Add Another Property
+                </Button>
               </div>
 
-              {(isLaunchPromoApplied && launchPromoDiscount > 0) && (
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-muted-foreground text-[13px]">
-                    {LAUNCH_PROMO_LABEL} ({LAUNCH_PROMO_CODE})
+              <aside className="lg:col-span-1 glass rounded-xl md:rounded-2xl p-4 md:p-5 lg:sticky lg:top-24 mt-1 md:mt-0">
+                <h3 className="text-2xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-2.5">
+                  Order Summary
+                </h3>
+
+                {summaryItems.length === 0
+                  ? <p className="text-xs text-muted-foreground py-4 text-center">
+                      Select services to see your summary
+                    </p>
+                  : <div className="space-y-3 mb-3.5">
+                      {summaryItems.map(
+                        ({
+                          index,
+                          title,
+                          amount,
+                          services,
+                          location,
+                          schedule,
+                        }) => (
+                          <div
+                            key={`summary-${index}`}
+                            className="rounded-xl border border-white/8 bg-white/[0.025] px-3.5 py-3 space-y-1"
+                          >
+                            <div className="flex justify-between items-start gap-3">
+                              <p className="font-semibold text-sm leading-5 text-foreground">
+                                {title || `Property ${index + 1}`}
+                              </p>
+                              <span className="font-semibold text-sm whitespace-nowrap text-foreground">
+                                AED {amount.toLocaleString()}
+                              </span>
+                            </div>
+                            {location && (
+                              <p className="text-2xs leading-4 text-muted-foreground">
+                                {location}
+                              </p>
+                            )}
+                            {services && (
+                              <p className="text-2xs leading-4 text-muted-foreground">
+                                {services}
+                              </p>
+                            )}
+                            {schedule && (
+                              <p className="text-2xs uppercase tracking-[0.14em] text-muted-foreground/80">
+                                {schedule}
+                              </p>
+                            )}
+                          </div>
+                        ),
+                      )}
+                    </div>}
+
+                <div className="space-y-2.5 px-3 border-t border-white/8 pt-3.5 mb-3.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Subtotal
+                    </p>
+                    <p className="text-sm md:text-sm font-semibold text-foreground">
+                      AED {totalAmount.toLocaleString()}
+                    </p>
+                  </div>
+
+                  {isLaunchPromoApplied && launchPromoDiscount > 0 && (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-muted-foreground text-sm">
+                        {LAUNCH_PROMO_LABEL} ({LAUNCH_PROMO_CODE})
+                      </p>
+                      <p className="text-sm md:text-sm font-semibold text-emerald-300">
+                        - AED {launchPromoDiscount.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedCouponCode && selectedCouponDiscount > 0 && (
+                    <div className="flex items-center -mx-3 justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-sm">
+                      <p className="text-muted-foreground">
+                        Coupon ({selectedCouponCode})
+                      </p>
+                      <p className="font-semibold text-emerald-300">
+                        - AED {selectedCouponDiscount.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="px-3.5 py-3 mb-3.5 border-t">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Grand Total
+                    </p>
+                    <p className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
+                      AED {payableAmount.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mb-4 space-y-1.5">
+                  <p className="text-2xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                    Promo Code
                   </p>
-                  <p className="text-sm md:text-sm font-semibold text-emerald-300">
-                    - AED {launchPromoDiscount.toLocaleString()}
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={couponInputValue}
+                      onChange={(e) =>
+                        setCouponInputValue(e.target.value.toUpperCase())
+                      }
+                      placeholder="Enter promo code"
+                      className="h-9 flex-1 rounded-lg border border-white/8 bg-white/[0.02] px-3 text-xs text-foreground placeholder:text-muted-foreground outline-none"
+                    />
+                    {selectedCouponCode
+                      ? <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5"
+                          onClick={() => {
+                            setSelectedCouponCode("");
+                            setSelectedCouponDiscount(0);
+                            setCouponInputValue("");
+                            setCouponMessage("");
+                            setCouponError("");
+                            setIsLaunchPromoApplied(
+                              Boolean(launchPromoAvailability),
+                            );
+                          }}
+                        >
+                          Remove
+                        </Button>
+                      : <Button
+                          type="button"
+                          size="sm"
+                          className="h-9 px-3 text-xs"
+                          onClick={() => applyCouponSelection(couponInputValue)}
+                        >
+                          Apply
+                        </Button>}
+                  </div>
+
+                  {couponError && (
+                    <p className="text-2xs leading-4 text-destructive">
+                      {couponError}
+                    </p>
+                  )}
+                  {couponMessage && (
+                    <p className="text-2xs leading-4 text-emerald-300">
+                      {couponMessage}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={
+                    summaryItems.length === 0 ||
+                    isSubmitting ||
+                    isProcessingPayment
+                  }
+                  className="w-full btn-primary-premium py-2.5"
+                >
+                  {isSubmitting || isProcessingPayment
+                    ? <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Redirecting to Payment...
+                      </>
+                    : "Continue to Payment"}
+                </Button>
+
+                <div className="flex items-start gap-1.5 mt-3">
+                  <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-2xs leading-4 text-muted-foreground">
+                    Media is licensed for client marketing use. Milkywayy may
+                    showcase selected work for portfolio and promotional
+                    purposes.
                   </p>
                 </div>
-              )}
-
-              {(selectedCouponCode && selectedCouponDiscount > 0) && (
-                <div className="flex items-center -mx-3 justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-[13px]">
-                  <p className="text-muted-foreground">
-                    Coupon ({selectedCouponCode}LAUNCH500)
-                  </p>
-                  <p className="font-semibold text-emerald-300">
-                    - AED {selectedCouponDiscount.toLocaleString()}
-                  </p>
-                </div>
-              )}
+              </aside>
             </div>
-
-            <div className="px-3.5 py-3 mb-3.5 border-t">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                  Grand Total
-                </p>
-                <p className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
-                  AED {payableAmount.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            <div className="mb-4 space-y-1.5">
-              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                Promo Code
-              </p>
-              <div className="flex items-center gap-2">
-                <input
-                  value={couponInputValue}
-                  onChange={(e) => setCouponInputValue(e.target.value.toUpperCase())}
-                  placeholder="Enter promo code"
-                  className="h-9 flex-1 rounded-lg border border-white/8 bg-white/[0.02] px-3 text-[12px] text-foreground placeholder:text-muted-foreground outline-none"
-                />
-                {selectedCouponCode ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 px-3 text-[11px] text-muted-foreground hover:text-foreground hover:bg-white/5"
-                    onClick={() => {
-                      setSelectedCouponCode("");
-                      setSelectedCouponDiscount(0);
-                      setCouponInputValue("");
-                      setCouponMessage("");
-                      setCouponError("");
-                      setIsLaunchPromoApplied(true);
-                    }}
-                  >
-                    Remove
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="h-9 px-3 text-[11px]"
-                    onClick={() => applyCouponSelection(couponInputValue)}
-                  >
-                    Apply
-                  </Button>
-                )}
-              </div>
-
-              {couponError && (
-                <p className="text-[10px] leading-4 text-destructive">
-                  {couponError}
-                </p>
-              )}
-              {couponMessage && (
-                <p className="text-[10px] leading-4 text-emerald-300">
-                  {couponMessage}
-                </p>
-              )}
-            </div>
-
-            <Button
-              type="submit"
-              size="lg"
-              disabled={summaryItems.length === 0 || isSubmitting || isProcessingPayment}
-              className="w-full btn-primary-premium py-2.5"
-            >
-              {isSubmitting || isProcessingPayment ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Redirecting to Payment...
-                </>
-              ) : (
-                "Continue to Payment"
-              )}
-            </Button>
-
-            <div className="flex items-start gap-1.5 mt-3">
-              <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-              <p className="text-[9px] leading-4 text-muted-foreground">
-                Media is licensed for client marketing use. Milkywayy may
-                showcase selected work for portfolio and promotional purposes.
-              </p>
-            </div>
-          </aside>
-        </div>
-      </form>
+          </form>
         </div>
       </div>
     </section>
   );
 }
-

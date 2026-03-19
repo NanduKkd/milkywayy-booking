@@ -5,6 +5,7 @@ import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
 import { auth } from "@/lib/helpers/auth";
+import { ensureTransactionInvoiceUrl } from "@/lib/helpers/invoice";
 import "@/lib/db/relations";
 
 const getWalletDataHandler = async () => {
@@ -51,6 +52,12 @@ const getInvoicesHandler = async () => {
     ],
     order: [["createdAt", "DESC"]],
   });
+
+  await Promise.all(
+    transactions
+      .filter((transaction) => !transaction.invoiceUrl)
+      .map((transaction) => ensureTransactionInvoiceUrl(transaction)),
+  );
 
   return transactions.map((t) => t.toJSON());
 };

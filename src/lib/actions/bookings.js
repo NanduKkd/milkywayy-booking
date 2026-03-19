@@ -1452,16 +1452,15 @@ const verifyStripeSessionHandler = async (sessionId) => {
       try {
         const user = await db.models.User.findByPk(transaction.userId);
         if (user) {
-          const { generateAndUploadInvoice } = await import(
+          const { ensureTransactionInvoiceUrl } = await import(
             "@/lib/helpers/invoice"
           );
-          const generatedInvoiceUrl = await generateAndUploadInvoice(
+          const generatedInvoiceUrl = await ensureTransactionInvoiceUrl(
             transaction,
             user,
           );
           if (generatedInvoiceUrl) {
             invoiceUrl = generatedInvoiceUrl;
-            await transaction.update({ invoiceUrl: generatedInvoiceUrl });
           }
         }
       } catch (invoiceError) {

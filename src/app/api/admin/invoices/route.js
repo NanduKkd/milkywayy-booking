@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
+import { ensureTransactionInvoiceUrl } from "@/lib/helpers/invoice";
 import "@/lib/db/relations";
 
 export async function GET() {
@@ -22,7 +23,17 @@ export async function GET() {
       order: [["createdAt", "DESC"]],
     });
 
-    return NextResponse.json(transactions);
+    await Promise.all(
+      transactions
+        .filter((transaction) => !transaction.invoiceUrl)
+        .map((transaction) =>
+          ensureTransactionInvoiceUrl(transaction, transaction.user),
+        ),
+    );
+
+    return NextResponse.json(
+      transactions.map((transaction) => transaction.toJSON()),
+    );
   } catch (error) {
     console.error("Error fetching invoices:", error);
     return NextResponse.json(

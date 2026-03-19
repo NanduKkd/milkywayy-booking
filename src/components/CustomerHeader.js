@@ -129,7 +129,7 @@ export default function CustomerHeader({ mode = "default" }) {
                 {initials}
               </div>
               <div className="leading-tight">
-                <p className="text-[11px] uppercase tracking-wide text-white/60">
+                <p className="text-xs uppercase tracking-wide text-white/60">
                   Welcome
                 </p>
                 <p className="text-sm font-semibold text-white max-w-[210px] truncate">

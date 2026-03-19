@@ -38,14 +38,14 @@ const HeroSection = ({ onWatchVideo }) => {
     <section className="relative flex min-h-[90vh] items-center justify-center overflow-hidden">
       <div className="absolute inset-0 bg-background" />
 
-      <div className="container relative z-10 mx-auto px-6">
+      <div className="container relative z-10 mx-auto px-6 pt-16 lg:pt-0">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <div className="fade-in space-y-8">
             <h1 className="text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
               Don't Just List. Dominate.
             </h1>
-            <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
-              Dubai&apos;s first structured real estate media booking system, book
+            <p className="max-w-xl text-sm lg:text-lg leading-relaxed text-muted-foreground">
+              Dubai&apos;s first structured real estate media booking system - book
               photography, video walkthroughs, and 360° tours in seconds, then
               manage listings and invoices from one powerful dashboard.
             </p>
@@ -70,11 +70,11 @@ const HeroSection = ({ onWatchVideo }) => {
               </Button>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {trustChips.map((chip) => (
                 <div
                   key={chip.text}
-                  className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-4 py-2 text-sm"
+                  className="flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3.5 py-1.5 text-2xs md:text-sm"
                 >
                   <chip.icon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-muted-foreground">{chip.text}</span>
@@ -175,7 +175,7 @@ const HeroSection = ({ onWatchVideo }) => {
                       </div>
                       <div className="rounded-xl bg-secondary p-3 flex flex-col items-center justify-center text-center text-xs text-muted-foreground">
                         <p>Morning</p>
-                        <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                        <p className="mt-0.5 text-2xs text-muted-foreground/60">
                           Arrival: 9:30 - 10 AM
                         </p>
                       </div>

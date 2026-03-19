@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Upload, X, GripVertical } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -31,33 +31,70 @@ const formSchema = z.object({
   isVisible: z.boolean().default(true),
 });
 
+const getDefaultValues = (initialData) => {
+  if (!initialData) {
+    return {
+      title: "",
+      subtitle: "",
+      type: OUR_WORK_TYPES.IMAGE,
+      thumbnail: "",
+      mediaContent: [],
+      order: 0,
+      isVisible: true,
+    };
+  }
+
+  const type = initialData.type || OUR_WORK_TYPES.IMAGE;
+  const mediaContent = Array.isArray(initialData.mediaContent)
+    ? initialData.mediaContent
+    : initialData.mediaContent
+      ? [initialData.mediaContent]
+      : [];
+
+  return {
+    title: initialData.title || "",
+    subtitle: initialData.subtitle || "",
+    type,
+    thumbnail: initialData.thumbnail || "",
+    mediaContent:
+      type === OUR_WORK_TYPES.IMAGE
+        ? mediaContent
+        : mediaContent[0] || initialData.mediaContent || "",
+    order: initialData.order ?? 0,
+    isVisible: initialData.isVisible ?? true,
+  };
+};
+
 export default function PortfolioForm({ onSuccess, initialData }) {
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const dragSourceIndexRef = useRef(null);
+  const hasMountedRef = useRef(false);
 
   const {
     register,
     handleSubmit,
+    reset,
     setValue,
     watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(formSchema),
-    defaultValues: initialData || {
-      title: "",
-      subtitle: "",
-      type: OUR_WORK_TYPES.IMAGE,
-      thumbnail: "",
-      mediaContent: "",
-      order: 0,
-      isVisible: true,
-    },
+    defaultValues: getDefaultValues(initialData),
   });
 
   const watchType = watch("type");
   const watchMediaContent = watch("mediaContent");
   const watchThumbnail = watch("thumbnail");
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    reset(getDefaultValues(initialData));
+  }, [initialData, reset]);
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -90,9 +127,15 @@ export default function PortfolioForm({ onSuccess, initialData }) {
           : watchMediaContent
             ? [watchMediaContent]
             : [];
-        setValue("mediaContent", [...currentContent, ...uploadedUrls]);
+        setValue("mediaContent", [...currentContent, ...uploadedUrls], {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
       } else {
-        setValue("mediaContent", uploadedUrls[0]);
+        setValue("mediaContent", uploadedUrls[0], {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
       }
 
       toast.success(
@@ -114,7 +157,10 @@ export default function PortfolioForm({ onSuccess, initialData }) {
     if (!Array.isArray(watchMediaContent)) return;
     const newContent = [...watchMediaContent];
     newContent.splice(index, 1);
-    setValue("mediaContent", newContent.length === 0 ? "" : newContent);
+    setValue("mediaContent", newContent, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
 
   const handleDragStart = (index) => {
@@ -129,7 +175,10 @@ export default function PortfolioForm({ onSuccess, initialData }) {
     const items = Array.from(watchMediaContent);
     const [moved] = items.splice(sourceIndex, 1);
     items.splice(targetIndex, 0, moved);
-    setValue("mediaContent", items);
+    setValue("mediaContent", items, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
     dragSourceIndexRef.current = null;
   };
 
@@ -161,7 +210,6 @@ export default function PortfolioForm({ onSuccess, initialData }) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
-      <Input type="hidden" {...register("thumbnail")} />
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>
         <Input id="title" placeholder="Project Title" {...register("title")} />
@@ -185,14 +233,34 @@ export default function PortfolioForm({ onSuccess, initialData }) {
       <div className="space-y-2">
         <Label>Media Type</Label>
         <Select
+          value={watchType}
           onValueChange={(val) => {
-            setValue("type", val);
-            // If switching to image, ensure mediaContent is an array if it was a string
-            if (val === OUR_WORK_TYPES.IMAGE && typeof watchMediaContent === "string" && watchMediaContent) {
-              setValue("mediaContent", [watchMediaContent]);
+            setValue("type", val, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
+
+            if (val === OUR_WORK_TYPES.IMAGE) {
+              const imageContent = Array.isArray(watchMediaContent)
+                ? watchMediaContent
+                : watchMediaContent
+                  ? [watchMediaContent]
+                  : [];
+              setValue("mediaContent", imageContent, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              return;
             }
+
+            const mediaUrl = Array.isArray(watchMediaContent)
+              ? watchMediaContent[0] || ""
+              : watchMediaContent || "";
+            setValue("mediaContent", mediaUrl, {
+              shouldDirty: true,
+              shouldValidate: true,
+            });
           }}
-          defaultValue={watchType}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select type" />
@@ -263,7 +331,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
                   ) : (
                     <>
                       <Upload className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground mt-1">Upload</span>
+                      <span className="text-2xs text-muted-foreground mt-1">Upload</span>
                     </>
                   )}
                 </label>
@@ -294,7 +362,12 @@ export default function PortfolioForm({ onSuccess, initialData }) {
               id="thumbnail"
               placeholder="https://... thumbnail image URL"
               value={watchThumbnail || ""}
-              onChange={(e) => setValue("thumbnail", e.target.value)}
+              onChange={(e) =>
+                setValue("thumbnail", e.target.value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
             />
             <Input
               type="file"
@@ -316,7 +389,10 @@ export default function PortfolioForm({ onSuccess, initialData }) {
                   });
                   if (!res.ok) throw new Error("Thumbnail upload failed");
                   const { url } = await res.json();
-                  setValue("thumbnail", url);
+                  setValue("thumbnail", url, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
                   toast.success("Thumbnail uploaded");
                 } catch (error) {
                   toast.error(error.message || "Failed to upload thumbnail");

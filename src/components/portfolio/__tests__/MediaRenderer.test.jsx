@@ -36,6 +36,25 @@ describe("MediaRenderer", () => {
     expect(screen.getAllByRole("img")).toHaveLength(2);
   });
 
+  it("renders only the first image when carousel is disabled", () => {
+    const urls = ["https://example.com/1.jpg", "https://example.com/2.jpg"];
+    render(
+      <MediaRenderer
+        type={OUR_WORK_TYPES.IMAGE}
+        url={urls}
+        title={title}
+        enableImageCarousel={false}
+      />
+    );
+
+    expect(screen.queryByLabelText(/next slide/i)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("img")).toHaveLength(1);
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "src",
+      expect.stringContaining("1.jpg"),
+    );
+  });
+
   it("renders YouTubeEmbed for VIDEO type", () => {
     const videoUrl = "https://youtube.com/watch?v=123";
     const { container } = render(

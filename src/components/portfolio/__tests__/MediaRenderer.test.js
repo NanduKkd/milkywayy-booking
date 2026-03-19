@@ -30,6 +30,24 @@ describe("MediaRenderer", () => {
     expect(img).toHaveAttribute("src", props.url);
   });
 
+  it("renders only the first image when carousel is disabled", () => {
+    const props = {
+      type: OUR_WORK_TYPES.IMAGE,
+      url: [
+        "https://example.com/first.jpg",
+        "https://example.com/second.jpg",
+      ],
+      title: "Test Image Gallery",
+      enableImageCarousel: false,
+    };
+    render(<MediaRenderer {...props} />);
+    const images = screen.getAllByRole("img");
+
+    expect(images).toHaveLength(1);
+    expect(images[0]).toHaveAttribute("src", props.url[0]);
+    expect(screen.queryByLabelText(/next slide/i)).not.toBeInTheDocument();
+  });
+
   it("renders a YouTube video correctly", () => {
     const props = {
       type: OUR_WORK_TYPES.VIDEO,

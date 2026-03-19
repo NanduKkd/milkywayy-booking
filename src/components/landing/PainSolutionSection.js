@@ -23,7 +23,7 @@ const PainSolutionSection = () => {
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center mb-16 fade-in">
           <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight">
-            Stop Coordinating. Start Listing.
+            Stop Coordinating.{" "}<br className="md:hidden" />Start Listing.
           </h2>
         </div>
 

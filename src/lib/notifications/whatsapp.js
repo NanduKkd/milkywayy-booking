@@ -152,6 +152,24 @@ const getTwilioAuthHeader = () => {
   return `Basic ${credentials}`;
 };
 
+const appendMessageSender = (payload) => {
+  const from = process.env.TWILIO_WHATSAPP_FROM;
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+
+  if (messagingServiceSid) {
+    payload.append("MessagingServiceSid", messagingServiceSid);
+    return { success: true, viaMessagingService: true };
+  }
+
+  if (from) {
+    payload.append("From", formatWhatsAppNumber(from));
+    return { success: true, viaMessagingService: false };
+  }
+
+  console.error("[WHATSAPP] Sender config missing");
+  return { success: false, error: "Twilio sender configuration missing" };
+};
+
 const formatWhatsAppNumber = (value) => {
   if (!value) return null;
   const trimmed = String(value).trim();
@@ -190,8 +208,6 @@ export async function sendWhatsAppTemplate({ to, templateName, variables }) {
   }
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const from = process.env.TWILIO_WHATSAPP_FROM;
-  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
   const contentSid = process.env[TEMPLATE_ENV_KEYS[templateName]];
   const toValue = formatWhatsAppNumber(to);
 
@@ -206,10 +222,9 @@ export async function sendWhatsAppTemplate({ to, templateName, variables }) {
 
   const payload = new URLSearchParams();
   payload.append("To", toValue);
-  if (messagingServiceSid) {
-    payload.append("MessagingServiceSid", messagingServiceSid);
-  } else if (from) {
-    payload.append("From", formatWhatsAppNumber(from));
+  const senderConfig = appendMessageSender(payload);
+  if (!senderConfig.success) {
+    return senderConfig;
   }
 
   if (contentSid) {
@@ -226,7 +241,7 @@ export async function sendWhatsAppTemplate({ to, templateName, variables }) {
   console.log("[WHATSAPP] Sending template", {
     templateName,
     to: maskPhone(toValue),
-    viaMessagingService: Boolean(messagingServiceSid),
+    viaMessagingService: senderConfig.viaMessagingService,
     hasContentSid: Boolean(contentSid),
   });
 
@@ -257,6 +272,74 @@ export async function sendWhatsAppTemplate({ to, templateName, variables }) {
   const data = await res.json();
   console.log("[WHATSAPP] Send success", {
     templateName,
+    to: maskPhone(toValue),
+    sid: data?.sid,
+    status: data?.status,
+  });
+  return { success: true, data };
+}
+
+export async function sendWhatsAppMessage({ to, body }) {
+  const authHeader = getTwilioAuthHeader();
+  if (!authHeader) {
+    console.error("[WHATSAPP] Missing Twilio credentials");
+    return { success: false, error: "Twilio credentials missing" };
+  }
+
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const toValue = formatWhatsAppNumber(to);
+  const messageBody = String(body ?? "").trim();
+
+  if (!toValue) {
+    console.error("[WHATSAPP] Recipient phone missing for raw message");
+    return { success: false, error: "Recipient phone missing" };
+  }
+
+  if (!messageBody) {
+    console.error("[WHATSAPP] Message body missing", {
+      to: maskPhone(toValue),
+    });
+    return { success: false, error: "Message body missing" };
+  }
+
+  const payload = new URLSearchParams();
+  payload.append("To", toValue);
+  payload.append("Body", messageBody);
+  const senderConfig = appendMessageSender(payload);
+  if (!senderConfig.success) {
+    return senderConfig;
+  }
+
+  console.log("[WHATSAPP] Sending raw message", {
+    to: maskPhone(toValue),
+    viaMessagingService: senderConfig.viaMessagingService,
+  });
+
+  const res = await fetch(
+    `${TWILIO_API_BASE}/Accounts/${accountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: payload.toString(),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("[WHATSAPP] Raw send failed", {
+      to: maskPhone(toValue),
+      status: res.status,
+      statusText: res.statusText,
+      error: text || "Twilio send failed",
+    });
+    return { success: false, error: text || "Twilio send failed" };
+  }
+
+  const data = await res.json();
+  console.log("[WHATSAPP] Raw send success", {
     to: maskPhone(toValue),
     sid: data?.sid,
     status: data?.status,

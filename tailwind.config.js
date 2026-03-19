@@ -16,6 +16,9 @@ module.exports = {
       }
     },
     extend: {
+      fontSize: {
+        "2xs": ["0.625rem", { lineHeight: "0.875rem" }],
+      },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         heading: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],

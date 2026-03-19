@@ -8,14 +8,29 @@ export const metadata = {
   description:
     "Elevate your real estate listings with Dubai's premier property photography and videography booking platform. Seamless, professional, and out of this world.",
   icons: {
-    icon: "/logo-sm.png",
+    icon: [
+      {
+        url: "/milkywayy-web-icon.jpeg",
+        type: "image/jpeg",
+        sizes: "512x512",
+      },
+    ],
+    shortcut: [
+      {
+        url: "/milkywayy-web-icon.jpeg",
+        type: "image/jpeg",
+        sizes: "512x512",
+      },
+    ],
+    apple: [
+      {
+        url: "/milkywayy-web-icon.jpeg",
+        type: "image/jpeg",
+        sizes: "512x512",
+      },
+    ],
   },
 };
-
-export const poppins = localFont({
-  variable: "--font-poppins",
-  src: "../fonts/Poppins/Poppins-Regular.ttf",
-});
 
 export const spaceGrotesk = localFont({
   variable: "--font-space-grotesk",
@@ -28,7 +43,7 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="en">
       <body
-        className={`${poppins.className} ${spaceGrotesk.variable} antialiased`}
+        className={`${spaceGrotesk.variable} antialiased`}
       >
         {/* <div>Failed!!</div> */}
         <Providers user={user}>{children}</Providers>

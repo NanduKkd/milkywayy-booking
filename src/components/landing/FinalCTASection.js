@@ -32,7 +32,7 @@ const FinalCTASection = () => {
               <Button
                 size="lg"
                 variant="outline"
-                className="w-full sm:w-auto border-border hover:bg-secondary"
+                className="w-full sm:w-auto border-border"
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
                 WhatsApp Us
@@ -41,7 +41,7 @@ const FinalCTASection = () => {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Launch Offer: Flat 50% off your first booking.
+            Launch Offer: <span className="text-accent">AED 500 welcome credit</span> on your first property shoot.
           </p>
         </div>
       </div>

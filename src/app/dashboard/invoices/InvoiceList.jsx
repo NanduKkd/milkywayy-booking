@@ -28,10 +28,10 @@ export default function InvoiceList({ invoices }) {
             className="grid gap-5 rounded-[28px] border border-white/10 bg-card/70 px-6 py-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-8"
           >
             <div className="min-w-0">
-              <div className="mb-2 text-[18px] font-semibold leading-tight text-white md:text-[22px]">
+              <div className="mb-2 text-lg font-semibold leading-tight text-white md:text-2xl">
                 Invoice #{invoiceNumber}
               </div>
-              <p className="truncate text-[15px] text-foreground/80 md:text-[16px]">
+              <p className="truncate text-base text-foreground/80 md:text-base">
                 {formatInvoiceCardProperty(invoice.bookings)}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">

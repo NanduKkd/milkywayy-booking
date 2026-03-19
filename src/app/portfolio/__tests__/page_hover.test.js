@@ -1,7 +1,7 @@
-import { render, screen, waitFor, fireEvent } from "../../../test-utils";
-import PortfolioPage from "../page";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import * as uiHelpers from "@/lib/helpers/ui";
+import { render, screen, waitFor } from "../../../test-utils";
+import PortfolioPage from "../page";
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -52,8 +52,18 @@ describe("PortfolioPage Hover Effect", () => {
   });
 
   const mockData = [
-    { id: 1, title: "Photo 1", type: OUR_WORK_TYPES.IMAGE, mediaContent: "url1" },
-    { id: 2, title: "Video 1", type: OUR_WORK_TYPES.VIDEO, mediaContent: "url2" },
+    {
+      id: 1,
+      title: "Photo 1",
+      type: OUR_WORK_TYPES.IMAGE,
+      mediaContent: "url1",
+    },
+    {
+      id: 2,
+      title: "Video 1",
+      type: OUR_WORK_TYPES.VIDEO,
+      mediaContent: "url2",
+    },
   ];
 
   it("applies photography-grayscale class to Photography items and not others on desktop", async () => {
@@ -65,18 +75,27 @@ describe("PortfolioPage Hover Effect", () => {
     render(<PortfolioPage />);
 
     // Wait for the grid to render
-    await waitFor(() => expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0),
+    );
 
     // Check Photography item (active tab)
-    const photoItem = screen.getAllByText("Photo 1").find(el => el.tagName === 'H3').closest(".group");
-    expect(photoItem.querySelector(".photography-grayscale")).toBeInTheDocument();
+    const photoItem = screen
+      .getAllByText("Photo 1")
+      .find((el) => el.tagName === "P")
+      .closest(".group");
+    expect(
+      photoItem.querySelector(".photography-grayscale"),
+    ).toBeInTheDocument();
 
     // The Video item is in the DOM but hidden (inactive tab)
     // We can still find it and verify it DOES NOT have the class
     const videoTitle = screen.queryByText("Video 1");
     if (videoTitle) {
       const videoItem = videoTitle.closest(".group");
-      expect(videoItem.querySelector(".photography-grayscale")).not.toBeInTheDocument();
+      expect(
+        videoItem.querySelector(".photography-grayscale"),
+      ).not.toBeInTheDocument();
     }
   });
 
@@ -90,9 +109,16 @@ describe("PortfolioPage Hover Effect", () => {
 
     render(<PortfolioPage />);
 
-    await waitFor(() => expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0),
+    );
 
-    const photoItem = screen.getAllByText("Photo 1").find(el => el.tagName === 'H3').closest(".group");
-    expect(photoItem.querySelector(".photography-grayscale")).not.toBeInTheDocument();
+    const photoItem = screen
+      .getAllByText("Photo 1")
+      .find((el) => el.tagName === "P")
+      .closest(".group");
+    expect(
+      photoItem.querySelector(".photography-grayscale"),
+    ).not.toBeInTheDocument();
   });
 });

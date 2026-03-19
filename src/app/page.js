@@ -13,6 +13,7 @@ import PortalUSPSection from "@/components/landing/PortalUSPSection";
 import ReviewsSection from "@/components/landing/ReviewsSection";
 import SeeItInActionSection from "@/components/landing/SeeItInActionSection";
 import NewNavbar from "@/components/NewNavbar";
+import { poppins } from '@/fonts';
 
 const VideoModal = dynamic(() => import("@/components/VideoModal"), {
   ssr: false,
@@ -22,7 +23,7 @@ export default function Page() {
   const [showVideoModal, setShowVideoModal] = useState(false);
 
   return (
-    <div className="relative min-h-screen bg-background text-foreground">
+    <div className={`relative ${poppins.className} min-h-screen bg-background text-foreground`}>
       <div className="fixed top-0 left-0 right-0 z-50">
         <AnnouncementBar />
         <NewNavbar />

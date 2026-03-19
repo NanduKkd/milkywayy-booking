@@ -269,7 +269,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                 control={phoneForm.control}
                 render={({ field }) => (
                   <div className="space-y-2">
-                    <Label className="flex items-center gap-1.5 text-[13px] font-semibold">
+                    <Label className="flex items-center gap-1.5 text-sm font-semibold">
                       WhatsApp Number *
                       <span
                         className="inline-flex cursor-help text-muted-foreground"
@@ -398,7 +398,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
               className="space-y-4"
             >
               <div className="space-y-2.5">
-                <Label className="text-[13px] font-semibold">Account Type</Label>
+                <Label className="text-sm font-semibold">Account Type</Label>
                 <div className="grid grid-cols-2 gap-2.5">
                   {accountTypeOptions.map((option) => {
                     const Icon = option.icon;
@@ -442,7 +442,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                 <div className="space-y-1.5">
                   <Label
                     htmlFor="fullName"
-                    className="text-[13px] font-semibold"
+                    className="text-sm font-semibold"
                   >
                     Full Name *
                   </Label>
@@ -462,7 +462,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                 <div className="space-y-1.5">
                   <Label
                     htmlFor="companyName"
-                    className="text-[13px] font-semibold"
+                    className="text-sm font-semibold"
                   >
                     Company Name *
                   </Label>
@@ -481,7 +481,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
               )}
 
               <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5 text-[13px] font-semibold">
+                <Label className="flex items-center gap-1.5 text-sm font-semibold">
                   WhatsApp Number *
                   <span
                     className="inline-flex cursor-help text-muted-foreground"
@@ -511,7 +511,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                 <div className="space-y-1.5">
                   <Label
                     htmlFor="billingAddress"
-                    className="text-[13px] font-semibold"
+                    className="text-sm font-semibold"
                   >
                     Billing Address *
                   </Label>
@@ -530,7 +530,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
               )}
 
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-[13px] font-semibold">
+                <Label htmlFor="email" className="text-sm font-semibold">
                   {accountType === "COMPANY" ? "Email *" : "Email (optional)"}
                 </Label>
                 <Input
@@ -551,7 +551,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
 
               {accountType === "COMPANY" && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="trn" className="text-[13px] font-semibold">
+                  <Label htmlFor="trn" className="text-sm font-semibold">
                     TRN (optional)
                   </Label>
                   <Input

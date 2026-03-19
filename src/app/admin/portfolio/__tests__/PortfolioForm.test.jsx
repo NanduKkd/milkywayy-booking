@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor } from "../../../../test-utils";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "../../../../test-utils";
 import PortfolioForm from "../PortfolioForm";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 
@@ -97,6 +103,44 @@ describe("PortfolioForm", () => {
         })
       );
       expect(onSuccess).toHaveBeenCalled();
+    });
+  });
+
+  it("resets edit values when initial data changes", async () => {
+    const firstItem = {
+      id: 1,
+      title: "First Work",
+      type: OUR_WORK_TYPES.IMAGE,
+      mediaContent: ["first.jpg"],
+      order: 0,
+    };
+    const secondItem = {
+      id: 2,
+      title: "Second Work",
+      type: OUR_WORK_TYPES.VIDEO,
+      mediaContent: "https://youtube.com/watch?v=456",
+      order: 1,
+    };
+
+    const { rerender } = render(
+      <PortfolioForm initialData={firstItem} onSuccess={() => {}} />,
+    );
+
+    expect(
+      screen.getByLabelText("Title", { selector: "input" }),
+    ).toHaveValue("First Work");
+
+    await act(async () => {
+      rerender(<PortfolioForm initialData={secondItem} onSuccess={() => {}} />);
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByLabelText("Title", { selector: "input" }),
+      ).toHaveValue("Second Work");
+      expect(
+        screen.getByPlaceholderText(/YouTube \/ Instagram \/ Panoee Link/i),
+      ).toHaveValue("https://youtube.com/watch?v=456");
     });
   });
 });

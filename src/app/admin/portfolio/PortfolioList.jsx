@@ -117,7 +117,13 @@ export default function PortfolioList({ initialItems }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog
+          open={isModalOpen}
+          onOpenChange={(open) => {
+            setIsModalOpen(open);
+            if (!open) setEditingItem(null);
+          }}
+        >
           <DialogTrigger asChild>
             <Button onClick={openCreateModal}>
               <Plus className="mr-2 h-4 w-4" /> New Entry
@@ -133,6 +139,7 @@ export default function PortfolioList({ initialItems }) {
             </DialogHeader>
             <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-6 pb-6">
               <PortfolioForm
+                key={editingItem?.id ?? "new"}
                 onSuccess={handleFormSuccess}
                 initialData={editingItem}
               />

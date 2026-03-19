@@ -44,16 +44,23 @@ const extractYouTubeId = (rawUrl) => {
   return null;
 };
 
-export default function MediaRenderer({ type, url, title, className = "" }) {
+export default function MediaRenderer({
+  type,
+  url,
+  title,
+  className = "",
+  enableImageCarousel = true,
+}) {
   switch (type) {
     case OUR_WORK_TYPES.IMAGE:
-      if (Array.isArray(url)) {
+      if (Array.isArray(url) && enableImageCarousel) {
         return <ImageCarousel images={url} title={title} className={className} />;
       }
+      const imageUrl = Array.isArray(url) ? url[0] : url;
       return (
         <div className={`relative w-full h-full overflow-hidden ${className}`}>
           <Image
-            src={url}
+            src={imageUrl}
             alt={title}
             fill
             className="object-cover transition-transform"
@@ -79,11 +86,8 @@ export default function MediaRenderer({ type, url, title, className = "" }) {
         <div className="-mb-3 w-fit mx-auto">
           <InstagramEmbed
             url={url}
-            width={'fit-content'}
-            height='fit-content'
-            placeholder={
-              <div className="bg-muted animate-pulse" />
-            }
+            width="100%"
+            placeholder="Loading..."
           />
         </div>
       );

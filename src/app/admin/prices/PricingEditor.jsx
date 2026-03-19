@@ -203,7 +203,7 @@ export default function PricingEditor({ initialConfig }) {
                                         />
                                       </div>
                                       <div className="relative">
-                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">Slots</span>
+                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-2xs">Slots</span>
                                         <Input
                                           type="number"
                                           min="1"
@@ -236,7 +236,7 @@ export default function PricingEditor({ initialConfig }) {
                                               />
                                             </div>
                                             <div className="relative">
-                                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">Slots</span>
+                                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-2xs">Slots</span>
                                               <Input
                                                 type="number"
                                                 min="1"
@@ -256,7 +256,7 @@ export default function PricingEditor({ initialConfig }) {
                                               <div key={key} className="flex items-center gap-2">
                                                 <span className="text-xs text-gray-600 w-20">{label}</span>
                                                 <div className="relative flex-1">
-                                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-[10px]">AED</span>
+                                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-2xs">AED</span>
                                                   <Input
                                                     type="number"
                                                     value={categoryConfig.price || 0}
@@ -323,7 +323,7 @@ export default function PricingEditor({ initialConfig }) {
                               </div>
                               <div className="flex items-center gap-2">
                                 <div className="relative flex-1">
-                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-2xs">
                                     SLOTS
                                   </span>
                                   <Input
