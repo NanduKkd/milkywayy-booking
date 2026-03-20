@@ -23,7 +23,7 @@ const NewNavbar = () => {
 
   const pathname = usePathname();
   const router = useRouter();
-  const { authState, login } = useAuth();
+  const { authState, login, logout } = useAuth();
   const isBookingPage = pathname === "/booking";
   const showBookingGreeting = isBookingPage && authState.isAuthenticated;
   const showLoginCta = isBookingPage && !authState.isAuthenticated;
@@ -159,6 +159,15 @@ const NewNavbar = () => {
               >
                 Dashboard
               </Button>
+              {showBookingGreeting && (
+                <Button
+                  onClick={logout}
+                  variant="outline"
+                  className="border-border bg-secondary/40 text-muted-foreground hover:bg-secondary/70 hover:text-foreground hover:border-muted-foreground/30 hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Logout
+                </Button>
+              )}
             </div>
 
             <button
@@ -225,6 +234,18 @@ const NewNavbar = () => {
                   >
                     Dashboard
                   </Button>
+                  {showBookingGreeting && (
+                    <Button
+                      onClick={() => {
+                        logout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      variant="outline"
+                      className="w-full border-border text-muted-foreground hover:bg-secondary"
+                    >
+                      Logout
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

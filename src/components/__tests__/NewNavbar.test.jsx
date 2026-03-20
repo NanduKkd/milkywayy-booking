@@ -29,6 +29,7 @@ describe("NewNavbar", () => {
     mockUseAuth.mockReturnValue({
       authState: { isAuthenticated: false },
       login: jest.fn(),
+      logout: jest.fn(),
     });
   });
 
@@ -51,12 +52,15 @@ describe("NewNavbar", () => {
         user: { fullName: "Jane Doe", email: "jane@example.com" },
       },
       login: jest.fn(),
+      logout: jest.fn(),
     });
 
     render(<NewNavbar />);
 
     expect(screen.getByText("Hello")).toBeInTheDocument();
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Book Now" }),
     ).not.toBeInTheDocument();
@@ -68,6 +72,7 @@ describe("NewNavbar", () => {
     mockUseAuth.mockReturnValue({
       authState: { isAuthenticated: false },
       login,
+      logout: jest.fn(),
     });
 
     render(<NewNavbar />);

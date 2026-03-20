@@ -37,6 +37,18 @@ const SUBCATEGORY_TITLES = Object.freeze({
   DAYLIGHT_NIGHT: "Day + Night",
 });
 
+function getVideographyOptionMeta(subService) {
+  if (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) {
+    return VIDEOGRAPHY_OPTION_META.shortForm;
+  }
+
+  if (subService === VIDEOGRAPHY_SUB_SERVICES.LONG_FORM) {
+    return VIDEOGRAPHY_OPTION_META.longForm;
+  }
+
+  return null;
+}
+
 function getNextVideographySelections({
   currentSelections,
   propertyType,
@@ -118,7 +130,7 @@ export function VideographyOptionsSection({
       ? "grid grid-cols-1 gap-2.5 w-full"
       : "grid grid-cols-2 lg:grid-cols-2 gap-2.5 w-full"
     : isCommercialBasic
-      ? "grid grid-cols-1 gap-2.5 w-full"
+      ? "grid grid-cols-1 lg:grid-cols-2 gap-2.5 w-full"
       : "grid grid-cols-1 lg:grid-cols-2 gap-2.5 w-full";
 
   return (
@@ -137,10 +149,7 @@ export function VideographyOptionsSection({
                 const isSubServiceAvailable =
                   !isCommercialBasic ||
                   subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM;
-
-                if (!isMobile && !isSubServiceAvailable) {
-                  return null;
-                }
+                const optionMeta = getVideographyOptionMeta(subService);
 
                 const basePrice = getVideographyBasePrice({
                   pricingConfig,
@@ -170,19 +179,23 @@ export function VideographyOptionsSection({
                       isMobile
                         ? "!rounded-[18px] !px-4 !py-3 md:!rounded-[20px] md:!px-5 md:!py-3.5"
                         : "!px-4 !py-3 md:!px-5 md:!py-3.5",
-                      isMobile &&
-                        !isSubServiceAvailable &&
-                        "pointer-events-none opacity-60 hover:border-white/10",
+                      !isSubServiceAvailable &&
+                        "cursor-not-allowed opacity-60 hover:border-white/10 hover:text-muted-foreground",
                     )}
                     selectedClassName="border-white bg-white text-black"
-                    unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-white"
+                    unselectedClassName={cn(
+                      "border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-white",
+                      !isSubServiceAvailable &&
+                        "border-white/10 bg-white/[0.015] text-muted-foreground hover:border-white/10 hover:text-muted-foreground",
+                    )}
                     isSelected={
-                      subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
+                      isSubServiceAvailable &&
+                      (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
                         ? hasShortFormSelection
-                        : Boolean(selectedLongForm)
+                        : Boolean(selectedLongForm))
                     }
                     onClick={() => {
-                      if (isMobile && !isSubServiceAvailable) return;
+                      if (!isSubServiceAvailable) return;
 
                       const nextSelections = getNextVideographySelections({
                         currentSelections: parseVideographySelections(field.value),
@@ -201,12 +214,14 @@ export function VideographyOptionsSection({
                     <div className="flex flex-col w-full text-left gap-1.5">
                       <div className="flex items-start justify-between w-full gap-3">
                         <span className="text-xs font-semibold md:text-sm">
-                          {VIDEOGRAPHY_OPTION_META[subService]?.title || subService}
+                          {optionMeta?.title || subService}
                         </span>
 
-                        <span className="text-sm font-semibold md:text-sm whitespace-nowrap">
-                          AED {displayPrice}
-                        </span>
+                        {isSubServiceAvailable && (
+                          <span className="text-sm font-semibold md:text-sm whitespace-nowrap">
+                            AED {displayPrice}
+                          </span>
+                        )}
                       </div>
 
                       {(!isMobile || property.propertyType !== "Commercial") && (
@@ -217,26 +232,30 @@ export function VideographyOptionsSection({
                               : "text-muted-foreground text-xs"
                           }
                         >
-                          {VIDEOGRAPHY_OPTION_META[subService]?.subtitle}
+                          {isSubServiceAvailable
+                            ? optionMeta?.subtitle
+                            : "Not available"}
                         </div>
                       )}
 
-                      <div
-                        className={
-                          isMobile
-                            ? "flex items-center gap-1 text-2xs text-muted-foreground/80 md:text-xs"
-                            : "flex items-center gap-1 text-muted-foreground/80 md:text-xs"
-                        }
-                      >
-                        <Clock className="h-3 w-3" />
-                        {formatDeliveryLabel(
-                          getVideographyOptionDeliveryText(
-                            property.propertyType,
-                            property.propertySize,
-                            subService,
-                          ),
-                        )}
-                      </div>
+                      {isSubServiceAvailable && (
+                        <div
+                          className={
+                            isMobile
+                              ? "flex items-center gap-1 text-2xs text-muted-foreground/80 md:text-xs"
+                              : "flex items-center gap-1 text-muted-foreground/80 md:text-xs"
+                          }
+                        >
+                          <Clock className="h-3 w-3" />
+                          {formatDeliveryLabel(
+                            getVideographyOptionDeliveryText(
+                              property.propertyType,
+                              property.propertySize,
+                              subService,
+                            ),
+                          )}
+                        </div>
+                      )}
                     </div>
                   </OptionCard>
                 );

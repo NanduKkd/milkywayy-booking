@@ -65,6 +65,14 @@ export default function DateSlotPicker({
   const [availability, setAvailability] = useState({});
   const [loading, setLoading] = useState(false);
 
+  const isMobileViewport = () => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return false;
+    }
+
+    return window.matchMedia("(max-width: 767px)").matches;
+  };
+
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   // Fetch availability when month/year changes
@@ -290,6 +298,14 @@ export default function DateSlotPicker({
     return slotLabel ? `${dateStr} - ${slotLabel} ` : dateStr;
   };
 
+  const handleSlotSelect = (slotValue) => {
+    onSlotChange(slotValue);
+
+    if (isMobileViewport()) {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <>
       <div onClick={() => setIsOpen(true)} className="cursor-pointer">
@@ -417,9 +433,7 @@ export default function DateSlotPicker({
                         return (
                           <button
                             key={timeSlot.value}
-                            onClick={() =>
-                              isAvailable && onSlotChange(timeSlot.value)
-                            }
+                            onClick={() => isAvailable && handleSlotSelect(timeSlot.value)}
                             disabled={!isAvailable}
                           type="button"
                           className={cn(
