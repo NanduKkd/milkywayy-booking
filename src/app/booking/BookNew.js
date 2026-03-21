@@ -754,17 +754,17 @@ export default function BookNew({
                               </span>
                             </div>
                             {location && (
-                              <p className="text-2xs leading-4 text-muted-foreground">
+                              <p className="text-sm leading-4 text-muted-foreground">
                                 {location}
                               </p>
                             )}
                             {services && (
-                              <p className="text-2xs leading-4 text-muted-foreground">
+                              <p className="text-xs leading-4 text-muted-foreground">
                                 {services}
                               </p>
                             )}
                             {schedule && (
-                              <p className="text-2xs uppercase text-muted-foreground/80">
+                              <p className="text-xs uppercase text-muted-foreground/80">
                                 {schedule}
                               </p>
                             )}
