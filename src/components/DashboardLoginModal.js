@@ -250,7 +250,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                 Login to access your dashboard
               </h2>
               <p className="text-sm text-muted-foreground">
-                Enter your WhatsApp number to receive a one-time passcode.
+                Enter your WhatsApp number to receive a OTP.
               </p>
             </div>
 
@@ -273,7 +273,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                       WhatsApp Number *
                       <span
                         className="inline-flex cursor-help text-muted-foreground"
-                        title="Enter the number linked to your WhatsApp. OTP will be sent there."
+                        title="For booking confirmations & arrival updates."
                       >
                         <Info size={15} />
                       </span>
@@ -485,7 +485,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                   WhatsApp Number *
                   <span
                     className="inline-flex cursor-help text-muted-foreground"
-                    title="Enter the number linked to your WhatsApp. OTP will be sent there."
+                    title="We’ll use this to send booking confirmations, shoot updates, and arrival reminders."
                   >
                     <Info size={15} />
                   </span>

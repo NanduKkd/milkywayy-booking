@@ -481,7 +481,7 @@ export default function DateSlotPicker({
                           >
                             <div className="flex flex-col items-start">
                               <span className="font-medium">{timeSlot.label}</span>
-                              <span className="text-2xs text-foreground/60 mt-1">
+                              <span className={cn("text-2xs mt-1", !isSelectedSlot ? "text-foreground/60" : "text-background/60")}>
                                 Arrival {getArrivalTimes(timeSlot)}
                               </span>
                             </div>

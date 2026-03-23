@@ -797,7 +797,7 @@ export default function BookNew({
                               </span>
                             </div>
                             {location && (
-                              <p className="text-sm leading-4 text-muted-foreground">
+                              <p className="text-xs leading-4 text-muted-foreground">
                                 {location}
                               </p>
                             )}

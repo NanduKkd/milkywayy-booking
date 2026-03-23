@@ -4,9 +4,9 @@ import localFont from "next/font/local";
 import { getSessionUser } from "@/lib/helpers/auth";
 
 export const metadata = {
-  title: "Milkywayy - Dubai's 1st Property Shoot Booking Portal",
+  title: "Milkywayy - Don’t Just List, Dominate.",
   description:
-    "Elevate your real estate listings with Dubai's premier property photography and videography booking platform. Seamless, professional, and out of this world.",
+    "Dubai's first structured real estate media booking system - book photography, video walkthroughs, and 360° tours in seconds, then manage listings and invoices from one powerful dashboard.",
   icons: {
     icon: [
       {
