@@ -214,7 +214,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
         if (!open) handleClose();
       }}
     >
-      <DialogContent className="flex max-h-[82vh] overflow-hidden border-white/10 bg-[#171717] p-0 text-foreground shadow-2xl sm:max-w-[430px]">
+      <DialogContent className="flex gap-0 max-h-[82vh] overflow-hidden border-white/10 bg-[#171717] p-0 text-foreground shadow-2xl sm:max-w-[430px]">
         <DialogHeader className="border-b border-white/10 px-0 py-0">
           <DialogTitle className="sr-only">
             Dashboard Authentication
