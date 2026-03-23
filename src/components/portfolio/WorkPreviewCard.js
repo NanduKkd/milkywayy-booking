@@ -10,7 +10,7 @@ export default function WorkPreviewCard({
   item,
   index = 0,
   onOpen,
-  aspectClass = "aspect-[4/3]",
+  aspectClass = "aspect-[3/2]",
   className = "",
   sizes = "(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw",
   isTouch = false,

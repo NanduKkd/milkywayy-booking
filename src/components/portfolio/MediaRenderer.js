@@ -71,22 +71,22 @@ export default function MediaRenderer({
 
     case OUR_WORK_TYPES.VIDEO:
       return (
-        <div className={`relative bg-black ${className} w-full aspect-[4/3]`}>
+        <div className={`relative bg-black ${className} w-full aspect-[3/2]`}>
           <YouTubeEmbed
             url={url}
             height="100%"
             width="100%"
-            youTubeProps={{className: "w-full h-auto aspect-[4/3]"}}
+            youTubeProps={{className: "w-full h-auto aspect-[3/2]"}}
           />
         </div>
       );
 
     case OUR_WORK_TYPES.SHORT_VIDEO:
       return (
-        <div className="-mb-3 w-fit mx-auto">
+        <div className="-mb-3 h-[613px] mx-auto">
           <InstagramEmbed
             url={url}
-            width="100%"
+            height="613"
             placeholder="Loading..."
           />
         </div>

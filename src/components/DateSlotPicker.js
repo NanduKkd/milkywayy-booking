@@ -21,9 +21,9 @@ import { getAvailabilityForRange } from "@/lib/actions/bookings";
 import { cn } from "@/lib/utils";
 
 const TIME_SLOTS = [
-  { value: "09:00", period: "morning", label: "Morning", startTime: "09:00", endTime: "12:00" },
-  { value: "13:00", period: "afternoon", label: "Afternoon", startTime: "13:00", endTime: "16:00" },
-  { value: "17:00", period: "evening", label: "Evening", startTime: "17:00", endTime: "20:00" },
+  { value: "09:00", period: "morning", label: "Morning", startTime: "09:00", endTime: "12:00", arrivalTimes: "09:00 - 09:30" },
+  { value: "13:00", period: "afternoon", label: "Afternoon", startTime: "13:00", endTime: "16:00", arrivalTimes: "13:00 - 13:30" },
+  { value: "17:00", period: "evening", label: "Evening", startTime: "17:00", endTime: "20:00", arrivalTimes: "17:00 - 17:30" },
 ];
 
 const LEGACY_BLOCK_TO_HOURLY = {
@@ -98,6 +98,7 @@ export default function DateSlotPicker({
         const endStr = adjustedEnd.toISOString().split("T")[0];
 
         const res = await getAvailabilityForRange(startStr, endStr);
+        console.log(res, 'fdsd');
         const data = res.success ? res.data : {};
         setAvailability(data);
       } catch (err) {
@@ -414,7 +415,7 @@ export default function DateSlotPicker({
             <div className="border-t md:border-t-0 md:border-l border-zinc-800 px-4 pb-4 pt-3 md:p-6 flex flex-col bg-background max-h-[320px] md:max-h-none overflow-y-auto">
               <h3 className="text-sm md:text-md font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <Clock size={16} />
-                Available Slots
+                Available Time Windows
               </h3>
 
               {!date
@@ -447,8 +448,8 @@ export default function DateSlotPicker({
                           >
                             <div className="flex flex-col items-start">
                               <span className="font-medium">{timeSlot.label}</span>
-                              <span className="text-2xs text-gray-400">
-                                {timeSlot.startTime} - {timeSlot.endTime}
+                              <span className="text-2xs text-foreground/60 mt-1">
+                                Arrival {timeSlot.arrivalTimes}
                               </span>
                             </div>
                             {isSelectedSlot && (
@@ -457,6 +458,9 @@ export default function DateSlotPicker({
                           </button>
                         );
                       })}
+                      <div className="text-xs text-foreground/50 mt-4">Booking confirmation & arrival notifications are sent via WhatsApp.</div>
+                      <div className="text-xs text-foreground/30 mt-2">Need a different arrival time?</div>
+                      <div className="text-xs text-foreground/30 -mt-1">WhatsApp us - we&apos;ll adjust if available.</div>
                     </div>
                   </div>}
             </div>

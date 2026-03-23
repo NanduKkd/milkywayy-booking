@@ -60,7 +60,7 @@ const OurWorkPreview = () => {
   const getGridClass = () => {
     switch (activeCategory) {
       case OUR_WORK_TYPES.SHORT_VIDEO:
-        return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6";
+        return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
       case OUR_WORK_TYPES.VIDEO:
         return "grid-cols-1 lg:grid-cols-2";
       default:
@@ -75,7 +75,7 @@ const OurWorkPreview = () => {
       case OUR_WORK_TYPES.VIDEO:
         return "aspect-video";
       default:
-        return "aspect-[4/3]";
+        return "aspect-[3/2]";
     }
   };
 
@@ -123,7 +123,7 @@ const OurWorkPreview = () => {
               {loadingPlaceholderIds.map((placeholderId) => (
                 <div
                   key={placeholderId}
-                  className="aspect-[4/3] bg-muted/60 animate-pulse rounded-xl"
+                  className="aspect-[3/2] bg-muted/60 animate-pulse rounded-xl"
                 />
               ))}
             </div>
@@ -146,11 +146,12 @@ const OurWorkPreview = () => {
                 {emptyPlaceholderIds.map((placeholderId) => (
                   <div
                     key={placeholderId}
-                    className="aspect-[4/3] rounded-xl border border-border/60 bg-gradient-to-br from-card to-secondary/30"
+                    className="aspect-[3/2] rounded-xl border border-border/60 bg-gradient-to-br from-card to-secondary/30"
                   />
                 ))}
               </div>}
 
+    {/*
         <div className="text-center">
           <Link href="/portfolio">
             <Button
@@ -162,6 +163,7 @@ const OurWorkPreview = () => {
             </Button>
           </Link>
         </div>
+        */}
       </div>
 
       <WorkPreviewDialog

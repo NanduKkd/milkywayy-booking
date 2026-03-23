@@ -34,7 +34,7 @@ export default function WorkPreviewDialog({
               className={`${
                 item.type === OUR_WORK_TYPES.SHORT_VIDEO
                   ? "aspect-[9/16] max-h-[80vh] mx-auto"
-                  : "aspect-[4/3]"
+                  : "aspect-[3/2]"
               } bg-secondary`}
             >
               {item.type === OUR_WORK_TYPES.THREE_SIXTY &&

@@ -58,11 +58,11 @@ export default function PortfolioPage() {
   const getGridClass = () => {
     switch (activeFilter) {
       case OUR_WORK_TYPES.SHORT_VIDEO:
-        return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6";
+        return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
       case OUR_WORK_TYPES.VIDEO:
         return "grid-cols-1 md:grid-cols-2";
       default:
-        return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
+        return "grid-cols-2 md:grid-cols-3 abc lg:grid-cols-4";
     }
   };
 
@@ -73,7 +73,7 @@ export default function PortfolioPage() {
       case OUR_WORK_TYPES.VIDEO:
         return "aspect-video";
       default:
-        return "aspect-[4/3]";
+        return "aspect-[3/2]";
     }
   };
 
@@ -133,7 +133,7 @@ export default function PortfolioPage() {
                   {loadingPlaceholderIds.map((placeholderId) => (
                     <div
                       key={placeholderId}
-                      className="aspect-[4/3] bg-white/5 animate-pulse rounded-xl"
+                      className="aspect-[3/2] bg-white/5 animate-pulse rounded-xl"
                     />
                   ))}
                 </div>

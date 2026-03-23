@@ -6,7 +6,7 @@ const Photography = ({ items }) => {
       {items.map((item, index) => (
         <div
           key={`photo-${index}`}
-          className="group relative aspect-[4/3] bg-card rounded-xl overflow-hidden cursor-pointer fade-in"
+          className="group relative aspect-[3/2] bg-card rounded-xl overflow-hidden cursor-pointer fade-in"
           style={{ animationDelay: `${index * 0.05}s` }}
         >
           <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted"></div>
