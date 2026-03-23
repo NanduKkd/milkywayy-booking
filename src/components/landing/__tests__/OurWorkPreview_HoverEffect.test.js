@@ -42,7 +42,7 @@ describe("OurWorkPreview Hover Effect", () => {
 
     await waitFor(() => expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0));
 
-    const photoItem = screen.getAllByText("Photo 1").find(el => el.tagName === 'P').closest(".group");
+    const photoItem = screen.getByTestId("work-preview-card-1");
     const container = photoItem.querySelector(".photography-grayscale");
     
     expect(container).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("OurWorkPreview Hover Effect", () => {
     fireEvent.click(videoTab);
 
     await waitFor(() => expect(screen.getAllByText("Video 1").length).toBeGreaterThan(0));
-    const videoItem = screen.getAllByText("Video 1").find(el => el.tagName === 'P').closest(".group");
+    const videoItem = screen.getByTestId("work-preview-card-2");
 
     expect(videoItem.querySelector(".photography-grayscale")).not.toBeInTheDocument();
   });
@@ -78,7 +78,7 @@ describe("OurWorkPreview Hover Effect", () => {
 
     await waitFor(() => expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0));
 
-    const photoItem = screen.getAllByText("Photo 1").find(el => el.tagName === 'P').closest(".group");
+    const photoItem = screen.getByTestId("work-preview-card-1");
     expect(photoItem.querySelector(".photography-grayscale")).not.toBeInTheDocument();
   });
 });

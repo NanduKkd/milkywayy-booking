@@ -63,6 +63,8 @@ const OurWorkPreview = () => {
         return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
       case OUR_WORK_TYPES.VIDEO:
         return "grid-cols-1 lg:grid-cols-2";
+      case OUR_WORK_TYPES.THREE_SIXTY:
+        return "grid-cols-1 lg:grid-cols-2";
       default:
         return "grid-cols-2 md:grid-cols-2 lg:grid-cols-3";
     }
@@ -73,7 +75,7 @@ const OurWorkPreview = () => {
       case OUR_WORK_TYPES.SHORT_VIDEO:
         return "aspect-[9/16]";
       case OUR_WORK_TYPES.VIDEO:
-        return "aspect-video";
+        return "aspect-[3/2]";
       default:
         return "aspect-[3/2]";
     }

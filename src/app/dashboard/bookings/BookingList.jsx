@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +18,7 @@ import { toast } from "sonner";
 import DateSlotPicker from "@/components/DateSlotPicker";
 import {
   buildInvoiceDownloadUrl,
+  formatBookingReference,
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
 
@@ -39,7 +39,7 @@ export default function BookingList({ bookings }) {
   const [selectedCancelBooking, setSelectedCancelBooking] = useState(null);
   const selectedTransaction = selectedBooking?.transaction;
   const selectedInvoiceNumber = selectedTransaction?.id
-    ? formatInvoiceNumber(selectedTransaction.id)
+    ? formatInvoiceNumber(selectedTransaction)
     : null;
   const selectedInvoiceDownloadUrl =
     selectedTransaction?.invoiceUrl && selectedInvoiceNumber
@@ -141,7 +141,7 @@ export default function BookingList({ bookings }) {
 
     setRescheduleLoading(true);
     try {
-      const bookingCode = selectedRescheduleBooking.bookingCode || `MWY-${String(selectedRescheduleBooking.id).padStart(6, '0')}`;
+      const bookingCode = formatBookingReference(selectedRescheduleBooking);
       const res = await rescheduleBookingByCode(bookingCode, {
         date: rescheduleDate,
         startTime: rescheduleSlot,
@@ -154,7 +154,7 @@ export default function BookingList({ bookings }) {
       } else {
         toast.error(res.message || "Failed to reschedule booking");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to reschedule booking");
     } finally {
       setRescheduleLoading(false);
@@ -194,7 +194,7 @@ export default function BookingList({ bookings }) {
         day: "numeric",
         year: "numeric",
       }).format(date);
-    } catch (e) {
+    } catch (_error) {
       return dateStr;
     }
   };
@@ -457,7 +457,7 @@ export default function BookingList({ bookings }) {
                 <p>
                   <span className="font-medium text-zinc-300">Booking Code:</span>{" "}
                   <span className="font-mono text-[#f59e0b]">
-                    {selectedRescheduleBooking?.bookingCode || `MWY-${String(selectedRescheduleBooking?.id).padStart(6, '0')}`}
+                    {formatBookingReference(selectedRescheduleBooking)}
                   </span>
                 </p>
                 <p>
@@ -530,7 +530,7 @@ export default function BookingList({ bookings }) {
               <div>
                 <span className="text-muted-foreground">Booking Code:</span>{" "}
                 <span className="font-mono">
-                  {selectedCancelBooking.bookingCode || `MWY-${String(selectedCancelBooking.id).padStart(6, "0")}`}
+                  {formatBookingReference(selectedCancelBooking)}
                 </span>
               </div>
               <div>

@@ -82,6 +82,12 @@ const Transaction = sequelize.define(
       allowNull: true,
       field: "invoice_url",
     },
+    invoiceNumber: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+      field: "invoice_number",
+    },
   },
   {
     tableName: "transactions",

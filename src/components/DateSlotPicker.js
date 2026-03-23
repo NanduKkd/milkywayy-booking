@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { getAvailabilityForRange } from "@/lib/actions/bookings";
+import { getBookingLoadBreakdown } from "@/lib/helpers/bookingUtils";
 import { cn } from "@/lib/utils";
 
 const TIME_SLOTS = [
@@ -45,6 +46,10 @@ export default function DateSlotPicker({
   duration = 1,
   isNightService = false,
   blockedSlotsMap = {},
+  propertyType = "",
+  propertySize = "",
+  services = [],
+  videographySubService = "",
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -98,7 +103,6 @@ export default function DateSlotPicker({
         const endStr = adjustedEnd.toISOString().split("T")[0];
 
         const res = await getAvailabilityForRange(startStr, endStr);
-        console.log(res, 'fdsd');
         const data = res.success ? res.data : {};
         setAvailability(data);
       } catch (err) {
@@ -166,6 +170,35 @@ export default function DateSlotPicker({
         slotMeta.period === "morning" || slotMeta.period === "afternoon",
     );
   }, [isNightService]);
+
+  const bookingLoad = useMemo(() => {
+    if (!propertyType || !propertySize || !Array.isArray(services) || services.length === 0) {
+      return null;
+    }
+
+    return getBookingLoadBreakdown({
+      propertyType,
+      propertySize,
+      services,
+      videographySubService,
+    });
+  }, [propertyType, propertySize, services, videographySubService]);
+
+  const getArrivalTimes = (timeSlot) => {
+    if (timeSlot.period !== "evening") {
+      return timeSlot.arrivalTimes;
+    }
+
+    const totalLoad = Number(bookingLoad?.totalLoad);
+    if (!Number.isFinite(totalLoad)) {
+      return timeSlot.arrivalTimes;
+    }
+
+    if (totalLoad <= 6) return "17:00 - 17:30";
+    if (totalLoad <= 8) return "16:00 - 16:30";
+    if (totalLoad <= 10) return "15:00 - 15:30";
+    return "14:00 - 14:30";
+  };
 
   const isDateDisabled = (day) => {
     if (!day) return true;
@@ -449,7 +482,7 @@ export default function DateSlotPicker({
                             <div className="flex flex-col items-start">
                               <span className="font-medium">{timeSlot.label}</span>
                               <span className="text-2xs text-foreground/60 mt-1">
-                                Arrival {timeSlot.arrivalTimes}
+                                Arrival {getArrivalTimes(timeSlot)}
                               </span>
                             </div>
                             {isSelectedSlot && (

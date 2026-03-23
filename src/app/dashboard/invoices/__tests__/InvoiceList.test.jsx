@@ -8,12 +8,14 @@ const mockInvoices = [
     createdAt: '2025-12-01T10:00:00.000Z',
     amount: 1500,
     invoiceUrl: 'https://example.com/invoice1.pdf',
+    invoiceNumber: 'MW-2025-1201-001',
   },
   {
     id: 2,
     createdAt: '2025-12-05T10:00:00.000Z',
     amount: 500,
     invoiceUrl: null,
+    invoiceNumber: 'MW-2025-1205-001',
   },
 ];
 
@@ -21,10 +23,10 @@ describe('InvoiceList', () => {
   it('renders list of invoices', () => {
     render(<InvoiceList invoices={mockInvoices} />);
     expect(
-      screen.getByText(`Invoice #${formatInvoiceNumber(mockInvoices[0].id)}`)
+      screen.getByText(`Invoice #${formatInvoiceNumber(mockInvoices[0])}`)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(`Invoice #${formatInvoiceNumber(mockInvoices[1].id)}`)
+      screen.getByText(`Invoice #${formatInvoiceNumber(mockInvoices[1])}`)
     ).toBeInTheDocument();
   });
 
@@ -41,7 +43,7 @@ describe('InvoiceList', () => {
       'href',
       buildInvoiceDownloadUrl(
         mockInvoices[0].invoiceUrl,
-        formatInvoiceNumber(mockInvoices[0].id),
+        formatInvoiceNumber(mockInvoices[0]),
       ),
     );
   });

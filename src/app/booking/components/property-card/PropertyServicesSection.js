@@ -100,7 +100,7 @@ export function PropertyServicesSection({
                     <div className="flex w-full flex-row items-start gap-2 md:flex-col md:gap-2.5 text-left">
                       <div className="mt-0.5 shrink-0 rounded-full border border-white/8 bg-white/[0.03] p-1.5">
                         <Icon
-                          size={11}
+                          size={14}
                           className={
                             isSelected ? "text-foreground" : "text-muted-foreground"
                           }
@@ -108,11 +108,11 @@ export function PropertyServicesSection({
                       </div>
                       <div className="flex w-full items-center justify-between gap-2.5 md:block">
                         <div className="min-w-0">
-                          <div className="mb-0.5 text-xs font-semibold leading-4 md:mb-1 md:text-sm">
+                          <div className="mb-0.5 text-sm font-semibold leading-4 md:mb-1 md:text-sm">
                             {serviceName}
                           </div>
 
-                          <div className="mb-0.5 text-2xs leading-3 text-muted-foreground md:mb-1 md:text-2xs">
+                          <div className="mb-0.5 text-2xs mt-1 leading-3 text-muted-foreground md:mb-1 md:text-2xs">
                             {property.propertyType === "Commercial"
                               ? isServiceAvailable
                                 ? formatDeliveryLabel(

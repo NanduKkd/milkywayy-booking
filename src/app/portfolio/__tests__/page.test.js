@@ -35,6 +35,7 @@ describe("PortfolioPage", () => {
   const mockData = [
     { id: 1, title: "Photo 1", type: OUR_WORK_TYPES.IMAGE, mediaContent: "url1" },
     { id: 2, title: "360 1", type: OUR_WORK_TYPES.THREE_SIXTY, mediaContent: "url2" },
+    { id: 3, title: "Video 1", type: OUR_WORK_TYPES.VIDEO, mediaContent: "url3" },
   ];
 
   it("renders page structure and fetched items", async () => {
@@ -87,5 +88,28 @@ describe("PortfolioPage", () => {
     await waitFor(() => {
       expect(screen.getByText(/no entries found in this category/i)).toBeInTheDocument();
     });
+  });
+
+  it("does not open preview for long-form videos", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    });
+
+    render(<PortfolioPage />);
+
+    await waitFor(() => expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0));
+
+    const videoTab = screen.getByRole("tab", { name: "Long-form Videos" });
+    fireEvent.click(videoTab);
+    fireEvent.keyDown(videoTab, { key: "Enter", code: "Enter" });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("work-preview-card-3")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("work-preview-card-3"));
+
+    expect(screen.queryByTestId("work-preview-dialog")).not.toBeInTheDocument();
   });
 });

@@ -33,7 +33,7 @@ describe('DateSlotPicker', () => {
         expect(screen.getByText(/Select Date & Time/i)).toBeInTheDocument();
     });
     
-    expect(screen.getByText(/Available Slots/i)).toBeInTheDocument();
+    expect(screen.getByText(/Available Time Windows/i)).toBeInTheDocument();
   });
 
   it('renders block slots', async () => {
@@ -108,5 +108,52 @@ describe('DateSlotPicker', () => {
     expect(afternoonButton).toBeDisabled();
     expect(morningButton).toBeDisabled();
     expect(screen.queryByText('Evening')).not.toBeInTheDocument();
+  });
+
+  it('shows the default evening arrival window when total load is 6 or below', async () => {
+    render(
+      <DateSlotPicker
+        date="2026-01-05"
+        slot=""
+        isNightService
+        propertyType="Apartment"
+        propertySize="Studio"
+        services={["Photography"]}
+        onDateChange={mockOnDateChange}
+        onSlotChange={mockOnSlotChange}
+      />
+    );
+
+    fireEvent.click(screen.getByPlaceholderText(/Select Date & Time/i));
+
+    await waitFor(() => {
+      expect(screen.getByText('Evening')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Arrival 17:00 - 17:30/i)).toBeInTheDocument();
+  });
+
+  it('shows an earlier evening arrival window for higher booking load', async () => {
+    render(
+      <DateSlotPicker
+        date="2026-01-05"
+        slot=""
+        isNightService
+        propertyType="Commercial"
+        propertySize="Elite"
+        services={["Photography", "Videography", "360° Tour"]}
+        videographySubService="Daylight + Night"
+        onDateChange={mockOnDateChange}
+        onSlotChange={mockOnSlotChange}
+      />
+    );
+
+    fireEvent.click(screen.getByPlaceholderText(/Select Date & Time/i));
+
+    await waitFor(() => {
+      expect(screen.getByText('Evening')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Arrival 14:00 - 14:30/i)).toBeInTheDocument();
   });
 });

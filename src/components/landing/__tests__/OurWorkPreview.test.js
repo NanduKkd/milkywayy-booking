@@ -20,6 +20,7 @@ describe("OurWorkPreview", () => {
     { id: 1, title: "Photo 1", type: OUR_WORK_TYPES.IMAGE, mediaContent: "url1" },
     { id: 2, title: "360 1", type: OUR_WORK_TYPES.THREE_SIXTY, mediaContent: "url2" },
     { id: 3, title: "Video 1", type: OUR_WORK_TYPES.VIDEO, mediaContent: "url3" },
+    { id: 5, title: "Short 1", type: OUR_WORK_TYPES.SHORT_VIDEO, mediaContent: "url5" },
     { id: 4, title: "Photo 2", type: OUR_WORK_TYPES.IMAGE, mediaContent: "url4" },
   ];
 
@@ -70,5 +71,46 @@ describe("OurWorkPreview", () => {
     await waitFor(() => {
       expect(container.querySelectorAll("div.bg-gradient-to-br").length).toBe(6);
     });
+  });
+
+  it("opens preview only for photography and 360 items", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    });
+
+    render(<OurWorkPreview />);
+
+    await waitFor(() => expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByTestId("work-preview-card-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("work-preview-dialog")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByText("Close")[0]);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("work-preview-dialog")).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Long-form"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("work-preview-card-3")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("work-preview-card-3"));
+    expect(screen.queryByTestId("work-preview-dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Short-form"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("work-preview-card-5")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("work-preview-card-5"));
+    expect(screen.queryByTestId("work-preview-dialog")).not.toBeInTheDocument();
   });
 });

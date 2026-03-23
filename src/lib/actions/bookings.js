@@ -20,6 +20,10 @@ import {
 import { auth } from "@/lib/helpers/auth";
 import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
 import { getPricingConfig } from "@/lib/helpers/pricing";
+import {
+  buildBookingReferenceFromId,
+  formatBookingReference,
+} from "@/lib/helpers/invoice-format";
 import { USER_ROLES } from "../config/app.config";
 import {
   sendBookingConfirmation,
@@ -106,10 +110,52 @@ const formatDeliveryTimelineText = (services) => {
     .join(" · ");
 };
 
-const formatBookingReference = (booking) => {
-  if (!booking) return "";
-  if (booking.bookingCode) return booking.bookingCode;
-  return booking.id ? `MWY-${String(booking.id).padStart(6, "0")}` : "";
+const normalizeDisplayText = (value) =>
+  String(value || "")
+    .replace(/360(?:Â°|°)?\s*Tour/gi, "360° Tour")
+    .replace(/_/g, " ")
+    .trim();
+
+const dedupeTextValues = (values) => {
+  const seen = new Set();
+  return values.filter((value) => {
+    const normalized = String(value || "").trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+};
+
+const getBookingLocationLabel = (booking) => {
+  const property = booking?.propertyDetails || {};
+  const locationParts = dedupeTextValues([
+    property.unitNumber || property.unit || property.name,
+    property.building,
+    property.community,
+  ].filter(Boolean));
+
+  return locationParts.join(", ");
+};
+
+const parseVideographySelections = (value) =>
+  String(value || "")
+    .split("|")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+const formatServiceSelectionLabel = (service) => {
+  const normalized = normalizeDisplayText(service);
+  return normalized || "Service";
+};
+
+const formatVideographySelectionLabel = (selection) => {
+  const detail = normalizeDisplayText(selection)
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" - ");
+
+  return detail ? `Videography - ${detail}` : "Videography";
 };
 
 const getUniqueBookingServices = (booking) =>
@@ -121,19 +167,38 @@ const getUniqueBookingServices = (booking) =>
     ),
   );
 
+const getSelectedBookingServiceLabels = (booking) => {
+  const services = getUniqueBookingServices(booking);
+  const videographySelections = parseVideographySelections(
+    booking?.shootDetails?.videographySubService,
+  );
+
+  return dedupeTextValues(
+    services.flatMap((service) => {
+      if (service !== "Videography") {
+        return [formatServiceSelectionLabel(service)];
+      }
+
+      if (videographySelections.length === 0) {
+        return ["Videography"];
+      }
+
+      return videographySelections.map(formatVideographySelectionLabel);
+    }),
+  );
+};
+
 const buildBookingSummaryPayload = (booking, fallbackAmount = 0) => {
   if (!booking) return null;
   const property = booking.propertyDetails || {};
-  const services = getUniqueBookingServices(booking);
-  const locationParts = [
-    property.unitNumber || property.unit,
-    property.building,
-    property.community,
-  ].filter(Boolean);
+  const services = getSelectedBookingServiceLabels(booking);
+  const deliveryServices = getUniqueBookingServices(booking).map(
+    formatServiceSelectionLabel,
+  );
 
   const propertyTitle = [
-    property.propertySize,
-    property.propertyType,
+    property.propertySize || property.size,
+    property.propertyType || property.type,
     property.community,
   ]
     .filter(Boolean)
@@ -142,18 +207,114 @@ const buildBookingSummaryPayload = (booking, fallbackAmount = 0) => {
   return {
     bookingReference: formatBookingReference(booking),
     propertyTitle: propertyTitle || "Property booking",
-    location: locationParts.join(", "),
+    location: getBookingLocationLabel(booking),
     services: services.join(", "),
     arrivalWindow: formatArrivalWindowLabel(booking),
-    deliveryTimeline: formatDeliveryTimelineText(services),
+    deliveryTimeline: formatDeliveryTimelineText(deliveryServices),
     amount: Number(booking.total || fallbackAmount || 0),
   };
+};
+
+const toCents = (value) => Math.round(Number(value || 0) * 100);
+
+const findBookingSubsetByAmount = (bookings, targetCents) => {
+  const matches = [];
+  const candidates = Array.isArray(bookings)
+    ? bookings
+        .map((booking) => ({
+          booking,
+          cents: toCents(booking?.total),
+        }))
+        .filter((entry) => entry.cents > 0)
+    : [];
+
+  const search = (index, total, selected) => {
+    if (matches.length > 1) return;
+    if (total === targetCents) {
+      matches.push([...selected]);
+      return;
+    }
+    if (index >= candidates.length || total > targetCents) return;
+
+    const current = candidates[index];
+    selected.push(current.booking);
+    search(index + 1, total + current.cents, selected);
+    selected.pop();
+    search(index + 1, total, selected);
+  };
+
+  search(0, 0, []);
+
+  return matches.length === 1 ? matches[0] : [];
+};
+
+const recoverTransactionBookings = async (transaction) => {
+  const transactionCreatedAt = transaction?.createdAt
+    ? new Date(transaction.createdAt)
+    : null;
+  const hasValidTimestamp =
+    transactionCreatedAt instanceof Date &&
+    !Number.isNaN(transactionCreatedAt.getTime());
+  const expectedGrossCents = toCents(
+    Number(transaction?.amount || 0) +
+    Number(transaction?.couponDeduction || 0) +
+    Number(transaction?.bulkDeduction || 0),
+  );
+
+  if (!transaction?.id || !transaction?.userId || !hasValidTimestamp || expectedGrossCents <= 0) {
+    return [];
+  }
+
+  const windowStart = new Date(transactionCreatedAt.getTime() - (2 * 60 * 60 * 1000));
+  const windowEnd = new Date(transactionCreatedAt.getTime() + (15 * 60 * 1000));
+  const candidates = await Booking.findAll({
+    where: {
+      userId: transaction.userId,
+      status: { [Op.in]: ["DRAFT", "CONFIRMED"] },
+      createdAt: { [Op.between]: [windowStart, windowEnd] },
+      [Op.or]: [
+        { transactionId: null },
+        { transactionId: transaction.id },
+      ],
+    },
+    order: [
+      ["createdAt", "DESC"],
+      ["id", "DESC"],
+    ],
+  });
+
+  const matchedBookings = findBookingSubsetByAmount(candidates, expectedGrossCents);
+  if (matchedBookings.length === 0) {
+    console.warn("[PAYMENT] Unable to recover bookings for paid transaction", {
+      transactionId: transaction.id,
+      userId: transaction.userId,
+      candidateCount: candidates.length,
+      expectedGrossCents,
+    });
+    return [];
+  }
+
+  const matchedIds = matchedBookings.map((booking) => booking.id);
+  await Booking.update(
+    { transactionId: transaction.id, status: "CONFIRMED" },
+    { where: { id: matchedIds } },
+  );
+  console.log("[PAYMENT] Recovered bookings for paid transaction", {
+    transactionId: transaction.id,
+    userId: transaction.userId,
+    matchedIds,
+  });
+
+  return Booking.findAll({
+    where: { id: matchedIds },
+    order: [["id", "ASC"]],
+  });
 };
 
 const buildDummyVerifyStripeSessionResponse = () => {
   const bookingSummaries = [
     {
-      bookingReference: "MWY-000321",
+      bookingReference: "MWB-1321",
       propertyTitle: "2 Bed Apartment - Dubai Marina",
       location: "1204, Marina Gate, Dubai Marina",
       services: "Photography, Videography",
@@ -163,7 +324,7 @@ const buildDummyVerifyStripeSessionResponse = () => {
       amount: 600,
     },
     {
-      bookingReference: "MWY-000322",
+      bookingReference: "MWB-1322",
       propertyTitle: "Villa - Palm Jumeirah",
       location: "Villa 14, Frond A, Palm Jumeirah",
       services: "360° Tour",
@@ -175,6 +336,7 @@ const buildDummyVerifyStripeSessionResponse = () => {
 
   return {
     message: "Payment verified and bookings confirmed",
+    paymentVerified: true,
     bookingSummary: bookingSummaries[0],
     bookingSummaries,
     bookingReferences: bookingSummaries.map(
@@ -1019,7 +1181,7 @@ const saveDraftsHandler = async (properties) => {
 
   // Generate booking codes for new bookings
   for (const booking of createdBookings) {
-    const bookingCode = `MWY-${String(booking.id).padStart(6, '0')}`;
+    const bookingCode = buildBookingReferenceFromId(booking.id);
     await booking.update({ bookingCode });
   }
 
@@ -1136,14 +1298,21 @@ const createTransactionAndPaymentIntentHandler = async (
 
   if (normalizedCouponCode) {
     if (normalizedCouponCode === LAUNCH_PROMO_CODE) {
-      const existingBookings = await Booking.count({
+      const successfulLaunchPromoBookings = await Booking.count({
         where: {
           userId,
-          status: { [Op.ne]: "DRAFT" },
         },
+        include: [
+          {
+            model: Transaction,
+            as: "transaction",
+            required: true,
+            where: { status: "success" },
+          },
+        ],
       });
 
-      if (existingBookings > 0) {
+      if (successfulLaunchPromoBookings > 0) {
         throw new Error("Launch credit is valid only for your first booking");
       }
 
@@ -1195,6 +1364,7 @@ const createTransactionAndPaymentIntentHandler = async (
       appliedDiscounts,
       creditExpiresAt: walletExpiryDate,
       appliedCouponCode,
+      bookingIds,
     },
   });
 
@@ -1308,9 +1478,7 @@ const cancelBookingHandler = async (bookingId) => {
           amount: Math.round(refundAmount * 100),
           metadata: {
             bookingId: String(booking.id),
-            bookingCode: String(
-              booking.bookingCode || `MWY-${String(booking.id).padStart(6, "0")}`,
-            ),
+            bookingCode: String(formatBookingReference(booking)),
             refundType: policy.partialEligible ? "partial" : "full",
           },
         });
@@ -1328,9 +1496,7 @@ const cancelBookingHandler = async (bookingId) => {
           amount: Math.round(refundAmount * 100),
           metadata: {
             bookingId: String(booking.id),
-            bookingCode: String(
-              booking.bookingCode || `MWY-${String(booking.id).padStart(6, "0")}`,
-            ),
+            bookingCode: String(formatBookingReference(booking)),
             refundType: policy.partialEligible ? "partial" : "full",
           },
         });
@@ -1447,35 +1613,51 @@ const verifyStripeSessionHandler = async (sessionId) => {
 
     let invoiceUrl = transaction.invoiceUrl || null;
 
-    if (shouldGenerateSideEffects || !invoiceUrl) {
-      // Generate Invoice
-      try {
-        const user = await db.models.User.findByPk(transaction.userId);
-        if (user) {
-          const { ensureTransactionInvoiceUrl } = await import(
-            "@/lib/helpers/invoice"
-          );
-          const generatedInvoiceUrl = await ensureTransactionInvoiceUrl(
-            transaction,
-            user,
-          );
-          if (generatedInvoiceUrl) {
-            invoiceUrl = generatedInvoiceUrl;
-          }
-        }
-      } catch (invoiceError) {
-        console.error(
-          "Error generating invoice in verifyStripeSession:",
-          invoiceError,
+    // Always run the invoice helper so stale invoices can be regenerated when
+    // booking linkage is repaired later.
+    try {
+      const user = await db.models.User.findByPk(transaction.userId);
+      if (user) {
+        const { ensureTransactionInvoiceUrl } = await import(
+          "@/lib/helpers/invoice"
         );
-        // Don't fail the verification if invoice generation fails, just log it
+        const generatedInvoiceUrl = await ensureTransactionInvoiceUrl(
+          transaction,
+          user,
+        );
+        if (generatedInvoiceUrl) {
+          invoiceUrl = generatedInvoiceUrl;
+        }
       }
-
+    } catch (invoiceError) {
+      console.error(
+        "Error generating invoice in verifyStripeSession:",
+        invoiceError,
+      );
+      // Don't fail the verification if invoice generation fails, just log it
     }
 
-    const confirmedBookings = await Booking.findAll({
+    let confirmedBookings = await Booking.findAll({
       where: { transactionId: transaction.id },
     });
+    const metadataBookingIds = Array.isArray(transaction.metadata?.bookingIds)
+      ? transaction.metadata.bookingIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0)
+      : [];
+    if (confirmedBookings.length === 0 && metadataBookingIds.length > 0) {
+      await Booking.update(
+        { transactionId: transaction.id, status: "CONFIRMED" },
+        { where: { id: metadataBookingIds, userId: transaction.userId } },
+      );
+      confirmedBookings = await Booking.findAll({
+        where: { id: metadataBookingIds, userId: transaction.userId },
+        order: [["id", "ASC"]],
+      });
+    }
+    if (confirmedBookings.length === 0) {
+      confirmedBookings = await recoverTransactionBookings(transaction);
+    }
 
     if (!confirmationAlreadySent) {
       try {
@@ -1540,20 +1722,54 @@ const verifyStripeSessionHandler = async (sessionId) => {
       .map((booking) => formatBookingReference(booking))
       .filter(Boolean);
 
-    return {
-      message: "Payment verified and bookings confirmed",
-      bookingSummary: bookingSummaries[0] || null,
-      bookingSummaries,
-      bookingReferences,
+  return {
+    message: "Payment verified and bookings confirmed",
+    paymentVerified: true,
+    bookingSummary: bookingSummaries[0] || null,
+    bookingSummaries,
+    bookingReferences,
       totalPaidAmount: Number(transaction.amount || 0),
     };
   }
-  return {};
+  return {
+    message: "Payment is still processing. Please refresh in a few seconds.",
+    paymentVerified: false,
+    bookingSummary: null,
+    bookingSummaries: [],
+    bookingReferences: [],
+    totalPaidAmount: 0,
+  };
 };
 export const verifyStripeSession = actionWrapper(verifyStripeSessionHandler);
 
 const cancelBookingBySessionIdHandler = async (sessionId) => {
   if (!sessionId) throw new Error("No session ID provided");
+
+  const restoreDraftsForFailedCheckout = async (transaction) => {
+    if (!transaction) throw new Error("Transaction not found");
+
+    // If payment has already succeeded (webhook race/manual revisit), do not
+    // downgrade paid bookings back to draft.
+    if (transaction.status === "success") {
+      return { restoredDrafts: false, alreadyPaid: true };
+    }
+
+    if (transaction.status !== "failed") {
+      await transaction.update({ status: "failed" });
+    }
+
+    await Booking.update(
+      { cancelledAt: null, status: "DRAFT" },
+      {
+        where: {
+          transactionId: transaction.id,
+          status: { [Op.in]: ["DRAFT", "CANCELLED"] },
+        },
+      },
+    );
+
+    return { restoredDrafts: true, alreadyPaid: false };
+  };
 
   // Find transaction by session ID
   const transaction = await Transaction.findOne({
@@ -1572,24 +1788,13 @@ const cancelBookingBySessionIdHandler = async (sessionId) => {
       const tId = session.metadata.transactionId;
       const t = await Transaction.findByPk(tId);
       if (t) {
-        await t.update({ status: "failed" });
-        await Booking.update(
-          { cancelledAt: new Date(), status: "CANCELLED" },
-          { where: { transactionId: t.id } },
-        );
-        return { success: true };
+        return restoreDraftsForFailedCheckout(t);
       }
     }
     throw new Error("Transaction not found");
   }
 
-  await transaction.update({ status: "failed" });
-  await Booking.update(
-    { cancelledAt: new Date(), status: "CANCELLED" },
-    { where: { transactionId: transaction.id } },
-  );
-
-  return { success: true };
+  return restoreDraftsForFailedCheckout(transaction);
 };
 export const cancelBookingBySessionId = actionWrapper(
   cancelBookingBySessionIdHandler,

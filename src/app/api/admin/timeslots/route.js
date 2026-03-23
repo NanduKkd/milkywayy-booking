@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Op } from "sequelize";
 import Booking from "@/lib/db/models/booking";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
+import { formatBookingReference } from "@/lib/helpers/invoice-format";
 
 const CONFIG_KEY = "timeSlots";
 const DAYS_OF_WEEK = [
@@ -281,7 +282,7 @@ export async function GET(request) {
       const arrivalEnd = addMinutesToTime(arrivalStart, 30);
 
       bookedDetailsMap[booking.date][period].push({
-        bookingCode: booking.bookingCode || `BK-${booking.id || ""}`,
+        bookingCode: formatBookingReference(booking),
         propertyLabel: [propertyType, propertySize].filter(Boolean).join(" - "),
         serviceLabel,
         arrival: `${arrivalStart} - ${arrivalEnd}`,

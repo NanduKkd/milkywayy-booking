@@ -10,6 +10,7 @@ import {
 } from "@/lib/config/promo";
 import Booking from "@/lib/db/models/booking";
 import Coupon from "@/lib/db/models/coupon";
+import Transaction from "@/lib/db/models/transaction";
 import { auth } from "@/lib/helpers/auth";
 
 const buildLaunchPromoCoupon = () => ({
@@ -148,14 +149,21 @@ const validateCouponHandler = async (code, amount) => {
       };
     }
 
-    const existingBookings = await Booking.count({
+    const successfulLaunchPromoBookings = await Booking.count({
       where: {
         userId: session.id,
-        status: { [Op.ne]: "DRAFT" },
       },
+      include: [
+        {
+          model: Transaction,
+          as: "transaction",
+          required: true,
+          where: { status: "success" },
+        },
+      ],
     });
 
-    if (existingBookings > 0) {
+    if (successfulLaunchPromoBookings > 0) {
       return {
         valid: false,
         message: "Launch credit is valid only for your first booking",

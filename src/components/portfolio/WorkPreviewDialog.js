@@ -3,7 +3,12 @@
 import { Play, X } from "lucide-react";
 import Image from "next/image";
 import MediaRenderer from "@/components/portfolio/MediaRenderer";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 
 export default function WorkPreviewDialog({
@@ -15,10 +20,16 @@ export default function WorkPreviewDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose?.()}>
-      <DialogContent className="sm:max-w-4xl bg-card border-border rounded-xl p-0 overflow-hidden">
+      <DialogContent
+        data-testid="work-preview-dialog"
+        className="sm:max-w-4xl bg-card border-border rounded-xl p-0 overflow-hidden"
+      >
         <DialogTitle className="sr-only">
           {item?.title || "Work Preview"}
         </DialogTitle>
+        <DialogDescription className="sr-only">
+          {item?.subtitle || "Dubai"}
+        </DialogDescription>
 
         {item && (
           <div className="relative">

@@ -37,6 +37,9 @@ const SUBCATEGORY_TITLES = Object.freeze({
   DAYLIGHT_NIGHT: "Day + Night",
 });
 
+const EVENING_LIGHTING_HELPER_TEXT =
+  "Evening slots ensure optimal lighting and twilight shots.";
+
 function getVideographyOptionMeta(subService) {
   if (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) {
     return VIDEOGRAPHY_OPTION_META.shortForm;
@@ -271,96 +274,111 @@ export function VideographyOptionsSection({
                     <h5>Lighting Preference</h5>
                   </label>
 
-                  <div
-                    className={
-                      isMobile
-                        ? "grid grid-cols-3 gap-2.5"
-                        : "grid grid-cols-1 gap-2.5 md:grid-cols-3"
-                    }
-                  >
-                    {(() => {
-                      const [mainService] = selectedLongForm.split(".") || [];
-                      const categories = VIDEOGRAPHY_SUB_CATEGORIES[mainService];
+                  {(() => {
+                    const [mainService] = selectedLongForm.split(".") || [];
+                    const categories = VIDEOGRAPHY_SUB_CATEGORIES[mainService];
 
-                      if (!categories) return null;
+                    if (!categories) return null;
 
-                      const currentCategory = getSelectedLightingCategory(
-                        selectedLongForm,
-                        mainService,
-                      );
+                    const currentCategory = getSelectedLightingCategory(
+                      selectedLongForm,
+                      mainService,
+                    );
+                    const showEveningHelperText =
+                      currentCategory ===
+                        VIDEOGRAPHY_SUB_CATEGORIES[mainService]?.NIGHT_LIGHT ||
+                      currentCategory ===
+                        VIDEOGRAPHY_SUB_CATEGORIES[mainService]?.DAYLIGHT_NIGHT;
 
-                      return Object.entries(categories).map(
-                        ([categoryKey, categoryName]) => {
-                          const categoryTitle =
-                            SUBCATEGORY_TITLES[categoryKey] || categoryName;
+                    return (
+                      <>
+                        <div
+                          className={
+                            isMobile
+                              ? "grid grid-cols-3 gap-2.5"
+                              : "grid grid-cols-1 gap-2.5 md:grid-cols-3"
+                          }
+                        >
+                          {Object.entries(categories).map(
+                            ([categoryKey, categoryName]) => {
+                              const categoryTitle =
+                                SUBCATEGORY_TITLES[categoryKey] || categoryName;
 
-                          return (
-                            <OptionCard
-                              key={categoryKey}
-                              className={cn(
-                                "relative",
-                                isMobile
-                                  ? "!rounded-[18px] !rounded-lg py-1.5 px-1 md:!py-3.5"
-                                  : "!px-4 !py-3 md:!py-3.5",
-                              )}
-                              selectedClassName={
-                                isMobile
-                                  ? "border-white/35 bg-white/[0.06] text-white"
-                                  : "border-white/40 bg-white/[0.08] text-white"
-                              }
-                              unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/25 hover:text-white"
-                              isSelected={currentCategory === categoryName}
-                              onClick={() => {
-                                const currentSelections = parseVideographySelections(
-                                  field.value,
-                                );
-                                const withoutLong = currentSelections.filter(
-                                  (value) =>
-                                    !value.startsWith(
-                                      `${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`,
-                                    ) &&
-                                    value !== VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
-                                );
-
-                                updatePropertyField(
-                                  index,
-                                  "videographySubService",
-                                  serializeVideographySelections([
-                                    ...withoutLong,
-                                    `${mainService}.${categoryName}`,
-                                  ]),
-                                );
-                              }}
-                            >
-                              {isMobile ? (
-                                <div className="flex items-center justify-center gap-1">
-                                  <div className="font-medium text-2xs md:text-sm">
-                                    {categoryTitle}
-                                  </div>
-                                  {currentCategory === categoryName && (
-                                    <span className="absolute right-1 top-1 h-4 w-4 md:h-5 md:w-5 rounded-full bg-white text-black flex items-center justify-center">
-                                      <Check className="h-3 w-3" />
-                                    </span>
+                              return (
+                                <OptionCard
+                                  key={categoryKey}
+                                  className={cn(
+                                    "relative",
+                                    isMobile
+                                      ? "!rounded-[18px] !rounded-lg py-2 px-1 md:!py-3.5"
+                                      : "!px-4 !py-3 md:!py-3.5",
                                   )}
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center gap-2">
-                                  <div className="text-sm font-medium">
-                                    {categoryTitle}
-                                  </div>
-                                  {currentCategory === categoryName && (
-                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
-                                      <Check className="h-3 w-3" />
-                                    </span>
+                                  selectedClassName={
+                                    isMobile
+                                      ? "border-white/35 bg-white/[0.06] text-white"
+                                      : "border-white/40 bg-white/[0.08] text-white"
+                                  }
+                                  unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/25 hover:text-white"
+                                  isSelected={currentCategory === categoryName}
+                                  onClick={() => {
+                                    const currentSelections = parseVideographySelections(
+                                      field.value,
+                                    );
+                                    const withoutLong = currentSelections.filter(
+                                      (value) =>
+                                        !value.startsWith(
+                                          `${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`,
+                                        ) &&
+                                        value !== VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
+                                    );
+
+                                    updatePropertyField(
+                                      index,
+                                      "videographySubService",
+                                      serializeVideographySelections([
+                                        ...withoutLong,
+                                        `${mainService}.${categoryName}`,
+                                      ]),
+                                    );
+                                  }}
+                                >
+                                  {isMobile ? (
+                                    <div className="flex items-center justify-center gap-1">
+                                      <div className="font-medium text-2xs md:text-sm">
+                                        {categoryTitle}
+                                      </div>
+                                      {currentCategory === categoryName && (
+                                        <span className="absolute right-1 top-1.2 h-4 w-4 md:h-5 md:w-5 rounded-full bg-white text-black flex items-center justify-center">
+                                          <Check className="h-3 w-3" />
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-center gap-2">
+                                      <div className="text-sm font-medium">
+                                        {categoryTitle}
+                                      </div>
+                                      {currentCategory === categoryName && (
+                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                                          <Check className="h-3 w-3" />
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
-                                </div>
-                              )}
-                            </OptionCard>
-                          );
-                        },
-                      );
-                    })()}
-                  </div>
+                                </OptionCard>
+                              );
+                            },
+                          )}
+                        </div>
+
+                        {showEveningHelperText && (
+                          <p className="mt-3 text-[11px] text-center text-muted-foreground/70">
+                            {EVENING_LIGHTING_HELPER_TEXT}
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
           </>

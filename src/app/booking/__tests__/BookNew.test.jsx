@@ -47,7 +47,13 @@ jest.mock(
 );
 
 jest.mock("../components/PropertyCard", () => ({
-  PropertyCard: ({ index, onRemove, updatePropertyField, property }) => {
+  PropertyCard: ({
+    index,
+    onRemove,
+    updatePropertyField,
+    toggleService,
+    property,
+  }) => {
     return (
       <div data-testid={`property-card-${index}`}>
         <input
@@ -64,6 +70,22 @@ jest.mock("../components/PropertyCard", () => ({
         />
         <button
           type="button"
+          data-testid={`set-date-${index}`}
+          onClick={() =>
+            updatePropertyField(index, "preferredDate", "2026-04-01")
+          }
+        >
+          Set Date
+        </button>
+        <button
+          type="button"
+          data-testid={`set-time-${index}`}
+          onClick={() => updatePropertyField(index, "startTime", "10:00")}
+        >
+          Set Time
+        </button>
+        <button
+          type="button"
           data-testid={`add-service-${index}`}
           onClick={() =>
             updatePropertyField(index, "services", ["Photography"])
@@ -71,6 +93,30 @@ jest.mock("../components/PropertyCard", () => ({
         >
           Add Service
         </button>
+        <button
+          type="button"
+          data-testid={`toggle-service-${index}`}
+          onClick={() =>
+            toggleService(index, "Photography", property.services || [])
+          }
+        >
+          Toggle Service
+        </button>
+        <button
+          type="button"
+          data-testid={`set-videography-option-${index}`}
+          onClick={() =>
+            updatePropertyField(
+              index,
+              "videographySubService",
+              "Long Form.Daylight",
+            )
+          }
+        >
+          Set Videography Option
+        </button>
+        <div data-testid={`date-${index}`}>{property.preferredDate}</div>
+        <div data-testid={`time-${index}`}>{property.startTime}</div>
         <div data-testid={`duration-${index}`}>{property.duration}</div>
         <button
           type="button"
@@ -228,6 +274,78 @@ describe("BookNew", () => {
       expect(screen.getByTestId("duration-0")).toHaveTextContent("7");
     });
     expect(calculateBookingDuration).toHaveBeenCalled();
+  });
+
+  it("resets date and time when service/type/size/videography changes", async () => {
+    render(
+      <Suspense fallback={<div>Loading...</div>}>
+        <BookNew
+          pricingsPromise={mockPricingsPromise}
+          discountsPromise={mockDiscountsPromise}
+        />
+      </Suspense>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("property-card-0")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("set-date-0"));
+    fireEvent.click(screen.getByTestId("set-time-0"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("date-0")).toHaveTextContent("2026-04-01");
+      expect(screen.getByTestId("time-0")).toHaveTextContent("10:00");
+    });
+
+    fireEvent.click(screen.getByTestId("toggle-service-0"));
+    await waitFor(() => {
+      expect(screen.getByTestId("date-0")).toHaveTextContent("");
+      expect(screen.getByTestId("time-0")).toHaveTextContent("");
+    });
+
+    fireEvent.click(screen.getByTestId("set-date-0"));
+    fireEvent.click(screen.getByTestId("set-time-0"));
+    await waitFor(() => {
+      expect(screen.getByTestId("date-0")).toHaveTextContent("2026-04-01");
+      expect(screen.getByTestId("time-0")).toHaveTextContent("10:00");
+    });
+
+    fireEvent.change(screen.getByTestId("size-0"), {
+      target: { value: "2 Bed" },
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("date-0")).toHaveTextContent("");
+      expect(screen.getByTestId("time-0")).toHaveTextContent("");
+    });
+
+    fireEvent.click(screen.getByTestId("set-date-0"));
+    fireEvent.click(screen.getByTestId("set-time-0"));
+    await waitFor(() => {
+      expect(screen.getByTestId("date-0")).toHaveTextContent("2026-04-01");
+      expect(screen.getByTestId("time-0")).toHaveTextContent("10:00");
+    });
+
+    fireEvent.click(screen.getByTestId("set-videography-option-0"));
+    await waitFor(() => {
+      expect(screen.getByTestId("date-0")).toHaveTextContent("");
+      expect(screen.getByTestId("time-0")).toHaveTextContent("");
+    });
+
+    fireEvent.click(screen.getByTestId("set-date-0"));
+    fireEvent.click(screen.getByTestId("set-time-0"));
+    await waitFor(() => {
+      expect(screen.getByTestId("date-0")).toHaveTextContent("2026-04-01");
+      expect(screen.getByTestId("time-0")).toHaveTextContent("10:00");
+    });
+
+    fireEvent.change(screen.getByTestId("type-0"), {
+      target: { value: "Villa" },
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("date-0")).toHaveTextContent("");
+      expect(screen.getByTestId("time-0")).toHaveTextContent("");
+    });
   });
 
   it("allows entering and applying a promo code manually", async () => {

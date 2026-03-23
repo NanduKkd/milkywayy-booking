@@ -25,7 +25,7 @@ export async function GET() {
 
     await Promise.all(
       transactions
-        .filter((transaction) => !transaction.invoiceUrl)
+        .filter((transaction) => transaction.status === "success")
         .map((transaction) =>
           ensureTransactionInvoiceUrl(transaction, transaction.user),
         ),

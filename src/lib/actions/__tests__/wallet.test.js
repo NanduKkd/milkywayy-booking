@@ -27,6 +27,7 @@ describe("getInvoices", () => {
     const transaction = {
       id: 3,
       userId: 7,
+      status: "success",
       invoiceUrl: null,
       toJSON() {
         return {
@@ -56,12 +57,14 @@ describe("getInvoices", () => {
     ]);
   });
 
-  it("skips regeneration when the invoice URL already exists", async () => {
+  it("rechecks successful invoices even when a URL already exists", async () => {
     auth.mockResolvedValue({ id: 7 });
+    ensureTransactionInvoiceUrl.mockImplementation(async (target) => target.invoiceUrl);
 
     const transaction = {
       id: 4,
       userId: 7,
+      status: "success",
       invoiceUrl: "https://example.com/invoice-4.pdf",
       toJSON() {
         return {
@@ -77,7 +80,7 @@ describe("getInvoices", () => {
     const result = await getInvoices();
 
     expect(result.success).toBe(true);
-    expect(ensureTransactionInvoiceUrl).not.toHaveBeenCalled();
+    expect(ensureTransactionInvoiceUrl).toHaveBeenCalledWith(transaction);
     expect(result.data).toEqual([
       {
         id: 4,

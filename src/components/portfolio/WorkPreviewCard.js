@@ -1,6 +1,5 @@
 "use client";
 
-import { Play } from "lucide-react";
 import Image from "next/image";
 import MediaRenderer from "@/components/portfolio/MediaRenderer";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
@@ -16,16 +15,29 @@ export default function WorkPreviewCard({
   isTouch = false,
   animationDelayStep = 0.03,
 }) {
+  const isPreviewable =
+    item.type === OUR_WORK_TYPES.IMAGE ||
+    item.type === OUR_WORK_TYPES.THREE_SIXTY;
+  const CardTag = isPreviewable ? "button" : "div";
+
   const openPreview = () => {
+    if (!isPreviewable) return;
     onOpen?.(item);
   };
 
   return (
-    <button
-      type="button"
-      onClick={openPreview}
+    <CardTag
+      {...(isPreviewable
+        ? {
+            type: "button",
+            onClick: openPreview,
+          }
+        : {})}
+      data-testid={`work-preview-card-${item.id}`}
+      data-preview-enabled={isPreviewable}
       className={cn(
-        "group relative bg-card rounded-xl overflow-hidden cursor-pointer hover-lift fade-in text-left",
+        "group relative bg-card rounded-xl overflow-hidden fade-in text-left",
+        isPreviewable && "cursor-pointer hover-lift",
         aspectClass,
         className,
       )}
@@ -41,7 +53,7 @@ export default function WorkPreviewCard({
               fill
               sizes={sizes}
               className="object-cover"
-            />
+          />
           : <div
               className={
                 item.type === OUR_WORK_TYPES.IMAGE && !isTouch
@@ -58,15 +70,6 @@ export default function WorkPreviewCard({
             </div>}
       </div>
 
-      {(item.type === OUR_WORK_TYPES.SHORT_VIDEO ||
-        item.type === OUR_WORK_TYPES.VIDEO) && (
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
-          <div className="w-14 h-14 rounded-full bg-accent/90 flex items-center justify-center shadow-lg">
-            <Play className="w-6 h-6 text-accent-foreground ml-1" />
-          </div>
-        </div>
-      )}
-
       {item.type === OUR_WORK_TYPES.THREE_SIXTY && (
         <div className="absolute top-3 right-3 z-10">
           <div className="px-2 py-1 bg-accent/90 rounded-full text-xs font-medium text-accent-foreground">
@@ -75,12 +78,14 @@ export default function WorkPreviewCard({
         </div>
       )}
 
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-        <p className="font-bold text-md">{item.title}</p>
-        <p className="text-xs text-muted-foreground">
-          {item.subtitle || "Dubai"}
-        </p>
-      </div>
-    </button>
+      {isPreviewable && (
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+          <p className="font-bold text-md">{item.title}</p>
+          <p className="text-xs text-muted-foreground">
+            {item.subtitle || "Dubai"}
+          </p>
+        </div>
+      )}
+    </CardTag>
   );
 }

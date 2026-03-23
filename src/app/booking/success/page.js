@@ -1,18 +1,57 @@
-import { CheckCheck, ClipboardList, Clock3, Zap } from "lucide-react";
 import Link from "next/link";
+import { CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { verifyStripeSession } from "@/lib/actions/bookings";
 
-const formatCurrency = (value) =>
-  `AED ${Number(value || 0).toLocaleString("en-GB", {
-    minimumFractionDigits: 2,
+const formatCurrency = (value) => {
+  const amount = Number(value || 0);
+  const hasDecimals = Math.round(amount * 100) % 100 !== 0;
+
+  return `AED ${amount.toLocaleString("en-GB", {
+    minimumFractionDigits: hasDecimals ? 2 : 0,
     maximumFractionDigits: 2,
   })}`;
+};
+
+const getPeriodLabel = (timeLabel) => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(timeLabel || "").trim());
+  if (!match) return "";
+
+  const hour = Number(match[1]);
+  if (hour < 12) return "Morning";
+  if (hour < 17) return "Afternoon";
+  return "Evening";
+};
+
+const formatArrivalRange = (timeLabel) => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(String(timeLabel || "").trim());
+  if (!match) return timeLabel || "";
+
+  const startMinutes = (Number(match[1]) * 60) + Number(match[2]);
+  const endMinutes = startMinutes + 30;
+  const endHour = Math.floor(endMinutes / 60) % 24;
+  const endMinute = endMinutes % 60;
+
+  return `${timeLabel} - ${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`;
+};
+
+const getArrivalMeta = (arrivalWindow) => {
+  const [dateLabel = "", timeLabel = ""] = String(arrivalWindow || "")
+    .split("·")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  return {
+    dateLabel,
+    periodLabel: getPeriodLabel(timeLabel),
+    arrivalLabel: timeLabel ? `Arrival ${formatArrivalRange(timeLabel)}` : "",
+  };
+};
 
 export default async function BookingSuccessPage({ searchParams }) {
   const { session_id } = await searchParams;
 
-  let bookingRef = "MWY-BOOKED";
+  let bookingRef = "MWB-BOOKED";
   let paymentVerified = false;
   let verificationMessage = "";
   let bookingReferences = [];
@@ -22,7 +61,7 @@ export default async function BookingSuccessPage({ searchParams }) {
     const verification = await verifyStripeSession(session_id);
     const verificationData = verification?.data || null;
 
-    paymentVerified = Boolean(verification?.success);
+    paymentVerified = Boolean(verificationData?.paymentVerified);
     verificationMessage = verification?.message || verificationData?.message || "";
     bookingReferences = Array.isArray(verificationData?.bookingReferences)
       ? verificationData.bookingReferences
@@ -45,193 +84,171 @@ export default async function BookingSuccessPage({ searchParams }) {
   }
 
   const hasBookingSummaries = bookingSummaries.length > 0;
-  const hasMultipleBookings = bookingSummaries.length > 1;
+  const displaySummaries = hasBookingSummaries
+    ? bookingSummaries
+    : session_id
+      ? [{
+          bookingReference: bookingRef,
+          propertyTitle: paymentVerified ? "Property booking" : "Payment processing",
+          location: paymentVerified
+            ? "Your booking details have been sent to WhatsApp."
+            : "Your confirmed booking details will appear here once payment verification completes.",
+          services: paymentVerified
+            ? "Your selected services have been confirmed via WhatsApp."
+            : "We will send your booking details and updates via WhatsApp shortly.",
+          arrivalWindow: "",
+          amount: totalPaidAmount,
+        }]
+      : [];
+  const statusTitle = paymentVerified ? "Booking Confirmed" : "Confirmation Pending";
+  const statusCopy = paymentVerified
+    ? "Your shoot has been successfully scheduled."
+    : "We are still verifying your payment and locking in your booking.";
+  const supportCopy = paymentVerified
+    ? "We've sent your booking details and updates via WhatsApp."
+    : verificationMessage || "Please refresh in a few seconds. We'll update you on WhatsApp as soon as it clears.";
 
   return (
-    <div className="min-h-screen bg-background text-foreground pt-24 pb-16">
-      <div className="container mx-auto px-4 md:px-6 relative z-10">
-        <div className="text-center mb-10 fade-in">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
-            Milkywayy Portal
-          </p>
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold mb-3 tracking-tight">
-            {paymentVerified ? "Thank You" : "Payment Processing"}
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground max-w-md mx-auto">
-            {paymentVerified
-              ? "Your booking has been confirmed"
-              : "We are still verifying your payment. Please refresh in a few seconds."}
-          </p>
-          {!paymentVerified && session_id && (
-            <p className="text-xs text-amber-300 mt-3">{verificationMessage}</p>
+    <div className="min-h-screen bg-background text-foreground pb-20 pt-10 md:pt-14">
+      <div className="container relative z-10 mx-auto px-4 md:px-6">
+
+
+
+    {paymentVerified ? (
+      <div className="text-center mb-10 fade-in">
+        <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground mb-3">
+          Milkywayy Portal
+        </p>
+        <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold mb-3 tracking-tight">
+          Thank You
+        </h1>
+      </div>
+    ): null}
+
+
+
+
+        <div className="mx-auto max-w-3xl fade-in overflow-hidden rounded-[30px] border border-white/[0.06] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_24%),linear-gradient(180deg,_rgba(255,255,255,0.02),_rgba(255,255,255,0.01))] shadow-[0_24px_80px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+          <section className="border-b border-white/[0.05] px-6 pb-14 pt-16 text-center md:px-10">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <CheckCheck className="h-8 w-8 text-foreground" />
+            </div>
+            <h1 className="mt-8 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+              {statusTitle}
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-xs text-foreground/72 md:text-sm">
+              {statusCopy}
+            </p>
+            <p className="mx-auto mt-2 max-w-2xl text-2xs text-muted-foreground md:text-xs">
+              {supportCopy}
+            </p>
+          </section>
+
+          {displaySummaries.length > 0 && (
+            <section className="px-4 py-8 md:px-7 md:py-10">
+              <p className="text-2xs font-medium uppercase tracking-[0.25em] text-muted-foreground/90">
+                Your Booking{displaySummaries.length === 1 ? "" : "s"} ({displaySummaries.length})
+              </p>
+
+              <div className="mt-5 space-y-4">
+                {displaySummaries.map((summary, index) => {
+                  const { dateLabel, periodLabel, arrivalLabel } = getArrivalMeta(
+                    summary?.arrivalWindow,
+                  );
+
+                  return (
+                    <article
+                      key={summary.bookingReference || `${summary.propertyTitle}-${index}`}
+                      className="rounded-[22px] border border-white/[0.05] bg-black/[0.14] px-5 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] md:px-6 md:py-6"
+                    >
+                      <div className="flex flex-col gap-5">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div className="min-w-0">
+                            <h2 className="text-sm font-semibold text-foreground md:text-base">
+                              {summary.propertyTitle || "Property booking"}
+                            </h2>
+                            {(dateLabel || periodLabel || arrivalLabel) && (
+                              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted-foreground md:text-xs">
+                                {dateLabel && <span>{dateLabel}</span>}
+                                {periodLabel && (
+                                  <>
+                                    {dateLabel && <span className="text-white/20">·</span>}
+                                    <span>{periodLabel}</span>
+                                  </>
+                                )}
+                                {arrivalLabel && (
+                                  <>
+                                    {(dateLabel || periodLabel) && (
+                                      <span className="text-white/20">·</span>
+                                    )}
+                                    <span>{arrivalLabel}</span>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                            {summary.bookingReference && (
+                              <p className="mt-2 text-2xs text-muted-foreground md:text-xs">
+                                Booking ID:
+                                {" "}
+                                <span className="tracking-[0.08em] text-foreground/72">
+                                  {summary.bookingReference}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+
+                          {Number(summary?.amount || 0) > 0 && (
+                            <p className="shrink-0 text-sm font-semibold text-foreground md:pt-0.5 md:text-base">
+                              {formatCurrency(summary.amount)}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="grid gap-x-6 gap-y-3 border-t border-white/[0.05] pt-4 text-2xs md:grid-cols-[120px_minmax(0,1fr)] md:items-start md:text-xs">
+                          <p className="text-muted-foreground">Location</p>
+                          <p className="break-words text-foreground/88 md:text-right">
+                            {summary.location || "Shared in your confirmation message."}
+                          </p>
+
+                          <p className="text-muted-foreground">Services</p>
+                          <p className="break-words text-foreground/88 md:text-right">
+                            {summary.services || "Shared in your confirmation message."}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+
+
+
+<div className="px-5 md:px-2 mt-4 pb-8 space-y-5"><div className="pt-4"><p className="text-xs text-muted-foreground">Please ensure property access is ready during the arrival window.</p></div><div className="border-t border-border/20 pt-4"><p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium mb-2">Updates</p><p className="text-xs text-muted-foreground leading-relaxed">Booking confirmations and arrival notifications are sent via WhatsApp.</p><p className="text-xs text-muted-foreground leading-relaxed mt-1">Need to adjust timing or details? Message us — we'll assist based on availability.</p></div></div>
+
+
+
+
+            </section>
           )}
         </div>
 
-        <div className="mx-auto max-w-4xl fade-in space-y-6">
-    {/*<section className="overflow-hidden rounded-[28px] border border-white/10 bg-gradient-to-br from-zinc-900/95 via-slate-950/90 to-zinc-900/90 backdrop-blur-sm">*/}
-          <section className="premium-card rounded-[28px]">
-            <div className="p-8 md:p-12 text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-muted/40 flex items-center justify-center mx-auto">
-              <CheckCheck className="h-8 w-8 text-foreground" />
-            </div>
-            <h2 className="text-2xl md:text-3xl font-semibold mb-4 tracking-tight">
-              {paymentVerified ? "Booking Confirmed" : "Confirmation Pending"}
-            </h2>
-            <div className="inline-flex items-center px-4 py-2 bg-secondary/50 border border-border rounded-full">
-              <span className="text-xs text-muted-foreground mr-2">
-                Booking ID{bookingReferences.length === 1 ? "" : "s"}:
-              </span>
-              <span className="text-xs font-semibold">{bookingRef}</span>
-            </div>
-          </div>
-
-          <div className="mx-6 border-t border-border/30 md:mx-10"></div>
-
-          <div className="p-6 md:p-10">
-            <p className="text-2xs uppercase tracking-[0.2em] text-muted-foreground font-medium mb-5">
-              What Happens Next
-            </p>
-
-            <div className="grid gap-4 border-b border-border/30 py-4 md:grid-cols-[44px_minmax(0,1fr)] md:items-start">
-                <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center shrink-0">
-                  <Clock3 className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Arrival Window{hasMultipleBookings ? "s" : ""}
-                  </p>
-                  {hasBookingSummaries ? (
-                    <div className="mt-2 space-y-2">
-                      {bookingSummaries.map((summary) => (
-                        <div
-                          key={summary.bookingReference || summary.propertyTitle}
-                          className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
-                        >
-                          <p className="text-xs font-semibold text-foreground">
-                            {summary.propertyTitle}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {summary.arrivalWindow ||
-                              "To be confirmed. Please ensure property access is ready."}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      To be confirmed. Please ensure property access is ready.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid gap-4 border-b border-border/30 py-4 md:grid-cols-[44px_minmax(0,1fr)] md:items-start">
-                <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center shrink-0">
-                  <ClipboardList className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Booking Summary</p>
-                  {hasBookingSummaries ? (
-                    <div className="mt-2 space-y-3">
-                      {bookingSummaries.map((summary) => (
-                        <div
-                          key={summary.bookingReference || summary.propertyTitle}
-                          className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-semibold text-foreground">
-                                {summary.propertyTitle}
-                              </p>
-                              {summary.bookingReference && (
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                  {summary.bookingReference}
-                                </p>
-                              )}
-                              {summary.location && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {summary.location}
-                                </p>
-                              )}
-                              {summary.services && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Services: {summary.services}
-                                </p>
-                              )}
-                            </div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {formatCurrency(summary.amount)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                      {hasMultipleBookings && totalPaidAmount > 0 && (
-                        <div className="flex items-center justify-between pt-1">
-                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            Total Paid
-                          </p>
-                          <p className="text-sm font-semibold text-foreground">
-                            {formatCurrency(totalPaidAmount)}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-2 flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold text-foreground mt-0.5">
-                          Property booking
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid gap-4 py-4 md:grid-cols-[44px_minmax(0,1fr)] md:items-start">
-                <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center shrink-0">
-                  <Zap className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Project Delivery Timeline</p>
-                  {hasBookingSummaries ? (
-                    <div className="mt-2 space-y-2">
-                      {bookingSummaries.map((summary) => (
-                        <div
-                          key={`${summary.bookingReference || summary.propertyTitle}-timeline`}
-                          className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2"
-                        >
-                          <p className="text-xs font-semibold text-foreground">
-                            {summary.propertyTitle}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {summary.deliveryTimeline ||
-                              "Delivery timeline will be shared shortly."}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Delivery timeline will be shared shortly.
-                    </p>
-                  )}
-                </div>
-              </div>
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <Button asChild className="rounded-xl bg-gradient-to-b from-white to-zinc-300 text-black hover:from-zinc-100 hover:to-zinc-300 h-11">
-            <Link href="/dashboard/bookings">View Dashboard</Link>
+        <div className="mx-auto mt-5 grid max-w-3xl gap-3 md:grid-cols-2">
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="h-11 rounded-2xl border-white/[0.1] bg-white/[0.06] text-sm font-medium text-foreground hover:bg-white/[0.1] hover:text-foreground"
+          >
+            <Link href="/dashboard/bookings">Go to Dashboard</Link>
           </Button>
-          <Button asChild variant="outline" className="rounded-xl border-white/15 bg-transparent hover:bg-white/5 h-11">
-            <Link href="/dashboard/invoices">Download Invoice</Link>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="h-11 rounded-2xl border-white/[0.1] bg-transparent text-sm font-medium text-foreground hover:bg-white/[0.05] hover:text-foreground"
+          >
+            <Link href="/booking">Book Another Shoot</Link>
           </Button>
-          <Button asChild variant="outline" className="rounded-xl border-white/15 bg-transparent hover:bg-white/5 h-11">
-            <Link href="/">Back to Home</Link>
-          </Button>
-        </div>
         </div>
       </div>
     </div>

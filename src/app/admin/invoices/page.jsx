@@ -59,7 +59,7 @@ export default function InvoicesPage() {
               </TableRow>
             ) : (
               invoices.map((invoice) => {
-                const invoiceNumber = formatInvoiceNumber(invoice.id);
+                const invoiceNumber = formatInvoiceNumber(invoice);
                 const downloadUrl = buildInvoiceDownloadUrl(
                   invoice.invoiceUrl,
                   invoiceNumber,

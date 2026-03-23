@@ -80,10 +80,7 @@ describe("PortfolioPage Hover Effect", () => {
     );
 
     // Check Photography item (active tab)
-    const photoItem = screen
-      .getAllByText("Photo 1")
-      .find((el) => el.tagName === "P")
-      .closest(".group");
+    const photoItem = screen.getByTestId("work-preview-card-1");
     expect(
       photoItem.querySelector(".photography-grayscale"),
     ).toBeInTheDocument();
@@ -92,7 +89,7 @@ describe("PortfolioPage Hover Effect", () => {
     // We can still find it and verify it DOES NOT have the class
     const videoTitle = screen.queryByText("Video 1");
     if (videoTitle) {
-      const videoItem = videoTitle.closest(".group");
+      const videoItem = screen.getByTestId("work-preview-card-2");
       expect(
         videoItem.querySelector(".photography-grayscale"),
       ).not.toBeInTheDocument();
@@ -113,10 +110,7 @@ describe("PortfolioPage Hover Effect", () => {
       expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0),
     );
 
-    const photoItem = screen
-      .getAllByText("Photo 1")
-      .find((el) => el.tagName === "P")
-      .closest(".group");
+    const photoItem = screen.getByTestId("work-preview-card-1");
     expect(
       photoItem.querySelector(".photography-grayscale"),
     ).not.toBeInTheDocument();

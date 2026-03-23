@@ -28,7 +28,8 @@ export function PropertyScheduleSection({
           blockedSlotsMap={getOccupiedSlots(index)}
           propertyType={property.propertyType}
           propertySize={property.propertySize}
-          serviceType={property.services?.[0] || ""}
+          services={property.services || []}
+          videographySubService={property.videographySubService || ""}
           onDateChange={(value) => updatePropertyField(index, "preferredDate", value)}
           onSlotChange={(value) => updatePropertyField(index, "startTime", value)}
           error={errorMessage}

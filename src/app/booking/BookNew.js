@@ -231,8 +231,48 @@ export default function BookNew({
     }
   };
 
+  const hasValueChanged = (previousValue, nextValue) => {
+    if (Array.isArray(previousValue) && Array.isArray(nextValue)) {
+      if (previousValue.length !== nextValue.length) return true;
+      return previousValue.some((value, idx) => value !== nextValue[idx]);
+    }
+
+    return previousValue !== nextValue;
+  };
+
+  const resetPropertySchedule = (index) => {
+    setValue(`properties.${index}.preferredDate`, "", {
+      shouldValidate: false,
+      shouldDirty: true,
+    });
+    setValue(`properties.${index}.startTime`, "", {
+      shouldValidate: false,
+      shouldDirty: true,
+    });
+    setValue(`properties.${index}.timeSlot`, "", {
+      shouldValidate: false,
+      shouldDirty: true,
+    });
+  };
+
   const updatePropertyField = (index, field, value) => {
+    const current = getValues(`properties.${index}`);
+    const previousValue = current?.[field];
+    const didChange = hasValueChanged(previousValue, value);
+
     setValue(`properties.${index}.${field}`, value, { shouldValidate: true });
+
+    if (
+      didChange &&
+      [
+        "propertyType",
+        "propertySize",
+        "services",
+        "videographySubService",
+      ].includes(field)
+    ) {
+      resetPropertySchedule(index);
+    }
 
     // If changed field affects duration, recalculate it
     if (
@@ -243,7 +283,6 @@ export default function BookNew({
         "videographySubService",
       ].includes(field)
     ) {
-      const current = getValues(`properties.${index}`);
       const property = { ...current, [field]: value };
       // Only calculate if we have the minimum required info
       if (
@@ -271,6 +310,10 @@ export default function BookNew({
     const newServices = currentServices.includes(serviceName)
       ? currentServices.filter((s) => s !== serviceName)
       : [...currentServices, serviceName];
+
+    if (hasValueChanged(currentServices, newServices)) {
+      resetPropertySchedule(index);
+    }
 
     setValue(`properties.${index}.services`, newServices, {
       shouldValidate: true,

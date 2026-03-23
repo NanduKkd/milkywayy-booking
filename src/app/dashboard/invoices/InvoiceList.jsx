@@ -20,7 +20,7 @@ export default function InvoiceList({ invoices }) {
   return (
     <div className="space-y-4">
       {invoices.map((invoice) => {
-        const invoiceNumber = formatInvoiceNumber(invoice.id);
+        const invoiceNumber = formatInvoiceNumber(invoice);
         const downloadUrl = buildInvoiceDownloadUrl(invoice.invoiceUrl, invoiceNumber);
         return (
           <div

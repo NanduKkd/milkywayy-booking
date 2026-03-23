@@ -1,5 +1,10 @@
-import { createBookings, createTransactionAndPaymentIntent } from '../bookings';
+import {
+  cancelBookingBySessionId,
+  createBookings,
+  createTransactionAndPaymentIntent,
+} from '../bookings';
 import Booking from '@/lib/db/models/booking';
+import { Op } from 'sequelize';
 
 // Unmock the module under test because it is globally mocked in jest.setup.js
 jest.unmock('../bookings');
@@ -27,6 +32,7 @@ jest.mock('@/lib/db/db', () => ({
 
 jest.mock('@/lib/db/models/booking', () => ({
   findAll: jest.fn(),
+  count: jest.fn(),
   destroy: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
@@ -35,6 +41,7 @@ jest.mock('@/lib/db/models/booking', () => ({
 jest.mock('@/lib/db/models/transaction', () => ({
   create: jest.fn(),
   update: jest.fn(),
+  findOne: jest.fn(),
   findByPk: jest.fn(),
 }));
 
@@ -122,6 +129,7 @@ describe('Booking Actions', () => {
     
     // Mock Booking.findAll to return empty for availability check
     Booking.findAll.mockResolvedValue([]); 
+    Booking.count.mockResolvedValue(0);
   });
 
   describe('createBookings', () => {
@@ -138,7 +146,7 @@ describe('Booking Actions', () => {
       const result = await createBookings(mockProperties);
 
       expect(result.success).toBe(true);
-      expect(result.data).toEqual([{ id: 1, bookingCode: 'MWY-000001' }]);
+      expect(result.data).toEqual([{ id: 1, bookingCode: 'MWB-1001' }]);
       expect(Booking.destroy).toHaveBeenCalledWith({
         where: { userId: mockUserId, status: 'DRAFT' },
       });
@@ -221,6 +229,94 @@ describe('Booking Actions', () => {
         status: 'pending',
       }));
       expect(Booking.update).toHaveBeenCalled();
+    });
+
+    it('should allow launch promo if user only has cancelled/failed payment attempts', async () => {
+      const mockBookingIds = [1];
+      const mockBookings = [
+        { id: 1, userId: mockUserId, total: 800, date: mockFutureDate, slot: 1, duration: 1 },
+      ];
+
+      Booking.findAll.mockImplementation(({ where }) => {
+        if (where.id) return Promise.resolve(mockBookings);
+        return Promise.resolve([]);
+      });
+      Booking.count.mockResolvedValue(0);
+
+      Transaction.create.mockResolvedValue({
+        id: 'txn-2',
+        update: jest.fn(),
+      });
+
+      Booking.update.mockResolvedValue([1]);
+      Stripe.mockCreateSession.mockResolvedValue({
+        id: 'sess-2',
+        url: 'http://stripe.com/checkout-2',
+      });
+
+      const result = await createTransactionAndPaymentIntent(mockBookingIds, 'LAUNCH500');
+
+      expect(result.success).toBe(true);
+      expect(Booking.count).toHaveBeenCalledWith({
+        where: { userId: mockUserId },
+        include: [
+          {
+            model: Transaction,
+            as: 'transaction',
+            required: true,
+            where: { status: 'success' },
+          },
+        ],
+      });
+    });
+  });
+
+  describe('cancelBookingBySessionId', () => {
+    it('restores draft selections when checkout is cancelled', async () => {
+      const transaction = {
+        id: 'txn-3',
+        status: 'pending',
+        update: jest.fn(),
+      };
+      Transaction.findOne.mockResolvedValue(transaction);
+      Booking.update.mockResolvedValue([1]);
+
+      const result = await cancelBookingBySessionId('sess-3');
+
+      expect(result.success).toBe(true);
+      expect(transaction.update).toHaveBeenCalledWith({ status: 'failed' });
+      expect(Booking.update).toHaveBeenCalledWith(
+        { cancelledAt: null, status: 'DRAFT' },
+        {
+          where: {
+            transactionId: 'txn-3',
+            status: { [Op.in]: ['DRAFT', 'CANCELLED'] },
+          },
+        },
+      );
+      expect(result.data).toEqual({
+        restoredDrafts: true,
+        alreadyPaid: false,
+      });
+    });
+
+    it('does not downgrade already paid bookings', async () => {
+      const transaction = {
+        id: 'txn-4',
+        status: 'success',
+        update: jest.fn(),
+      };
+      Transaction.findOne.mockResolvedValue(transaction);
+
+      const result = await cancelBookingBySessionId('sess-4');
+
+      expect(result.success).toBe(true);
+      expect(transaction.update).not.toHaveBeenCalled();
+      expect(Booking.update).not.toHaveBeenCalled();
+      expect(result.data).toEqual({
+        restoredDrafts: false,
+        alreadyPaid: true,
+      });
     });
   });
 });

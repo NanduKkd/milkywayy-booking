@@ -53,7 +53,7 @@ export default function BookingsPage() {
   const fileInputRef = useRef(null);
   const selectedTransaction = selectedBooking?.transaction;
   const selectedInvoiceNumber = selectedTransaction?.id
-    ? formatInvoiceNumber(selectedTransaction.id)
+    ? formatInvoiceNumber(selectedTransaction)
     : null;
   const selectedInvoiceDownloadUrl =
     selectedTransaction?.invoiceUrl && selectedInvoiceNumber
