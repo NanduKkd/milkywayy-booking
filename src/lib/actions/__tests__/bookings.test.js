@@ -225,13 +225,14 @@ describe('Booking Actions', () => {
       expect(result.data.url).toBe('http://stripe.com/checkout');
       expect(Transaction.create).toHaveBeenCalledWith(expect.objectContaining({
         userId: mockUserId,
-        amount: 500,
+        amount: 250,
+        bulkDeduction: 250,
         status: 'pending',
       }));
       expect(Booking.update).toHaveBeenCalled();
     });
 
-    it('should allow launch promo if user only has cancelled/failed payment attempts', async () => {
+    it('should auto-apply the first-shoot launch credit on eligible bookings', async () => {
       const mockBookingIds = [1];
       const mockBookings = [
         { id: 1, userId: mockUserId, total: 800, date: mockFutureDate, slot: 1, duration: 1 },
@@ -242,6 +243,7 @@ describe('Booking Actions', () => {
         return Promise.resolve([]);
       });
       Booking.count.mockResolvedValue(0);
+      require('@/lib/db/models/coupon').findOne.mockResolvedValue(null);
 
       Transaction.create.mockResolvedValue({
         id: 'txn-2',
@@ -254,7 +256,7 @@ describe('Booking Actions', () => {
         url: 'http://stripe.com/checkout-2',
       });
 
-      const result = await createTransactionAndPaymentIntent(mockBookingIds, 'LAUNCH500');
+      const result = await createTransactionAndPaymentIntent(mockBookingIds, '');
 
       expect(result.success).toBe(true);
       expect(Booking.count).toHaveBeenCalledWith({
@@ -268,6 +270,54 @@ describe('Booking Actions', () => {
           },
         ],
       });
+      expect(Transaction.create).toHaveBeenCalledWith(expect.objectContaining({
+        amount: 550,
+        bulkDeduction: 250,
+        couponDeduction: 0,
+      }));
+    });
+
+    it('should stack an eligible loyalty coupon on top of the auto launch credit', async () => {
+      const mockBookingIds = [1];
+      const mockBookings = [
+        { id: 1, userId: mockUserId, total: 1050, date: mockFutureDate, slot: 1, duration: 1 },
+      ];
+      const Coupon = require('@/lib/db/models/coupon').default || require('@/lib/db/models/coupon');
+
+      Booking.findAll.mockImplementation(({ where }) => {
+        if (where.id) return Promise.resolve(mockBookings);
+        return Promise.resolve([]);
+      });
+      Booking.count.mockResolvedValue(0);
+      Coupon.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 9,
+          code: 'LOYAL10',
+          isActive: true,
+          minimumAmount: 300,
+          percentDiscount: 10,
+          maxDiscount: 120,
+        });
+
+      Transaction.create.mockResolvedValue({
+        id: 'txn-3',
+        update: jest.fn(),
+      });
+      Booking.update.mockResolvedValue([1]);
+      Stripe.mockCreateSession.mockResolvedValue({
+        id: 'sess-3',
+        url: 'http://stripe.com/checkout-3',
+      });
+
+      const result = await createTransactionAndPaymentIntent(mockBookingIds, 'LOYAL10');
+
+      expect(result.success).toBe(true);
+      expect(Transaction.create).toHaveBeenCalledWith(expect.objectContaining({
+        amount: 495,
+        bulkDeduction: 500,
+        couponDeduction: 55,
+      }));
     });
   });
 

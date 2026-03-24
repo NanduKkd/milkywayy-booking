@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Op } from "sequelize";
 import { actionWrapper } from "@/lib/actions/utils";
 import {
+  getLaunchPromoDiscount,
   LAUNCH_PROMO_CODE,
   LAUNCH_PROMO_DISCOUNT,
   LAUNCH_PROMO_MIN_AMOUNT,
@@ -20,13 +20,13 @@ const buildLaunchPromoCoupon = () => ({
   minimumAmount: LAUNCH_PROMO_MIN_AMOUNT,
   percentDiscount: null,
   maxDiscount: LAUNCH_PROMO_DISCOUNT,
-  uiText: "AED 500 welcome credit on your first booking.",
+  uiText: "Up to AED 500 off on your first booking.",
   isActive: true,
   isSystem: true,
   eligibilityLabel: "First booking only",
 });
 
-const getPublicLaunchPromoHandler = async () => {
+const getLaunchPromoConfig = async () => {
   const coupon = await Coupon.findOne({
     where: { code: LAUNCH_PROMO_CODE },
   });
@@ -35,9 +35,13 @@ const getPublicLaunchPromoHandler = async () => {
     return null;
   }
 
-  const launchPromo = coupon?.get
-    ? coupon.get({ plain: true })
-    : buildLaunchPromoCoupon();
+  return coupon?.get ? coupon.get({ plain: true }) : buildLaunchPromoCoupon();
+};
+
+const getPublicLaunchPromoHandler = async () => {
+  const launchPromo = await getLaunchPromoConfig();
+
+  if (!launchPromo) return null;
 
   return {
     code: launchPromo.code,
@@ -45,10 +49,51 @@ const getPublicLaunchPromoHandler = async () => {
     maxDiscount: LAUNCH_PROMO_DISCOUNT,
     uiText:
       launchPromo.uiText?.trim() ||
-      "AED 500 welcome credit on your first booking.",
+      "Up to AED 500 off on your first booking.",
   };
 };
 export const getPublicLaunchPromo = actionWrapper(getPublicLaunchPromoHandler);
+
+const getLaunchPromoStatusHandler = async (amount) => {
+  const launchPromo = await getLaunchPromoConfig();
+
+  if (!launchPromo) {
+    return { active: false, eligible: false, discount: 0 };
+  }
+
+  const safeAmount = Number(amount || 0);
+  const discount = getLaunchPromoDiscount(safeAmount);
+
+  if (discount <= 0) {
+    return { active: true, eligible: false, discount: 0 };
+  }
+
+  const session = await auth();
+  if (!session?.id) {
+    return { active: true, eligible: true, discount };
+  }
+
+  const successfulLaunchPromoBookings = await Booking.count({
+    where: {
+      userId: session.id,
+    },
+    include: [
+      {
+        model: Transaction,
+        as: "transaction",
+        required: true,
+        where: { status: "success" },
+      },
+    ],
+  });
+
+  return {
+    active: true,
+    eligible: successfulLaunchPromoBookings === 0,
+    discount: successfulLaunchPromoBookings === 0 ? discount : 0,
+  };
+};
+export const getLaunchPromoStatus = actionWrapper(getLaunchPromoStatusHandler);
 
 const getCouponsHandler = async () => {
   const coupons = await Coupon.findAll({
@@ -141,51 +186,10 @@ const validateCouponHandler = async (code, amount) => {
   }
 
   if (normalizedCode === LAUNCH_PROMO_CODE) {
-    const session = await auth();
-    if (!session?.id) {
-      return {
-        valid: false,
-        message: "Please log in to apply this promo code",
-      };
-    }
-
-    const successfulLaunchPromoBookings = await Booking.count({
-      where: {
-        userId: session.id,
-      },
-      include: [
-        {
-          model: Transaction,
-          as: "transaction",
-          required: true,
-          where: { status: "success" },
-        },
-      ],
-    });
-
-    if (successfulLaunchPromoBookings > 0) {
-      return {
-        valid: false,
-        message: "Launch credit is valid only for your first booking",
-      };
-    }
-
-    if (safeAmount < LAUNCH_PROMO_MIN_AMOUNT) {
-      return {
-        valid: false,
-        message: `Minimum spend of AED ${LAUNCH_PROMO_MIN_AMOUNT} required`,
-      };
-    }
-
     return {
-      valid: true,
-      discount: Math.min(LAUNCH_PROMO_DISCOUNT, safeAmount),
-      coupon: {
-        code: LAUNCH_PROMO_CODE,
-        percentDiscount: null,
-        maxDiscount: LAUNCH_PROMO_DISCOUNT,
-        uiText: "AED 500 welcome credit on your first booking.",
-      },
+      valid: false,
+      message:
+        "Launch credit is applied automatically for eligible first shoots",
     };
   }
 

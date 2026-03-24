@@ -24,28 +24,30 @@ const InputOTPGroup = React.forwardRef(({ className, ...props }, ref) => (
 ));
 InputOTPGroup.displayName = "InputOTPGroup";
 
-const InputOTPSlot = React.forwardRef(({ index, className, ...props }, ref) => {
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        "relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
-        props.hasFakeCaret
-          ? "border-accent bg-white/10 text-foreground"
-          : "border-input bg-transparent text-white",
-        className,
-      )}
-      {...props}
-    >
-      {props.char}
-      {/*props.hasFakeCaret && (
-        <div className="pointer-events-none ml-1 inset-0 flex items-center justify-center">
-          <div className="h-4 w-px animate-caret-blink bg-foreground duration-1000" />
-        </div>
-      )*/}
-    </div>
-  );
-});
+const InputOTPSlot = React.forwardRef(
+  ({ index, className, hasFakeCaret, char, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          "relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
+          hasFakeCaret
+            ? "border-accent bg-white/10 text-foreground"
+            : "border-input bg-transparent text-white",
+          className,
+        )}
+        {...props}
+      >
+        {char}
+        {/*hasFakeCaret && (
+          <div className="pointer-events-none ml-1 inset-0 flex items-center justify-center">
+            <div className="h-4 w-px animate-caret-blink bg-foreground duration-1000" />
+          </div>
+        )*/}
+      </div>
+    );
+  },
+);
 InputOTPSlot.displayName = "InputOTPSlot";
 
 const InputOTPSeparator = React.forwardRef(({ ...props }, ref) => (

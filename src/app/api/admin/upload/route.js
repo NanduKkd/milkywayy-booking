@@ -15,11 +15,13 @@ const MAX_IMAGE_DIMENSION = 2400;
 const IMAGE_QUALITY = 82;
 
 function slugifySegment(value, fallback = "general") {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "") || fallback;
+  return (
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || fallback
+  );
 }
 
 function sanitizeFileName(fileName, fallbackExtension = "") {
@@ -119,12 +121,27 @@ async function uploadFileToS3({ file, folder, deliverableType, bucketName }) {
   };
 }
 
+function parseFilesPayload(filesUrl) {
+  if (!filesUrl || typeof filesUrl !== "string") return null;
+  try {
+    const parsed = JSON.parse(filesUrl);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export async function POST(request) {
   try {
     const formData = await request.formData();
     const files = formData
       .getAll("file")
-      .filter((entry) => entry && typeof entry === "object" && "arrayBuffer" in entry);
+      .filter(
+        (entry) => entry && typeof entry === "object" && "arrayBuffer" in entry,
+      );
     const bookingId = formData.get("bookingId");
     const deliverableTypeRaw = String(
       formData.get("deliverableType") || "Photography",
@@ -132,11 +149,13 @@ export async function POST(request) {
     const deliverableType = deliverableTypeRaw.trim() || "Photography";
     const externalUrlRaw = String(formData.get("externalUrl") || "").trim();
     const fileCountRaw = String(formData.get("fileCount") || "").trim();
-    const fileCount = fileCountRaw !== "" && Number.isFinite(Number(fileCountRaw))
-      ? Number(fileCountRaw)
-      : null;
+    const fileCount =
+      fileCountRaw !== "" && Number.isFinite(Number(fileCountRaw))
+        ? Number(fileCountRaw)
+        : null;
     const folderRaw =
-      formData.get("folder") || (bookingId ? `bookings/${bookingId}` : "general");
+      formData.get("folder") ||
+      (bookingId ? `bookings/${bookingId}` : "general");
     const folder = String(folderRaw)
       .split("/")
       .map((segment) => slugifySegment(segment))
@@ -188,10 +207,14 @@ export async function POST(request) {
     }
 
     let deliverables = [];
+    let existingPayload = null;
     const existingFilesUrl = booking.filesUrl;
     if (existingFilesUrl) {
       try {
         const parsed = JSON.parse(existingFilesUrl);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          existingPayload = parsed;
+        }
         if (Array.isArray(parsed?.deliverables)) {
           deliverables = parsed.deliverables;
         } else if (Array.isArray(parsed)) {
@@ -204,7 +227,9 @@ export async function POST(request) {
 
     const typeKey = deliverableType.toLowerCase();
     const is360 =
-      typeKey.includes("360") || typeKey.includes("tour") || typeKey.includes("virtual");
+      typeKey.includes("360") ||
+      typeKey.includes("tour") ||
+      typeKey.includes("virtual");
 
     const updatedItem = {
       id: typeKey.replace(/\s+/g, "-"),
@@ -225,6 +250,7 @@ export async function POST(request) {
     ];
 
     const payload = JSON.stringify({
+      ...(parseFilesPayload(existingFilesUrl) || existingPayload || {}),
       version: 2,
       deliverables: nextDeliverables,
       updatedAt: new Date().toISOString(),

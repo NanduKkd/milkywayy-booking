@@ -24,6 +24,16 @@ jest.mock("../../../lib/actions/coupons", () => ({
   validateCoupon: jest.fn(() =>
     Promise.resolve({ success: true, data: { valid: true, discount: 50 } }),
   ),
+  getLaunchPromoStatus: jest.fn((amount) =>
+    Promise.resolve({
+      success: true,
+      data: {
+        active: true,
+        eligible: Number(amount || 0) >= 449,
+        discount: Number(amount || 0) >= 1000 ? 500 : 250,
+      },
+    }),
+  ),
 }));
 
 jest.mock("sonner", () => ({
@@ -166,6 +176,22 @@ describe("BookNew", () => {
     success: true,
     data: [],
   });
+  const createPricingPromise = (price) =>
+    createFulfilledPromise({
+      success: true,
+      data: {
+        Apartment: {
+          sizes: [
+            {
+              label: "2 Bed",
+              prices: {
+                Photography: { price, slots: 1 },
+              },
+            },
+          ],
+        },
+      },
+    });
 
   beforeEach(() => {
     const { useAuth } = require("../../../lib/contexts/auth");
@@ -374,7 +400,7 @@ describe("BookNew", () => {
     });
   });
 
-  it("shows the DB-backed launch promo to guests before login", async () => {
+  it("auto-applies AED 250 launch credit at subtotal 450 without a nudge", async () => {
     const { useAuth } = require("../../../lib/contexts/auth");
     useAuth.mockReturnValue({
       authState: { isAuthenticated: false },
@@ -384,11 +410,11 @@ describe("BookNew", () => {
     render(
       <Suspense fallback={<div>Loading...</div>}>
         <BookNew
-          pricingsPromise={mockPricingsPromise}
+          pricingsPromise={createPricingPromise(450)}
           discountsPromise={mockDiscountsPromise}
           launchPromoAvailability={{
             code: "LAUNCH500",
-            uiText: "AED 500 welcome credit on your first booking.",
+            uiText: "Up to AED 500 off on your first booking.",
           }}
         />
       </Suspense>,
@@ -403,10 +429,134 @@ describe("BookNew", () => {
     fireEvent.click(screen.getByTestId("add-service-0"));
 
     await waitFor(() => {
-      expect(screen.getByText("Launch Credit (LAUNCH500)")).toBeInTheDocument();
+      expect(
+        screen.getByText("First-Shoot Launch Credit"),
+      ).toBeInTheDocument();
     });
 
-    expect(screen.getByText("- AED 500")).toBeInTheDocument();
-    expect(screen.getByText("AED 50")).toBeInTheDocument();
+    expect(screen.getByText("- AED 250")).toBeInTheDocument();
+    expect(screen.getByText("AED 200")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/unlock AED 500 off instead of AED 250/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("auto-applies AED 250 launch credit at subtotal 700 without a nudge", async () => {
+    render(
+      <Suspense fallback={<div>Loading...</div>}>
+        <BookNew
+          pricingsPromise={createPricingPromise(700)}
+          discountsPromise={mockDiscountsPromise}
+          launchPromoAvailability={{ code: "LAUNCH500" }}
+        />
+      </Suspense>,
+    );
+
+    fireEvent.change(screen.getByTestId("type-0"), {
+      target: { value: "Apartment" },
+    });
+    fireEvent.change(screen.getByTestId("size-0"), {
+      target: { value: "2 Bed" },
+    });
+    fireEvent.click(screen.getByTestId("add-service-0"));
+
+    await waitFor(() => {
+      expect(screen.getByText("- AED 250")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("AED 450")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/unlock AED 500 off instead of AED 250/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the nudge when subtotal is between AED 751 and AED 999", async () => {
+    render(
+      <Suspense fallback={<div>Loading...</div>}>
+        <BookNew
+          pricingsPromise={createPricingPromise(820)}
+          discountsPromise={mockDiscountsPromise}
+          launchPromoAvailability={{ code: "LAUNCH500" }}
+        />
+      </Suspense>,
+    );
+
+    fireEvent.change(screen.getByTestId("type-0"), {
+      target: { value: "Apartment" },
+    });
+    fireEvent.change(screen.getByTestId("size-0"), {
+      target: { value: "2 Bed" },
+    });
+    fireEvent.click(screen.getByTestId("add-service-0"));
+
+    await waitFor(() => {
+      expect(screen.getByText("- AED 250")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("AED 570")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Add just AED 180 more to unlock AED 500 off instead of AED 250!",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("auto-applies AED 500 launch credit at subtotal 1050 without a nudge", async () => {
+    render(
+      <Suspense fallback={<div>Loading...</div>}>
+        <BookNew
+          pricingsPromise={createPricingPromise(1050)}
+          discountsPromise={mockDiscountsPromise}
+          launchPromoAvailability={{ code: "LAUNCH500" }}
+        />
+      </Suspense>,
+    );
+
+    fireEvent.change(screen.getByTestId("type-0"), {
+      target: { value: "Apartment" },
+    });
+    fireEvent.change(screen.getByTestId("size-0"), {
+      target: { value: "2 Bed" },
+    });
+    fireEvent.click(screen.getByTestId("add-service-0"));
+
+    await waitFor(() => {
+      expect(screen.getByText("- AED 500")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("AED 550")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/unlock AED 500 off instead of AED 250/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("blocks payment below the AED 449 minimum order amount", async () => {
+    render(
+      <Suspense fallback={<div>Loading...</div>}>
+        <BookNew
+          pricingsPromise={createPricingPromise(400)}
+          discountsPromise={mockDiscountsPromise}
+          launchPromoAvailability={{ code: "LAUNCH500" }}
+        />
+      </Suspense>,
+    );
+
+    fireEvent.change(screen.getByTestId("type-0"), {
+      target: { value: "Apartment" },
+    });
+    fireEvent.change(screen.getByTestId("size-0"), {
+      target: { value: "2 Bed" },
+    });
+    fireEvent.click(screen.getByTestId("add-service-0"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Minimum order value is AED 449"),
+      ).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole("button", { name: /Continue to Payment/i }),
+    ).toBeDisabled();
   });
 });

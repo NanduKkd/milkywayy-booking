@@ -11,13 +11,13 @@ import {
   getDrafts,
   saveDrafts,
 } from "@/lib/actions/bookings";
-import { validateCoupon } from "@/lib/actions/coupons";
+import { getLaunchPromoStatus, validateCoupon } from "@/lib/actions/coupons";
 import { PRICING_CONFIG as STATIC_PRICING_CONFIG } from "@/lib/config/pricing";
 import {
-  LAUNCH_PROMO_CODE,
-  LAUNCH_PROMO_DISCOUNT,
+  getLaunchPromoDiscount,
+  getLaunchPromoNudgeAmount,
   LAUNCH_PROMO_LABEL,
-  LAUNCH_PROMO_MIN_AMOUNT,
+  MINIMUM_ORDER_AMOUNT,
 } from "@/lib/config/promo";
 import { useAuth } from "@/lib/contexts/auth";
 import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
@@ -80,9 +80,7 @@ export default function BookNew({
   const PRICING_CONFIG = pricings || STATIC_PRICING_CONFIG;
   const [openPropertyIndex, setOpenPropertyIndex] = useState(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [isLaunchPromoApplied, setIsLaunchPromoApplied] = useState(
-    Boolean(launchPromoAvailability),
-  );
+  const [isLaunchPromoEligible, setIsLaunchPromoEligible] = useState(false);
   const [couponInputValue, setCouponInputValue] = useState("");
   const [selectedCouponCode, setSelectedCouponCode] = useState("");
   const [selectedCouponDiscount, setSelectedCouponDiscount] = useState(0);
@@ -556,7 +554,7 @@ export default function BookNew({
 
       const paymentRes = await createTransactionAndPaymentIntent(
         newBookingIds,
-        selectedCouponCode || (isLaunchPromoApplied ? LAUNCH_PROMO_CODE : ""),
+        selectedCouponCode,
       );
       if (!paymentRes.success) throw new Error(paymentRes.message);
 
@@ -581,10 +579,17 @@ export default function BookNew({
   };
 
   const totalAmount = calculateTotal();
+  const minimumOrderError =
+    totalAmount > 0 && totalAmount < MINIMUM_ORDER_AMOUNT
+      ? `Minimum order value is AED ${MINIMUM_ORDER_AMOUNT}`
+      : "";
+  const baseLaunchPromoDiscount = getLaunchPromoDiscount(totalAmount);
   const launchPromoDiscount =
-    isLaunchPromoApplied && totalAmount >= LAUNCH_PROMO_MIN_AMOUNT
-      ? Math.min(LAUNCH_PROMO_DISCOUNT, totalAmount)
+    launchPromoAvailability && isLaunchPromoEligible
+      ? Math.min(baseLaunchPromoDiscount, totalAmount)
       : 0;
+  const launchPromoNudgeAmount =
+    launchPromoDiscount > 0 ? getLaunchPromoNudgeAmount(totalAmount) : 0;
   const activeCouponDiscount = selectedCouponCode ? selectedCouponDiscount : 0;
   const payableAmount = Math.max(
     0,
@@ -615,7 +620,6 @@ export default function BookNew({
       return;
     }
 
-    setIsLaunchPromoApplied(false);
     setSelectedCouponCode(normalizedCode);
     setCouponInputValue(normalizedCode);
     setSelectedCouponDiscount(Number(couponResult.discount || 0));
@@ -659,28 +663,18 @@ export default function BookNew({
 
   useEffect(() => {
     if (!launchPromoAvailability) {
-      setIsLaunchPromoApplied(false);
-      return;
-    }
-
-    if (selectedCouponCode) {
-      setIsLaunchPromoApplied(false);
-      return;
-    }
-
-    if (!authState?.isAuthenticated) {
-      setIsLaunchPromoApplied(true);
+      setIsLaunchPromoEligible(false);
       return;
     }
 
     let isCancelled = false;
 
     const validateLaunchPromo = async () => {
-      const res = await validateCoupon(LAUNCH_PROMO_CODE, totalAmount);
-      const couponResult = res?.success ? res.data : null;
+      const res = await getLaunchPromoStatus(totalAmount);
+      const launchPromoResult = res?.success ? res.data : null;
 
       if (!isCancelled) {
-        setIsLaunchPromoApplied(Boolean(couponResult?.valid));
+        setIsLaunchPromoEligible(Boolean(launchPromoResult?.eligible));
       }
     };
 
@@ -689,12 +683,7 @@ export default function BookNew({
     return () => {
       isCancelled = true;
     };
-  }, [
-    authState?.isAuthenticated,
-    launchPromoAvailability,
-    selectedCouponCode,
-    totalAmount,
-  ]);
+  }, [launchPromoAvailability, totalAmount]);
 
   const summaryItems = properties
     .map((property, index) => ({
@@ -826,15 +815,22 @@ export default function BookNew({
                     </p>
                   </div>
 
-                  {isLaunchPromoApplied && launchPromoDiscount > 0 && (
+                  {launchPromoDiscount > 0 && (
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-muted-foreground text-sm">
-                        {LAUNCH_PROMO_LABEL} ({LAUNCH_PROMO_CODE})
+                        {LAUNCH_PROMO_LABEL}
                       </p>
                       <p className="text-sm md:text-sm font-semibold text-emerald-300">
                         - AED {launchPromoDiscount.toLocaleString()}
                       </p>
                     </div>
+                  )}
+
+                  {launchPromoNudgeAmount > 0 && (
+                    <p className="text-2xs leading-4 text-emerald-300">
+                      Add just AED {launchPromoNudgeAmount.toLocaleString()} more
+                      {" "}to unlock AED 500 off instead of AED 250!
+                    </p>
                   )}
 
                   {selectedCouponCode && selectedCouponDiscount > 0 && (
@@ -885,9 +881,6 @@ export default function BookNew({
                             setCouponInputValue("");
                             setCouponMessage("");
                             setCouponError("");
-                            setIsLaunchPromoApplied(
-                              Boolean(launchPromoAvailability),
-                            );
                           }}
                         >
                           Remove
@@ -919,6 +912,7 @@ export default function BookNew({
                   size="lg"
                   disabled={
                     summaryItems.length === 0 ||
+                    totalAmount < MINIMUM_ORDER_AMOUNT ||
                     isSubmitting ||
                     isProcessingPayment
                   }
@@ -931,6 +925,12 @@ export default function BookNew({
                       </>
                     : "Continue to Payment"}
                 </Button>
+
+                {minimumOrderError && (
+                  <p className="mt-2 text-2xs leading-4 text-destructive">
+                    {minimumOrderError}
+                  </p>
+                )}
 
                 <div className="flex items-start gap-1.5 mt-3">
                   <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />

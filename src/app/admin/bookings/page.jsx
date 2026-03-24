@@ -34,9 +34,62 @@ const parseDeliverables = (filesUrl) => {
     if (Array.isArray(parsed)) return parsed;
   } catch {
     // Legacy plain URL fallback
-    return [{ label: "Files", type: "Files", url: filesUrl, deliveryMode: "download" }];
+    return [
+      {
+        label: "Files",
+        type: "Files",
+        url: filesUrl,
+        deliveryMode: "download",
+      },
+    ];
   }
   return [];
+};
+
+const parseFilesPayload = (filesUrl) => {
+  if (!filesUrl) return null;
+  try {
+    const parsed = JSON.parse(filesUrl);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+};
+
+const hasUploadedDeliverables = (filesUrl) =>
+  parseDeliverables(filesUrl).some(
+    (item) => item?.url || (Array.isArray(item?.urls) && item.urls.length > 0),
+  );
+
+const getBookingServices = (booking) =>
+  Array.from(
+    new Set(
+      (Array.isArray(booking?.shootDetails?.services)
+        ? booking.shootDetails.services
+        : []
+      ).filter(Boolean),
+    ),
+  );
+
+const isSingleServiceBooking = (booking) =>
+  getBookingServices(booking).length <= 1;
+
+const hasSentMediaTrigger = (filesUrl, type) => {
+  const payload = parseFilesPayload(filesUrl);
+  const notifications = payload?.notifications || {};
+  if (type === "single_service_media_ready") {
+    return Boolean(notifications.singleServiceMediaReadySentAt);
+  }
+  if (type === "partial_media_upload") {
+    return Boolean(notifications.partialMediaUploadSentAt);
+  }
+  if (type === "full_media_upload") {
+    return Boolean(notifications.fullMediaUploadSentAt);
+  }
+  return false;
 };
 
 export default function BookingsPage() {
@@ -137,7 +190,10 @@ export default function BookingsPage() {
       const data = await res.json();
       if (data.url) {
         // Update local state
-        const updatedBooking = { ...selectedBooking, filesUrl: data.filesUrl || data.url };
+        const updatedBooking = {
+          ...selectedBooking,
+          filesUrl: data.filesUrl || data.url,
+        };
         setSelectedBooking(updatedBooking);
         setBookings((prev) =>
           prev.map((b) => (b.id === selectedBooking.id ? updatedBooking : b)),
@@ -182,10 +238,32 @@ export default function BookingsPage() {
         throw new Error(data?.error || "Failed to send notification");
       }
 
+      if (
+        (type === "single_service_media_ready" ||
+          type === "partial_media_upload" ||
+          type === "full_media_upload") &&
+        data?.filesUrl
+      ) {
+        const updatedBooking = {
+          ...selectedBooking,
+          filesUrl: data.filesUrl,
+        };
+        setSelectedBooking(updatedBooking);
+        setBookings((prev) =>
+          prev.map((b) => (b.id === selectedBooking.id ? updatedBooking : b)),
+        );
+      }
+
       alert(
         type === "team_on_the_way"
           ? "Team on the way notification sent."
-          : "Team arrived notification sent.",
+          : type === "team_arrived"
+            ? "Team arrived notification sent."
+            : type === "single_service_media_ready"
+              ? "Single service media ready notification sent."
+              : type === "partial_media_upload"
+                ? "Partial media upload notification sent."
+                : "Full media upload notification sent.",
       );
     } catch (error) {
       console.error(error);
@@ -468,6 +546,86 @@ export default function BookingsPage() {
                       ? "Sending..."
                       : "Send Team Arrived"}
                   </Button>
+                  {isSingleServiceBooking(selectedBooking) ? (
+                    <Button
+                      variant="outline"
+                      className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                      disabled={
+                        notifyingType !== null ||
+                        selectedBooking.cancelledAt ||
+                        !hasUploadedDeliverables(selectedBooking.filesUrl) ||
+                        hasSentMediaTrigger(
+                          selectedBooking.filesUrl,
+                          "single_service_media_ready",
+                        )
+                      }
+                      onClick={() =>
+                        handleSendNotification("single_service_media_ready")
+                      }
+                    >
+                      {notifyingType === "single_service_media_ready"
+                        ? "Sending..."
+                        : hasSentMediaTrigger(
+                              selectedBooking.filesUrl,
+                              "single_service_media_ready",
+                            )
+                          ? "Single Service Sent"
+                          : "Send Single Service Ready"}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                        disabled={
+                          notifyingType !== null ||
+                          selectedBooking.cancelledAt ||
+                          !hasUploadedDeliverables(selectedBooking.filesUrl) ||
+                          hasSentMediaTrigger(
+                            selectedBooking.filesUrl,
+                            "partial_media_upload",
+                          )
+                        }
+                        onClick={() =>
+                          handleSendNotification("partial_media_upload")
+                        }
+                      >
+                        {notifyingType === "partial_media_upload"
+                          ? "Sending..."
+                          : hasSentMediaTrigger(
+                                selectedBooking.filesUrl,
+                                "partial_media_upload",
+                              )
+                            ? "Photos Ready Sent"
+                            : "Send Photos Ready"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                        disabled={
+                          notifyingType !== null ||
+                          selectedBooking.cancelledAt ||
+                          !hasUploadedDeliverables(selectedBooking.filesUrl) ||
+                          hasSentMediaTrigger(
+                            selectedBooking.filesUrl,
+                            "full_media_upload",
+                          )
+                        }
+                        onClick={() =>
+                          handleSendNotification("full_media_upload")
+                        }
+                      >
+                        {notifyingType === "full_media_upload"
+                          ? "Sending..."
+                          : hasSentMediaTrigger(
+                                selectedBooking.filesUrl,
+                                "full_media_upload",
+                              )
+                            ? "All Media Sent"
+                            : "Send All Media Delivered"}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -480,40 +638,56 @@ export default function BookingsPage() {
                       <p className="text-xs text-blue-300 mb-1">
                         Current Deliverables
                       </p>
-                      {parseDeliverables(selectedBooking.filesUrl).map((item, i) => (
-                        <div key={`${item.type || item.label}-${i}`} className="text-sm text-zinc-300">
-                          {(() => {
-                            const itemUrls = Array.isArray(item.urls) && item.urls.length > 0
-                              ? item.urls
-                              : item.url
-                                ? [item.url]
-                                : [];
-                            const primaryUrl = itemUrls[0];
-
-                            return (
-                              <>
-                          <span className="font-medium">{item.label || item.type || "Files"}:</span>{" "}
-                          <Link
-                            href={primaryUrl}
-                            target="_blank"
-                            className="text-blue-400 hover:text-blue-300 hover:underline break-all"
+                      {parseDeliverables(selectedBooking.filesUrl).map(
+                        (item, i) => (
+                          <div
+                            key={`${item.type || item.label}-${i}`}
+                            className="text-sm text-zinc-300"
                           >
-                            {primaryUrl}
-                          </Link>
-                          {item.count ? (
-                            <span className="text-zinc-400"> ({item.count} files)</span>
-                          ) : null}
-                          {itemUrls.length > 1 ? (
-                            <span className="text-zinc-400"> (+{itemUrls.length - 1} more)</span>
-                          ) : null}
-                          {item.deliveryMode === "copy_link" ? (
-                            <span className="ml-2 text-amber-300 text-xs">Copy Link</span>
-                          ) : null}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      ))}
+                            {(() => {
+                              const itemUrls =
+                                Array.isArray(item.urls) && item.urls.length > 0
+                                  ? item.urls
+                                  : item.url
+                                    ? [item.url]
+                                    : [];
+                              const primaryUrl = itemUrls[0];
+
+                              return (
+                                <>
+                                  <span className="font-medium">
+                                    {item.label || item.type || "Files"}:
+                                  </span>{" "}
+                                  <Link
+                                    href={primaryUrl}
+                                    target="_blank"
+                                    className="text-blue-400 hover:text-blue-300 hover:underline break-all"
+                                  >
+                                    {primaryUrl}
+                                  </Link>
+                                  {item.count ? (
+                                    <span className="text-zinc-400">
+                                      {" "}
+                                      ({item.count} files)
+                                    </span>
+                                  ) : null}
+                                  {itemUrls.length > 1 ? (
+                                    <span className="text-zinc-400">
+                                      {" "}
+                                      (+{itemUrls.length - 1} more)
+                                    </span>
+                                  ) : null}
+                                  {item.deliveryMode === "copy_link" ? (
+                                    <span className="ml-2 text-amber-300 text-xs">
+                                      Copy Link
+                                    </span>
+                                  ) : null}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        ),
+                      )}
                     </div>
                   )}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
@@ -562,7 +736,9 @@ export default function BookingsPage() {
                       ref={fileInputRef}
                       type="file"
                       multiple
-                      onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                      onChange={(e) =>
+                        setFiles(Array.from(e.target.files || []))
+                      }
                       className="max-w-xs bg-zinc-900 border-zinc-700 text-zinc-300"
                     />
                     {files.length > 0 ? (

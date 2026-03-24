@@ -122,4 +122,22 @@ describe("Admin TimeSlots API Route", () => {
 
     consoleSpy.mockRestore();
   });
+
+  it("includes apartment 5 bed and villa 7 bed in default weight config", async () => {
+    DynamicConfig.findOne.mockResolvedValue(null);
+    Booking.findAll.mockResolvedValue([]);
+
+    const request = { url: "http://localhost:3000/api/admin/timeslots" };
+    const response = await GET(request);
+    const data = await response.json();
+
+    expect(
+      data.config.systemSettings.weightModel.propertyWeights.Apartment["5 Bed"],
+    ).toBe(3.5);
+    expect(
+      data.config.systemSettings.weightModel.propertyWeights["Villa/Townhouse"][
+        "7 Bed"
+      ],
+    ).toBe(5.5);
+  });
 });

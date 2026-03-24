@@ -37,8 +37,16 @@ const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const PERIODS = ["morning", "afternoon", "evening"];
 
 const PROPERTY_WEIGHT_GROUPS = [
-  { label: "Apartments", type: "Apartment", sizes: ["Studio", "1BR", "2BR", "3BR", "4BR"] },
-  { label: "Villas / Townhouses", type: "Villa/Townhouse", sizes: ["2BR", "3BR", "4BR", "5BR", "6BR"] },
+  {
+    label: "Apartments",
+    type: "Apartment",
+    sizes: ["Studio", "1 Bed", "2 Bed", "3 Bed", "4 Bed", "5 Bed"],
+  },
+  {
+    label: "Villas / Townhouses",
+    type: "Villa/Townhouse",
+    sizes: ["2 Bed", "3 Bed", "4 Bed", "5 Bed", "6 Bed", "7 Bed"],
+  },
 ];
 
 const COMMERCIAL_SCALES = ["Basic", "Essential", "Premium", "Executive"];
@@ -74,7 +82,11 @@ const toDayName = (dateObj) => {
 };
 
 const buildCalendarDays = (currentMonth) => {
-  const first = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+  const first = new Date(
+    currentMonth.getFullYear(),
+    currentMonth.getMonth(),
+    1,
+  );
   const mondayIndex = (first.getDay() + 6) % 7;
   const start = new Date(first);
   start.setDate(first.getDate() - mondayIndex);
@@ -89,8 +101,16 @@ const buildCalendarDays = (currentMonth) => {
 };
 
 const getMonthRange = (currentMonth) => {
-  const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-  const end = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+  const start = new Date(
+    currentMonth.getFullYear(),
+    currentMonth.getMonth(),
+    1,
+  );
+  const end = new Date(
+    currentMonth.getFullYear(),
+    currentMonth.getMonth() + 1,
+    0,
+  );
   return { start: toDateKey(start), end: toDateKey(end) };
 };
 
@@ -120,7 +140,10 @@ export default function TimeSlotsManager() {
     });
   }, [currentMonth]);
 
-  const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
+  const calendarDays = useMemo(
+    () => buildCalendarDays(currentMonth),
+    [currentMonth],
+  );
 
   const loadConfig = async ({ preserveLayout = false } = {}) => {
     if (preserveLayout) {
@@ -130,11 +153,14 @@ export default function TimeSlotsManager() {
     }
     try {
       const { start, end } = getMonthRange(currentMonth);
-      const res = await fetch(`/api/admin/timeslots?start=${start}&end=${end}`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/admin/timeslots?start=${start}&end=${end}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        },
+      );
       if (!res.ok) throw new Error("Failed to load time slot config");
       const data = await res.json();
       setConfig(data.config);
@@ -188,7 +214,9 @@ export default function TimeSlotsManager() {
           serviceWeights: {
             ...(prev.systemSettings?.weightModel?.serviceWeights || {}),
             [serviceName]: {
-              ...(prev.systemSettings?.weightModel?.serviceWeights?.[serviceName] || {}),
+              ...(prev.systemSettings?.weightModel?.serviceWeights?.[
+                serviceName
+              ] || {}),
               ...patch,
             },
           },
@@ -207,7 +235,8 @@ export default function TimeSlotsManager() {
           propertyWeights: {
             ...(prev.systemSettings?.weightModel?.propertyWeights || {}),
             [type]: {
-              ...(prev.systemSettings?.weightModel?.propertyWeights?.[type] || {}),
+              ...(prev.systemSettings?.weightModel?.propertyWeights?.[type] ||
+                {}),
               [size]: Number(value) || 0,
             },
           },
@@ -277,8 +306,12 @@ export default function TimeSlotsManager() {
     updateSelectedDay(() => ({ fullDayBlocked: false, blocks: {} }));
   };
 
-  const selectedDateObj = selectedDateKey ? new Date(`${selectedDateKey}T00:00:00`) : null;
-  const selectedOverride = selectedDateKey ? getDateOverride(selectedDateKey) : {};
+  const selectedDateObj = selectedDateKey
+    ? new Date(`${selectedDateKey}T00:00:00`)
+    : null;
+  const selectedOverride = selectedDateKey
+    ? getDateOverride(selectedDateKey)
+    : {};
   const selectedDateBookingDetails = selectedDateKey
     ? bookedDetailsMap?.[selectedDateKey] || {}
     : {};
@@ -286,7 +319,9 @@ export default function TimeSlotsManager() {
   if (loading || !config) {
     return (
       <div className="container mx-auto p-6">
-        <p className="text-sm text-muted-foreground">Loading timeslot settings...</p>
+        <p className="text-sm text-muted-foreground">
+          Loading timeslot settings...
+        </p>
       </div>
     );
   }
@@ -297,10 +332,15 @@ export default function TimeSlotsManager() {
         <div>
           <h1 className="text-3xl font-bold">Calendar & Time Slot Rules</h1>
           <p className="text-muted-foreground">
-            Manage daily availability, block definitions, and service/property-specific slot rules.
+            Manage daily availability, block definitions, and
+            service/property-specific slot rules.
           </p>
         </div>
-        <Button onClick={saveConfig} disabled={saving} className="flex items-center gap-2">
+        <Button
+          onClick={saveConfig}
+          disabled={saving}
+          className="flex items-center gap-2"
+        >
           <Save className="w-4 h-4" />
           {saving ? "Saving..." : "Save Changes"}
         </Button>
@@ -333,12 +373,7 @@ export default function TimeSlotsManager() {
 
             <div className="space-y-2">
               <Label>Day Slot Capacity (Fixed)</Label>
-              <Input
-                type="number"
-                value={6}
-                readOnly
-                className="w-32"
-              />
+              <Input type="number" value={6} readOnly className="w-32" />
               <p className="text-xs text-muted-foreground">
                 Formula: totalWeight = propertyWeight + serviceWeightSum, then
                 totalWeight {"<="} slotCapacity ? 1 : 2
@@ -351,10 +386,15 @@ export default function TimeSlotsManager() {
               <Label>Working Days</Label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {DAYS_OF_WEEK.map((day) => (
-                  <div key={day} className="flex items-center justify-between border rounded-md px-3 py-2">
+                  <div
+                    key={day}
+                    className="flex items-center justify-between border rounded-md px-3 py-2"
+                  >
                     <span className="text-sm">{day.slice(0, 3)}</span>
                     <Switch
-                      checked={Boolean(config.systemSettings.workingDays?.[day])}
+                      checked={Boolean(
+                        config.systemSettings.workingDays?.[day],
+                      )}
                       onCheckedChange={(checked) =>
                         updateConfig((prev) => ({
                           ...prev,
@@ -386,7 +426,10 @@ export default function TimeSlotsManager() {
                 <div className="grid grid-cols-2 gap-3">
                   <Input
                     type="time"
-                    value={config.systemSettings.blockDefinitions?.[period]?.startTime || ""}
+                    value={
+                      config.systemSettings.blockDefinitions?.[period]
+                        ?.startTime || ""
+                    }
                     onChange={(e) =>
                       updateConfig((prev) => ({
                         ...prev,
@@ -395,7 +438,9 @@ export default function TimeSlotsManager() {
                           blockDefinitions: {
                             ...prev.systemSettings.blockDefinitions,
                             [period]: {
-                              ...(prev.systemSettings.blockDefinitions?.[period] || {}),
+                              ...(prev.systemSettings.blockDefinitions?.[
+                                period
+                              ] || {}),
                               startTime: e.target.value,
                             },
                           },
@@ -405,7 +450,10 @@ export default function TimeSlotsManager() {
                   />
                   <Input
                     type="time"
-                    value={config.systemSettings.blockDefinitions?.[period]?.endTime || ""}
+                    value={
+                      config.systemSettings.blockDefinitions?.[period]
+                        ?.endTime || ""
+                    }
                     onChange={(e) =>
                       updateConfig((prev) => ({
                         ...prev,
@@ -414,7 +462,9 @@ export default function TimeSlotsManager() {
                           blockDefinitions: {
                             ...prev.systemSettings.blockDefinitions,
                             [period]: {
-                              ...(prev.systemSettings.blockDefinitions?.[period] || {}),
+                              ...(prev.systemSettings.blockDefinitions?.[
+                                period
+                              ] || {}),
                               endTime: e.target.value,
                             },
                           },
@@ -444,25 +494,36 @@ export default function TimeSlotsManager() {
               <span>Active</span>
             </div>
             {SERVICE_WEIGHT_ORDER.map((service) => {
-              const cfg = config.systemSettings?.weightModel?.serviceWeights?.[service] || {
+              const cfg = config.systemSettings?.weightModel?.serviceWeights?.[
+                service
+              ] || {
                 weight: 0,
                 active: false,
               };
               return (
-                <div key={service} className="grid grid-cols-[1fr_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center">
+                <div
+                  key={service}
+                  className="grid grid-cols-[1fr_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center"
+                >
                   <span className="text-sm">{service}</span>
                   <Input
                     type="number"
                     min="0"
                     step="0.5"
                     value={cfg.weight ?? 0}
-                    onChange={(e) => updateServiceWeight(service, { weight: Number(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      updateServiceWeight(service, {
+                        weight: Number(e.target.value) || 0,
+                      })
+                    }
                     className="h-8"
                   />
                   <div className="flex justify-start">
                     <Switch
                       checked={Boolean(cfg.active)}
-                      onCheckedChange={(checked) => updateServiceWeight(service, { active: checked })}
+                      onCheckedChange={(checked) =>
+                        updateServiceWeight(service, { active: checked })
+                      }
                     />
                   </div>
                 </div>
@@ -494,14 +555,26 @@ export default function TimeSlotsManager() {
                       <span>Weight</span>
                     </div>
                     {group.sizes.map((size) => (
-                      <div key={size} className="grid grid-cols-[1fr_120px] gap-2 px-4 py-3 border-b last:border-b-0 items-center">
+                      <div
+                        key={size}
+                        className="grid grid-cols-[1fr_120px] gap-2 px-4 py-3 border-b last:border-b-0 items-center"
+                      >
                         <span className="text-sm">{size}</span>
                         <Input
                           type="number"
                           min="0"
                           step="0.5"
-                          value={config.systemSettings?.weightModel?.propertyWeights?.[group.type]?.[size] ?? 0}
-                          onChange={(e) => updatePropertyWeight(group.type, size, e.target.value)}
+                          value={
+                            config.systemSettings?.weightModel
+                              ?.propertyWeights?.[group.type]?.[size] ?? 0
+                          }
+                          onChange={(e) =>
+                            updatePropertyWeight(
+                              group.type,
+                              size,
+                              e.target.value,
+                            )
+                          }
                           className="h-8"
                         />
                       </div>
@@ -527,20 +600,37 @@ export default function TimeSlotsManager() {
                   <span>Active</span>
                 </div>
                 {COMMERCIAL_SCALES.map((scale) => {
-                  const value = config.systemSettings?.weightModel?.propertyWeights?.Commercial?.[scale] ?? 0;
+                  const value =
+                    config.systemSettings?.weightModel?.propertyWeights
+                      ?.Commercial?.[scale] ?? 0;
                   return (
-                    <div key={scale} className="grid grid-cols-[1fr_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center">
+                    <div
+                      key={scale}
+                      className="grid grid-cols-[1fr_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center"
+                    >
                       <span className="text-sm">{scale}</span>
                       <Input
                         type="number"
                         min="0"
                         step="0.5"
                         value={value}
-                        onChange={(e) => updatePropertyWeight("Commercial", scale, e.target.value)}
+                        onChange={(e) =>
+                          updatePropertyWeight(
+                            "Commercial",
+                            scale,
+                            e.target.value,
+                          )
+                        }
                         className="h-8"
                       />
                       <div className="flex justify-start">
-                        <Switch checked={value > 0} onCheckedChange={(checked) => !checked && updatePropertyWeight("Commercial", scale, 0)} />
+                        <Switch
+                          checked={value > 0}
+                          onCheckedChange={(checked) =>
+                            !checked &&
+                            updatePropertyWeight("Commercial", scale, 0)
+                          }
+                        />
                       </div>
                     </div>
                   );
@@ -564,38 +654,83 @@ export default function TimeSlotsManager() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() =>
+                  setCurrentMonth(
+                    (prev) =>
+                      new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+                  )
+                }
+              >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <div className="min-w-[160px] text-center font-medium">{monthLabel}</div>
-              <Button variant="outline" size="icon" onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}>
+              <div className="min-w-[160px] text-center font-medium">
+                {monthLabel}
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() =>
+                  setCurrentMonth(
+                    (prev) =>
+                      new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+                  )
+                }
+              >
                 <ChevronRight className="w-4 h-4" />
               </Button>
-              <Button variant="outline" onClick={() => setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setCurrentMonth(
+                    new Date(
+                      new Date().getFullYear(),
+                      new Date().getMonth(),
+                      1,
+                    ),
+                  )
+                }
+              >
                 Today
               </Button>
             </div>
           </div>
           {calendarRefreshing && (
-            <p className="text-xs text-muted-foreground pt-1">Refreshing calendar...</p>
+            <p className="text-xs text-muted-foreground pt-1">
+              Refreshing calendar...
+            </p>
           )}
           <div className="flex flex-wrap gap-3 pt-2">
-            <Badge className="bg-green-500/20 text-green-500 border-green-500/30">Available</Badge>
-            <Badge className="bg-red-500/20 text-red-500 border-red-500/30">Booked</Badge>
-            <Badge className="bg-zinc-500/20 text-zinc-400 border-zinc-500/30">Blocked</Badge>
+            <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
+              Available
+            </Badge>
+            <Badge className="bg-red-500/20 text-red-500 border-red-500/30">
+              Booked
+            </Badge>
+            <Badge className="bg-zinc-500/20 text-zinc-400 border-zinc-500/30">
+              Blocked
+            </Badge>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 border rounded-md overflow-hidden">
             {DAY_HEADERS.map((header) => (
-              <div key={header} className="p-3 text-center border-b bg-muted/30 text-sm font-medium">
+              <div
+                key={header}
+                className="p-3 text-center border-b bg-muted/30 text-sm font-medium"
+              >
                 {header}
               </div>
             ))}
             {calendarDays.map((day, idx) => {
               const key = toDateKey(day);
-              const isInCurrentMonth = day.getMonth() === currentMonth.getMonth();
-              const periodStates = PERIODS.map((period) => getPeriodState(day, key, period));
+              const isInCurrentMonth =
+                day.getMonth() === currentMonth.getMonth();
+              const periodStates = PERIODS.map((period) =>
+                getPeriodState(day, key, period),
+              );
               const selected = selectedDateKey === key;
 
               return (
@@ -605,7 +740,9 @@ export default function TimeSlotsManager() {
                   onClick={() => openDayDialog(day)}
                   className={`min-h-[110px] p-2 border-t border-l text-left transition-colors ${isInCurrentMonth ? "hover:bg-muted/20" : "bg-muted/20 text-muted-foreground"} ${selected ? "ring-2 ring-primary" : ""}`}
                 >
-                  <div className="text-sm font-medium mb-2">{day.getDate()}</div>
+                  <div className="text-sm font-medium mb-2">
+                    {day.getDate()}
+                  </div>
                   <div className="space-y-1">
                     {periodStates.map((state, i) => (
                       <div
@@ -638,19 +775,26 @@ export default function TimeSlotsManager() {
 
           <div className="space-y-3">
             {PERIODS.map((period) => {
-              const state = selectedDateObj && selectedDateKey
-                ? getPeriodState(selectedDateObj, selectedDateKey, period)
-                : "blocked";
+              const state =
+                selectedDateObj && selectedDateKey
+                  ? getPeriodState(selectedDateObj, selectedDateKey, period)
+                  : "blocked";
 
-              const blockDef = config.systemSettings.blockDefinitions?.[period] || {};
-              const periodBookingDetails = selectedDateBookingDetails?.[period] || [];
+              const blockDef =
+                config.systemSettings.blockDefinitions?.[period] || {};
+              const periodBookingDetails =
+                selectedDateBookingDetails?.[period] || [];
 
               return (
-                <div key={period} className="border rounded-md p-3 flex items-center justify-between gap-3">
+                <div
+                  key={period}
+                  className="border rounded-md p-3 flex items-center justify-between gap-3"
+                >
                   <div className="flex-1">
                     <p className="font-medium">{labelizePeriod(period)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {blockDef.startTime || "--:--"} - {blockDef.endTime || "--:--"}
+                      {blockDef.startTime || "--:--"} -{" "}
+                      {blockDef.endTime || "--:--"}
                     </p>
                     {state === "booked" && periodBookingDetails.length > 0 && (
                       <div className="mt-2 space-y-2">
@@ -661,7 +805,9 @@ export default function TimeSlotsManager() {
                           >
                             <p>Booking: {detail.bookingCode}</p>
                             <p>Property: {detail.propertyLabel}</p>
-                            {detail.serviceLabel && <p>Services: {detail.serviceLabel}</p>}
+                            {detail.serviceLabel && (
+                              <p>Services: {detail.serviceLabel}</p>
+                            )}
                             <p>Arrival: {detail.arrival}</p>
                           </div>
                         ))}
@@ -684,8 +830,14 @@ export default function TimeSlotsManager() {
                           ? "Booked"
                           : "Blocked"}
                     </Badge>
-                    <Button type="button" variant="outline" onClick={() => toggleBlockForPeriod(period)}>
-                      {selectedOverride?.blocks?.[period] === "blocked" ? "Unblock" : "Block"}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => toggleBlockForPeriod(period)}
+                    >
+                      {selectedOverride?.blocks?.[period] === "blocked"
+                        ? "Unblock"
+                        : "Block"}
                     </Button>
                   </div>
                 </div>
