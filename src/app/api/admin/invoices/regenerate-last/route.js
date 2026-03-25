@@ -13,7 +13,7 @@ export async function GET() {
         {
           model: User,
           as: "user",
-          attributes: ["id", "fullName", "email", "companyName", "address", "billingAddress", "phone", "trn"],
+          attributes: ["id", "fullName", "email", "companyName", "billingAddress", "phone", "trn"],
         },
       ],
       order: [["createdAt", "DESC"]],
