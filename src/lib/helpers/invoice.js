@@ -391,7 +391,10 @@ export async function generateAndUploadInvoice(
   resolvedBookings = null,
 ) {
   try {
-    const logoSrc = await getPublicAssetDataUrl("Horizontal Logo 3.png");
+    const [logoSrc, signatureSrc] = await Promise.all([
+      getPublicAssetDataUrl("Horizontal Logo 3.png"),
+      getPublicAssetDataUrl("E-sign.png"),
+    ]);
 
     const bookings =
       Array.isArray(resolvedBookings) && resolvedBookings.length > 0
@@ -610,6 +613,42 @@ text-align:right;
 font-weight:800;
 }
 
+.footer{
+margin-top:120px;
+display:flex;
+justify-content:space-between;
+align-items:flex-end;
+gap:24px;
+}
+
+.footer-copy{
+font-size:15px;
+line-height:1.55;
+max-width:320px;
+}
+
+.signature{
+text-align:center;
+min-width:180px;
+}
+
+.signature img{
+height:92px;
+object-fit:contain;
+margin-bottom:2px;
+}
+
+.signature-line{
+width:138px;
+border-top:1px solid #111827;
+margin:4px auto 8px;
+}
+
+.small{
+font-size:13px;
+color:#475569;
+}
+
 </style>
 
 </head>
@@ -665,6 +704,23 @@ ${bookingTables}
     <td>${formatInvoiceAmount(transaction.amount || 0, { forceDecimals: true })}</td>
   </tr>
 </table>
+
+<div class="footer">
+  <div class="footer-copy">
+    <p><strong>Payment Method:</strong> Stripe</p>
+    <p><strong>Transaction ID:</strong> ${escapeHtml(transaction.id)}</p>
+    <br/>
+    <p><strong>Thank you for booking with Milkywayy.</strong></p>
+    <p class="small">All media files will be delivered through the client portal.</p>
+  </div>
+
+  <div class="signature">
+    <img src="${signatureSrc || "https://milkywayy.com/signature.png"}"/>
+    <div class="signature-line"></div>
+    <strong>AKASH PRASEED</strong><br/>
+    <span class="small">Founder & CEO</span>
+  </div>
+</div>
 </div>
 
 </body>

@@ -87,7 +87,7 @@ const NewNavbar = () => {
   };
 
   const navItems = [
-    { label: "Services", action: () => scrollToSection("services") },
+    // { label: "Services", action: () => scrollToSection("services") },
     { label: "How it works", action: () => setShowVideoModal(true) },
     // { label: "Our Work", href: "/portfolio" },
     { label: "Our Work", action: () => scrollToSection("our-work") },
