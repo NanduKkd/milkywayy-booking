@@ -3,9 +3,40 @@ const VIDEOGRAPHY_SELECTION_SEPARATOR = "|";
 
 export const DEFAULT_WEIGHT_MODEL = {
   propertyWeights: {
-    Apartment: { Studio: 1, "1BR": 1.5, "1 Bed": 1.5, "2BR": 2, "2 Bed": 2, "3BR": 2.5, "3 Bed": 2.5, "4BR": 3, "4 Bed": 3, "5BR": 3.5, "5 Bed": 3.5 },
-    "Villa/Townhouse": { "2BR": 2.5, "2 Bed": 2.5, "3BR": 3, "3 Bed": 3, "4BR": 3.5, "4 Bed": 3.5, "5BR": 4, "5 Bed": 4, "6BR": 5, "6 Bed": 5 },
-    Commercial: { Basic: 2, Essential: 3.5, Premium: 5, Executive: 7, Elite: 7 },
+    Apartment: {
+      Studio: 1,
+      "1BR": 1.5,
+      "1 Bed": 1.5,
+      "2BR": 2,
+      "2 Bed": 2,
+      "3BR": 2.5,
+      "3 Bed": 2.5,
+      "4BR": 3,
+      "4 Bed": 3,
+      "5BR": 3.5,
+      "5 Bed": 3.5,
+    },
+    "Villa/Townhouse": {
+      "2BR": 2.5,
+      "2 Bed": 2.5,
+      "3BR": 3,
+      "3 Bed": 3,
+      "4BR": 3.5,
+      "4 Bed": 3.5,
+      "5BR": 4,
+      "5 Bed": 4,
+      "6BR": 5,
+      "6 Bed": 5,
+      "7BR": 5.5,
+      "7 Bed": 5.5,
+    },
+    Commercial: {
+      Basic: 2,
+      Essential: 3.5,
+      Premium: 5,
+      Executive: 7,
+      Elite: 7,
+    },
   },
   serviceWeights: {
     Photo: { weight: 1, active: true },
@@ -95,7 +126,10 @@ export function getBookingLoadBreakdown({
     totalLoad,
     slotCapacity: normalizedSlotCapacity,
     slotsRequired,
-    isNightService: isNightServiceSelected(selectedServices, videographySubService),
+    isNightService: isNightServiceSelected(
+      selectedServices,
+      videographySubService,
+    ),
   };
 }
 
@@ -144,7 +178,7 @@ export function getAvailableSlots(date, durationHours, existingBookings) {
     for (let m = 0; m < 60; m += intervalMinutes) {
       const slotStartMinutes = h * 60 + m;
       const timeString = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-      const slotEndMinutes = slotStartMinutes + (durationHours * 60);
+      const slotEndMinutes = slotStartMinutes + durationHours * 60;
 
       let available = true;
       let reason = null;
@@ -157,12 +191,14 @@ export function getAvailableSlots(date, durationHours, existingBookings) {
         slotStartDate.setHours(h, m, 0, 0);
 
         const slotEndDate = new Date(slotStartDate);
-        slotEndDate.setMinutes(slotEndDate.getMinutes() + (durationHours * 60));
+        slotEndDate.setMinutes(slotEndDate.getMinutes() + durationHours * 60);
 
         for (const booking of existingBookings) {
           const bookingStart = new Date(booking.startTime);
           const bookingEnd = new Date(bookingStart);
-          bookingEnd.setMinutes(bookingEnd.getMinutes() + (booking.duration * 60));
+          bookingEnd.setMinutes(
+            bookingEnd.getMinutes() + booking.duration * 60,
+          );
 
           if (slotStartDate < bookingEnd && slotEndDate > bookingStart) {
             available = false;

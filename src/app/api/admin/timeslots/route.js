@@ -86,6 +86,8 @@ const DEFAULT_SYSTEM_SETTINGS = {
         "3 Bed": 2.5,
         "4BR": 3,
         "4 Bed": 3,
+        "5BR": 3.5,
+        "5 Bed": 3.5,
       },
       "Villa/Townhouse": {
         "2BR": 2.5,
@@ -98,8 +100,16 @@ const DEFAULT_SYSTEM_SETTINGS = {
         "5 Bed": 4,
         "6BR": 5,
         "6 Bed": 5,
+        "7BR": 5.5,
+        "7 Bed": 5.5,
       },
-      Commercial: { Basic: 2, Essential: 3.5, Premium: 5, Executive: 7, Elite: 7 },
+      Commercial: {
+        Basic: 2,
+        Essential: 3.5,
+        Premium: 5,
+        Executive: 7,
+        Elite: 7,
+      },
     },
     serviceWeights: {
       Photo: { weight: 1, active: true },
@@ -161,9 +171,7 @@ const normalizeConfig = (value) => {
   }
 
   // Backward compatibility with old shape: { Monday: [..], Tuesday: [..] }
-  const hasWeekdayKeys = DAYS_OF_WEEK.some(
-    (day) => Array.isArray(value[day]),
-  );
+  const hasWeekdayKeys = DAYS_OF_WEEK.some((day) => Array.isArray(value[day]));
   if (hasWeekdayKeys) {
     return {
       ...getDefaultConfig(),
@@ -215,8 +223,12 @@ export async function GET(request) {
     const url = new URL(request.url);
     const startParam = url.searchParams.get("start");
     const endParam = url.searchParams.get("end");
-    const startDate = startParam || toDateKey(new Date(today.getFullYear(), today.getMonth(), 1));
-    const endDate = endParam || toDateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+    const startDate =
+      startParam ||
+      toDateKey(new Date(today.getFullYear(), today.getMonth(), 1));
+    const endDate =
+      endParam ||
+      toDateKey(new Date(today.getFullYear(), today.getMonth() + 1, 0));
 
     const existing = await DynamicConfig.findOne({
       where: { key: CONFIG_KEY },
@@ -267,14 +279,17 @@ export async function GET(request) {
       const services = Array.isArray(booking.shootDetails?.services)
         ? booking.shootDetails.services
         : [];
-      const videographySubService = booking.shootDetails?.videographySubService || "";
+      const videographySubService =
+        booking.shootDetails?.videographySubService || "";
       const videographySelections = String(videographySubService)
         .split("|")
         .map((v) => v.trim())
         .filter(Boolean);
       const serviceLabel = [
         services.length ? services.join(", ") : "",
-        videographySelections.length ? `(${videographySelections.join(", ")})` : "",
+        videographySelections.length
+          ? `(${videographySelections.join(", ")})`
+          : "",
       ]
         .filter(Boolean)
         .join(" ");

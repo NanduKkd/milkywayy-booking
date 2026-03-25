@@ -13,9 +13,8 @@ import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
 import {
+  getLaunchPromoDiscount,
   LAUNCH_PROMO_CODE,
-  LAUNCH_PROMO_DISCOUNT,
-  LAUNCH_PROMO_MIN_AMOUNT,
 } from "@/lib/config/promo";
 import { auth } from "@/lib/helpers/auth";
 import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
@@ -1287,44 +1286,50 @@ const createTransactionAndPaymentIntentHandler = async (
     appliedDiscounts.push({ ...d, value: val });
   });
 
-  // 2. Apply Coupon
+  // 2. Apply automatic first-shoot launch credit
   let finalAmount = currentAmount;
   let couponId = null;
   let couponDeduction = 0;
+  let launchPromoDeduction = 0;
   let appliedCouponCode = null;
   const normalizedCouponCode = String(couponCode || "")
     .trim()
     .toUpperCase();
 
+  const launchPromoConfig = await Coupon.findOne({
+    where: { code: LAUNCH_PROMO_CODE },
+  });
+  const isLaunchPromoActive = !launchPromoConfig || launchPromoConfig.isActive;
+
+  if (isLaunchPromoActive) {
+    const successfulLaunchPromoBookings = await Booking.count({
+      where: {
+        userId,
+      },
+      include: [
+        {
+          model: Transaction,
+          as: "transaction",
+          required: true,
+          where: { status: "success" },
+        },
+      ],
+    });
+
+    if (successfulLaunchPromoBookings === 0) {
+      launchPromoDeduction = Math.min(
+        getLaunchPromoDiscount(totalAmount),
+        finalAmount,
+      );
+      finalAmount = Math.max(0, finalAmount - launchPromoDeduction);
+    }
+  }
+
   if (normalizedCouponCode) {
     if (normalizedCouponCode === LAUNCH_PROMO_CODE) {
-      const successfulLaunchPromoBookings = await Booking.count({
-        where: {
-          userId,
-        },
-        include: [
-          {
-            model: Transaction,
-            as: "transaction",
-            required: true,
-            where: { status: "success" },
-          },
-        ],
-      });
-
-      if (successfulLaunchPromoBookings > 0) {
-        throw new Error("Launch credit is valid only for your first booking");
-      }
-
-      if (finalAmount < LAUNCH_PROMO_MIN_AMOUNT) {
-        throw new Error(
-          `Minimum spend of AED ${LAUNCH_PROMO_MIN_AMOUNT} required`,
-        );
-      }
-
-      couponDeduction = Math.min(LAUNCH_PROMO_DISCOUNT, finalAmount);
-      finalAmount = Math.max(0, finalAmount - couponDeduction);
-      appliedCouponCode = LAUNCH_PROMO_CODE;
+      throw new Error(
+        "Launch credit is applied automatically for eligible first shoots",
+      );
     } else {
       const coupon = await Coupon.findOne({
         where: { code: normalizedCouponCode },
@@ -1359,11 +1364,12 @@ const createTransactionAndPaymentIntentHandler = async (
     status: "pending",
     couponId: couponId,
     couponDeduction: couponDeduction,
-    bulkDeduction: directDiscount, // Store automatic direct discounts here
+    bulkDeduction: directDiscount + launchPromoDeduction,
     metadata: {
       appliedDiscounts,
       creditExpiresAt: walletExpiryDate,
       appliedCouponCode,
+      appliedLaunchPromoDeduction: launchPromoDeduction,
       bookingIds,
     },
   });

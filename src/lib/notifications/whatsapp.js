@@ -8,28 +8,38 @@ const TEMPLATE_ENV_KEYS = {
   team_arrived: "TWILIO_CONTENT_SID_TEAM_ARRIVED",
   shoot_rescheduled: "TWILIO_CONTENT_SID_SHOOT_RESCHEDULED",
   shoot_cancelled: "TWILIO_CONTENT_SID_SHOOT_CANCELLED",
+  single_service_media_ready: "TWILIO_CONTENT_SID_SINGLE_SERVICE_MEDIA_READY",
+  partial_media_upload: "TWILIO_CONTENT_SID_PARTIAL_MEDIA_UPLOAD",
+  full_media_upload: "TWILIO_CONTENT_SID_FULL_MEDIA_UPLOAD",
 };
 
 const TEMPLATE_VARIABLE_ORDER = {
   login_otp: ["Code", "Expiry_Minutes"],
   shoot_confirmation: [
     "Property_Name",
-    "Location",
+    "Client_Name",
     "Shoot_Date",
     "Arrival_Window",
-    "Invoice_URL",
-    "Client_Name",
+    "Dashboard_Manage_Booking",
   ],
   shoot_reminder: [
     "Property_Name",
+    "Client_Name",
     "Shoot_Date",
     "Arrival_Window",
-    "Client_Name",
   ],
-  team_on_the_way: ["Property_Name", "Arrival_Window", "Client_Name"],
-  team_arrived: ["Property_Name", "Client_Name"],
-  shoot_rescheduled: ["Property_Name", "New_Shoot_Date", "New_Arrival_Window"],
-  shoot_cancelled: ["Property_Name", "Shoot_Date"],
+  team_on_the_way: ["Property_Name", "Arrival_Window"],
+  team_arrived: ["Property_Name"],
+  shoot_rescheduled: ["Property_Name", "Shoot_Date", "Arrival_Window"],
+  shoot_cancelled: [
+    "Property_Name",
+    "Client_Name",
+    "Shoot_Date",
+    "Booking_Page",
+  ],
+  single_service_media_ready: ["Property_Name", "Client_Name"],
+  partial_media_upload: ["Property_Name", "Client_Name", "Pending_Deliverable"],
+  full_media_upload: ["Property_Name", "Client_Name"],
 };
 
 const TEMPLATES_FALLBACK = {
@@ -42,106 +52,127 @@ const TEMPLATES_FALLBACK = {
 
   shoot_confirmation: ({
     Property_Name,
-    Location,
+    Client_Name,
     Shoot_Date,
     Arrival_Window,
-    Invoice_URL,
-    Client_Name,
+    Dashboard_Manage_Booking,
   }) =>
     [
-      "Property Shoot Confirmed",
+      `Booking Confirmed: ${Property_Name}`,
       "",
-      "Your booking has been successfully confirmed. Here are the details:",
-      "",
-      Client_Name ? `Hi ${Client_Name},` : null,
-      `Property: ${Property_Name}, ${Location}`,
+      Client_Name
+        ? `Hi ${Client_Name}, your shoot is scheduled.`
+        : "Your shoot is scheduled.",
       `Date: ${Shoot_Date}`,
       `Arrival Window: ${Arrival_Window}`,
+      Dashboard_Manage_Booking
+        ? `Manage Booking: ${Dashboard_Manage_Booking}`
+        : null,
       "",
-      "Our team will arrive within the mentioned time window.",
-      "Please ensure the property is clean, ready, and accessible during this period.",
-      "",
-      "Need to make changes?",
-      "",
-      "- To reschedule or cancel, use your dashboard",
-      "- You can modify your booking and download your invoice",
-      Invoice_URL ? `Invoice: ${Invoice_URL}` : null,
+      "Please ensure the property is clean and access is ready.",
+      "Thanks for booking with Milkywayy.",
     ]
       .filter(Boolean)
       .join("\n"),
 
   shoot_reminder: ({
     Property_Name,
+    Client_Name,
     Shoot_Date,
     Arrival_Window,
-    Client_Name,
   }) =>
     [
-      "Upcoming Property Shoot Reminder",
+      `Shoot Reminder: ${Property_Name}`,
       "",
-      "This is a reminder for your scheduled property shoot:",
+      Client_Name
+        ? `Hi ${Client_Name}, a quick reminder that our team will arrive ${Shoot_Date} between ${Arrival_Window}.`
+        : `A quick reminder that our team will arrive ${Shoot_Date} between ${Arrival_Window}.`,
+      "Please ensure property access is ready.",
       "",
-      Client_Name ? `Hi ${Client_Name},` : null,
-      `Property: ${Property_Name}`,
-      `Date: ${Shoot_Date}`,
-      `Arrival Window: ${Arrival_Window}`,
-      "",
-      "Please ensure:",
-      "- Property access is arranged",
-      "- All lights are working",
-      "- Rooms are clean and clutter-free",
+      "See you soon.",
     ].join("\n"),
 
-  team_on_the_way: ({ Property_Name, Arrival_Window, Client_Name }) =>
+  team_on_the_way: ({ Property_Name, Arrival_Window }) =>
     [
-      "Our Team Is On the Way",
-      "",
-      Client_Name ? `Hi ${Client_Name},` : null,
-      "Our shoot team is currently en route to your property:",
+      "We're on our way!",
       "",
       `Property: ${Property_Name}`,
-      `Expected Arrival: Within ${Arrival_Window}`,
+      `Estimated Arrival: ${Arrival_Window}`,
       "",
-      "Please ensure access is available.",
+      "If you have parking or access instructions, please reply here.",
     ].join("\n"),
 
-  team_arrived: ({ Property_Name, Client_Name }) =>
+  team_arrived: ({ Property_Name }) =>
     [
-      "Our Team Has Arrived",
+      "We've arrived!",
       "",
-      Client_Name ? `Hi ${Client_Name},` : null,
-      "Our team has arrived at the property:",
-      "",
-      `Property: ${Property_Name}`,
-      "",
-      "We will begin the shoot shortly.",
+      `Our team is at the location for your shoot at ${Property_Name}.`,
+      "We'll begin shortly.",
     ].join("\n"),
 
-  shoot_rescheduled: ({ Property_Name, New_Shoot_Date, New_Arrival_Window }) =>
+  shoot_rescheduled: ({ Property_Name, Shoot_Date, Arrival_Window }) =>
     [
-      "Shoot Rescheduled Successfully",
+      "Booking Rescheduled",
       "",
-      "Your property shoot has been rescheduled with the following details:",
-      "",
+      "Your shoot has been rescheduled.",
       `Property: ${Property_Name}`,
-      `New Date: ${New_Shoot_Date}`,
-      `New Arrival Window: ${New_Arrival_Window}`,
+      `New date: ${Shoot_Date}`,
+      `New arrival window: ${Arrival_Window}`,
       "",
-      "You can view updated details and download the revised invoice from your dashboard.",
+      "You can view the latest booking details in your dashboard.",
     ].join("\n"),
 
-  shoot_cancelled: ({ Property_Name, Shoot_Date }) =>
+  shoot_cancelled: ({ Property_Name, Client_Name, Shoot_Date, Booking_Page }) =>
     [
-      "Property Shoot Cancelled",
+      `Shoot Cancelled: ${Property_Name}`,
       "",
-      "Your booking for the following property has been cancelled:",
+      Client_Name
+        ? `Hi ${Client_Name}, your shoot on ${Shoot_Date} has been cancelled.`
+        : `Your shoot on ${Shoot_Date} has been cancelled.`,
       "",
-      `Property: ${Property_Name}`,
-      `Original Date: ${Shoot_Date}`,
-      "",
-      "If applicable, refund or credit details will be shared as per the cancellation policy.",
-      "You can book a new shoot anytime through the portal.",
+      Booking_Page ? `You can rebook here: ${Booking_Page}` : null,
+      "If you need help, just reply to this message.",
     ].join("\n"),
+
+  single_service_media_ready: ({ Property_Name, Client_Name }) =>
+    [
+      "Media Ready",
+      "",
+      Client_Name
+        ? `Hi ${Client_Name}, your media for ${Property_Name} is now ready.`
+        : `Your media for ${Property_Name} is now ready.`,
+      "",
+      "You can view and download it from your dashboard.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+
+  partial_media_upload: ({ Property_Name, Client_Name, Pending_Deliverable }) =>
+    [
+      "Photos Ready",
+      "",
+      Client_Name
+        ? `Hello ${Client_Name}, The photos for ${Property_Name} are now available.`
+        : `The photos for ${Property_Name} are now available.`,
+      "You can access them from your dashboard and start listing.",
+      "",
+      `We’re finalizing your ${Pending_Deliverable || "remaining deliverables"} and will notify you once it’s ready.`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+
+  full_media_upload: ({ Property_Name, Client_Name }) =>
+    [
+      Client_Name
+        ? `Hi ${Client_Name}, everything for ${Property_Name} is now ready.`
+        : `Everything for ${Property_Name} is now ready.`,
+      "",
+      "All Media Delivered",
+      "",
+      "You can view and download all files from your dashboard.",
+    ]
+      .filter(Boolean)
+      .join("\n"),
 };
 
 const getTwilioAuthHeader = () => {
