@@ -1,8 +1,0 @@
-{
-  "track_id": "photography_hover_effect_20260111",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-01-11T12:00:00Z",
-  "updated_at": "2026-01-11T12:00:00Z",
-  "description": "In the 'Our Work' section in the landing page, the images in the photography section should be black and white, and when hovered it should revert to its actual colours"
-}

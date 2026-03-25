@@ -1,8 +1,0 @@
-{
-  "track_id": "our_works_carousel_20260105",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-01-05T12:00:00Z",
-  "updated_at": "2026-01-05T12:00:00Z",
-  "description": "feature: the images in our works list in landing page may have multiple images, with next and previous buttons (like a carousel with only one visible at a time). Multiple shoudl be allowed in the admin panel as well"
-}

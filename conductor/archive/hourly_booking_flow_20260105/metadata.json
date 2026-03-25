@@ -1,8 +1,0 @@
-{
-  "track_id": "hourly_booking_flow_20260105",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-01-05T12:00:00Z",
-  "updated_at": "2026-01-05T12:00:00Z",
-  "description": "Transition from broad time slots to a precise hourly booking flow with dynamic duration calculation."
-}
