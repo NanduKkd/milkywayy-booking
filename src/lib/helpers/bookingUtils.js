@@ -107,7 +107,7 @@ export function getDynamicEveningArrivalStart(totalLoad) {
 
 export function getDynamicTwilightSlotLabel(totalLoad) {
   const arrivalStart = getDynamicEveningArrivalStart(totalLoad);
-  return arrivalStart < "17:00" ? "Afternoon" : "Evening";
+  return arrivalStart < "16:00" ? "Afternoon" : "Evening";
 }
 
 export function getBookingArrivalWindowFromDetails({

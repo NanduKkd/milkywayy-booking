@@ -61,6 +61,19 @@ describe("VideographyOptionsSection", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the evening helper text when twilight arrival shifts only to 16:00", () => {
+    renderSection("Long Form.Daylight + Night", {
+      propertyType: "Villa/Townhouse",
+      propertySize: "6 Bed",
+    });
+
+    expect(
+      screen.getByText(
+        "Evening slots ensure optimal lighting and twilight shots.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("shows the afternoon helper text for extended twilight selections with higher load", () => {
     renderSection("Long Form.Daylight + Night", {
       propertyType: "Villa/Townhouse",

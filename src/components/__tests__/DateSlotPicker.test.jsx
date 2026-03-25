@@ -156,4 +156,28 @@ describe('DateSlotPicker', () => {
 
     expect(screen.getByText(/Arrival 14:00 - 14:30/i)).toBeInTheDocument();
   });
+
+  it('keeps the evening label when twilight arrival shifts only to 16:00', async () => {
+    render(
+      <DateSlotPicker
+        date="2026-01-05"
+        slot=""
+        isNightService
+        propertyType="Villa/Townhouse"
+        propertySize="6 Bed"
+        services={["Videography"]}
+        videographySubService="Daylight + Night"
+        onDateChange={mockOnDateChange}
+        onSlotChange={mockOnSlotChange}
+      />
+    );
+
+    fireEvent.click(screen.getByPlaceholderText(/Select Date & Time/i));
+
+    await waitFor(() => {
+      expect(screen.getByText('Evening')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Arrival 16:00 - 16:30/i)).toBeInTheDocument();
+  });
 });

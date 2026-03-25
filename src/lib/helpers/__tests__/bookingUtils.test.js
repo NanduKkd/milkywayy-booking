@@ -4,6 +4,7 @@ import {
   getBookingArrivalWindowFromDetails,
   getBookingLoadBreakdown,
   getDynamicEveningArrivalWindow,
+  getDynamicTwilightSlotLabel,
 } from "../bookingUtils";
 
 describe("calculateBookingDuration", () => {
@@ -120,6 +121,14 @@ describe("getDynamicEveningArrivalWindow", () => {
     expect(getDynamicEveningArrivalWindow(8)).toBe("16:00 - 16:30");
     expect(getDynamicEveningArrivalWindow(10)).toBe("15:00 - 15:30");
     expect(getDynamicEveningArrivalWindow(12)).toBe("14:00 - 14:30");
+  });
+});
+
+describe("getDynamicTwilightSlotLabel", () => {
+  it("keeps 16:00 twilight arrivals under the evening label", () => {
+    expect(getDynamicTwilightSlotLabel(6)).toBe("Evening");
+    expect(getDynamicTwilightSlotLabel(8)).toBe("Evening");
+    expect(getDynamicTwilightSlotLabel(10)).toBe("Afternoon");
   });
 });
 
