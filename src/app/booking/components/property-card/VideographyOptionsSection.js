@@ -8,6 +8,10 @@ import {
   VIDEOGRAPHY_SUB_SERVICES,
   VIDEOGRAPHY_SUB_SERVICE_ORDER,
 } from "@/lib/config/pricing";
+import {
+  getBookingLoadBreakdown,
+  getDynamicTwilightSlotLabel,
+} from "@/lib/helpers/bookingUtils";
 
 import { OptionCard } from "../OptionCard";
 import {
@@ -39,6 +43,8 @@ const SUBCATEGORY_TITLES = Object.freeze({
 
 const EVENING_LIGHTING_HELPER_TEXT =
   "Evening slots ensure optimal lighting and twilight shots.";
+const AFTERNOON_TWILIGHT_HELPER_TEXT =
+  "Afternoon slot selected for extended shoot and twilight transition.";
 
 function getVideographyOptionMeta(subService) {
   if (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) {
@@ -122,6 +128,24 @@ export function VideographyOptionsSection({
   const isMobile = variant === "mobile";
   const isCommercialBasic =
     property.propertyType === "Commercial" && property.propertySize === "Basic";
+  const videographyLoad = getBookingLoadBreakdown({
+    propertyType: property.propertyType,
+    propertySize: property.propertySize,
+    services: ["Videography"],
+    videographySubService:
+      [selectedLongForm, hasShortFormSelection
+        ? VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
+        : ""]
+        .filter(Boolean)
+        .join("|"),
+  });
+  const dynamicTwilightSlotLabel = getDynamicTwilightSlotLabel(
+    videographyLoad.totalLoad,
+  );
+  const lightingHelperText =
+    dynamicTwilightSlotLabel === "Afternoon"
+      ? AFTERNOON_TWILIGHT_HELPER_TEXT
+      : EVENING_LIGHTING_HELPER_TEXT;
 
   const containerClassName = cn(
     "animate-in fade-in slide-in-from-top-4 duration-300 border rounded-xl p-4 bg-secondary/40",
@@ -373,7 +397,7 @@ export function VideographyOptionsSection({
 
                         {showEveningHelperText && (
                           <p className="mt-3 text-[11px] text-center text-muted-foreground/70">
-                            {EVENING_LIGHTING_HELPER_TEXT}
+                            {lightingHelperText}
                           </p>
                         )}
                       </>

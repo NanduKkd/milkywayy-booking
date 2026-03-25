@@ -1,6 +1,7 @@
 import Booking from "@/lib/db/models/booking";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import User from "@/lib/db/models/user";
+import { getBookingArrivalWindowFromDetails } from "@/lib/helpers/bookingUtils";
 import { sendWhatsAppTemplate } from "@/lib/notifications/whatsapp";
 
 const START_TIME_TO_PERIOD = {
@@ -44,6 +45,23 @@ const addMinutesToTime = (timeStr, minutesToAdd = 30) => {
 const getArrivalWindow = async (booking) => {
   const startTime = booking.startTime || "";
   const startPeriod = START_TIME_TO_PERIOD[startTime] || "";
+  if (startPeriod === "evening") {
+    return (
+      getBookingArrivalWindowFromDetails({
+        startTime,
+        propertyType:
+          booking?.propertyDetails?.type || booking?.propertyDetails?.propertyType,
+        propertySize:
+          booking?.propertyDetails?.size || booking?.propertyDetails?.propertySize,
+        services: booking?.shootDetails?.services || [],
+        videographySubService:
+          booking?.propertyDetails?.videographySubService ||
+          booking?.shootDetails?.videographySubService ||
+          "",
+      }) || `${startTime} - ${addMinutesToTime(startTime, 30)}`
+    );
+  }
+
   try {
     const configEntry = await DynamicConfig.findOne({
       where: { key: "timeSlots" },

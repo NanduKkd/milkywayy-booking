@@ -17,7 +17,10 @@ import {
   LAUNCH_PROMO_CODE,
 } from "@/lib/config/promo";
 import { auth } from "@/lib/helpers/auth";
-import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
+import {
+  calculateBookingDuration,
+  getBookingArrivalWindowFromDetails,
+} from "@/lib/helpers/bookingUtils";
 import { getPricingConfig } from "@/lib/helpers/pricing";
 import {
   buildBookingReferenceFromId,
@@ -90,7 +93,24 @@ const formatArrivalWindowLabel = (booking) => {
         year: "numeric",
       })
     : "";
-  const timeLabel = booking.startTime || REVERSE_SLOT_MAPPING[booking.slot] || "";
+  const arrivalWindow =
+    getBookingArrivalWindowFromDetails({
+      startTime: booking.startTime || "",
+      propertyType:
+        booking?.propertyDetails?.type || booking?.propertyDetails?.propertyType,
+      propertySize:
+        booking?.propertyDetails?.size || booking?.propertyDetails?.propertySize,
+      services: booking?.shootDetails?.services || [],
+      videographySubService:
+        booking?.propertyDetails?.videographySubService ||
+        booking?.shootDetails?.videographySubService ||
+        "",
+    }) || "";
+  const timeLabel =
+    arrivalWindow.split(" - ")[0] ||
+    booking.startTime ||
+    REVERSE_SLOT_MAPPING[booking.slot] ||
+    "";
   if (!dateLabel && !timeLabel) return "";
   return [dateLabel, timeLabel].filter(Boolean).join(" · ");
 };

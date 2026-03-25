@@ -5,7 +5,7 @@ import { PRICING_CONFIG } from "@/lib/config/pricing";
 
 import { VideographyOptionsSection } from "../property-card/VideographyOptionsSection";
 
-function renderSection(selectedLongForm) {
+function renderSection(selectedLongForm, propertyOverrides = {}) {
   const updatePropertyField = jest.fn();
 
   function TestWrapper() {
@@ -29,6 +29,7 @@ function renderSection(selectedLongForm) {
         property={{
           propertyType: "Apartment",
           propertySize: "1 Bed",
+          ...propertyOverrides,
         }}
         selectedLongForm={selectedLongForm}
         updatePropertyField={updatePropertyField}
@@ -56,6 +57,19 @@ describe("VideographyOptionsSection", () => {
     expect(
       screen.getByText(
         "Evening slots ensure optimal lighting and twilight shots.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the afternoon helper text for extended twilight selections with higher load", () => {
+    renderSection("Long Form.Daylight + Night", {
+      propertyType: "Villa/Townhouse",
+      propertySize: "7 Bed",
+    });
+
+    expect(
+      screen.getByText(
+        "Afternoon slot selected for extended shoot and twilight transition.",
       ),
     ).toBeInTheDocument();
   });

@@ -1,7 +1,9 @@
 import {
   calculateBookingDuration,
   getAvailableSlots,
+  getBookingArrivalWindowFromDetails,
   getBookingLoadBreakdown,
+  getDynamicEveningArrivalWindow,
 } from "../bookingUtils";
 
 describe("calculateBookingDuration", () => {
@@ -109,5 +111,39 @@ describe("getBookingLoadBreakdown", () => {
     expect(breakdown.serviceWeightSum).toBe(4);
     expect(breakdown.totalLoad).toBe(9.5);
     expect(breakdown.slotsRequired).toBe(2);
+  });
+});
+
+describe("getDynamicEveningArrivalWindow", () => {
+  it("maps evening arrival windows from total load thresholds", () => {
+    expect(getDynamicEveningArrivalWindow(6)).toBe("17:00 - 17:30");
+    expect(getDynamicEveningArrivalWindow(8)).toBe("16:00 - 16:30");
+    expect(getDynamicEveningArrivalWindow(10)).toBe("15:00 - 15:30");
+    expect(getDynamicEveningArrivalWindow(12)).toBe("14:00 - 14:30");
+  });
+});
+
+describe("getBookingArrivalWindowFromDetails", () => {
+  it("keeps non-evening bookings on the selected start time", () => {
+    expect(
+      getBookingArrivalWindowFromDetails({
+        startTime: "13:00",
+        propertyType: "Apartment",
+        propertySize: "Studio",
+        services: ["Photography"],
+      }),
+    ).toBe("13:00 - 13:30");
+  });
+
+  it("uses weightage for evening bookings", () => {
+    expect(
+      getBookingArrivalWindowFromDetails({
+        startTime: "17:00",
+        propertyType: "Commercial",
+        propertySize: "Elite",
+        services: ["Photography", "Videography", "360 Tour"],
+        videographySubService: "Daylight + Night",
+      }),
+    ).toBe("14:00 - 14:30");
   });
 });

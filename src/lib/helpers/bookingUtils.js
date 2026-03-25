@@ -92,6 +92,56 @@ export function getVisibleStartPeriods({ isNightService }) {
   return ["morning", "afternoon"];
 }
 
+export function getDynamicEveningArrivalWindow(totalLoad) {
+  const normalizedLoad = Number(totalLoad);
+  if (!Number.isFinite(normalizedLoad)) return "17:00 - 17:30";
+  if (normalizedLoad <= 6) return "17:00 - 17:30";
+  if (normalizedLoad <= 8) return "16:00 - 16:30";
+  if (normalizedLoad <= 10) return "15:00 - 15:30";
+  return "14:00 - 14:30";
+}
+
+export function getDynamicEveningArrivalStart(totalLoad) {
+  return getDynamicEveningArrivalWindow(totalLoad).split(" - ")[0] || "17:00";
+}
+
+export function getDynamicTwilightSlotLabel(totalLoad) {
+  const arrivalStart = getDynamicEveningArrivalStart(totalLoad);
+  return arrivalStart < "17:00" ? "Afternoon" : "Evening";
+}
+
+export function getBookingArrivalWindowFromDetails({
+  startTime,
+  propertyType,
+  propertySize,
+  services,
+  videographySubService,
+}) {
+  if (!startTime) return "";
+  if (startTime !== "17:00" && startTime !== "16:00") {
+    return `${startTime} - ${addThirtyMinutes(startTime)}`;
+  }
+
+  const breakdown = getBookingLoadBreakdown({
+    propertyType,
+    propertySize,
+    services,
+    videographySubService,
+  });
+  return getDynamicEveningArrivalWindow(breakdown.totalLoad);
+}
+
+function addThirtyMinutes(timeStr) {
+  const [h, m] = String(timeStr || "")
+    .split(":")
+    .map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return "--:--";
+  const total = h * 60 + m + 30;
+  const nh = Math.floor(total / 60) % 24;
+  const nm = total % 60;
+  return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
+}
+
 export function getBookingLoadBreakdown({
   propertyType,
   propertySize,

@@ -21,6 +21,11 @@ import {
   formatBookingReference,
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
+import {
+  getBookingArrivalWindowFromDetails,
+  getBookingLoadBreakdown,
+  getDynamicTwilightSlotLabel,
+} from "@/lib/helpers/bookingUtils";
 
 const RESCHEDULE_CUTOFF_HOURS = 6;
 const PARTIAL_REFUND_CUTOFF_HOURS = 3;
@@ -48,15 +53,7 @@ export default function BookingList({ bookings }) {
 
   const getBookingDateTime = (booking) => {
     if (!booking?.date) return null;
-    const startTime =
-      booking.startTime ||
-      (booking.slot === 1
-        ? "09:00"
-        : booking.slot === 2
-          ? "13:00"
-          : booking.slot === 3
-            ? "17:00"
-            : null);
+    const startTime = getBookingStartTime(booking);
     if (!startTime || !String(startTime).includes(":")) return null;
 
     const [y, m, d] = String(booking.date).split("-").map(Number);
@@ -64,6 +61,57 @@ export default function BookingList({ bookings }) {
     if (![y, m, d, hh, mm].every(Number.isFinite)) return null;
     return new Date(y, m - 1, d, hh, mm, 0, 0);
   };
+
+  const getBookingStartTime = (booking) =>
+    booking?.startTime ||
+    (booking?.slot === 1
+      ? "09:00"
+      : booking?.slot === 2
+        ? "13:00"
+        : booking?.slot === 3
+          ? "17:00"
+          : null);
+
+  const getBookingServices = (booking) =>
+    Array.isArray(booking?.shootDetails?.services)
+      ? booking.shootDetails.services
+      : [];
+
+  const getBookingVideographySubService = (booking) =>
+    booking?.shootDetails?.videographySubService || "";
+
+  const getBookingLoad = (booking) =>
+    getBookingLoadBreakdown({
+      propertyType: booking?.propertyDetails?.type || "",
+      propertySize: booking?.propertyDetails?.size || "",
+      services: getBookingServices(booking),
+      videographySubService: getBookingVideographySubService(booking),
+    });
+
+  const getBookingSlotLabel = (booking) => {
+    if (!booking) return "Scheduled";
+    if (getRescheduleIsNightService(booking)) {
+      return getDynamicTwilightSlotLabel(getBookingLoad(booking).totalLoad);
+    }
+
+    const startTime = getBookingStartTime(booking);
+    if (!startTime) return "Scheduled";
+    if (startTime < "13:00") return "Morning";
+    if (startTime < "17:00") return "Afternoon";
+    return "Evening";
+  };
+
+  const getBookingArrivalWindow = (booking) =>
+    getBookingArrivalWindowFromDetails({
+      startTime: getBookingStartTime(booking),
+      propertyType: booking?.propertyDetails?.type || "",
+      propertySize: booking?.propertyDetails?.size || "",
+      services: getBookingServices(booking),
+      videographySubService: getBookingVideographySubService(booking),
+    });
+
+  const getBookingDisplayStartTime = (booking) =>
+    getBookingArrivalWindow(booking).split(" - ")[0] || getBookingStartTime(booking);
 
   const getHoursUntilBooking = (booking) => {
     const dt = getBookingDateTime(booking);
@@ -200,8 +248,9 @@ export default function BookingList({ bookings }) {
   };
 
   const formatTime = (booking) => {
-    if (booking?.startTime) {
-      const [h, m] = String(booking.startTime).split(":").map(Number);
+    const displayStartTime = getBookingDisplayStartTime(booking);
+    if (displayStartTime) {
+      const [h, m] = String(displayStartTime).split(":").map(Number);
       if (Number.isFinite(h) && Number.isFinite(m)) {
         const dt = new Date();
         dt.setHours(h, m, 0, 0);
@@ -210,7 +259,7 @@ export default function BookingList({ bookings }) {
           minute: "2-digit",
         }).format(dt);
       }
-      return booking.startTime;
+      return displayStartTime;
     }
 
     if (booking?.slot === 1) return "10:00 AM";
@@ -352,12 +401,10 @@ export default function BookingList({ bookings }) {
                   <p className="mb-1 text-sm text-muted-foreground">Date & Slot</p>
                   <p className="font-medium">{selectedBooking.date}</p>
                   <p className="text-sm text-muted-foreground">
-                    Slot:{" "}
-                    {selectedBooking.slot === 1
-                      ? "Morning"
-                      : selectedBooking.slot === 2
-                        ? "Afternoon"
-                        : "Evening"}
+                    Slot: {getBookingSlotLabel(selectedBooking)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Arrival: {getBookingArrivalWindow(selectedBooking)}
                   </p>
                 </div>
                 <div>
@@ -469,13 +516,12 @@ export default function BookingList({ bookings }) {
                   {selectedRescheduleBooking?.date}
                 </p>
                 <p>
+                  <span className="font-medium text-zinc-300">Current Slot:</span>{" "}
+                  {getBookingSlotLabel(selectedRescheduleBooking)}
+                </p>
+                <p>
                   <span className="font-medium text-zinc-300">Current Time:</span>{" "}
-                  {selectedRescheduleBooking?.startTime ||
-                    (selectedRescheduleBooking?.slot === 1
-                      ? "09:00"
-                      : selectedRescheduleBooking?.slot === 2
-                        ? "13:00"
-                        : "17:00")}
+                  {getBookingDisplayStartTime(selectedRescheduleBooking)}
                 </p>
               </div>
             </div>
@@ -493,6 +539,12 @@ export default function BookingList({ bookings }) {
                 isNightService={getRescheduleIsNightService(selectedRescheduleBooking)}
                 allowEvening={getRescheduleIsNightService(selectedRescheduleBooking)}
                 blockedSlotsMap={{}}
+                propertyType={selectedRescheduleBooking?.propertyDetails?.type || ""}
+                propertySize={selectedRescheduleBooking?.propertyDetails?.size || ""}
+                services={getBookingServices(selectedRescheduleBooking)}
+                videographySubService={getBookingVideographySubService(
+                  selectedRescheduleBooking,
+                )}
               />
             </div>
           </div>

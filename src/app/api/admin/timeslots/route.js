@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { Op } from "sequelize";
 import Booking from "@/lib/db/models/booking";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
+import {
+  getBookingArrivalWindowFromDetails,
+  getBookingLoadBreakdown,
+  getDynamicTwilightSlotLabel,
+} from "@/lib/helpers/bookingUtils";
 import { formatBookingReference } from "@/lib/helpers/invoice-format";
 
 const CONFIG_KEY = "timeSlots";
@@ -293,14 +298,31 @@ export async function GET(request) {
       ]
         .filter(Boolean)
         .join(" ");
-      const arrivalStart = booking.startTime || "--:--";
-      const arrivalEnd = addMinutesToTime(arrivalStart, 30);
+      const loadBreakdown = getBookingLoadBreakdown({
+        propertyType,
+        propertySize,
+        services,
+        videographySubService,
+      });
+      const slotLabel =
+        period === "evening"
+          ? getDynamicTwilightSlotLabel(loadBreakdown.totalLoad)
+          : DEFAULT_SYSTEM_SETTINGS.blockDefinitions?.[period]?.label ||
+            labelizePeriod(period);
+      const arrival = getBookingArrivalWindowFromDetails({
+        startTime: booking.startTime || "",
+        propertyType,
+        propertySize,
+        services,
+        videographySubService,
+      });
 
       bookedDetailsMap[booking.date][period].push({
         bookingCode: formatBookingReference(booking),
         propertyLabel: [propertyType, propertySize].filter(Boolean).join(" - "),
         serviceLabel,
-        arrival: `${arrivalStart} - ${arrivalEnd}`,
+        slotLabel,
+        arrival: arrival || `${booking.startTime || "--:--"} - ${addMinutesToTime(booking.startTime || "--:--", 30)}`,
       });
     });
 
@@ -316,6 +338,11 @@ export async function GET(request) {
       { status: 500 },
     );
   }
+}
+
+function labelizePeriod(period) {
+  if (!period) return "";
+  return period.charAt(0).toUpperCase() + period.slice(1);
 }
 
 export async function PUT(request) {

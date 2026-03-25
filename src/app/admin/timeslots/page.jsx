@@ -784,6 +784,14 @@ export default function TimeSlotsManager() {
                 config.systemSettings.blockDefinitions?.[period] || {};
               const periodBookingDetails =
                 selectedDateBookingDetails?.[period] || [];
+              const displayPeriodLabel =
+                period === "evening" &&
+                periodBookingDetails.length > 0 &&
+                periodBookingDetails.every(
+                  (detail) => detail.slotLabel === periodBookingDetails[0]?.slotLabel,
+                )
+                  ? periodBookingDetails[0]?.slotLabel || labelizePeriod(period)
+                  : labelizePeriod(period);
 
               return (
                 <div
@@ -791,7 +799,7 @@ export default function TimeSlotsManager() {
                   className="border rounded-md p-3 flex items-center justify-between gap-3"
                 >
                   <div className="flex-1">
-                    <p className="font-medium">{labelizePeriod(period)}</p>
+                    <p className="font-medium">{displayPeriodLabel}</p>
                     <p className="text-sm text-muted-foreground">
                       {blockDef.startTime || "--:--"} -{" "}
                       {blockDef.endTime || "--:--"}
@@ -808,6 +816,10 @@ export default function TimeSlotsManager() {
                             {detail.serviceLabel && (
                               <p>Services: {detail.serviceLabel}</p>
                             )}
+                            {detail.slotLabel &&
+                              detail.slotLabel !== displayPeriodLabel && (
+                                <p>Slot: {detail.slotLabel}</p>
+                              )}
                             <p>Arrival: {detail.arrival}</p>
                           </div>
                         ))}

@@ -20,7 +20,6 @@ const TEMPLATE_VARIABLE_ORDER = {
     "Client_Name",
     "Shoot_Date",
     "Arrival_Window",
-    "Dashboard_Manage_Booking",
   ],
   shoot_reminder: [
     "Property_Name",
@@ -31,13 +30,8 @@ const TEMPLATE_VARIABLE_ORDER = {
   team_on_the_way: ["Property_Name", "Arrival_Window"],
   team_arrived: ["Property_Name"],
   shoot_rescheduled: ["Property_Name", "Shoot_Date", "Arrival_Window"],
-  shoot_cancelled: [
-    "Property_Name",
-    "Client_Name",
-    "Shoot_Date",
-    "Booking_Page",
-  ],
-  single_service_media_ready: ["Property_Name", "Client_Name"],
+  shoot_cancelled: ["Property_Name", "Client_Name", "Shoot_Date"],
+  single_service_media_ready: ["Client_Name", "Property_Name"],
   partial_media_upload: ["Property_Name", "Client_Name", "Pending_Deliverable"],
   full_media_upload: ["Property_Name", "Client_Name"],
 };
@@ -55,7 +49,6 @@ const TEMPLATES_FALLBACK = {
     Client_Name,
     Shoot_Date,
     Arrival_Window,
-    Dashboard_Manage_Booking,
   }) =>
     [
       `Booking Confirmed: ${Property_Name}`,
@@ -65,9 +58,8 @@ const TEMPLATES_FALLBACK = {
         : "Your shoot is scheduled.",
       `Date: ${Shoot_Date}`,
       `Arrival Window: ${Arrival_Window}`,
-      Dashboard_Manage_Booking
-        ? `Manage Booking: ${Dashboard_Manage_Booking}`
-        : null,
+      "",
+      "You can manage your booking from the dashboard.",
       "",
       "Please ensure the property is clean and access is ready.",
       "Thanks for booking with Milkywayy.",
@@ -83,29 +75,24 @@ const TEMPLATES_FALLBACK = {
   }) =>
     [
       `Shoot Reminder: ${Property_Name}`,
-      "",
       Client_Name
         ? `Hi ${Client_Name}, a quick reminder that our team will arrive ${Shoot_Date} between ${Arrival_Window}.`
         : `A quick reminder that our team will arrive ${Shoot_Date} between ${Arrival_Window}.`,
       "Please ensure property access is ready.",
-      "",
-      "See you soon.",
+      "See you soon!",
     ].join("\n"),
 
   team_on_the_way: ({ Property_Name, Arrival_Window }) =>
     [
       "We're on our way!",
-      "",
       `Property: ${Property_Name}`,
       `Estimated Arrival: ${Arrival_Window}`,
-      "",
       "If you have parking or access instructions, please reply here.",
     ].join("\n"),
 
   team_arrived: ({ Property_Name }) =>
     [
       "We've arrived!",
-      "",
       `Our team is at the location for your shoot at ${Property_Name}.`,
       "We'll begin shortly.",
     ].join("\n"),
@@ -116,32 +103,30 @@ const TEMPLATES_FALLBACK = {
       "",
       "Your shoot has been rescheduled.",
       `Property: ${Property_Name}`,
-      `New date: ${Shoot_Date}`,
+      `New Date: ${Shoot_Date}`,
       `New arrival window: ${Arrival_Window}`,
       "",
       "You can view the latest booking details in your dashboard.",
     ].join("\n"),
 
-  shoot_cancelled: ({ Property_Name, Client_Name, Shoot_Date, Booking_Page }) =>
+  shoot_cancelled: ({ Property_Name, Client_Name, Shoot_Date }) =>
     [
       `Shoot Cancelled: ${Property_Name}`,
       "",
       Client_Name
-        ? `Hi ${Client_Name}, your shoot on ${Shoot_Date} has been cancelled.`
-        : `Your shoot on ${Shoot_Date} has been cancelled.`,
+        ? `Hi ${Client_Name}, your shoot on ${Shoot_Date} has been canceled.`
+        : `Your shoot on ${Shoot_Date} has been canceled.`,
       "",
-      Booking_Page ? `You can rebook here: ${Booking_Page}` : null,
-      "If you need help, just reply to this message.",
+      "Book a new shoot using the 'Book Now' button below.",
+      "Need help? Just reply to this message.",
     ].join("\n"),
 
-  single_service_media_ready: ({ Property_Name, Client_Name }) =>
+  single_service_media_ready: ({ Client_Name, Property_Name }) =>
     [
       "Media Ready",
-      "",
       Client_Name
         ? `Hi ${Client_Name}, your media for ${Property_Name} is now ready.`
         : `Your media for ${Property_Name} is now ready.`,
-      "",
       "You can view and download it from your dashboard.",
     ]
       .filter(Boolean)
@@ -150,25 +135,20 @@ const TEMPLATES_FALLBACK = {
   partial_media_upload: ({ Property_Name, Client_Name, Pending_Deliverable }) =>
     [
       "Photos Ready",
-      "",
       Client_Name
         ? `Hello ${Client_Name}, The photos for ${Property_Name} are now available.`
         : `The photos for ${Property_Name} are now available.`,
-      "You can access them from your dashboard and start listing.",
-      "",
-      `We’re finalizing your ${Pending_Deliverable || "remaining deliverables"} and will notify you once it’s ready.`,
+      `(Note: We are still putting the final touches on your ${Pending_Deliverable || "remaining deliverables"} and will notify you once complete)`,
     ]
       .filter(Boolean)
       .join("\n"),
 
   full_media_upload: ({ Property_Name, Client_Name }) =>
     [
+      "All Media Delivered",
       Client_Name
         ? `Hi ${Client_Name}, everything for ${Property_Name} is now ready.`
         : `Everything for ${Property_Name} is now ready.`,
-      "",
-      "All Media Delivered",
-      "",
       "You can view and download all files from your dashboard.",
     ]
       .filter(Boolean)

@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { getAvailabilityForRange } from "@/lib/actions/bookings";
-import { getBookingLoadBreakdown } from "@/lib/helpers/bookingUtils";
+import {
+  getBookingLoadBreakdown,
+  getDynamicEveningArrivalWindow,
+  getDynamicTwilightSlotLabel,
+} from "@/lib/helpers/bookingUtils";
 import { cn } from "@/lib/utils";
 
 const TIME_SLOTS = [
@@ -161,16 +165,6 @@ export default function DateSlotPicker({
     onSlotChange(""); // Reset slot when date changes
   };
 
-  const visibleSlots = useMemo(() => {
-    if (isNightService) {
-      return TIME_SLOTS.filter((slotMeta) => slotMeta.period === "evening");
-    }
-    return TIME_SLOTS.filter(
-      (slotMeta) =>
-        slotMeta.period === "morning" || slotMeta.period === "afternoon",
-    );
-  }, [isNightService]);
-
   const bookingLoad = useMemo(() => {
     if (!propertyType || !propertySize || !Array.isArray(services) || services.length === 0) {
       return null;
@@ -184,6 +178,22 @@ export default function DateSlotPicker({
     });
   }, [propertyType, propertySize, services, videographySubService]);
 
+  const visibleSlots = useMemo(() => {
+    if (isNightService) {
+      const dynamicLabel = getDynamicTwilightSlotLabel(bookingLoad?.totalLoad);
+      return TIME_SLOTS.filter((slotMeta) => slotMeta.period === "evening").map(
+        (slotMeta) => ({
+          ...slotMeta,
+          label: dynamicLabel,
+        }),
+      );
+    }
+    return TIME_SLOTS.filter(
+      (slotMeta) =>
+        slotMeta.period === "morning" || slotMeta.period === "afternoon",
+    );
+  }, [bookingLoad?.totalLoad, isNightService]);
+
   const getArrivalTimes = (timeSlot) => {
     if (timeSlot.period !== "evening") {
       return timeSlot.arrivalTimes;
@@ -193,11 +203,7 @@ export default function DateSlotPicker({
     if (!Number.isFinite(totalLoad)) {
       return timeSlot.arrivalTimes;
     }
-
-    if (totalLoad <= 6) return "17:00 - 17:30";
-    if (totalLoad <= 8) return "16:00 - 16:30";
-    if (totalLoad <= 10) return "15:00 - 15:30";
-    return "14:00 - 14:30";
+    return getDynamicEveningArrivalWindow(totalLoad);
   };
 
   const isDateDisabled = (day) => {
@@ -328,7 +334,10 @@ export default function DateSlotPicker({
     if (!date) return "";
     const d = parseDate(date);
     const dateStr = d ? d.toLocaleDateString() : "";
-    const slotLabel = TIME_SLOTS.find((s) => s.value === String(slot))?.label || "";
+    const slotLabel =
+      visibleSlots.find((s) => s.value === String(slot))?.label ||
+      TIME_SLOTS.find((s) => s.value === String(slot))?.label ||
+      "";
     return slotLabel ? `${dateStr} - ${slotLabel} ` : dateStr;
   };
 

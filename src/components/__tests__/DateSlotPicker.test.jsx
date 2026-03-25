@@ -151,7 +151,7 @@ describe('DateSlotPicker', () => {
     fireEvent.click(screen.getByPlaceholderText(/Select Date & Time/i));
 
     await waitFor(() => {
-      expect(screen.getByText('Evening')).toBeInTheDocument();
+      expect(screen.getByText('Afternoon')).toBeInTheDocument();
     });
 
     expect(screen.getByText(/Arrival 14:00 - 14:30/i)).toBeInTheDocument();
