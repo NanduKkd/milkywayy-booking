@@ -613,8 +613,12 @@ text-align:right;
 font-weight:800;
 }
 
+.content-wrapper{
+min-height:780px;
+margin-bottom:40px;
+}
+
 .footer{
-margin-top:120px;
 display:flex;
 justify-content:space-between;
 align-items:flex-end;
@@ -625,6 +629,10 @@ gap:24px;
 font-size:15px;
 line-height:1.55;
 max-width:320px;
+}
+
+.footer-copy p{
+margin:0 0 2px 0;
 }
 
 .signature{
@@ -656,6 +664,7 @@ color:#475569;
 <body>
 
 <div class="invoice-shell">
+<div class="content-wrapper">
 <div class="header">
   <div>
     <div class="title">INVOICE</div>
@@ -704,6 +713,7 @@ ${bookingTables}
     <td>${formatInvoiceAmount(transaction.amount || 0, { forceDecimals: true })}</td>
   </tr>
 </table>
+</div>
 
 <div class="footer">
   <div class="footer-copy">
