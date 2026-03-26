@@ -1,5 +1,20 @@
 const DEFAULT_SLOT_CAPACITY = 6;
 const VIDEOGRAPHY_SELECTION_SEPARATOR = "|";
+const SLOT_TO_PERIOD = {
+  1: "morning",
+  2: "afternoon",
+  3: "evening",
+  morning: "morning",
+  afternoon: "afternoon",
+  evening: "evening",
+};
+const START_TIME_TO_PERIOD = {
+  "09:00": "morning",
+  "10:00": "morning",
+  "13:00": "afternoon",
+  "16:00": "evening",
+  "17:00": "evening",
+};
 
 export const DEFAULT_WEIGHT_MODEL = {
   propertyWeights: {
@@ -110,16 +125,56 @@ export function getDynamicTwilightSlotLabel(totalLoad) {
   return arrivalStart < "16:00" ? "Afternoon" : "Evening";
 }
 
+export function getBookingStartTime({ startTime, slot }) {
+  if (typeof startTime === "string" && startTime.includes(":")) {
+    return startTime;
+  }
+
+  const normalizedSlot = SLOT_TO_PERIOD[String(slot)] || SLOT_TO_PERIOD[slot];
+  if (normalizedSlot === "morning") return "09:00";
+  if (normalizedSlot === "afternoon") return "13:00";
+  if (normalizedSlot === "evening") return "17:00";
+  return "";
+}
+
+export function getBookingBlockedPeriods({
+  startTime,
+  slot,
+  durationHours = 1,
+  isNightService = false,
+}) {
+  const resolvedStartTime = getBookingStartTime({ startTime, slot });
+  const startPeriod =
+    START_TIME_TO_PERIOD[resolvedStartTime] ||
+    SLOT_TO_PERIOD[String(slot)] ||
+    SLOT_TO_PERIOD[slot] ||
+    "";
+
+  if (!startPeriod) return [];
+
+  const blocksNeeded = Math.min(Math.max(parseInt(durationHours, 10) || 1, 1), 2);
+
+  if (!isNightService) {
+    return ["morning", "afternoon"].includes(startPeriod) ? [startPeriod] : [];
+  }
+
+  if (startPeriod !== "evening") return [];
+  if (blocksNeeded === 2) return ["afternoon", "evening"];
+  return ["evening"];
+}
+
 export function getBookingArrivalWindowFromDetails({
   startTime,
+  slot,
   propertyType,
   propertySize,
   services,
   videographySubService,
 }) {
-  if (!startTime) return "";
-  if (startTime !== "17:00" && startTime !== "16:00") {
-    return `${startTime} - ${addThirtyMinutes(startTime)}`;
+  const resolvedStartTime = getBookingStartTime({ startTime, slot });
+  if (!resolvedStartTime) return "";
+  if (resolvedStartTime !== "17:00" && resolvedStartTime !== "16:00") {
+    return `${resolvedStartTime} - ${addThirtyMinutes(resolvedStartTime)}`;
   }
 
   const breakdown = getBookingLoadBreakdown({

@@ -20,17 +20,19 @@ import {
   MINIMUM_ORDER_AMOUNT,
 } from "@/lib/config/promo";
 import { useAuth } from "@/lib/contexts/auth";
-import { calculateBookingDuration } from "@/lib/helpers/bookingUtils";
+import {
+  calculateBookingDuration,
+  getBookingStartTime,
+} from "@/lib/helpers/bookingUtils";
 import { bookingSchema } from "@/lib/schema/booking.schema";
 // Modular Components
 import { PropertyCard } from "./components/PropertyCard";
 
 const formatScheduleLabel = (property) => {
-  const slotLabel =
-    property.startTime ||
-    (property.timeSlot
-      ? property.timeSlot.charAt(0).toUpperCase() + property.timeSlot.slice(1)
-      : "");
+  const slotLabel = getBookingStartTime({
+    startTime: property.startTime,
+    slot: property.timeSlot,
+  });
 
   return [property.preferredDate, slotLabel].filter(Boolean).join(" · ");
 };
@@ -137,11 +139,11 @@ export default function BookNew({
             startTime:
               draft.startTime ||
               (draft.slot === 1
-                ? "10:00"
+                ? "09:00"
                 : draft.slot === 2
                   ? "13:00"
                   : draft.slot === 3
-                    ? "16:00"
+                    ? "17:00"
                     : ""),
             duration: draft.duration || 0,
             building: draft.propertyDetails?.building || "",

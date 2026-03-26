@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getAvailabilityForRange } from "@/lib/actions/bookings";
 import {
+  getBookingBlockedPeriods,
   getBookingLoadBreakdown,
   getDynamicEveningArrivalWindow,
   getDynamicTwilightSlotLabel,
@@ -36,8 +37,6 @@ const LEGACY_BLOCK_TO_HOURLY = {
   afternoon: ["13:00", "13:30", "14:00", "14:30", "15:00", "15:30"],
   evening: ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30"],
 };
-
-const PERIOD_ORDER = ["morning", "afternoon", "evening"];
 
 export default function DateSlotPicker({
   date,
@@ -265,28 +264,13 @@ export default function DateSlotPicker({
 
     const startSlotMeta = TIME_SLOTS.find((s) => s.value === startSlotValue);
     if (!startSlotMeta) return false;
-    const startPeriodIdx = PERIOD_ORDER.indexOf(startSlotMeta.period);
-    if (startPeriodIdx === -1) return false;
-
     const expandedBlockedSlots = normalizeBlockedSlots(blockedSlots);
-
-    const blocksNeeded = Math.min(Math.max(parseInt(duration, 10) || 1, 1), 2);
-    let requiredPeriods = [startSlotMeta.period];
-    if (blocksNeeded === 2) {
-      if (isNightService) {
-        // PDF rule: for night services with >6 weight, evening path blocks A+E.
-        if (startSlotMeta.period !== "evening") return false;
-        requiredPeriods = ["afternoon", "evening"];
-      } else {
-        if (startSlotMeta.period === "morning") {
-          requiredPeriods = ["morning", "afternoon"];
-        } else if (startSlotMeta.period === "afternoon") {
-          requiredPeriods = ["afternoon", "evening"];
-        } else {
-          return false;
-        }
-      }
-    }
+    const requiredPeriods = getBookingBlockedPeriods({
+      startTime: startSlotValue,
+      durationHours: duration,
+      isNightService,
+    });
+    if (requiredPeriods.length === 0) return false;
 
     for (const period of requiredPeriods) {
       const periodHourly = LEGACY_BLOCK_TO_HOURLY[period] || [];

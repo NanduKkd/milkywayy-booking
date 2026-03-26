@@ -1,16 +1,7 @@
 import Booking from "@/lib/db/models/booking";
-import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import User from "@/lib/db/models/user";
 import { getBookingArrivalWindowFromDetails } from "@/lib/helpers/bookingUtils";
 import { sendWhatsAppTemplate } from "@/lib/notifications/whatsapp";
-
-const START_TIME_TO_PERIOD = {
-  "09:00": "morning",
-  "10:00": "morning",
-  "13:00": "afternoon",
-  "16:00": "evening",
-  "17:00": "evening",
-};
 
 const _toDateKey = (dateObj) => {
   const y = dateObj.getFullYear();
@@ -32,51 +23,22 @@ const formatDate = (dateStr) => {
   }
 };
 
-const addMinutesToTime = (timeStr, minutesToAdd = 30) => {
-  if (!timeStr || !timeStr.includes(":")) return "--:--";
-  const [h, m] = timeStr.split(":").map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return "--:--";
-  const total = h * 60 + m + minutesToAdd;
-  const nh = Math.floor(total / 60) % 24;
-  const nm = total % 60;
-  return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
-};
-
 const getArrivalWindow = async (booking) => {
-  const startTime = booking.startTime || "";
-  const startPeriod = START_TIME_TO_PERIOD[startTime] || "";
-  if (startPeriod === "evening") {
-    return (
-      getBookingArrivalWindowFromDetails({
-        startTime,
-        propertyType:
-          booking?.propertyDetails?.type || booking?.propertyDetails?.propertyType,
-        propertySize:
-          booking?.propertyDetails?.size || booking?.propertyDetails?.propertySize,
-        services: booking?.shootDetails?.services || [],
-        videographySubService:
-          booking?.propertyDetails?.videographySubService ||
-          booking?.shootDetails?.videographySubService ||
-          "",
-      }) || `${startTime} - ${addMinutesToTime(startTime, 30)}`
-    );
-  }
-
-  try {
-    const configEntry = await DynamicConfig.findOne({
-      where: { key: "timeSlots" },
-      attributes: ["value"],
-    });
-    const blockDef =
-      configEntry?.value?.systemSettings?.blockDefinitions?.[startPeriod];
-    if (blockDef?.startTime && blockDef?.endTime) {
-      return `${blockDef.startTime} - ${blockDef.endTime}`;
-    }
-  } catch {
-    // fall back below
-  }
-  if (startTime) return `${startTime} - ${addMinutesToTime(startTime, 30)}`;
-  return "--:--";
+  return (
+    getBookingArrivalWindowFromDetails({
+      startTime: booking?.startTime || "",
+      slot: booking?.slot,
+      propertyType:
+        booking?.propertyDetails?.type || booking?.propertyDetails?.propertyType,
+      propertySize:
+        booking?.propertyDetails?.size || booking?.propertyDetails?.propertySize,
+      services: booking?.shootDetails?.services || [],
+      videographySubService:
+        booking?.propertyDetails?.videographySubService ||
+        booking?.shootDetails?.videographySubService ||
+        "",
+    }) || "--:--"
+  );
 };
 
 const getPropertyName = (booking) => {

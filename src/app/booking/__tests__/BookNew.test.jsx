@@ -46,6 +46,13 @@ jest.mock("sonner", () => ({
 jest.mock("../../../lib/helpers/bookingUtils", () => ({
   calculateBookingDuration: jest.fn(() => 5),
   getAvailableSlots: jest.fn(() => []),
+  getBookingStartTime: jest.fn(({ startTime, slot }) => {
+    if (startTime) return startTime;
+    if (slot === "morning") return "09:00";
+    if (slot === "afternoon") return "13:00";
+    if (slot === "evening") return "17:00";
+    return "";
+  }),
 }));
 
 jest.mock(

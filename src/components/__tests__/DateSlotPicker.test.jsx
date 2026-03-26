@@ -81,10 +81,7 @@ describe('DateSlotPicker', () => {
   });
 
   it('disables slots that overlap with blocked slots', async () => {
-    // With duration=2 blocks:
-    // - Morning needs Morning+Afternoon, so it is blocked.
-    // - Afternoon needs Afternoon+Evening, so it is blocked.
-    // - Evening cannot fit 2 contiguous blocks, so it is blocked.
+    // Non-night bookings now guard only the selected period.
     render(
       <DateSlotPicker 
         date="2026-01-05" 
@@ -106,7 +103,7 @@ describe('DateSlotPicker', () => {
     const afternoonButton = screen.getByText('Afternoon').closest('button');
 
     expect(afternoonButton).toBeDisabled();
-    expect(morningButton).toBeDisabled();
+    expect(morningButton).not.toBeDisabled();
     expect(screen.queryByText('Evening')).not.toBeInTheDocument();
   });
 

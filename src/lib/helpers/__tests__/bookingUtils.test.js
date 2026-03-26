@@ -1,4 +1,5 @@
 import {
+  getBookingBlockedPeriods,
   calculateBookingDuration,
   getAvailableSlots,
   getBookingArrivalWindowFromDetails,
@@ -144,6 +145,17 @@ describe("getBookingArrivalWindowFromDetails", () => {
     ).toBe("13:00 - 13:30");
   });
 
+  it("falls back to slot start time when explicit startTime is missing", () => {
+    expect(
+      getBookingArrivalWindowFromDetails({
+        slot: 1,
+        propertyType: "Apartment",
+        propertySize: "Studio",
+        services: ["Photography"],
+      }),
+    ).toBe("09:00 - 09:30");
+  });
+
   it("uses weightage for evening bookings", () => {
     expect(
       getBookingArrivalWindowFromDetails({
@@ -154,5 +166,37 @@ describe("getBookingArrivalWindowFromDetails", () => {
         videographySubService: "Daylight + Night",
       }),
     ).toBe("14:00 - 14:30");
+  });
+});
+
+describe("getBookingBlockedPeriods", () => {
+  it("keeps morning bookings inside morning only", () => {
+    expect(
+      getBookingBlockedPeriods({
+        startTime: "09:00",
+        durationHours: 2,
+        isNightService: false,
+      }),
+    ).toEqual(["morning"]);
+  });
+
+  it("keeps afternoon bookings inside afternoon only", () => {
+    expect(
+      getBookingBlockedPeriods({
+        startTime: "13:00",
+        durationHours: 2,
+        isNightService: false,
+      }),
+    ).toEqual(["afternoon"]);
+  });
+
+  it("keeps high-load night bookings on afternoon plus evening", () => {
+    expect(
+      getBookingBlockedPeriods({
+        startTime: "17:00",
+        durationHours: 2,
+        isNightService: true,
+      }),
+    ).toEqual(["afternoon", "evening"]);
   });
 });

@@ -18,6 +18,7 @@ import {
 } from "@/lib/config/promo";
 import { auth } from "@/lib/helpers/auth";
 import {
+  getBookingBlockedPeriods,
   calculateBookingDuration,
   getBookingArrivalWindowFromDetails,
 } from "@/lib/helpers/bookingUtils";
@@ -96,6 +97,7 @@ const formatArrivalWindowLabel = (booking) => {
   const arrivalWindow =
     getBookingArrivalWindowFromDetails({
       startTime: booking.startTime || "",
+      slot: booking.slot,
       propertyType:
         booking?.propertyDetails?.type || booking?.propertyDetails?.propertyType,
       propertySize:
@@ -438,25 +440,12 @@ const getCancellationPolicy = (bookingLike, now = new Date()) => {
 };
 
 const getTimeSlots = (startTime, durationHours, options = {}) => {
-  if (!startTime) return [];
-  const isNightService = Boolean(options.isNightService);
-
-  const startPeriod = START_TIME_TO_PERIOD[startTime] || startTime;
-  const blocksNeeded = Math.min(Math.max(parseInt(durationHours, 10) || 1, 1), 2);
-
-  let requiredPeriods = [startPeriod];
-  if (blocksNeeded === 2) {
-    if (isNightService && startPeriod === "evening") {
-      requiredPeriods = ["afternoon", "evening"];
-    } else if (!isNightService && startPeriod === "morning") {
-      requiredPeriods = ["morning", "afternoon"];
-    } else if (!isNightService && startPeriod === "afternoon") {
-      requiredPeriods = ["afternoon", "evening"];
-    } else {
-      return [];
-    }
-  }
-
+  const requiredPeriods = getBookingBlockedPeriods({
+    startTime,
+    durationHours,
+    isNightService: Boolean(options.isNightService),
+  });
+  if (requiredPeriods.length === 0) return [];
   return requiredPeriods.flatMap((period) => PERIOD_TO_HOURLY[period] || []);
 };
 
