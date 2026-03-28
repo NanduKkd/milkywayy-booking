@@ -48,6 +48,7 @@ describe("Admin TimeSlots API Route", () => {
         date: "2026-02-24",
         slot: 1,
         startTime: "09:00",
+        duration: 2,
         status: "CONFIRMED",
         shootDetails: { services: ["Photography"] },
         propertyDetails: { type: "Apartment", size: "2BR" },
@@ -58,6 +59,7 @@ describe("Admin TimeSlots API Route", () => {
         date: "2026-02-24",
         slot: null,
         startTime: "13:00",
+        duration: 1,
         status: "COMPLETED",
         shootDetails: {
           services: ["Videography"],
@@ -85,6 +87,18 @@ describe("Admin TimeSlots API Route", () => {
         arrival: "09:00 - 09:30",
       }),
     );
+    expect(data.bookedDetailsMap["2026-02-24"].afternoon).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          bookingCode: "BK-001",
+          propertyLabel: "Apartment - 2BR",
+        }),
+        expect.objectContaining({
+          bookingCode: "BK-002",
+          propertyLabel: "Villa/Townhouse - 3BR",
+        }),
+      ]),
+    );
 
     expect(Booking.findAll).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -103,6 +117,7 @@ describe("Admin TimeSlots API Route", () => {
           "date",
           "slot",
           "startTime",
+          "duration",
           "status",
           "shootDetails",
           "propertyDetails",

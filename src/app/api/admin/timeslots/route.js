@@ -4,6 +4,7 @@ import Booking from "@/lib/db/models/booking";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import {
   getBookingArrivalWindowFromDetails,
+  getBookingBlockedPeriods,
   getBookingLoadBreakdown,
   getDynamicTwilightSlotLabel,
 } from "@/lib/helpers/bookingUtils";
@@ -211,6 +212,16 @@ const mapBookingToPeriod = (booking) => {
   return null;
 };
 
+const isNightServiceBooking = (booking) => {
+  const services = Array.isArray(booking?.shootDetails?.services)
+    ? booking.shootDetails.services
+    : [];
+  if (!services.includes("Videography")) return false;
+
+  const sub = String(booking?.shootDetails?.videographySubService || "");
+  return sub.includes("Night Light") || sub.includes("Daylight + Night");
+};
+
 const addMinutesToTime = (timeStr, minutesToAdd = 30) => {
   if (!timeStr || !timeStr.includes(":")) return "--:--";
   const [h, m] = timeStr.split(":").map(Number);
@@ -256,6 +267,7 @@ export async function GET(request) {
         "date",
         "slot",
         "startTime",
+        "duration",
         "status",
         "shootDetails",
         "propertyDetails",
@@ -266,18 +278,8 @@ export async function GET(request) {
     const bookedDetailsMap = {};
     bookings.forEach((booking) => {
       if (!booking.date) return;
-      const period = mapBookingToPeriod(booking);
-      if (!period) return;
-
-      if (!bookedMap[booking.date]) bookedMap[booking.date] = [];
-      if (!bookedMap[booking.date].includes(period)) {
-        bookedMap[booking.date].push(period);
-      }
-
-      if (!bookedDetailsMap[booking.date]) bookedDetailsMap[booking.date] = {};
-      if (!bookedDetailsMap[booking.date][period]) {
-        bookedDetailsMap[booking.date][period] = [];
-      }
+      const startPeriod = mapBookingToPeriod(booking);
+      if (!startPeriod) return;
 
       const propertyType = booking.propertyDetails?.type || "Property";
       const propertySize = booking.propertyDetails?.size || "";
@@ -305,10 +307,10 @@ export async function GET(request) {
         videographySubService,
       });
       const slotLabel =
-        period === "evening"
+        startPeriod === "evening"
           ? getDynamicTwilightSlotLabel(loadBreakdown.totalLoad)
-          : DEFAULT_SYSTEM_SETTINGS.blockDefinitions?.[period]?.label ||
-            labelizePeriod(period);
+          : DEFAULT_SYSTEM_SETTINGS.blockDefinitions?.[startPeriod]?.label ||
+            labelizePeriod(startPeriod);
       const arrival = getBookingArrivalWindowFromDetails({
         startTime: booking.startTime || "",
         propertyType,
@@ -316,13 +318,35 @@ export async function GET(request) {
         services,
         videographySubService,
       });
+      const blockedPeriods = getBookingBlockedPeriods({
+        startTime: booking.startTime || "",
+        slot: booking.slot,
+        durationHours: booking.duration || loadBreakdown.slotsRequired || 1,
+        isNightService: isNightServiceBooking(booking),
+      });
+      const effectivePeriods =
+        blockedPeriods.length > 0 ? blockedPeriods : [startPeriod];
 
-      bookedDetailsMap[booking.date][period].push({
-        bookingCode: formatBookingReference(booking),
-        propertyLabel: [propertyType, propertySize].filter(Boolean).join(" - "),
-        serviceLabel,
-        slotLabel,
-        arrival: arrival || `${booking.startTime || "--:--"} - ${addMinutesToTime(booking.startTime || "--:--", 30)}`,
+      if (!bookedMap[booking.date]) bookedMap[booking.date] = [];
+      if (!bookedDetailsMap[booking.date]) bookedDetailsMap[booking.date] = {};
+
+      effectivePeriods.forEach((period) => {
+        if (!bookedMap[booking.date].includes(period)) {
+          bookedMap[booking.date].push(period);
+        }
+        if (!bookedDetailsMap[booking.date][period]) {
+          bookedDetailsMap[booking.date][period] = [];
+        }
+
+        bookedDetailsMap[booking.date][period].push({
+          bookingCode: formatBookingReference(booking),
+          propertyLabel: [propertyType, propertySize].filter(Boolean).join(" - "),
+          serviceLabel,
+          slotLabel,
+          arrival:
+            arrival ||
+            `${booking.startTime || "--:--"} - ${addMinutesToTime(booking.startTime || "--:--", 30)}`,
+        });
       });
     });
 

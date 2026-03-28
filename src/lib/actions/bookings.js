@@ -109,10 +109,7 @@ const formatArrivalWindowLabel = (booking) => {
         "",
     }) || "";
   const timeLabel =
-    arrivalWindow.split(" - ")[0] ||
-    booking.startTime ||
-    REVERSE_SLOT_MAPPING[booking.slot] ||
-    "";
+    arrivalWindow || booking.startTime || REVERSE_SLOT_MAPPING[booking.slot] || "";
   if (!dateLabel && !timeLabel) return "";
   return [dateLabel, timeLabel].filter(Boolean).join(" · ");
 };

@@ -13,27 +13,53 @@ const TEMPLATE_ENV_KEYS = {
   full_media_upload: "TWILIO_CONTENT_SID_FULL_MEDIA_UPLOAD",
 };
 
-const TEMPLATE_VARIABLE_ORDER = {
-  login_otp: ["Code", "Expiry_Minutes"],
-  shoot_confirmation: [
-    "Property_Name",
-    "Client_Name",
-    "Shoot_Date",
-    "Arrival_Window",
-  ],
-  shoot_reminder: [
-    "Property_Name",
-    "Client_Name",
-    "Shoot_Date",
-    "Arrival_Window",
-  ],
-  team_on_the_way: ["Property_Name", "Arrival_Window"],
-  team_arrived: ["Property_Name"],
-  shoot_rescheduled: ["Property_Name", "Shoot_Date", "Arrival_Window"],
-  shoot_cancelled: ["Property_Name", "Client_Name", "Shoot_Date"],
-  single_service_media_ready: ["Client_Name", "Property_Name"],
-  partial_media_upload: ["Property_Name", "Client_Name", "Pending_Deliverable"],
-  full_media_upload: ["Property_Name", "Client_Name"],
+const TEMPLATE_VARIABLE_MAP = {
+  login_otp: {
+    1: "Code",
+    2: "Expiry_Minutes",
+  },
+  shoot_confirmation: {
+    1: "Property_Name",
+    2: "Client_Name",
+    3: "Shoot_Date",
+    4: "Arrival_Window",
+  },
+  shoot_reminder: {
+    1: "Property_Name",
+    2: "Client_Name",
+    3: "Shoot_Date",
+    4: "Arrival_Window",
+  },
+  team_on_the_way: {
+    1: "Property_Name",
+    4: "Arrival_Window",
+  },
+  team_arrived: {
+    1: "Property_Name",
+  },
+  shoot_rescheduled: {
+    1: "Property_Name",
+    2: "Shoot_Date",
+    3: "Arrival_Window",
+  },
+  shoot_cancelled: {
+    1: "Property_Name",
+    2: "Client_Name",
+    3: "Shoot_Date",
+  },
+  single_service_media_ready: {
+    1: "Client_Name",
+    2: "Property_Name",
+  },
+  partial_media_upload: {
+    1: "Property_Name",
+    2: "Client_Name",
+    3: "Pending_Deliverable",
+  },
+  full_media_upload: {
+    1: "Property_Name",
+    2: "Client_Name",
+  },
 };
 
 const TEMPLATES_FALLBACK = {
@@ -86,7 +112,7 @@ const TEMPLATES_FALLBACK = {
     [
       "We're on our way!",
       `Property: ${Property_Name}`,
-      `Estimated Arrival: ${Arrival_Window}`,
+      `Arrival Window: ${Arrival_Window}`,
       "If you have parking or access instructions, please reply here.",
     ].join("\n"),
 
@@ -196,14 +222,13 @@ const maskPhone = (value) => {
 };
 
 const toTwilioContentVariables = (templateName, variables) => {
-  const order = TEMPLATE_VARIABLE_ORDER[templateName];
-  if (!order) {
+  const variableMap = TEMPLATE_VARIABLE_MAP[templateName];
+  if (!variableMap) {
     return variables || {};
   }
 
   const normalized = {};
-  order.forEach((key, idx) => {
-    const slot = String(idx + 1);
+  Object.entries(variableMap).forEach(([slot, key]) => {
     const value = variables?.[key];
     normalized[slot] = value == null ? "" : String(value);
   });

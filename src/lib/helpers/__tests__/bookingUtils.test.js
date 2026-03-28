@@ -170,24 +170,24 @@ describe("getBookingArrivalWindowFromDetails", () => {
 });
 
 describe("getBookingBlockedPeriods", () => {
-  it("keeps morning bookings inside morning only", () => {
+  it("expands extended morning bookings into morning and afternoon", () => {
     expect(
       getBookingBlockedPeriods({
         startTime: "09:00",
         durationHours: 2,
         isNightService: false,
       }),
-    ).toEqual(["morning"]);
+    ).toEqual(["morning", "afternoon"]);
   });
 
-  it("keeps afternoon bookings inside afternoon only", () => {
+  it("expands extended afternoon bookings into afternoon and evening", () => {
     expect(
       getBookingBlockedPeriods({
         startTime: "13:00",
         durationHours: 2,
         isNightService: false,
       }),
-    ).toEqual(["afternoon"]);
+    ).toEqual(["afternoon", "evening"]);
   });
 
   it("keeps high-load night bookings on afternoon plus evening", () => {
@@ -198,5 +198,15 @@ describe("getBookingBlockedPeriods", () => {
         isNightService: true,
       }),
     ).toEqual(["afternoon", "evening"]);
+  });
+
+  it("keeps single-block daylight bookings on their selected period", () => {
+    expect(
+      getBookingBlockedPeriods({
+        startTime: "09:00",
+        durationHours: 1,
+        isNightService: false,
+      }),
+    ).toEqual(["morning"]);
   });
 });

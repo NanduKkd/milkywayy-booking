@@ -22,6 +22,7 @@ import {
 import { useAuth } from "@/lib/contexts/auth";
 import {
   calculateBookingDuration,
+  getBookingArrivalWindowFromDetails,
   getBookingStartTime,
 } from "@/lib/helpers/bookingUtils";
 import { bookingSchema } from "@/lib/schema/booking.schema";
@@ -29,7 +30,14 @@ import { bookingSchema } from "@/lib/schema/booking.schema";
 import { PropertyCard } from "./components/PropertyCard";
 
 const formatScheduleLabel = (property) => {
-  const slotLabel = getBookingStartTime({
+  const slotLabel = getBookingArrivalWindowFromDetails({
+    startTime: property.startTime,
+    slot: property.timeSlot,
+    propertyType: property.propertyType,
+    propertySize: property.propertySize,
+    services: property.services,
+    videographySubService: property.videographySubService,
+  }) || getBookingStartTime({
     startTime: property.startTime,
     slot: property.timeSlot,
   });

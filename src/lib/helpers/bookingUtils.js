@@ -15,6 +15,7 @@ const START_TIME_TO_PERIOD = {
   "16:00": "evening",
   "17:00": "evening",
 };
+const PERIOD_SEQUENCE = ["morning", "afternoon", "evening"];
 
 export const DEFAULT_WEIGHT_MODEL = {
   propertyWeights: {
@@ -155,7 +156,9 @@ export function getBookingBlockedPeriods({
   const blocksNeeded = Math.min(Math.max(parseInt(durationHours, 10) || 1, 1), 2);
 
   if (!isNightService) {
-    return ["morning", "afternoon"].includes(startPeriod) ? [startPeriod] : [];
+    const startIndex = PERIOD_SEQUENCE.indexOf(startPeriod);
+    if (startIndex === -1) return [];
+    return PERIOD_SEQUENCE.slice(startIndex, startIndex + blocksNeeded);
   }
 
   if (startPeriod !== "evening") return [];

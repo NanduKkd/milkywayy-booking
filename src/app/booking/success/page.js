@@ -14,7 +14,7 @@ const formatCurrency = (value) => {
 };
 
 const getPeriodLabel = (timeLabel) => {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(String(timeLabel || "").trim());
+  const match = /^(\d{1,2}):(\d{2})/.exec(String(timeLabel || "").trim());
   if (!match) return "";
 
   const hour = Number(match[1]);
@@ -24,15 +24,19 @@ const getPeriodLabel = (timeLabel) => {
 };
 
 const formatArrivalRange = (timeLabel) => {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(String(timeLabel || "").trim());
-  if (!match) return timeLabel || "";
+  const normalizedLabel = String(timeLabel || "").trim();
+  if (!normalizedLabel) return "";
+  if (normalizedLabel.includes(" - ")) return normalizedLabel;
+
+  const match = /^(\d{1,2}):(\d{2})$/.exec(normalizedLabel);
+  if (!match) return normalizedLabel;
 
   const startMinutes = (Number(match[1]) * 60) + Number(match[2]);
   const endMinutes = startMinutes + 30;
   const endHour = Math.floor(endMinutes / 60) % 24;
   const endMinute = endMinutes % 60;
 
-  return `${timeLabel} - ${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`;
+  return `${normalizedLabel} - ${String(endHour).padStart(2, "0")}:${String(endMinute).padStart(2, "0")}`;
 };
 
 const getArrivalMeta = (arrivalWindow) => {
