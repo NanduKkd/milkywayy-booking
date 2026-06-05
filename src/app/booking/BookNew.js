@@ -30,17 +30,19 @@ import { bookingSchema } from "@/lib/schema/booking.schema";
 import { PropertyCard } from "./components/PropertyCard";
 
 const formatScheduleLabel = (property) => {
-  const slotLabel = getBookingArrivalWindowFromDetails({
-    startTime: property.startTime,
-    slot: property.timeSlot,
-    propertyType: property.propertyType,
-    propertySize: property.propertySize,
-    services: property.services,
-    videographySubService: property.videographySubService,
-  }) || getBookingStartTime({
-    startTime: property.startTime,
-    slot: property.timeSlot,
-  });
+  const slotLabel =
+    getBookingArrivalWindowFromDetails({
+      startTime: property.startTime,
+      slot: property.timeSlot,
+      propertyType: property.propertyType,
+      propertySize: property.propertySize,
+      services: property.services,
+      videographySubService: property.videographySubService,
+    }) ||
+    getBookingStartTime({
+      startTime: property.startTime,
+      slot: property.timeSlot,
+    });
 
   return [property.preferredDate, slotLabel].filter(Boolean).join(" · ");
 };
@@ -705,9 +707,14 @@ export default function BookNew({
       schedule: formatScheduleLabel(property),
     }))
     .filter((item) => item.amount > 0);
+  const isContinueDisabled =
+    summaryItems.length === 0 ||
+    totalAmount < MINIMUM_ORDER_AMOUNT ||
+    isSubmitting ||
+    isProcessingPayment;
 
   return (
-    <section className="relative min-h-[90vh] py-12 md:py-16">
+    <section className="relative min-h-[90vh] pt-12 pb-44 md:pt-16 lg:pb-16">
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 fade-in">
@@ -757,7 +764,8 @@ export default function BookNew({
                   type="button"
                   variant="outline"
                   onClick={addProperty}
-                  className="w-full p-4 rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                  data-testid="add-property"
+                  className="hidden w-full p-4 rounded-2xl border border-dashed border-border hover:border-muted-foreground/30 bg-secondary/10 hover:bg-secondary/20 transition-all duration-200 lg:flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                 >
                   <Plus size={18} className="shrink-0" />
                   Add Another Property
@@ -838,8 +846,8 @@ export default function BookNew({
 
                   {launchPromoNudgeAmount > 0 && (
                     <p className="text-2xs leading-4 text-emerald-300">
-                      Add just AED {launchPromoNudgeAmount.toLocaleString()} more
-                      {" "}to unlock AED 500 off instead of AED 250!
+                      Add just AED {launchPromoNudgeAmount.toLocaleString()}{" "}
+                      more to unlock AED 500 off instead of AED 250!
                     </p>
                   )}
 
@@ -920,13 +928,8 @@ export default function BookNew({
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={
-                    summaryItems.length === 0 ||
-                    totalAmount < MINIMUM_ORDER_AMOUNT ||
-                    isSubmitting ||
-                    isProcessingPayment
-                  }
-                  className="w-full btn-primary-premium py-2.5"
+                  disabled={isContinueDisabled}
+                  className="hidden w-full btn-primary-premium py-2.5 lg:inline-flex"
                 >
                   {isSubmitting || isProcessingPayment
                     ? <>
@@ -951,6 +954,50 @@ export default function BookNew({
                   </p>
                 </div>
               </aside>
+            </div>
+
+            <div
+              data-testid="mobile-booking-footer"
+              className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-background/95 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(0,0,0,0.3)] backdrop-blur-xl lg:hidden"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addProperty}
+                data-testid="mobile-add-property"
+                className="h-10 w-full rounded-xl border-dashed border-white/10 bg-transparent text-xs font-normal text-muted-foreground hover:bg-white/[0.03] hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" />
+                Add Another Property
+              </Button>
+
+              <div className="mt-2.5 flex items-end justify-between gap-4">
+                <div className="pb-0.5">
+                  <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    Total
+                  </p>
+                  <p
+                    data-testid="mobile-booking-total"
+                    className="text-base font-semibold leading-5 text-foreground"
+                  >
+                    AED {payableAmount.toLocaleString()}
+                  </p>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isContinueDisabled}
+                  data-testid="mobile-continue"
+                  className="btn-primary-premium h-11 rounded-xl px-5 text-xs font-medium"
+                >
+                  {isSubmitting || isProcessingPayment
+                    ? <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Redirecting...
+                      </>
+                    : "Continue →"}
+                </Button>
+              </div>
             </div>
           </form>
         </div>

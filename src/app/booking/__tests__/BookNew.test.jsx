@@ -46,6 +46,7 @@ jest.mock("sonner", () => ({
 jest.mock("../../../lib/helpers/bookingUtils", () => ({
   calculateBookingDuration: jest.fn(() => 5),
   getAvailableSlots: jest.fn(() => []),
+  getBookingArrivalWindowFromDetails: jest.fn(() => ""),
   getBookingStartTime: jest.fn(({ startTime, slot }) => {
     if (startTime) return startTime;
     if (slot === "morning") return "09:00";
@@ -240,7 +241,7 @@ describe("BookNew", () => {
       expect(screen.getByTestId("property-card-0")).toBeInTheDocument(),
     );
 
-    const addButton = screen.getByText(/Add Another Property/i);
+    const addButton = screen.getByTestId("add-property");
     fireEvent.click(addButton);
 
     await waitFor(() => {
@@ -263,7 +264,7 @@ describe("BookNew", () => {
     );
 
     // Add a second property first (cannot remove if only 1)
-    fireEvent.click(screen.getByText(/Add Another Property/i));
+    fireEvent.click(screen.getByTestId("add-property"));
     await waitFor(() =>
       expect(screen.getByTestId("property-card-1")).toBeInTheDocument(),
     );
@@ -436,13 +437,13 @@ describe("BookNew", () => {
     fireEvent.click(screen.getByTestId("add-service-0"));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("First-Shoot Launch Credit"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("First-Shoot Launch Credit")).toBeInTheDocument();
     });
 
     expect(screen.getByText("- AED 250")).toBeInTheDocument();
-    expect(screen.getByText("AED 200")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
+      "AED 200",
+    );
     expect(
       screen.queryByText(/unlock AED 500 off instead of AED 250/i),
     ).not.toBeInTheDocument();
@@ -471,7 +472,9 @@ describe("BookNew", () => {
       expect(screen.getByText("- AED 250")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("AED 450")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
+      "AED 450",
+    );
     expect(
       screen.queryByText(/unlock AED 500 off instead of AED 250/i),
     ).not.toBeInTheDocument();
@@ -500,7 +503,9 @@ describe("BookNew", () => {
       expect(screen.getByText("- AED 250")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("AED 570")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
+      "AED 570",
+    );
     expect(
       screen.getByText(
         "Add just AED 180 more to unlock AED 500 off instead of AED 250!",
@@ -531,7 +536,9 @@ describe("BookNew", () => {
       expect(screen.getByText("- AED 500")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("AED 550")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
+      "AED 550",
+    );
     expect(
       screen.queryByText(/unlock AED 500 off instead of AED 250/i),
     ).not.toBeInTheDocument();
@@ -562,8 +569,10 @@ describe("BookNew", () => {
       ).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByRole("button", { name: /Continue to Payment/i }),
-    ).toBeDisabled();
+    expect(screen.getByTestId("mobile-booking-footer")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
+      "AED 400",
+    );
+    expect(screen.getByTestId("mobile-continue")).toBeDisabled();
   });
 });
