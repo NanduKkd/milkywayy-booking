@@ -122,6 +122,15 @@ jest.mock("../components/PropertyCard", () => ({
         </button>
         <button
           type="button"
+          data-testid={`toggle-videography-${index}`}
+          onClick={() =>
+            toggleService(index, "Videography", property.services || [])
+          }
+        >
+          Toggle Videography
+        </button>
+        <button
+          type="button"
           data-testid={`set-videography-option-${index}`}
           onClick={() =>
             updatePropertyField(
@@ -136,6 +145,9 @@ jest.mock("../components/PropertyCard", () => ({
         <div data-testid={`date-${index}`}>{property.preferredDate}</div>
         <div data-testid={`time-${index}`}>{property.startTime}</div>
         <div data-testid={`duration-${index}`}>{property.duration}</div>
+        <div data-testid={`videography-subservice-${index}`}>
+          {property.videographySubService}
+        </div>
         <button
           type="button"
           onClick={() => onRemove(index)}
@@ -308,6 +320,37 @@ describe("BookNew", () => {
       expect(screen.getByTestId("duration-0")).toHaveTextContent("7");
     });
     expect(calculateBookingDuration).toHaveBeenCalled();
+  });
+
+  it("selects Short Form by default when videography is selected", async () => {
+    render(
+      <Suspense fallback={<div>Loading...</div>}>
+        <BookNew
+          pricingsPromise={mockPricingsPromise}
+          discountsPromise={mockDiscountsPromise}
+        />
+      </Suspense>,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("property-card-0")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("toggle-videography-0"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("videography-subservice-0")).toHaveTextContent(
+        "Short Form",
+      );
+    });
+
+    fireEvent.click(screen.getByTestId("toggle-videography-0"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("videography-subservice-0")).toHaveTextContent(
+        "",
+      );
+    });
   });
 
   it("resets date and time when service/type/size/videography changes", async () => {

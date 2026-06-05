@@ -12,7 +12,11 @@ import {
   saveDrafts,
 } from "@/lib/actions/bookings";
 import { getLaunchPromoStatus, validateCoupon } from "@/lib/actions/coupons";
-import { PRICING_CONFIG as STATIC_PRICING_CONFIG } from "@/lib/config/pricing";
+import {
+  SERVICES,
+  PRICING_CONFIG as STATIC_PRICING_CONFIG,
+  VIDEOGRAPHY_SUB_SERVICES,
+} from "@/lib/config/pricing";
 import {
   getLaunchPromoDiscount,
   getLaunchPromoNudgeAmount,
@@ -331,16 +335,20 @@ export default function BookNew({
     });
 
     const property = getValues(`properties.${index}`);
-    const hasVideography = newServices.includes("Videography");
+    const hasVideography = newServices.includes(SERVICES.VIDEOGRAPHY);
     const nextVideographySubService = hasVideography
-      ? property?.videographySubService || ""
+      ? property?.videographySubService || VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
       : "";
 
-    if (!hasVideography) {
-      setValue(`properties.${index}.videographySubService`, "", {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
+    if (property?.videographySubService !== nextVideographySubService) {
+      setValue(
+        `properties.${index}.videographySubService`,
+        nextVideographySubService,
+        {
+          shouldValidate: true,
+          shouldDirty: true,
+        },
+      );
     }
 
     if (
