@@ -610,6 +610,7 @@ export default function BookNew({
       : 0;
   const launchPromoNudgeAmount =
     launchPromoDiscount > 0 ? getLaunchPromoNudgeAmount(totalAmount) : 0;
+  console.log(getLaunchPromoNudgeAmount(totalAmount), launchPromoDiscount);
   const activeCouponDiscount = selectedCouponCode ? selectedCouponDiscount : 0;
   const payableAmount = Math.max(
     0,
@@ -855,7 +856,7 @@ export default function BookNew({
                   {launchPromoNudgeAmount > 0 && (
                     <p className="text-2xs leading-4 text-emerald-300">
                       Add just AED {launchPromoNudgeAmount.toLocaleString()}{" "}
-                      more to unlock AED 500 off instead of AED 250!
+                      more to unlock AED 500 off <span className="inline-block">instead of AED 250!</span>
                     </p>
                   )}
 
