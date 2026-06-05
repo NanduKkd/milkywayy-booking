@@ -17,6 +17,14 @@ models.Booking.belongsTo(models.Transaction, {
   foreignKey: "transactionId",
   as: "transaction",
 });
+models.Booking.hasMany(models.BookingRevision, {
+  foreignKey: "bookingId",
+  as: "revisions",
+});
+models.BookingRevision.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
+});
 
 // User has many transactions, wallet transactions, and bookings
 models.User.hasMany(models.Transaction, {

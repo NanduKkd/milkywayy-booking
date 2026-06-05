@@ -1,18 +1,18 @@
-import '@testing-library/jest-dom'
-import { TextEncoder, TextDecoder } from 'util'
+import "@testing-library/jest-dom";
+import { TextEncoder, TextDecoder } from "util";
 
-global.TextEncoder = TextEncoder
-global.TextDecoder = TextDecoder
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
-}
+};
 
 // Mock matchMedia
-Object.defineProperty(window, 'matchMedia', {
+Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: jest.fn().mockImplementation((query) => ({
     matches: false,
@@ -24,7 +24,7 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),
   })),
-})
+});
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
@@ -32,13 +32,13 @@ global.IntersectionObserver = class IntersectionObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
-}
+};
 
 // Mock server actions
-jest.mock('./src/lib/actions/auth', () => ({
+jest.mock("./src/lib/actions/auth", () => ({
   logout: jest.fn(),
   login: jest.fn(),
-}))
+}));
 
 // Mock Next.js Navigation
 const mockRouter = {
@@ -49,34 +49,37 @@ const mockRouter = {
   refresh: jest.fn(),
 };
 
-jest.mock('next/navigation', () => ({
+jest.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
-  usePathname: () => '',
+  usePathname: () => "",
   useSearchParams: () => new URLSearchParams(),
-}))
+}));
 
 // Mock bookings actions
-jest.mock('./src/lib/actions/bookings', () => ({
+jest.mock("./src/lib/actions/bookings", () => ({
   cancelBooking: jest.fn(),
   getBookings: jest.fn(),
   getDrafts: jest.fn(),
   saveDrafts: jest.fn(),
   createTransactionAndPaymentIntent: jest.fn(),
   verifyStripeSession: jest.fn(),
-  completeBooking: jest.fn(),
-}))
+  rescheduleBookingByCode: jest.fn(),
+  updateBookingWorkflow: jest.fn(),
+  completeDeliveredBooking: jest.fn(),
+  requestBookingRevision: jest.fn(),
+}));
 
 // Mock discounts actions
-jest.mock('./src/lib/actions/discounts', () => ({
+jest.mock("./src/lib/actions/discounts", () => ({
   getDiscounts: jest.fn(),
   saveDiscounts: jest.fn(),
-}))
+}));
 
 // Mock coupons actions
-jest.mock('./src/lib/actions/coupons', () => ({
+jest.mock("./src/lib/actions/coupons", () => ({
   getCoupons: jest.fn(),
   createCoupon: jest.fn(),
   toggleCouponStatus: jest.fn(),
   deleteCoupon: jest.fn(),
   validateCoupon: jest.fn(),
-}))
+}));

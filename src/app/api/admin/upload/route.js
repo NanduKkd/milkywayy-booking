@@ -2,6 +2,10 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
 import Booking from "@/lib/db/models/booking";
+import {
+  BOOKING_WORKFLOW_STATUS,
+  getWorkflowStatus,
+} from "@/lib/helpers/bookingWorkflow";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -204,6 +208,12 @@ export async function POST(request) {
     const booking = await Booking.findByPk(bookingId);
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+    if (getWorkflowStatus(booking) !== BOOKING_WORKFLOW_STATUS.EDITING) {
+      return NextResponse.json(
+        { error: "Deliverables can only be uploaded while editing" },
+        { status: 409 },
+      );
     }
 
     let deliverables = [];

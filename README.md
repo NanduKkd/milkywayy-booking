@@ -34,3 +34,22 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Booking workflow deployment
+
+Run the database migration before restarting production:
+
+```bash
+npx sequelize-cli db:migrate
+```
+
+Set `CRON_SECRET` in the PM2 environment, then start both the web app and the
+Dubai-midnight auto-completion worker:
+
+```bash
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+Override `INTERNAL_APP_URL` if the Next.js server is not available at
+`http://127.0.0.1:3000`.

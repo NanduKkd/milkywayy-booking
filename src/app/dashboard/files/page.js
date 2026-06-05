@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getBookings } from "@/lib/actions/bookings";
 import { auth } from "@/lib/helpers/auth";
+import { isCustomerFileVisible } from "@/lib/helpers/bookingWorkflow";
 import FileList from "./FileList";
 
 export default async function FilesPage() {
@@ -15,7 +16,7 @@ export default async function FilesPage() {
   // Filter for bookings with filesUrl
   const bookingsWithFiles = bookings
     .map((b) => b.toJSON())
-    .filter((b) => b.filesUrl);
+    .filter((b) => b.filesUrl && isCustomerFileVisible(b));
 
   return (
     <div>

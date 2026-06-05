@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from "../../../../test-utils";
+import { updateBookingWorkflow } from "../../../../lib/actions/bookings";
+import { fireEvent, render, screen, waitFor } from "../../../../test-utils";
 import BookingsPage from "../page";
-import { completeBooking } from "../../../../lib/actions/bookings";
 
 // Mock global fetch
 global.fetch = jest.fn();
@@ -11,6 +11,7 @@ const mockBookings = [
     date: "2025-12-25",
     total: 500,
     status: "CONFIRMED",
+    workflowStatus: "SHOOT_BOOKED",
     propertyDetails: { unit: "101", building: "Tower A", community: "Marina" },
     transaction: { status: "success", amount: 500 },
     shootDetails: { services: ["Photography"] },
@@ -51,33 +52,36 @@ describe("Admin Bookings Page", () => {
     expect(screen.getByText(/booking details #1/i)).toBeInTheDocument();
   });
 
-  it("handles mark as completed", async () => {
-    completeBooking.mockResolvedValue({ success: true });
+  it("advances the workflow to shoot done", async () => {
+    updateBookingWorkflow.mockResolvedValue({
+      success: true,
+      data: { workflowStatus: "SHOOT_DONE" },
+    });
     render(<BookingsPage />);
 
     const row = await screen.findByText("101, Tower A, Marina");
     fireEvent.click(row);
 
-    const completeButton = screen.getByRole("button", {
-      name: /mark as completed/i,
+    const workflowButton = screen.getByRole("button", {
+      name: /mark shoot done/i,
     });
-    fireEvent.click(completeButton);
+    fireEvent.click(workflowButton);
 
-    expect(window.confirm).toHaveBeenCalled();
     await waitFor(() => {
-      expect(completeBooking).toHaveBeenCalledWith(1);
+      expect(updateBookingWorkflow).toHaveBeenCalledWith(1, "SHOOT_DONE");
     });
-    expect(window.alert).toHaveBeenCalledWith("Booking marked as completed");
+    expect(window.alert).toHaveBeenCalledWith("Shoot marked as done");
   });
 
-  it("handles file upload for completed booking", async () => {
-    const completedBooking = { ...mockBookings[0], status: "COMPLETED" };
+  it("handles file upload while editing", async () => {
+    const editingBooking = {
+      ...mockBookings[0],
+      workflowStatus: "EDITING",
+    };
 
     global.fetch.mockImplementation((url, init) => {
       if (url === "/api/admin/bookings") {
-        return Promise.resolve({
-          json: async () => [completedBooking],
-        });
+        return Promise.resolve({ json: async () => [editingBooking] });
       }
       if (url === "/api/admin/upload" && init?.method === "POST") {
         return Promise.resolve({
@@ -101,7 +105,9 @@ describe("Admin Bookings Page", () => {
     fireEvent.click(row);
 
     // Check if upload section is visible
-    expect(screen.getByText(/Files/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Deliverables" }),
+    ).toBeInTheDocument();
 
     // In JSDOM, portals are rendered into document.body
     const fileInput = document.querySelector('input[type="file"]');
@@ -131,10 +137,205 @@ describe("Admin Bookings Page", () => {
     );
   });
 
+  it("shows every current file and allows deleting one", async () => {
+    const filesUrl = JSON.stringify({
+      version: 2,
+      deliverables: [
+        {
+          id: "photography",
+          type: "Photography",
+          label: "Photography",
+          url: "https://example.com/file-1.jpg",
+          urls: [
+            "https://example.com/file-1.jpg",
+            "https://example.com/file-2.jpg",
+          ],
+        },
+      ],
+    });
+    const editingBooking = {
+      ...mockBookings[0],
+      workflowStatus: "EDITING",
+      filesUrl,
+    };
+
+    global.fetch.mockImplementation((url, init) => {
+      if (url === "/api/admin/bookings") {
+        return Promise.resolve({ json: async () => [editingBooking] });
+      }
+      if (
+        url === "/api/admin/bookings/1/deliverables" &&
+        init?.method === "DELETE"
+      ) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            filesUrl: JSON.stringify({
+              version: 2,
+              deliverables: [
+                {
+                  id: "photography",
+                  type: "Photography",
+                  label: "Photography",
+                  url: "https://example.com/file-2.jpg",
+                  urls: ["https://example.com/file-2.jpg"],
+                },
+              ],
+            }),
+          }),
+        });
+      }
+      return Promise.resolve({ json: async () => ({}) });
+    });
+
+    render(<BookingsPage />);
+    fireEvent.click(await screen.findByText("101, Tower A, Marina"));
+
+    expect(
+      screen.getByRole("link", { name: "file-1.jpg" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "file-2.jpg" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete file-1.jpg" }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/admin/bookings/1/deliverables",
+        expect.objectContaining({
+          method: "DELETE",
+          body: JSON.stringify({
+            source: "current",
+            deliverableId: "photography",
+            url: "https://example.com/file-1.jpg",
+          }),
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("link", { name: "file-1.jpg" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows and restores files from the previous revision", async () => {
+    const previousFiles = [
+      {
+        id: "photography",
+        type: "Photography",
+        label: "Photography",
+        url: "https://example.com/previous.jpg",
+        urls: ["https://example.com/previous.jpg"],
+      },
+    ];
+    const editingBooking = {
+      ...mockBookings[0],
+      workflowStatus: "EDITING",
+      filesUrl: JSON.stringify({
+        version: 2,
+        deliverables: [],
+        archivedDeliverables: previousFiles,
+      }),
+    };
+
+    global.fetch.mockImplementation((url, init) => {
+      if (url === "/api/admin/bookings") {
+        return Promise.resolve({ json: async () => [editingBooking] });
+      }
+      if (
+        url === "/api/admin/bookings/1/deliverables" &&
+        init?.method === "POST"
+      ) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            filesUrl: JSON.stringify({
+              version: 2,
+              deliverables: previousFiles,
+              archivedDeliverables: [],
+            }),
+          }),
+        });
+      }
+      return Promise.resolve({ json: async () => ({}) });
+    });
+
+    render(<BookingsPage />);
+    fireEvent.click(await screen.findByText("101, Tower A, Marina"));
+
+    expect(screen.getByText("Previous Version")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "previous.jpg" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /use previous files/i }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /mark files uploaded/i }),
+      ).not.toBeDisabled();
+    });
+    expect(window.alert).toHaveBeenCalledWith(
+      'Previous files restored. You can now click "Mark Files Uploaded".',
+    );
+  });
+
+  it("keeps previous files visible during customer review", async () => {
+    const reviewBooking = {
+      ...mockBookings[0],
+      workflowStatus: "FILES_UPLOADED",
+      filesUrl: JSON.stringify({
+        version: 2,
+        deliverables: [
+          {
+            id: "photography",
+            type: "Photography",
+            url: "https://example.com/revised.jpg",
+            urls: ["https://example.com/revised.jpg"],
+          },
+        ],
+        archivedDeliverables: [
+          {
+            id: "photography",
+            type: "Photography",
+            url: "https://example.com/original.jpg",
+            urls: ["https://example.com/original.jpg"],
+          },
+        ],
+      }),
+    };
+    global.fetch.mockImplementation((url) =>
+      Promise.resolve({
+        json: async () =>
+          url === "/api/admin/bookings" ? [reviewBooking] : {},
+      }),
+    );
+
+    render(<BookingsPage />);
+    fireEvent.click(await screen.findByText("101, Tower A, Marina"));
+
+    expect(
+      screen.getByRole("link", { name: "revised.jpg" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "original.jpg" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /use previous files/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /delete original.jpg/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows only the single-service media trigger for single-service bookings", async () => {
     const completedBooking = {
       ...mockBookings[0],
-      status: "COMPLETED",
+      workflowStatus: "EDITING",
       filesUrl: JSON.stringify({
         version: 2,
         deliverables: [
@@ -238,7 +439,7 @@ describe("Admin Bookings Page", () => {
     };
     const completedBooking = {
       ...mockBookings[0],
-      status: "COMPLETED",
+      workflowStatus: "EDITING",
       shootDetails: { services: ["Photography", "Videography"] },
       filesUrl: JSON.stringify(baseFilesPayload),
     };

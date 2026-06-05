@@ -4,41 +4,44 @@ import "@/lib/db/relations";
 import { Op } from "sequelize";
 import Stripe from "stripe";
 import { getDiscounts } from "@/lib/actions/discounts";
-import { actionWrapper } from "@/lib/actions/utils";
-import { sequelize as db } from "@/lib/db/db";
-import Booking from "@/lib/db/models/booking";
-import Coupon from "@/lib/db/models/coupon";
-import DynamicConfig from "@/lib/db/models/dynamicconfig";
-import Transaction from "@/lib/db/models/transaction";
-import User from "@/lib/db/models/user";
-import WalletTransaction from "@/lib/db/models/wallettransaction";
-import {
-  getLaunchPromoDiscount,
-  LAUNCH_PROMO_CODE,
-} from "@/lib/config/promo";
-import { auth } from "@/lib/helpers/auth";
-import {
-  getBookingBlockedPeriods,
-  calculateBookingDuration,
-  getBookingArrivalWindowFromDetails,
-} from "@/lib/helpers/bookingUtils";
-import { getPricingConfig } from "@/lib/helpers/pricing";
-import {
-  buildBookingReferenceFromId,
-  formatBookingReference,
-} from "@/lib/helpers/invoice-format";
-import { USER_ROLES } from "../config/app.config";
 import {
   sendBookingConfirmation,
   sendCancellationConfirmation,
   sendRescheduleConfirmation,
 } from "@/lib/actions/notifications";
+import { actionWrapper } from "@/lib/actions/utils";
+import { getLaunchPromoDiscount, LAUNCH_PROMO_CODE } from "@/lib/config/promo";
+import { sequelize as db } from "@/lib/db/db";
+import Booking from "@/lib/db/models/booking";
+import BookingRevision from "@/lib/db/models/bookingrevision";
+import Coupon from "@/lib/db/models/coupon";
+import DynamicConfig from "@/lib/db/models/dynamicconfig";
+import Transaction from "@/lib/db/models/transaction";
+import User from "@/lib/db/models/user";
+import WalletTransaction from "@/lib/db/models/wallettransaction";
+import { auth } from "@/lib/helpers/auth";
+import {
+  calculateBookingDuration,
+  getBookingArrivalWindowFromDetails,
+  getBookingBlockedPeriods,
+} from "@/lib/helpers/bookingUtils";
+import { BOOKING_WORKFLOW_STATUS } from "@/lib/helpers/bookingWorkflow";
+import {
+  buildBookingReferenceFromId,
+  formatBookingReference,
+} from "@/lib/helpers/invoice-format";
+import { getPricingConfig } from "@/lib/helpers/pricing";
+import {
+  completeDeliveredBookingState,
+  requestBookingRevisionState,
+  updateBookingWorkflowState,
+} from "@/lib/services/bookingWorkflow";
+import { USER_ROLES } from "../config/app.config";
 
 let stripe;
-if(process.env.STRIPE_SECRET_KEY)
-	stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-else
-	stripe = {};
+if (process.env.STRIPE_SECRET_KEY)
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+else stripe = {};
 
 const SLOT_MAPPING = {
   morning: 1,
@@ -99,9 +102,11 @@ const formatArrivalWindowLabel = (booking) => {
       startTime: booking.startTime || "",
       slot: booking.slot,
       propertyType:
-        booking?.propertyDetails?.type || booking?.propertyDetails?.propertyType,
+        booking?.propertyDetails?.type ||
+        booking?.propertyDetails?.propertyType,
       propertySize:
-        booking?.propertyDetails?.size || booking?.propertyDetails?.propertySize,
+        booking?.propertyDetails?.size ||
+        booking?.propertyDetails?.propertySize,
       services: booking?.shootDetails?.services || [],
       videographySubService:
         booking?.propertyDetails?.videographySubService ||
@@ -109,7 +114,10 @@ const formatArrivalWindowLabel = (booking) => {
         "",
     }) || "";
   const timeLabel =
-    arrivalWindow || booking.startTime || REVERSE_SLOT_MAPPING[booking.slot] || "";
+    arrivalWindow ||
+    booking.startTime ||
+    REVERSE_SLOT_MAPPING[booking.slot] ||
+    "";
   if (!dateLabel && !timeLabel) return "";
   return [dateLabel, timeLabel].filter(Boolean).join(" · ");
 };
@@ -137,7 +145,9 @@ const normalizeDisplayText = (value) =>
 const dedupeTextValues = (values) => {
   const seen = new Set();
   return values.filter((value) => {
-    const normalized = String(value || "").trim().toLowerCase();
+    const normalized = String(value || "")
+      .trim()
+      .toLowerCase();
     if (!normalized || seen.has(normalized)) return false;
     seen.add(normalized);
     return true;
@@ -146,11 +156,13 @@ const dedupeTextValues = (values) => {
 
 const getBookingLocationLabel = (booking) => {
   const property = booking?.propertyDetails || {};
-  const locationParts = dedupeTextValues([
-    property.unitNumber || property.unit || property.name,
-    property.building,
-    property.community,
-  ].filter(Boolean));
+  const locationParts = dedupeTextValues(
+    [
+      property.unitNumber || property.unit || property.name,
+      property.building,
+      property.community,
+    ].filter(Boolean),
+  );
 
   return locationParts.join(", ");
 };
@@ -275,25 +287,29 @@ const recoverTransactionBookings = async (transaction) => {
     !Number.isNaN(transactionCreatedAt.getTime());
   const expectedGrossCents = toCents(
     Number(transaction?.amount || 0) +
-    Number(transaction?.couponDeduction || 0) +
-    Number(transaction?.bulkDeduction || 0),
+      Number(transaction?.couponDeduction || 0) +
+      Number(transaction?.bulkDeduction || 0),
   );
 
-  if (!transaction?.id || !transaction?.userId || !hasValidTimestamp || expectedGrossCents <= 0) {
+  if (
+    !transaction?.id ||
+    !transaction?.userId ||
+    !hasValidTimestamp ||
+    expectedGrossCents <= 0
+  ) {
     return [];
   }
 
-  const windowStart = new Date(transactionCreatedAt.getTime() - (2 * 60 * 60 * 1000));
-  const windowEnd = new Date(transactionCreatedAt.getTime() + (15 * 60 * 1000));
+  const windowStart = new Date(
+    transactionCreatedAt.getTime() - 2 * 60 * 60 * 1000,
+  );
+  const windowEnd = new Date(transactionCreatedAt.getTime() + 15 * 60 * 1000);
   const candidates = await Booking.findAll({
     where: {
       userId: transaction.userId,
       status: { [Op.in]: ["DRAFT", "CONFIRMED"] },
       createdAt: { [Op.between]: [windowStart, windowEnd] },
-      [Op.or]: [
-        { transactionId: null },
-        { transactionId: transaction.id },
-      ],
+      [Op.or]: [{ transactionId: null }, { transactionId: transaction.id }],
     },
     order: [
       ["createdAt", "DESC"],
@@ -301,7 +317,10 @@ const recoverTransactionBookings = async (transaction) => {
     ],
   });
 
-  const matchedBookings = findBookingSubsetByAmount(candidates, expectedGrossCents);
+  const matchedBookings = findBookingSubsetByAmount(
+    candidates,
+    expectedGrossCents,
+  );
   if (matchedBookings.length === 0) {
     console.warn("[PAYMENT] Unable to recover bookings for paid transaction", {
       transactionId: transaction.id,
@@ -405,7 +424,9 @@ const getBookingDateTime = (bookingLike) => {
   const minutes = parseInt(mStr, 10);
   if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
 
-  const [y, m, d] = String(dateStr).split("-").map((n) => parseInt(n, 10));
+  const [y, m, d] = String(dateStr)
+    .split("-")
+    .map((n) => parseInt(n, 10));
   if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
     return null;
   }
@@ -540,21 +561,26 @@ const getAdminBlockedSlotsForDate = (dateStr, config) => {
   if (!config) return blocked;
 
   const dayName = getDayNameFromDateStr(dateStr);
-  const workingDays = config.systemSettings?.workingDays || DEFAULT_WORKING_DAYS;
+  const workingDays =
+    config.systemSettings?.workingDays || DEFAULT_WORKING_DAYS;
   const isWorkingDay = Boolean(workingDays[dayName]);
 
   if (!isWorkingDay) {
-    PERIODS.forEach((period) =>
-      getTimeSlots(period, 1).forEach((slot) => blocked.add(slot)),
-    );
+    PERIODS.forEach((period) => {
+      getTimeSlots(period, 1).forEach((slot) => {
+        blocked.add(slot);
+      });
+    });
     return blocked;
   }
 
   const override = config.dateOverrides?.[dateStr] || {};
   if (override.fullDayBlocked) {
-    PERIODS.forEach((period) =>
-      getTimeSlots(period, 1).forEach((slot) => blocked.add(slot)),
-    );
+    PERIODS.forEach((period) => {
+      getTimeSlots(period, 1).forEach((slot) => {
+        blocked.add(slot);
+      });
+    });
     return blocked;
   }
 
@@ -562,14 +588,18 @@ const getAdminBlockedSlotsForDate = (dateStr, config) => {
   const dayRules = config.weeklyRules?.[dayName] || [];
   dayRules.forEach((periodRule) => {
     if (periodRule?.period && periodRule.isActive === false) {
-      getTimeSlots(periodRule.period, 1).forEach((slot) => blocked.add(slot));
+      getTimeSlots(periodRule.period, 1).forEach((slot) => {
+        blocked.add(slot);
+      });
     }
   });
 
   // Date override block flags
   PERIODS.forEach((period) => {
     if (override.blocks?.[period] === "blocked") {
-      getTimeSlots(period, 1).forEach((slot) => blocked.add(slot));
+      getTimeSlots(period, 1).forEach((slot) => {
+        blocked.add(slot);
+      });
     }
   });
 
@@ -685,12 +715,17 @@ const getAvailabilityForRangeHandler = async (startDate, endDate) => {
 
     // Merge admin calendar blocks into availability first.
     enumerateDateRange(startDate, endDate).forEach((dateStr) => {
-      const blockedByAdmin = getAdminBlockedSlotsForDate(dateStr, timeSlotConfig);
+      const blockedByAdmin = getAdminBlockedSlotsForDate(
+        dateStr,
+        timeSlotConfig,
+      );
       if (blockedByAdmin.size === 0) return;
       if (!availabilityMap[dateStr]) {
         availabilityMap[dateStr] = new Set();
       }
-      blockedByAdmin.forEach((slot) => availabilityMap[dateStr].add(slot));
+      blockedByAdmin.forEach((slot) => {
+        availabilityMap[dateStr].add(slot);
+      });
     });
 
     bookings.forEach((b) => {
@@ -706,14 +741,16 @@ const getAvailabilityForRangeHandler = async (startDate, endDate) => {
         if (!availabilityMap[dateStr]) {
           availabilityMap[dateStr] = new Set();
         }
-        
+
         const bStartTime = b.startTime || REVERSE_SLOT_MAPPING[b.slot];
         const bDuration = b.duration || 1;
         const bSlots = getTimeSlots(bStartTime, bDuration, {
           isNightService: isNightServiceFromBooking(b),
         });
-        
-        bSlots.forEach(slot => availabilityMap[dateStr].add(slot));
+
+        bSlots.forEach((slot) => {
+          availabilityMap[dateStr].add(slot);
+        });
       }
     });
 
@@ -798,7 +835,9 @@ const checkAvailability = async (properties, excludeBookingIds = []) => {
       property.preferredDate,
       timeSlotConfig,
     );
-    const blockedByRules = requestedSlots.some((slot) => blockedByAdmin.has(slot));
+    const blockedByRules = requestedSlots.some((slot) =>
+      blockedByAdmin.has(slot),
+    );
     if (blockedByRules) {
       throw new Error(
         `Selected time on ${property.preferredDate} is blocked by admin calendar rules.`,
@@ -828,7 +867,7 @@ const checkAvailability = async (properties, excludeBookingIds = []) => {
       });
 
       // Check for intersection
-      return requestedSlots.some(slot => bSlots.includes(slot));
+      return requestedSlots.some((slot) => bSlots.includes(slot));
     });
 
     if (isBlocked) {
@@ -885,19 +924,28 @@ const calculatePropertyPrice = (property, pricingConfig) => {
     .filter(Boolean);
 
   return property.services.reduce((total, service) => {
-    let priceConfig = sizeConfig.prices[service];
-    
+    const priceConfig = sizeConfig.prices[service];
+
     // Handle videography sub-services
-    if (service === "Videography" && property.videographySubService && typeof priceConfig === "object") {
-      const videographyTotal = videographySelections.reduce((sum, selection) => {
-        const cfg = resolveVideographyPriceConfig(priceConfig, selection);
-        const val =
-          typeof cfg === "object" ? Number(cfg?.price || 0) : Number(cfg || 0);
-        return sum + (Number.isFinite(val) ? val : 0);
-      }, 0);
+    if (
+      service === "Videography" &&
+      property.videographySubService &&
+      typeof priceConfig === "object"
+    ) {
+      const videographyTotal = videographySelections.reduce(
+        (sum, selection) => {
+          const cfg = resolveVideographyPriceConfig(priceConfig, selection);
+          const val =
+            typeof cfg === "object"
+              ? Number(cfg?.price || 0)
+              : Number(cfg || 0);
+          return sum + (Number.isFinite(val) ? val : 0);
+        },
+        0,
+      );
       return total + videographyTotal;
     }
-    
+
     const price =
       typeof priceConfig === "object"
         ? priceConfig.price || 0
@@ -916,6 +964,12 @@ const getBookingsHandler = async (userId) => {
       include: [
         { model: db.models.User, as: "user" },
         { model: db.models.Transaction, as: "transaction" },
+        {
+          model: BookingRevision,
+          as: "revisions",
+          separate: true,
+          order: [["revisionNumber", "DESC"]],
+        },
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -946,130 +1000,140 @@ export const getBookingByCode = actionWrapper(async (bookingCode) => {
   return { success: true, data: booking.toJSON() };
 });
 
-export const rescheduleBookingByCode = actionWrapper(async (bookingCode, updateData) => {
-  const session = await auth();
+export const rescheduleBookingByCode = actionWrapper(
+  async (bookingCode, updateData) => {
+    const session = await auth();
 
-  if (!session?.id) throw new Error("Unauthorized");
+    if (!session?.id) throw new Error("Unauthorized");
 
-  const booking = await Booking.findOne({
-    where: {
-      bookingCode: bookingCode,
-      userId: session.id,
-    },
-  });
-
-  if (!booking) {
-    throw new Error("Booking not found");
-  }
-
-  if (booking.cancelledAt || booking.status === "COMPLETED") {
-    throw new Error("This booking cannot be rescheduled");
-  }
-
-  const hoursUntil = getHoursUntilBooking(booking);
-  if (typeof hoursUntil === "number" && hoursUntil < RESCHEDULE_CUTOFF_HOURS) {
-    throw new Error(
-      `Reschedule is allowed only up to ${RESCHEDULE_CUTOFF_HOURS} hours before shoot time.`,
-    );
-  }
-
-  const selectedDate = updateData?.date || booking.date;
-  const rawStart = updateData?.startTime || updateData?.slot || booking.startTime || booking.slot;
-  const normalizedStartTime = (() => {
-    if (!rawStart) return null;
-    if (typeof rawStart === "string") {
-      if (START_TIME_TO_SLOT[rawStart]) return rawStart;
-      if (SLOT_MAPPING[rawStart]) {
-        return rawStart === "morning"
-          ? "09:00"
-          : rawStart === "afternoon"
-            ? "13:00"
-            : rawStart === "evening"
-              ? "17:00"
-              : null;
-      }
-    }
-    if (rawStart === 1 || rawStart === "1") return "09:00";
-    if (rawStart === 2 || rawStart === "2") return "13:00";
-    if (rawStart === 3 || rawStart === "3") return "17:00";
-    return null;
-  })();
-
-  if (!selectedDate || !normalizedStartTime) {
-    throw new Error("Please select a valid date and time");
-  }
-
-  const slotNumber =
-    START_TIME_TO_SLOT[normalizedStartTime] ||
-    SLOT_MAPPING[updateData?.slot] ||
-    booking.slot ||
-    null;
-  const timeSlotConfigEntry = await DynamicConfig.findOne({
-    where: { key: "timeSlots" },
-    attributes: ["value"],
-  });
-  const timeSlotConfig = normalizeTimeSlotConfig(timeSlotConfigEntry?.value);
-  const normalizedShootDetails = booking.shootDetails || {};
-  const normalizedPropertyDetails = booking.propertyDetails || {};
-  const services = Array.isArray(normalizedShootDetails.services)
-    ? normalizedShootDetails.services
-    : [];
-  const videographySubService = normalizedShootDetails.videographySubService || "";
-  const propertyType = normalizedPropertyDetails.type || "";
-  const propertySize = normalizedPropertyDetails.size || "";
-
-  const computedDuration = calculateBookingDuration(
-    {
-      id: services,
-      videographySubService,
-    },
-    {
-      type: propertyType,
-      size: propertySize,
-      videographySubService,
-    },
-    {
-      slotCapacity: timeSlotConfig?.systemSettings?.slotCapacity,
-      weightModel: timeSlotConfig?.systemSettings?.weightModel,
-    },
-  );
-
-  await checkAvailability(
-    [
-      {
-        preferredDate: selectedDate,
-        startTime: normalizedStartTime,
-        timeSlot: REVERSE_SLOT_MAPPING[slotNumber],
-        duration: computedDuration,
-        services,
-        videographySubService,
-        propertyType,
-        propertySize,
+    const booking = await Booking.findOne({
+      where: {
+        bookingCode: bookingCode,
+        userId: session.id,
       },
-    ],
-    [booking.id],
-  );
+    });
 
-  await booking.update({
-    date: selectedDate,
-    startTime: normalizedStartTime,
-    slot: slotNumber,
-    duration: computedDuration,
-    rescheduledAt: new Date(),
-    rescheduleCount: (booking.rescheduleCount || 0) + 1,
-  });
-
-  try {
-    const user = await User.findByPk(booking.userId);
-    if (user) {
-      await sendRescheduleConfirmation(booking, user);
+    if (!booking) {
+      throw new Error("Booking not found");
     }
-  } catch (err) {
-    console.error("WhatsApp reschedule notification failed:", err);
-  }
 
-  return { success: true, data: booking.toJSON() };
-});
+    if (booking.cancelledAt || booking.status === "COMPLETED") {
+      throw new Error("This booking cannot be rescheduled");
+    }
+
+    const hoursUntil = getHoursUntilBooking(booking);
+    if (
+      typeof hoursUntil === "number" &&
+      hoursUntil < RESCHEDULE_CUTOFF_HOURS
+    ) {
+      throw new Error(
+        `Reschedule is allowed only up to ${RESCHEDULE_CUTOFF_HOURS} hours before shoot time.`,
+      );
+    }
+
+    const selectedDate = updateData?.date || booking.date;
+    const rawStart =
+      updateData?.startTime ||
+      updateData?.slot ||
+      booking.startTime ||
+      booking.slot;
+    const normalizedStartTime = (() => {
+      if (!rawStart) return null;
+      if (typeof rawStart === "string") {
+        if (START_TIME_TO_SLOT[rawStart]) return rawStart;
+        if (SLOT_MAPPING[rawStart]) {
+          return rawStart === "morning"
+            ? "09:00"
+            : rawStart === "afternoon"
+              ? "13:00"
+              : rawStart === "evening"
+                ? "17:00"
+                : null;
+        }
+      }
+      if (rawStart === 1 || rawStart === "1") return "09:00";
+      if (rawStart === 2 || rawStart === "2") return "13:00";
+      if (rawStart === 3 || rawStart === "3") return "17:00";
+      return null;
+    })();
+
+    if (!selectedDate || !normalizedStartTime) {
+      throw new Error("Please select a valid date and time");
+    }
+
+    const slotNumber =
+      START_TIME_TO_SLOT[normalizedStartTime] ||
+      SLOT_MAPPING[updateData?.slot] ||
+      booking.slot ||
+      null;
+    const timeSlotConfigEntry = await DynamicConfig.findOne({
+      where: { key: "timeSlots" },
+      attributes: ["value"],
+    });
+    const timeSlotConfig = normalizeTimeSlotConfig(timeSlotConfigEntry?.value);
+    const normalizedShootDetails = booking.shootDetails || {};
+    const normalizedPropertyDetails = booking.propertyDetails || {};
+    const services = Array.isArray(normalizedShootDetails.services)
+      ? normalizedShootDetails.services
+      : [];
+    const videographySubService =
+      normalizedShootDetails.videographySubService || "";
+    const propertyType = normalizedPropertyDetails.type || "";
+    const propertySize = normalizedPropertyDetails.size || "";
+
+    const computedDuration = calculateBookingDuration(
+      {
+        id: services,
+        videographySubService,
+      },
+      {
+        type: propertyType,
+        size: propertySize,
+        videographySubService,
+      },
+      {
+        slotCapacity: timeSlotConfig?.systemSettings?.slotCapacity,
+        weightModel: timeSlotConfig?.systemSettings?.weightModel,
+      },
+    );
+
+    await checkAvailability(
+      [
+        {
+          preferredDate: selectedDate,
+          startTime: normalizedStartTime,
+          timeSlot: REVERSE_SLOT_MAPPING[slotNumber],
+          duration: computedDuration,
+          services,
+          videographySubService,
+          propertyType,
+          propertySize,
+        },
+      ],
+      [booking.id],
+    );
+
+    await booking.update({
+      date: selectedDate,
+      startTime: normalizedStartTime,
+      slot: slotNumber,
+      duration: computedDuration,
+      rescheduledAt: new Date(),
+      rescheduleCount: (booking.rescheduleCount || 0) + 1,
+    });
+
+    try {
+      const user = await User.findByPk(booking.userId);
+      if (user) {
+        await sendRescheduleConfirmation(booking, user);
+      }
+    } catch (err) {
+      console.error("WhatsApp reschedule notification failed:", err);
+    }
+
+    return { success: true, data: booking.toJSON() };
+  },
+);
 
 const getDraftsHandler = async () => {
   try {
@@ -1155,9 +1219,9 @@ const saveDraftsHandler = async (properties) => {
 
     const booking = await Booking.create({
       userId: userId,
-      shootDetails: { 
+      shootDetails: {
         services: property.services,
-        videographySubService: property.videographySubService || null
+        videographySubService: property.videographySubService || null,
       },
       propertyDetails: {
         type: property.propertyType,
@@ -1172,7 +1236,15 @@ const saveDraftsHandler = async (properties) => {
         email: property.contactEmail,
       },
       date: property.preferredDate || null,
-      startTime: property.startTime || (property.timeSlot === 'morning' ? '09:00' : property.timeSlot === 'afternoon' ? '13:00' : property.timeSlot === 'evening' ? '17:00' : null),
+      startTime:
+        property.startTime ||
+        (property.timeSlot === "morning"
+          ? "09:00"
+          : property.timeSlot === "afternoon"
+            ? "13:00"
+            : property.timeSlot === "evening"
+              ? "17:00"
+              : null),
       slot:
         SLOT_MAPPING[property.timeSlot] ||
         START_TIME_TO_SLOT[property.startTime] ||
@@ -1228,7 +1300,9 @@ const createTransactionAndPaymentIntentHandler = async (
   });
 
   if (bookings.length !== bookingIds.length) {
-    const missingBookingIds = bookingIds.filter((id) => !foundBookingIds.includes(id));
+    const missingBookingIds = bookingIds.filter(
+      (id) => !foundBookingIds.includes(id),
+    );
     console.error("[PAYMENT] Booking ownership mismatch", {
       userId,
       requestedBookingIds: bookingIds,
@@ -1350,7 +1424,9 @@ const createTransactionAndPaymentIntentHandler = async (
       }
 
       if (finalAmount < Number(coupon.minimumAmount)) {
-        throw new Error(`Minimum spend of AED ${coupon.minimumAmount} required`);
+        throw new Error(
+          `Minimum spend of AED ${coupon.minimumAmount} required`,
+        );
       }
 
       couponDeduction = Math.min(
@@ -1449,7 +1525,10 @@ const cancelBookingHandler = async (bookingId) => {
 
   if (!booking) throw new Error("Booking not found");
   if (booking.cancelledAt) throw new Error("Booking is already cancelled");
-  if (booking.status === "COMPLETED") {
+  if (
+    booking.status === "COMPLETED" ||
+    booking.workflowStatus === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED
+  ) {
     throw new Error("Completed booking cannot be cancelled");
   }
 
@@ -1497,9 +1576,8 @@ const cancelBookingHandler = async (bookingId) => {
         stripeRefundId = stripeRefund?.id || null;
       } else {
         // Payment intent not yet normalized (legacy session id kept in field).
-        const stripeSession = await stripe.checkout.sessions.retrieve(
-          paymentIntentId,
-        );
+        const stripeSession =
+          await stripe.checkout.sessions.retrieve(paymentIntentId);
         if (!stripeSession?.payment_intent) {
           throw new Error("Unable to process refund for this booking.");
         }
@@ -1715,11 +1793,14 @@ const verifyStripeSessionHandler = async (sessionId) => {
               bookingCount: confirmedBookings.length,
             });
           } else {
-            console.error("[PAYMENT] Some WhatsApp booking confirmations failed", {
-              sessionId,
-              transactionId: transaction.id,
-              bookingCount: confirmedBookings.length,
-            });
+            console.error(
+              "[PAYMENT] Some WhatsApp booking confirmations failed",
+              {
+                sessionId,
+                transactionId: transaction.id,
+                bookingCount: confirmedBookings.length,
+              },
+            );
           }
         }
       } catch (notifyError) {
@@ -1734,12 +1815,12 @@ const verifyStripeSessionHandler = async (sessionId) => {
       .map((booking) => formatBookingReference(booking))
       .filter(Boolean);
 
-  return {
-    message: "Payment verified and bookings confirmed",
-    paymentVerified: true,
-    bookingSummary: bookingSummaries[0] || null,
-    bookingSummaries,
-    bookingReferences,
+    return {
+      message: "Payment verified and bookings confirmed",
+      paymentVerified: true,
+      bookingSummary: bookingSummaries[0] || null,
+      bookingSummaries,
+      bookingReferences,
       totalPaidAmount: Number(transaction.amount || 0),
     };
   }
@@ -1812,7 +1893,7 @@ export const cancelBookingBySessionId = actionWrapper(
   cancelBookingBySessionIdHandler,
 );
 
-const completeBookingHandler = async (bookingId) => {
+const requireAdmin = async () => {
   const session = await auth();
   if (!session?.id) throw new Error("Unauthorized");
 
@@ -1820,40 +1901,31 @@ const completeBookingHandler = async (bookingId) => {
   if (!user || user.role !== USER_ROLES.SUPERADMIN) {
     throw new Error("Unauthorized: Admin access required");
   }
-
-  const booking = await Booking.findByPk(bookingId);
-
-  if (!booking) throw new Error("Booking not found");
-
-  await booking.update({
-    completedAt: new Date(),
-    status: "COMPLETED",
-  });
-
-  if (booking.transactionId) {
-    const pendingBookingsCount = await Booking.count({
-      where: {
-        transactionId: booking.transactionId,
-        status: { [Op.ne]: "COMPLETED" },
-      },
-    });
-
-    if (pendingBookingsCount === 0) {
-      await WalletTransaction.update(
-        {
-          status: "active",
-          creditsAt: new Date(),
-        },
-        {
-          where: {
-            transactionId: booking.transactionId,
-            status: "pending",
-          },
-        },
-      );
-    }
-  }
-
-  return { success: true };
+  return session;
 };
-export const completeBooking = actionWrapper(completeBookingHandler);
+
+const updateBookingWorkflowHandler = async (bookingId, nextStatus) => {
+  await requireAdmin();
+  return updateBookingWorkflowState(bookingId, nextStatus);
+};
+export const updateBookingWorkflow = actionWrapper(
+  updateBookingWorkflowHandler,
+);
+
+const completeDeliveredBookingHandler = async (bookingId) => {
+  const session = await auth();
+  if (!session?.id) throw new Error("Unauthorized");
+  return completeDeliveredBookingState(bookingId, session.id);
+};
+export const completeDeliveredBooking = actionWrapper(
+  completeDeliveredBookingHandler,
+);
+
+const requestBookingRevisionHandler = async (bookingId, note) => {
+  const session = await auth();
+  if (!session?.id) throw new Error("Unauthorized");
+  return requestBookingRevisionState(bookingId, session.id, note);
+};
+export const requestBookingRevision = actionWrapper(
+  requestBookingRevisionHandler,
+);

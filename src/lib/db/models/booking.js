@@ -1,7 +1,5 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../db.js";
-import Transaction from "./transaction.js";
-import User from "./user.js";
 
 const Booking = sequelize.define(
   "Booking",
@@ -15,12 +13,18 @@ const Booking = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
       unique: true,
-      field: 'booking_code'
+      field: "booking_code",
     },
     status: {
       type: DataTypes.STRING,
       allowNull: false,
       defaultValue: "DRAFT",
+    },
+    workflowStatus: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "SHOOT_BOOKED",
+      field: "workflow_status",
     },
     userId: {
       type: DataTypes.INTEGER,
@@ -103,6 +107,32 @@ const Booking = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
       field: "completed_at",
+    },
+    shootCompletedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "shoot_completed_at",
+    },
+    editingStartedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "editing_started_at",
+    },
+    filesUploadedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "files_uploaded_at",
+    },
+    reviewDeadlineAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "review_deadline_at",
+    },
+    revisionCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: "revision_count",
     },
     filesUrl: {
       type: DataTypes.TEXT,

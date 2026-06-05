@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Op } from "sequelize";
 import Stripe from "stripe";
 import Booking from "@/lib/db/models/booking";
+import BookingRevision from "@/lib/db/models/bookingrevision";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import "@/lib/db/relations";
@@ -80,6 +81,12 @@ export async function GET() {
           model: Transaction,
           as: "transaction",
           attributes: ["id", "amount", "status", "invoiceUrl"],
+        },
+        {
+          model: BookingRevision,
+          as: "revisions",
+          separate: true,
+          order: [["revisionNumber", "DESC"]],
         },
       ],
       order: [["createdAt", "DESC"]],

@@ -94,6 +94,7 @@ describe("Admin Upload API Route", () => {
     const update = jest.fn().mockResolvedValue({});
     Booking.findByPk.mockResolvedValue({
       filesUrl: null,
+      workflowStatus: "EDITING",
       update,
     });
 
@@ -142,7 +143,9 @@ describe("Admin Upload API Route", () => {
       filesUrl: expect.stringContaining('"type":"Photography"'),
     });
     expect(update).toHaveBeenCalledWith({
-      filesUrl: expect.stringContaining('"urls":["https://milkywayy.s3.amazonaws.com/photography/bookings/booking-123/'),
+      filesUrl: expect.stringContaining(
+        '"urls":["https://milkywayy.s3.amazonaws.com/photography/bookings/booking-123/',
+      ),
     });
     expect(update).toHaveBeenCalledWith({
       filesUrl: expect.stringContaining('"count":2'),

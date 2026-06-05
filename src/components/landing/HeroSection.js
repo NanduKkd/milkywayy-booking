@@ -171,7 +171,7 @@ const HeroSection = ({ onWatchVideo }) => {
                     </p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-xl bg-secondary p-3 flex flex-col items-center justify-center text-center text-xs text-muted-foreground">
-                        Dec 15, 2024
+                        May 13, 2026
                       </div>
                       <div className="rounded-xl bg-secondary p-3 flex flex-col items-center justify-center text-center text-xs text-muted-foreground">
                         <p>Morning</p>

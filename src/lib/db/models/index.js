@@ -1,5 +1,6 @@
 import { sequelize } from "../db.js";
 import Booking from "./booking.js";
+import BookingRevision from "./bookingrevision.js";
 import Coupon from "./coupon.js";
 import DynamicConfig from "./dynamicconfig.js";
 import OurWork from "./ourwork.js";
@@ -11,6 +12,7 @@ import WalletTransaction from "./wallettransaction.js";
 const models = {
   User,
   Booking,
+  BookingRevision,
   Transaction,
   Coupon,
   WalletTransaction,
@@ -22,6 +24,7 @@ const models = {
 export {
   User,
   Booking,
+  BookingRevision,
   Transaction,
   Coupon,
   WalletTransaction,
