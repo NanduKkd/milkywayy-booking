@@ -1,20 +1,16 @@
 import { Op } from "sequelize";
 import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
-import BookingRevision from "@/lib/db/models/bookingrevision";
+import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
 import {
   BOOKING_WORKFLOW_STATUS,
-  getDubaiReviewDeadline,
-  hasUploadedDeliverables,
-  MAX_BOOKING_REVISIONS,
-  parseFilesPayload,
+  DELIVERY_FILE_STATUS,
 } from "@/lib/helpers/bookingWorkflow";
 
 const ADMIN_TRANSITIONS = {
   [BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED]: BOOKING_WORKFLOW_STATUS.SHOOT_DONE,
   [BOOKING_WORKFLOW_STATUS.SHOOT_DONE]: BOOKING_WORKFLOW_STATUS.EDITING,
-  [BOOKING_WORKFLOW_STATUS.EDITING]: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
 };
 
 const serializeDate = (value) =>
@@ -29,6 +25,7 @@ const toWorkflowPayload = (booking) => ({
   filesUploadedAt: serializeDate(booking.filesUploadedAt),
   reviewDeadlineAt: serializeDate(booking.reviewDeadlineAt),
   revisionCount: Number(booking.revisionCount || 0),
+  deliveryFinishedAt: serializeDate(booking.deliveryFinishedAt),
   completedAt: serializeDate(booking.completedAt),
   filesUrl: booking.filesUrl || null,
 });
@@ -109,85 +106,7 @@ export const updateBookingWorkflowState = async (bookingId, nextStatus) =>
     if (nextStatus === BOOKING_WORKFLOW_STATUS.EDITING) {
       updates.editingStartedAt = now;
     }
-    if (nextStatus === BOOKING_WORKFLOW_STATUS.FILES_UPLOADED) {
-      if (!hasUploadedDeliverables(booking.filesUrl)) {
-        throw new Error("Upload at least one deliverable first");
-      }
-      updates.filesUploadedAt = now;
-      updates.reviewDeadlineAt = getDubaiReviewDeadline(now);
-
-      await BookingRevision.update(
-        { resolvedAt: now },
-        {
-          where: { bookingId: booking.id, resolvedAt: null },
-          transaction,
-        },
-      );
-    }
-
     await booking.update(updates, { transaction });
-    return toWorkflowPayload(booking);
-  });
-
-export const requestBookingRevisionState = async (bookingId, userId, note) =>
-  sequelize.transaction(async (transaction) => {
-    const booking = await Booking.findOne({
-      where: { id: bookingId, userId },
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
-    if (!booking) throw new Error("Booking not found");
-    if (booking.cancelledAt || booking.status === "CANCELLED") {
-      throw new Error("Cancelled bookings cannot be revised");
-    }
-    if (booking.workflowStatus !== BOOKING_WORKFLOW_STATUS.FILES_UPLOADED) {
-      throw new Error("This booking is not available for revision");
-    }
-    if (
-      booking.reviewDeadlineAt &&
-      new Date(booking.reviewDeadlineAt).getTime() <= Date.now()
-    ) {
-      throw new Error("The revision window has closed");
-    }
-
-    const trimmedNote = String(note || "").trim();
-    if (!trimmedNote) throw new Error("Revision details are required");
-    if (booking.revisionCount >= MAX_BOOKING_REVISIONS) {
-      throw new Error("Maximum revision requests reached");
-    }
-
-    const nextRevisionNumber = Number(booking.revisionCount || 0) + 1;
-    const now = new Date();
-    const payload = parseFilesPayload(booking.filesUrl);
-    const nextFilesUrl = payload
-      ? JSON.stringify({
-          ...payload,
-          archivedDeliverables: payload.deliverables || [],
-          deliverables: [],
-          updatedAt: now.toISOString(),
-        })
-      : booking.filesUrl;
-
-    await BookingRevision.create(
-      {
-        bookingId: booking.id,
-        revisionNumber: nextRevisionNumber,
-        note: trimmedNote,
-        requestedAt: now,
-      },
-      { transaction },
-    );
-    await booking.update(
-      {
-        workflowStatus: BOOKING_WORKFLOW_STATUS.EDITING,
-        editingStartedAt: now,
-        reviewDeadlineAt: null,
-        revisionCount: nextRevisionNumber,
-        filesUrl: nextFilesUrl,
-      },
-      { transaction },
-    );
-
     return toWorkflowPayload(booking);
   });
 
@@ -205,16 +124,84 @@ export const completeDeliveredBookingState = async (bookingId, userId) =>
     if (booking.workflowStatus !== BOOKING_WORKFLOW_STATUS.FILES_UPLOADED) {
       throw new Error("This booking cannot be completed yet");
     }
+    if (!booking.deliveryFinishedAt) {
+      throw new Error("Delivery is not finished yet");
+    }
+    const files = await BookingDeliveryFile.findAll({
+      where: { bookingId: booking.id },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (files.length === 0) throw new Error("No delivery files are available");
+    if (
+      files.some(
+        (file) =>
+          file.status === DELIVERY_FILE_STATUS.PRIVATE ||
+          file.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+      )
+    ) {
+      throw new Error("Resolve all requested file changes first");
+    }
 
-    await finalizeBookingInTransaction(booking, transaction, new Date());
+    const now = new Date();
+    await BookingDeliveryFile.update(
+      {
+        status: DELIVERY_FILE_STATUS.ACCEPTED,
+        acceptedAt: now,
+        reviewDeadlineAt: null,
+      },
+      {
+        where: {
+          bookingId: booking.id,
+          status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+        },
+        transaction,
+      },
+    );
+    await finalizeBookingInTransaction(booking, transaction, now);
     return toWorkflowPayload(booking);
   });
 
 export const autoCompleteEligibleBookings = async (now = new Date()) => {
+  const expiredFiles = await BookingDeliveryFile.findAll({
+    where: {
+      status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+      reviewDeadlineAt: { [Op.lte]: now },
+    },
+    attributes: ["id"],
+  });
+  let acceptedFileCount = 0;
+  for (const item of expiredFiles) {
+    const accepted = await sequelize.transaction(async (transaction) => {
+      const file = await BookingDeliveryFile.findByPk(item.id, {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (
+        !file ||
+        file.status !== DELIVERY_FILE_STATUS.UNDER_REVIEW ||
+        !file.reviewDeadlineAt ||
+        new Date(file.reviewDeadlineAt).getTime() > now.getTime()
+      ) {
+        return false;
+      }
+      await file.update(
+        {
+          status: DELIVERY_FILE_STATUS.ACCEPTED,
+          acceptedAt: now,
+          reviewDeadlineAt: null,
+        },
+        { transaction },
+      );
+      return true;
+    });
+    if (accepted) acceptedFileCount += 1;
+  }
+
   const eligible = await Booking.findAll({
     where: {
       workflowStatus: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
-      reviewDeadlineAt: { [Op.lte]: now },
+      deliveryFinishedAt: { [Op.ne]: null },
       completedAt: null,
       cancelledAt: null,
     },
@@ -231,15 +218,22 @@ export const autoCompleteEligibleBookings = async (now = new Date()) => {
       if (
         !booking ||
         booking.workflowStatus !== BOOKING_WORKFLOW_STATUS.FILES_UPLOADED ||
-        !booking.reviewDeadlineAt ||
-        new Date(booking.reviewDeadlineAt).getTime() > now.getTime()
+        !booking.deliveryFinishedAt
       ) {
         return false;
       }
+      const outstandingFiles = await BookingDeliveryFile.count({
+        where: {
+          bookingId: booking.id,
+          status: { [Op.ne]: DELIVERY_FILE_STATUS.ACCEPTED },
+        },
+        transaction,
+      });
+      if (outstandingFiles > 0) return false;
       return finalizeBookingInTransaction(booking, transaction, now);
     });
     if (completed) completedCount += 1;
   }
 
-  return { completedCount };
+  return { acceptedFileCount, completedCount };
 };

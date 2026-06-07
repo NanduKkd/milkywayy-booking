@@ -13,6 +13,7 @@ import { actionWrapper } from "@/lib/actions/utils";
 import { getLaunchPromoDiscount, LAUNCH_PROMO_CODE } from "@/lib/config/promo";
 import { sequelize as db } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
+import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingRevision from "@/lib/db/models/bookingrevision";
 import Coupon from "@/lib/db/models/coupon";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
@@ -33,9 +34,13 @@ import {
 import { getPricingConfig } from "@/lib/helpers/pricing";
 import {
   completeDeliveredBookingState,
-  requestBookingRevisionState,
   updateBookingWorkflowState,
 } from "@/lib/services/bookingWorkflow";
+import {
+  DELIVERY_FILE_INCLUDE,
+  finishBookingDeliveryState,
+  requestFileRevisionState,
+} from "@/lib/services/fileDelivery";
 import { USER_ROLES } from "../config/app.config";
 
 let stripe;
@@ -969,6 +974,13 @@ const getBookingsHandler = async (userId) => {
           as: "revisions",
           separate: true,
           order: [["revisionNumber", "DESC"]],
+        },
+        {
+          model: BookingDeliveryFile,
+          as: "deliveryFiles",
+          include: DELIVERY_FILE_INCLUDE,
+          separate: true,
+          order: [["createdAt", "ASC"]],
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -1921,11 +1933,18 @@ export const completeDeliveredBooking = actionWrapper(
   completeDeliveredBookingHandler,
 );
 
-const requestBookingRevisionHandler = async (bookingId, note) => {
+const requestFileRevisionHandler = async (fileId, note) => {
   const session = await auth();
   if (!session?.id) throw new Error("Unauthorized");
-  return requestBookingRevisionState(bookingId, session.id, note);
+  return requestFileRevisionState(fileId, session.id, note);
 };
-export const requestBookingRevision = actionWrapper(
-  requestBookingRevisionHandler,
+export const requestFileRevision = actionWrapper(requestFileRevisionHandler);
+export const requestBookingRevision = requestFileRevision;
+
+const finishBookingDeliveryHandler = async (bookingId) => {
+  await requireAdmin();
+  return finishBookingDeliveryState(bookingId);
+};
+export const finishBookingDelivery = actionWrapper(
+  finishBookingDeliveryHandler,
 );

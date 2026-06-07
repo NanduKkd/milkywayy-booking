@@ -1,13 +1,12 @@
 import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
-import Booking from "@/lib/db/models/booking";
 import { auth } from "@/lib/helpers/auth";
 import {
-  BOOKING_WORKFLOW_STATUS,
-  getWorkflowStatus,
-  parseFilesPayload,
-} from "@/lib/helpers/bookingWorkflow";
+  deleteDeliveryFileState,
+  finishBookingDeliveryState,
+  publishPrivateDeliveryFilesState,
+} from "@/lib/services/fileDelivery";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -16,13 +15,6 @@ const s3Client = new S3Client({
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
-
-const getDeliverableUrls = (deliverable) => {
-  if (Array.isArray(deliverable?.urls) && deliverable.urls.length > 0) {
-    return deliverable.urls.filter(Boolean);
-  }
-  return deliverable?.url ? [deliverable.url] : [];
-};
 
 const authorizeAdmin = async () => {
   const session = await auth();
@@ -33,24 +25,6 @@ const authorizeAdmin = async () => {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   return null;
-};
-
-const getEditableBooking = async (id) => {
-  const booking = await Booking.findByPk(id);
-  if (!booking) {
-    return {
-      error: NextResponse.json({ error: "Booking not found" }, { status: 404 }),
-    };
-  }
-  if (getWorkflowStatus(booking) !== BOOKING_WORKFLOW_STATUS.EDITING) {
-    return {
-      error: NextResponse.json(
-        { error: "Deliverables can only be changed while editing" },
-        { status: 409 },
-      ),
-    };
-  }
-  return { booking };
 };
 
 const deleteOwnedS3Object = async (fileUrl) => {
@@ -81,34 +55,22 @@ export async function POST(request, { params }) {
 
   const { id } = await params;
   const { action } = await request.json();
-  if (action !== "restore_archived") {
+  if (!["finish_delivery", "publish_private"].includes(action)) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
 
-  const { booking, error } = await getEditableBooking(id);
-  if (error) return error;
-
-  const payload = parseFilesPayload(booking.filesUrl);
-  const archivedDeliverables = payload?.archivedDeliverables;
-  if (
-    !Array.isArray(archivedDeliverables) ||
-    archivedDeliverables.length === 0
-  ) {
+  try {
+    const booking =
+      action === "publish_private"
+        ? await publishPrivateDeliveryFilesState(id)
+        : await finishBookingDeliveryState(id);
+    return NextResponse.json({ booking });
+  } catch (error) {
     return NextResponse.json(
-      { error: "No previous deliverables are available" },
+      { error: error.message || "Unable to finish delivery" },
       { status: 409 },
     );
   }
-
-  const filesUrl = JSON.stringify({
-    ...payload,
-    deliverables: archivedDeliverables,
-    archivedDeliverables: [],
-    updatedAt: new Date().toISOString(),
-  });
-  await booking.update({ filesUrl });
-
-  return NextResponse.json({ filesUrl });
 }
 
 export async function DELETE(request, { params }) {
@@ -116,74 +78,22 @@ export async function DELETE(request, { params }) {
   if (authError) return authError;
 
   const { id } = await params;
-  const { source = "current", deliverableId, url } = await request.json();
-  if (!deliverableId || !url || !["current", "archived"].includes(source)) {
-    return NextResponse.json(
-      { error: "source, deliverableId, and url are required" },
-      { status: 400 },
-    );
+  const { fileId } = await request.json();
+  if (!fileId) {
+    return NextResponse.json({ error: "fileId is required" }, { status: 400 });
   }
 
-  const { booking, error } = await getEditableBooking(id);
-  if (error) return error;
-
-  const payload = parseFilesPayload(booking.filesUrl);
-  if (!payload) {
+  try {
+    const result = await deleteDeliveryFileState(fileId, id);
+    await Promise.all((result.urls || []).map(deleteOwnedS3Object));
+    return NextResponse.json({
+      fileId: Number(fileId),
+      filesUrl: result.filesUrl,
+    });
+  } catch (error) {
     return NextResponse.json(
-      { error: "No deliverables are available" },
+      { error: error.message || "Unable to delete file" },
       { status: 409 },
     );
   }
-
-  const payloadKey =
-    source === "archived" ? "archivedDeliverables" : "deliverables";
-  const deliverables = Array.isArray(payload[payloadKey])
-    ? payload[payloadKey]
-    : [];
-  let removed = false;
-
-  const nextDeliverables = deliverables.flatMap((deliverable, index) => {
-    const itemId = String(
-      deliverable?.id ||
-        deliverable?.type ||
-        deliverable?.label ||
-        `deliverable-${index}`,
-    );
-    if (itemId !== String(deliverableId)) return [deliverable];
-
-    const nextUrls = getDeliverableUrls(deliverable).filter((itemUrl) => {
-      if (!removed && itemUrl === url) {
-        removed = true;
-        return false;
-      }
-      return true;
-    });
-
-    if (nextUrls.length === 0) return [];
-    return [
-      {
-        ...deliverable,
-        url: nextUrls[0],
-        urls: nextUrls,
-        count: nextUrls.length,
-      },
-    ];
-  });
-
-  if (!removed) {
-    return NextResponse.json(
-      { error: "Deliverable file not found" },
-      { status: 404 },
-    );
-  }
-
-  const filesUrl = JSON.stringify({
-    ...payload,
-    [payloadKey]: nextDeliverables,
-    updatedAt: new Date().toISOString(),
-  });
-  await booking.update({ filesUrl });
-  await deleteOwnedS3Object(url);
-
-  return NextResponse.json({ filesUrl });
 }

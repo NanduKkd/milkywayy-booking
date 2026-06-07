@@ -10,14 +10,22 @@ export const BOOKING_WORKFLOW_STEPS = [
   { status: BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED, label: "Shoot Booked" },
   { status: BOOKING_WORKFLOW_STATUS.SHOOT_DONE, label: "Shoot Done" },
   { status: BOOKING_WORKFLOW_STATUS.EDITING, label: "Editing" },
-  { status: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED, label: "Files Uploaded" },
+  { status: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED, label: "Files In Review" },
   {
     status: BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED,
     label: "Project Completed",
   },
 ];
 
-export const MAX_BOOKING_REVISIONS = 2;
+export const MAX_FILE_REVISIONS = 2;
+export const MAX_BOOKING_REVISIONS = MAX_FILE_REVISIONS;
+
+export const DELIVERY_FILE_STATUS = {
+  PRIVATE: "PRIVATE",
+  UNDER_REVIEW: "UNDER_REVIEW",
+  CHANGES_REQUESTED: "CHANGES_REQUESTED",
+  ACCEPTED: "ACCEPTED",
+};
 
 export const getWorkflowStatus = (booking) => {
   if (booking?.workflowStatus) return booking.workflowStatus;
@@ -75,7 +83,17 @@ export const getDubaiReviewDeadline = (uploadedAt = new Date()) => {
   );
 };
 
+export const isCustomerDeliveryFileVisible = (file) =>
+  Boolean(file) &&
+  !file.deletedAt &&
+  [DELIVERY_FILE_STATUS.UNDER_REVIEW, DELIVERY_FILE_STATUS.ACCEPTED].includes(
+    file.status,
+  );
+
 export const isCustomerFileVisible = (booking) => {
+  if (Array.isArray(booking?.deliveryFiles)) {
+    return booking.deliveryFiles.some(isCustomerDeliveryFileVisible);
+  }
   const status = getWorkflowStatus(booking);
   return (
     status === BOOKING_WORKFLOW_STATUS.FILES_UPLOADED ||

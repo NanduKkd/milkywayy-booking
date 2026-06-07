@@ -128,6 +128,17 @@ const Booking = sequelize.define(
       allowNull: true,
       field: "review_deadline_at",
     },
+    deliveryFinishedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "delivery_finished_at",
+    },
+    deliveryNotificationMetadata: {
+      type: DataTypes.JSONB,
+      allowNull: false,
+      defaultValue: {},
+      field: "delivery_notification_metadata",
+    },
     revisionCount: {
       type: DataTypes.INTEGER,
       allowNull: false,

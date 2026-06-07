@@ -24,7 +24,7 @@ const runAutoCompletion = async () => {
     );
   }
   console.log(
-    `[booking-auto-complete] completed ${body.completedCount || 0} booking(s)`,
+    `[booking-auto-complete] accepted ${body.acceptedFileCount || 0} file(s); completed ${body.completedCount || 0} booking(s)`,
   );
 };
 

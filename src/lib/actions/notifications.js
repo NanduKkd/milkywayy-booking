@@ -1,6 +1,10 @@
+import "@/lib/db/relations";
 import Booking from "@/lib/db/models/booking";
+import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
+import BookingDeliveryFileVersion from "@/lib/db/models/bookingdeliveryfileversion";
 import User from "@/lib/db/models/user";
 import { getBookingArrivalWindowFromDetails } from "@/lib/helpers/bookingUtils";
+import { DELIVERY_FILE_STATUS } from "@/lib/helpers/bookingWorkflow";
 import { sendWhatsAppTemplate } from "@/lib/notifications/whatsapp";
 
 const _toDateKey = (dateObj) => {
@@ -29,9 +33,11 @@ const getArrivalWindow = async (booking) => {
       startTime: booking?.startTime || "",
       slot: booking?.slot,
       propertyType:
-        booking?.propertyDetails?.type || booking?.propertyDetails?.propertyType,
+        booking?.propertyDetails?.type ||
+        booking?.propertyDetails?.propertyType,
       propertySize:
-        booking?.propertyDetails?.size || booking?.propertyDetails?.propertySize,
+        booking?.propertyDetails?.size ||
+        booking?.propertyDetails?.propertySize,
       services: booking?.shootDetails?.services || [],
       videographySubService:
         booking?.propertyDetails?.videographySubService ||
@@ -110,6 +116,18 @@ const parseDeliverables = (filesUrl) => {
   return [];
 };
 
+const getUploadedDeliveryFiles = (booking) =>
+  Array.isArray(booking?.deliveryFiles)
+    ? booking.deliveryFiles.filter(
+        (file) =>
+          file?.currentVersion?.url &&
+          ![
+            DELIVERY_FILE_STATUS.PRIVATE,
+            DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+          ].includes(file.status),
+      )
+    : [];
+
 const normalizeDeliverableLabel = (value) => {
   const normalized = String(value || "").trim();
   if (!normalized) return "Files";
@@ -130,16 +148,41 @@ const normalizeServiceLabel = (value) => {
   return normalized;
 };
 
-const getUploadedDeliverableLabels = (booking) => [
-  ...new Set(
-    parseDeliverables(booking?.filesUrl)
-      .filter(
-        (item) =>
-          item?.url || (Array.isArray(item?.urls) && item.urls.length > 0),
-      )
-      .map((item) => normalizeDeliverableLabel(item?.label || item?.type)),
-  ),
-];
+const getUploadedDeliverableLabels = (booking) => {
+  const deliverables = Array.isArray(booking?.deliveryFiles)
+    ? getUploadedDeliveryFiles(booking)
+    : parseDeliverables(booking?.filesUrl);
+
+  return [
+    ...new Set(
+      deliverables
+        .filter(
+          (item) =>
+            item?.currentVersion?.url ||
+            item?.url ||
+            (Array.isArray(item?.urls) && item.urls.length > 0),
+        )
+        .map((item) => normalizeDeliverableLabel(item?.label || item?.type)),
+    ),
+  ];
+};
+
+const getBookingForNotification = (bookingId) =>
+  Booking.findByPk(bookingId, {
+    include: [
+      {
+        model: BookingDeliveryFile,
+        as: "deliveryFiles",
+        include: [
+          {
+            model: BookingDeliveryFileVersion,
+            as: "currentVersion",
+            required: false,
+          },
+        ],
+      },
+    ],
+  });
 
 const getRequestedDeliverableLabels = (booking) => [
   ...new Set(
@@ -234,9 +277,9 @@ export async function sendTeamArrived(bookingId) {
 }
 
 export async function sendPartialMediaUploadNotification(bookingId) {
-  const booking = await Booking.findByPk(bookingId);
+  const booking = await getBookingForNotification(bookingId);
   if (!booking) throw new Error("Booking not found");
-  if (!booking.filesUrl) {
+  if (getUploadedDeliverableLabels(booking).length === 0) {
     throw new Error("No deliverables uploaded for this booking");
   }
   const user = booking.userId ? await User.findByPk(booking.userId) : null;
@@ -244,9 +287,9 @@ export async function sendPartialMediaUploadNotification(bookingId) {
 }
 
 export async function sendSingleServiceMediaReadyNotification(bookingId) {
-  const booking = await Booking.findByPk(bookingId);
+  const booking = await getBookingForNotification(bookingId);
   if (!booking) throw new Error("Booking not found");
-  if (!booking.filesUrl) {
+  if (getUploadedDeliverableLabels(booking).length === 0) {
     throw new Error("No deliverables uploaded for this booking");
   }
   const user = booking.userId ? await User.findByPk(booking.userId) : null;
@@ -254,9 +297,12 @@ export async function sendSingleServiceMediaReadyNotification(bookingId) {
 }
 
 export async function sendFullMediaUploadNotification(bookingId) {
-  const booking = await Booking.findByPk(bookingId);
+  const booking = await getBookingForNotification(bookingId);
   if (!booking) throw new Error("Booking not found");
-  if (!booking.filesUrl) {
+  if (!booking.deliveryFinishedAt) {
+    throw new Error("Delivery has not been marked finished");
+  }
+  if (getUploadedDeliverableLabels(booking).length === 0) {
     throw new Error("No deliverables uploaded for this booking");
   }
   const user = booking.userId ? await User.findByPk(booking.userId) : null;

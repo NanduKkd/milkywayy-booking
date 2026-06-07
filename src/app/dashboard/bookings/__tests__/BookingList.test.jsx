@@ -1,8 +1,4 @@
-import {
-  cancelBooking,
-  completeDeliveredBooking,
-  requestBookingRevision,
-} from "../../../../lib/actions/bookings";
+import { cancelBooking } from "../../../../lib/actions/bookings";
 import { fireEvent, render, screen, waitFor } from "../../../../test-utils";
 import BookingList from "../BookingList";
 
@@ -66,75 +62,36 @@ describe("BookingList", () => {
     expect(cancelBooking).not.toHaveBeenCalled();
   });
 
-  it("lets the customer complete files under review", async () => {
-    completeDeliveredBooking.mockResolvedValue({ success: true });
+  it("links booking-level delivery summaries to the Files screen", () => {
     render(
       <BookingList
         bookings={[
           {
             ...mockBookings[0],
             workflowStatus: "FILES_UPLOADED",
-            reviewDeadlineAt: "2099-12-28T20:00:00.000Z",
+            deliveryFinishedAt: "2099-12-28T20:00:00.000Z",
+            deliveryFiles: [
+              { id: 10, status: "UNDER_REVIEW", deletedAt: null },
+              { id: 11, status: "CHANGES_REQUESTED", deletedAt: null },
+            ],
           },
         ]}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /mark complete/i }));
-
-    await waitFor(() => {
-      expect(completeDeliveredBooking).toHaveBeenCalledWith(1);
-    });
-  });
-
-  it("shows a customer-friendly review deadline", () => {
-    render(
-      <BookingList
-        bookings={[
-          {
-            ...mockBookings[0],
-            workflowStatus: "FILES_UPLOADED",
-            reviewDeadlineAt: "2099-12-28T20:00:00.000Z",
-          },
-        ]}
-      />,
-    );
-
+    expect(screen.getByText(/2 files available/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/december 29 at midnight \(dubai time\)/i),
+      screen.getByText(/1 file is awaiting replacement/i),
     ).toBeInTheDocument();
-    expect(screen.queryByText(/gmt\+4/i)).not.toBeInTheDocument();
-  });
+    expect(
+      screen.getByRole("button", { name: /review files/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Under Review")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /request revision/i }),
+    ).not.toBeInTheDocument();
 
-  it("requires revision details before submitting", async () => {
-    requestBookingRevision.mockResolvedValue({ success: true });
-    render(
-      <BookingList
-        bookings={[
-          {
-            ...mockBookings[0],
-            workflowStatus: "FILES_UPLOADED",
-            revisionCount: 0,
-            reviewDeadlineAt: "2099-12-28T20:00:00.000Z",
-          },
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /request revision/i }));
-    const submit = screen.getByRole("button", { name: /submit revision/i });
-    expect(submit).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText(/revision details/i), {
-      target: { value: "Please brighten the kitchen" },
-    });
-    fireEvent.click(submit);
-
-    await waitFor(() => {
-      expect(requestBookingRevision).toHaveBeenCalledWith(
-        1,
-        "Please brighten the kitchen",
-      );
-    });
+    fireEvent.click(screen.getByText("101, Tower A, Marina"));
+    expect(screen.getAllByText("Under Review")).toHaveLength(2);
   });
 });

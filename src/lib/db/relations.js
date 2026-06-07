@@ -21,6 +21,43 @@ models.Booking.hasMany(models.BookingRevision, {
   foreignKey: "bookingId",
   as: "revisions",
 });
+models.Booking.hasMany(models.BookingDeliveryFile, {
+  foreignKey: "bookingId",
+  as: "deliveryFiles",
+});
+models.BookingDeliveryFile.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
+});
+models.BookingDeliveryFile.hasMany(models.BookingDeliveryFileVersion, {
+  foreignKey: "deliveryFileId",
+  as: "versions",
+});
+models.BookingDeliveryFileVersion.belongsTo(models.BookingDeliveryFile, {
+  foreignKey: "deliveryFileId",
+  as: "deliveryFile",
+});
+models.BookingDeliveryFile.belongsTo(models.BookingDeliveryFileVersion, {
+  foreignKey: "currentVersionId",
+  as: "currentVersion",
+  constraints: false,
+});
+models.BookingDeliveryFile.hasMany(models.BookingFileRevision, {
+  foreignKey: "deliveryFileId",
+  as: "fileRevisions",
+});
+models.BookingFileRevision.belongsTo(models.BookingDeliveryFile, {
+  foreignKey: "deliveryFileId",
+  as: "deliveryFile",
+});
+models.BookingFileRevision.belongsTo(models.BookingDeliveryFileVersion, {
+  foreignKey: "versionId",
+  as: "version",
+});
+models.BookingFileRevision.belongsTo(models.BookingDeliveryFileVersion, {
+  foreignKey: "replacementVersionId",
+  as: "replacementVersion",
+});
 models.BookingRevision.belongsTo(models.Booking, {
   foreignKey: "bookingId",
   as: "booking",

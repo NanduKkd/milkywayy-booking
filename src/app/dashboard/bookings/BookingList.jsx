@@ -15,13 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  cancelBooking,
-  completeDeliveredBooking,
-  requestBookingRevision,
-  rescheduleBookingByCode,
-} from "@/lib/actions/bookings";
+import { cancelBooking, rescheduleBookingByCode } from "@/lib/actions/bookings";
 import {
   getBookingArrivalWindowFromDetails,
   getBookingLoadBreakdown,
@@ -31,7 +25,6 @@ import {
 import {
   BOOKING_WORKFLOW_STATUS,
   getWorkflowStatus,
-  MAX_BOOKING_REVISIONS,
 } from "@/lib/helpers/bookingWorkflow";
 import {
   buildInvoiceDownloadUrl,
@@ -55,10 +48,6 @@ export default function BookingList({ bookings }) {
     useState(null);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [selectedCancelBooking, setSelectedCancelBooking] = useState(null);
-  const [revisionOpen, setRevisionOpen] = useState(false);
-  const [selectedRevisionBooking, setSelectedRevisionBooking] = useState(null);
-  const [revisionNote, setRevisionNote] = useState("");
-  const [reviewActionLoading, setReviewActionLoading] = useState(null);
   const selectedTransaction = selectedBooking?.transaction;
   const selectedInvoiceNumber = selectedTransaction?.id
     ? formatInvoiceNumber(selectedTransaction)
@@ -241,106 +230,40 @@ export default function BookingList({ bookings }) {
     setIsOpen(true);
   };
 
-  const handleCompleteDelivery = async (booking) => {
-    setReviewActionLoading(`complete-${booking.id}`);
-    try {
-      const res = await completeDeliveredBooking(booking.id);
-      if (!res.success) throw new Error(res.message);
-      toast.success("Project marked as completed.");
-      setIsOpen(false);
-      router.refresh();
-    } catch (error) {
-      toast.error(error.message || "Unable to complete project");
-    } finally {
-      setReviewActionLoading(null);
-    }
-  };
-
-  const openRevisionDialog = (booking) => {
-    setIsOpen(false);
-    setSelectedRevisionBooking(booking);
-    setRevisionNote("");
-    setRevisionOpen(true);
-  };
-
-  const handleRequestRevision = async () => {
-    if (!selectedRevisionBooking || !revisionNote.trim()) return;
-    setReviewActionLoading(`revision-${selectedRevisionBooking.id}`);
-    try {
-      const res = await requestBookingRevision(
-        selectedRevisionBooking.id,
-        revisionNote,
-      );
-      if (!res.success) throw new Error(res.message);
-      toast.success("Revision request submitted.");
-      setRevisionOpen(false);
-      setIsOpen(false);
-      router.refresh();
-    } catch (error) {
-      toast.error(error.message || "Unable to request revision");
-    } finally {
-      setReviewActionLoading(null);
-    }
-  };
-
-  const formatReviewDeadline = (value) => {
-    if (!value) return "";
-    const deadline = new Date(value);
-    if (Number.isNaN(deadline.getTime())) return "";
-    const dateLabel = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Dubai",
-      month: "long",
-      day: "numeric",
-    }).format(deadline);
-    return `${dateLabel} at midnight (Dubai time)`;
-  };
-
   const renderReviewActions = (booking) => {
     if (getWorkflowStatus(booking) !== BOOKING_WORKFLOW_STATUS.FILES_UPLOADED) {
       return null;
     }
-    const revisionLimitReached =
-      Number(booking.revisionCount || 0) >= MAX_BOOKING_REVISIONS;
+    const files = (booking.deliveryFiles || []).filter(
+      (file) => !file.deletedAt && file.status !== "PRIVATE",
+    );
+    const requestedCount = files.filter(
+      (file) => file.status === "CHANGES_REQUESTED",
+    ).length;
 
     return (
       <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
         <p className="text-sm font-medium text-zinc-200">
-          Your files are ready for review
+          {files.length} {files.length === 1 ? "file" : "files"} available
         </p>
-        {booking.reviewDeadlineAt && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Complete or request changes by{" "}
-            {formatReviewDeadline(booking.reviewDeadlineAt)}. The project will
-            complete automatically after this deadline.
-          </p>
-        )}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            onClick={(event) => {
-              event.stopPropagation();
-              handleCompleteDelivery(booking);
-            }}
-            disabled={reviewActionLoading === `complete-${booking.id}`}
-          >
-            {reviewActionLoading === `complete-${booking.id}`
-              ? "Completing..."
-              : "Mark Complete"}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(event) => {
-              event.stopPropagation();
-              openRevisionDialog(booking);
-            }}
-            disabled={revisionLimitReached}
-          >
-            {revisionLimitReached
-              ? "Revision Limit Reached"
-              : `Request Revision (${booking.revisionCount || 0}/${MAX_BOOKING_REVISIONS})`}
-          </Button>
-        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {requestedCount > 0
+            ? `${requestedCount} ${requestedCount === 1 ? "file is" : "files are"} awaiting replacement.`
+            : booking.deliveryFinishedAt
+              ? "All files have been delivered."
+              : "The team may still add more files."}
+        </p>
+        <Button
+          className="mt-3"
+          size="sm"
+          variant="outline"
+          onClick={(event) => {
+            event.stopPropagation();
+            router.push("/dashboard/files");
+          }}
+        >
+          Review Files
+        </Button>
       </div>
     );
   };
@@ -366,7 +289,7 @@ export default function BookingList({ bookings }) {
         [BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED]: "Shoot Booked",
         [BOOKING_WORKFLOW_STATUS.SHOOT_DONE]: "Shoot Done",
         [BOOKING_WORKFLOW_STATUS.EDITING]: "Editing",
-        [BOOKING_WORKFLOW_STATUS.FILES_UPLOADED]: "Files Uploaded",
+        [BOOKING_WORKFLOW_STATUS.FILES_UPLOADED]: "Files In Review",
       }[getWorkflowStatus(booking)];
       return (
         <span className="rounded bg-white/10 px-2 py-1 text-sm font-medium text-white">
@@ -512,6 +435,7 @@ export default function BookingList({ bookings }) {
             booking={booking}
             className="my-5"
             verticalOnMobile
+            showRevisionState
           />
 
           {renderReviewActions(booking)}
@@ -583,7 +507,11 @@ export default function BookingList({ bookings }) {
                 </div>
               </div>
 
-              <BookingWorkflowTracker booking={selectedBooking} />
+              <BookingWorkflowTracker
+                booking={selectedBooking}
+                verticalOnMobile
+                showRevisionState
+              />
 
               {renderReviewActions(selectedBooking)}
 
@@ -808,51 +736,6 @@ export default function BookingList({ bookings }) {
               {loadingId === selectedCancelBooking?.id
                 ? "Cancelling..."
                 : "Confirm Cancel"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={revisionOpen} onOpenChange={setRevisionOpen}>
-        <DialogContent className="border-white/10 bg-[#181818] text-white sm:max-w-lg">
-          <DialogHeader className="border-b border-white/10 pb-4">
-            <DialogTitle>Request Revision</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Describe the exact changes needed. You can request up to two
-              revisions per booking.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-4">
-            <label htmlFor="revision-note" className="text-sm font-medium">
-              Revision details
-            </label>
-            <Textarea
-              id="revision-note"
-              value={revisionNote}
-              onChange={(event) => setRevisionNote(event.target.value)}
-              placeholder="Describe what should be changed..."
-              rows={5}
-            />
-            <p className="text-xs text-muted-foreground">
-              Revision {(selectedRevisionBooking?.revisionCount || 0) + 1} of{" "}
-              {MAX_BOOKING_REVISIONS}
-            </p>
-          </div>
-          <DialogFooter className="border-t border-white/10 pt-4">
-            <Button variant="ghost" onClick={() => setRevisionOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleRequestRevision}
-              disabled={
-                !revisionNote.trim() ||
-                reviewActionLoading ===
-                  `revision-${selectedRevisionBooking?.id}`
-              }
-            >
-              {reviewActionLoading === `revision-${selectedRevisionBooking?.id}`
-                ? "Submitting..."
-                : "Submit Revision"}
             </Button>
           </DialogFooter>
         </DialogContent>

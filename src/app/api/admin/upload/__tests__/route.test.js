@@ -1,171 +1,209 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { POST } from "../route";
 import Booking from "@/lib/db/models/booking";
+import { auth } from "@/lib/helpers/auth";
+import { addUploadedDeliveryFiles } from "@/lib/services/fileDelivery";
+import { POST } from "../route";
 
-jest.mock("@aws-sdk/client-s3", () => {
-  return {
-    S3Client: jest.fn(() => ({
-      send: jest.fn().mockResolvedValue({}),
-    })),
-    PutObjectCommand: jest.fn(),
-  };
-});
-
+jest.mock("@aws-sdk/client-s3", () => ({
+  S3Client: jest.fn(() => ({ send: jest.fn().mockResolvedValue({}) })),
+  PutObjectCommand: jest.fn(),
+}));
 jest.mock("sharp", () => {
   const toBuffer = jest.fn().mockResolvedValue(Buffer.from("optimized-image"));
   const webp = jest.fn(() => ({ toBuffer }));
   const resize = jest.fn(() => ({ webp }));
   const rotate = jest.fn(() => ({ resize }));
-
-  return jest.fn(() => ({
-    rotate,
-  }));
+  return jest.fn(() => ({ rotate }));
 });
-
 jest.mock("@/lib/db/models/booking", () => ({
   findByPk: jest.fn(),
 }));
-
+jest.mock("@/lib/helpers/auth", () => ({
+  auth: jest.fn(),
+}));
+jest.mock("@/lib/services/fileDelivery", () => ({
+  addUploadedDeliveryFiles: jest.fn(),
+}));
 jest.mock("next/server", () => ({
   NextResponse: {
     json: jest.fn((data, init) => ({
       json: async () => data,
       status: init?.status || 200,
+      ok: (init?.status || 200) < 400,
     })),
   },
 }));
 
+const createImage = (name) => {
+  const file = new Blob(["image"], { type: "image/jpeg" });
+  file.name = name;
+  file.arrayBuffer = jest.fn().mockResolvedValue(new ArrayBuffer(8));
+  return file;
+};
+
+const createRequest = (values) => ({
+  formData: async () => ({
+    getAll: (key) => (key === "file" ? values.files || [] : []),
+    get: (key) => values[key] ?? null,
+  }),
+});
+
 describe("Admin Upload API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    auth.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
   });
 
-  it("uploads portfolio images into the photography folder and returns the optimized url", async () => {
-    const mockFile = new Blob(["test content"], { type: "image/jpeg" });
-    mockFile.name = "Test Image.jpg";
-    mockFile.arrayBuffer = jest.fn().mockResolvedValue(new ArrayBuffer(8));
-
-    const formData = {
-      getAll: jest.fn((key) => {
-        if (key === "file") return [mockFile];
-        return [];
+  it("uploads a portfolio image for an admin", async () => {
+    const response = await POST(
+      createRequest({
+        files: [createImage("Test Image.jpg")],
+        folder: "portfolio",
+        deliverableType: "Photography",
       }),
-      get: jest.fn((key) => {
-        if (key === "folder") return "portfolio";
-        if (key === "deliverableType") return "Photography";
-        return null;
-      }),
-    };
-
-    const request = {
-      formData: async () => formData,
-    };
-
-    const response = await POST(request);
+    );
     const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.url).toContain("/photography/portfolio/");
-    expect(data.url).toContain(".webp");
-    expect(data.urls).toHaveLength(1);
-    expect(data.optimized).toBe(true);
     expect(PutObjectCommand).toHaveBeenCalledWith(
       expect.objectContaining({
         Key: expect.stringMatching(
-          /^photography\/portfolio\/\d+_test-image\.webp$/,
+          /^photography\/portfolio\/\d+_[0-9a-f-]+_test-image\.webp$/,
         ),
-        ContentType: "image/webp",
       }),
     );
-    expect(Booking.findByPk).not.toHaveBeenCalled();
   });
 
-  it("updates booking deliverables and stores multiple files under one deliverable", async () => {
-    const mockFileOne = new Blob(["image one"], { type: "image/jpeg" });
-    mockFileOne.name = "Living Room.jpg";
-    mockFileOne.arrayBuffer = jest.fn().mockResolvedValue(new ArrayBuffer(8));
-
-    const mockFileTwo = new Blob(["image two"], { type: "image/png" });
-    mockFileTwo.name = "Kitchen.png";
-    mockFileTwo.arrayBuffer = jest
-      .fn()
-      .mockResolvedValue(Uint8Array.from([1, 2, 3, 4]).buffer);
-
-    const update = jest.fn().mockResolvedValue({});
+  it("creates one delivery record per uploaded booking file", async () => {
     Booking.findByPk.mockResolvedValue({
-      filesUrl: null,
+      status: "CONFIRMED",
       workflowStatus: "EDITING",
-      update,
+    });
+    addUploadedDeliveryFiles.mockResolvedValue({
+      booking: { id: 42, workflowStatus: "FILES_UPLOADED", filesUrl: "{}" },
+      deliveryFiles: [{ id: 10 }, { id: 11 }],
     });
 
-    const formData = {
-      getAll: jest.fn((key) => {
-        if (key === "file") return [mockFileOne, mockFileTwo];
-        return [];
+    const response = await POST(
+      createRequest({
+        files: [createImage("one.jpg"), createImage("two.jpg")],
+        bookingId: "42",
+        deliverableType: "Photography",
       }),
-      get: jest.fn((key) => {
-        if (key === "bookingId") return "booking-123";
-        if (key === "deliverableType") return "Photography";
-        return null;
-      }),
-    };
-
-    const request = {
-      formData: async () => formData,
-    };
-
-    const response = await POST(request);
+    );
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.url).toContain("/photography/bookings/booking-123/");
-    expect(data.urls).toHaveLength(2);
-    expect(data.optimized).toBe(true);
-    expect(PutObjectCommand).toHaveBeenNthCalledWith(
-      1,
+    expect(data.deliveryFiles).toHaveLength(2);
+    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
       expect.objectContaining({
-        Key: expect.stringMatching(
-          /^photography\/bookings\/booking-123\/\d+_living-room\.webp$/,
-        ),
-        ContentType: "image/webp",
+        bookingId: "42",
+        type: "Photography",
+        replacementFileId: null,
+        uploads: expect.arrayContaining([
+          expect.objectContaining({ originalFilename: "one.webp" }),
+          expect.objectContaining({ originalFilename: "two.webp" }),
+        ]),
       }),
     );
-    expect(PutObjectCommand).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        Key: expect.stringMatching(
-          /^photography\/bookings\/booking-123\/\d+_kitchen\.webp$/,
-        ),
-        ContentType: "image/webp",
-      }),
-    );
-    expect(update).toHaveBeenCalledWith({
-      filesUrl: expect.stringContaining('"type":"Photography"'),
-    });
-    expect(update).toHaveBeenCalledWith({
-      filesUrl: expect.stringContaining(
-        '"urls":["https://milkywayy.s3.amazonaws.com/photography/bookings/booking-123/',
-      ),
-    });
-    expect(update).toHaveBeenCalledWith({
-      filesUrl: expect.stringContaining('"count":2'),
-    });
   });
 
-  it("returns 400 if neither file nor external url is provided", async () => {
-    const formData = {
-      getAll: jest.fn(() => []),
-      get: jest.fn((key) => {
-        if (key === "bookingId") return "booking-123";
-        return null;
+  it("keeps an external link when physical files are uploaded with it", async () => {
+    Booking.findByPk.mockResolvedValue({
+      status: "CONFIRMED",
+      workflowStatus: "EDITING",
+    });
+    addUploadedDeliveryFiles.mockResolvedValue({
+      booking: { id: 42, workflowStatus: "FILES_UPLOADED", filesUrl: "{}" },
+      deliveryFiles: [{ id: 10 }, { id: 11 }],
+    });
+
+    await POST(
+      createRequest({
+        files: [createImage("one.jpg")],
+        bookingId: "42",
+        deliverableType: "Photography",
+        externalUrl: "https://example.com/gallery",
       }),
-    };
+    );
 
-    const request = {
-      formData: async () => formData,
-    };
+    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uploads: expect.arrayContaining([
+          expect.objectContaining({ url: "https://example.com/gallery" }),
+          expect.objectContaining({ originalFilename: "one.webp" }),
+        ]),
+      }),
+    );
+  });
 
-    const response = await POST(request);
+  it("targets a single logical file for replacement", async () => {
+    Booking.findByPk.mockResolvedValue({
+      status: "CONFIRMED",
+      workflowStatus: "FILES_UPLOADED",
+    });
+    addUploadedDeliveryFiles.mockResolvedValue({
+      booking: { id: 42, filesUrl: "{}" },
+      deliveryFiles: [{ id: 10, revisionCount: 1 }],
+    });
+
+    await POST(
+      createRequest({
+        files: [createImage("replacement.jpg")],
+        bookingId: "42",
+        deliverableType: "Photography",
+        replacementFileId: "10",
+      }),
+    );
+
+    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
+      expect.objectContaining({ replacementFileId: 10 }),
+    );
+  });
+
+  it("rejects an invalid replacement file id before uploading", async () => {
+    const response = await POST(
+      createRequest({
+        files: [createImage("replacement.jpg")],
+        bookingId: "42",
+        replacementFileId: "not-a-number",
+      }),
+    );
+
     expect(response.status).toBe(400);
+    expect(PutObjectCommand).not.toHaveBeenCalled();
+  });
+
+  it("does not upload files for cancelled bookings", async () => {
+    Booking.findByPk.mockResolvedValue({
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      workflowStatus: "EDITING",
+    });
+
+    const response = await POST(
+      createRequest({
+        files: [createImage("one.jpg")],
+        bookingId: "42",
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(PutObjectCommand).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-admin users before uploading", async () => {
+    auth.mockResolvedValue({ id: 2, role: "CUSTOMER" });
+
+    const response = await POST(
+      createRequest({
+        files: [createImage("one.jpg")],
+        folder: "portfolio",
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(PutObjectCommand).not.toHaveBeenCalled();
   });
 });

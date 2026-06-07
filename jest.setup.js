@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { TextEncoder, TextDecoder } from "util";
+import { TextDecoder, TextEncoder } from "node:util";
 
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
@@ -28,7 +28,6 @@ Object.defineProperty(window, "matchMedia", {
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -67,6 +66,8 @@ jest.mock("./src/lib/actions/bookings", () => ({
   updateBookingWorkflow: jest.fn(),
   completeDeliveredBooking: jest.fn(),
   requestBookingRevision: jest.fn(),
+  requestFileRevision: jest.fn(),
+  finishBookingDelivery: jest.fn(),
 }));
 
 // Mock discounts actions

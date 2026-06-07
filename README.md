@@ -37,11 +37,21 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## Booking workflow deployment
 
-Run the database migration before restarting production:
+Run database migrations before restarting production. The June 8 migration
+normalizes every physical delivery URL into a per-file review record and keeps
+the legacy booking columns for rollback:
 
 ```bash
 npx sequelize-cli db:migrate
 ```
+
+After migration:
+
+- Existing delivered files start with a fresh `0/2` revision allowance.
+- Files already under review inherit their existing review deadline.
+- Legacy files staged in Editing remain private until an admin clicks
+  **Publish Staged Files**.
+- Completed booking files are backfilled as accepted.
 
 Set `CRON_SECRET` in the PM2 environment, then start both the web app and the
 Dubai-midnight auto-completion worker:

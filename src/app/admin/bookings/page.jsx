@@ -1,5 +1,5 @@
 "use client";
-import { RotateCcw, Trash2 } from "lucide-react";
+import { RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import BookingWorkflowTracker from "@/components/BookingWorkflowTracker";
@@ -32,71 +32,30 @@ import {
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
 
-const parseDeliverables = (filesUrl) => {
-  if (!filesUrl) return [];
-  try {
-    const parsed = JSON.parse(filesUrl);
-    if (Array.isArray(parsed?.deliverables)) return parsed.deliverables;
-    if (Array.isArray(parsed)) return parsed;
-  } catch {
-    // Legacy plain URL fallback
-    return [
-      {
-        label: "Files",
-        type: "Files",
-        url: filesUrl,
-        deliveryMode: "download",
-      },
-    ];
+const getDeliveryFiles = (booking) =>
+  (booking?.deliveryFiles || []).filter((file) => !file.deletedAt);
+
+const getFileName = (file) => {
+  if (file?.currentVersion?.originalFilename) {
+    return file.currentVersion.originalFilename;
   }
-  return [];
-};
-
-const getArchivedDeliverables = (filesUrl) => {
-  const payload = parseFilesPayload(filesUrl);
-  return Array.isArray(payload?.archivedDeliverables)
-    ? payload.archivedDeliverables
-    : [];
-};
-
-const getDeliverableUrls = (item) => {
-  if (Array.isArray(item?.urls) && item.urls.length > 0) {
-    return item.urls.filter(Boolean);
-  }
-  return item?.url ? [item.url] : [];
-};
-
-const getDeliverableId = (item, index) =>
-  String(item?.id || item?.type || item?.label || `deliverable-${index}`);
-
-const getFileName = (url, index) => {
   try {
-    const pathname = new URL(url).pathname;
+    const pathname = new URL(file?.currentVersion?.url || "").pathname;
     return (
       decodeURIComponent(pathname.split("/").filter(Boolean).pop()) ||
-      `File ${index + 1}`
+      file?.label ||
+      "Deliverable"
     );
   } catch {
-    return `File ${index + 1}`;
+    return file?.label || "Deliverable";
   }
 };
 
-const parseFilesPayload = (filesUrl) => {
-  if (!filesUrl) return null;
-  try {
-    const parsed = JSON.parse(filesUrl);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-};
-
-const hasUploadedDeliverables = (filesUrl) =>
-  parseDeliverables(filesUrl).some(
-    (item) => item?.url || (Array.isArray(item?.urls) && item.urls.length > 0),
+const hasUploadedDeliverables = (booking) =>
+  getDeliveryFiles(booking).some(
+    (file) =>
+      file.currentVersion?.url &&
+      !["PRIVATE", "CHANGES_REQUESTED"].includes(file.status),
   );
 
 const getBookingServices = (booking) =>
@@ -112,9 +71,8 @@ const getBookingServices = (booking) =>
 const isSingleServiceBooking = (booking) =>
   getBookingServices(booking).length <= 1;
 
-const hasSentMediaTrigger = (filesUrl, type) => {
-  const payload = parseFilesPayload(filesUrl);
-  const notifications = payload?.notifications || {};
+const hasSentMediaTrigger = (booking, type) => {
+  const notifications = booking?.deliveryNotificationMetadata || {};
   if (type === "single_service_media_ready") {
     return Boolean(notifications.singleServiceMediaReadySentAt);
   }
@@ -132,7 +90,7 @@ const getWorkflowLabel = (booking) =>
     [BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED]: "Shoot Booked",
     [BOOKING_WORKFLOW_STATUS.SHOOT_DONE]: "Shoot Done",
     [BOOKING_WORKFLOW_STATUS.EDITING]: "Editing",
-    [BOOKING_WORKFLOW_STATUS.FILES_UPLOADED]: "Files Uploaded",
+    [BOOKING_WORKFLOW_STATUS.FILES_UPLOADED]: "Files In Review",
     [BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED]: "Project Completed",
   })[getWorkflowStatus(booking)] || "Shoot Booked";
 
@@ -146,8 +104,8 @@ export default function BookingsPage() {
   const [notifyingType, setNotifyingType] = useState(null);
   const [files, setFiles] = useState([]);
   const [deliverableType, setDeliverableType] = useState("Photography");
-  const [fileCount, setFileCount] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
+  const [replacementFileId, setReplacementFileId] = useState(null);
   const fileInputRef = useRef(null);
   const selectedTransaction = selectedBooking?.transaction;
   const selectedInvoiceNumber = selectedTransaction?.id
@@ -232,12 +190,6 @@ export default function BookingsPage() {
         label: "Start Editing",
       };
     }
-    if (current === BOOKING_WORKFLOW_STATUS.EDITING) {
-      return {
-        next: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
-        label: "Mark Files Uploaded",
-      };
-    }
     return null;
   };
 
@@ -254,8 +206,10 @@ export default function BookingsPage() {
     });
     formData.append("bookingId", selectedBooking.id);
     formData.append("deliverableType", deliverableType);
-    if (fileCount) formData.append("fileCount", fileCount);
     if (hasExternalUrl) formData.append("externalUrl", externalUrl.trim());
+    if (replacementFileId) {
+      formData.append("replacementFileId", replacementFileId);
+    }
 
     try {
       const res = await fetch("/api/admin/upload", {
@@ -263,20 +217,29 @@ export default function BookingsPage() {
         body: formData,
       });
       const data = await res.json();
-      if (data.url) {
-        // Update local state
+      if (res.ok && data.url) {
+        const createdFiles = data.deliveryFiles || [];
+        const nextDeliveryFiles = replacementFileId
+          ? getDeliveryFiles(selectedBooking).map((file) =>
+              file.id === replacementFileId ? createdFiles[0] : file,
+            )
+          : [...getDeliveryFiles(selectedBooking), ...createdFiles];
         const updatedBooking = {
           ...selectedBooking,
+          ...(data.booking || {}),
           filesUrl: data.filesUrl || data.url,
+          deliveryFiles: nextDeliveryFiles,
         };
         setSelectedBooking(updatedBooking);
         setBookings((prev) =>
           prev.map((b) => (b.id === selectedBooking.id ? updatedBooking : b)),
         );
         alert(
-          is360
-            ? "360 link uploaded successfully"
-            : `${data.urls?.length || files.length || 1} file(s) uploaded successfully`,
+          replacementFileId
+            ? "Replacement uploaded successfully"
+            : is360
+              ? "360 link uploaded successfully"
+              : `${data.urls?.length || files.length || 1} file(s) uploaded successfully`,
         );
       } else {
         alert(`Upload failed: ${data.error || "Unknown error"}`);
@@ -287,18 +250,18 @@ export default function BookingsPage() {
     } finally {
       setUploading(false);
       setFiles([]);
-      setFileCount("");
       setExternalUrl("");
+      setReplacementFileId(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
   };
 
-  const updateSelectedBookingFiles = (filesUrl) => {
+  const updateSelectedBooking = (changes) => {
     const updatedBooking = {
       ...selectedBooking,
-      filesUrl,
+      ...changes,
     };
     setSelectedBooking(updatedBooking);
     setBookings((prev) =>
@@ -308,11 +271,11 @@ export default function BookingsPage() {
     );
   };
 
-  const handleDeleteDeliverable = async ({ source, deliverableId, url }) => {
+  const handleDeleteDeliverable = async (fileId) => {
     if (!selectedBooking?.id) return;
     if (!window.confirm("Delete this file from the booking?")) return;
 
-    const actionKey = `${source}:${deliverableId}:${url}`;
+    const actionKey = `delete:${fileId}`;
     setDeliverableAction(actionKey);
     try {
       const response = await fetch(
@@ -320,14 +283,20 @@ export default function BookingsPage() {
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ source, deliverableId, url }),
+          body: JSON.stringify({ fileId }),
         },
       );
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to delete file");
       }
-      updateSelectedBookingFiles(data.filesUrl);
+      updateSelectedBooking({
+        filesUrl: data.filesUrl,
+        deliveryFiles: getDeliveryFiles(selectedBooking).filter(
+          (file) => file.id !== fileId,
+        ),
+        deliveryFinishedAt: null,
+      });
     } catch (error) {
       console.error(error);
       alert(error.message || "Failed to delete file");
@@ -336,30 +305,62 @@ export default function BookingsPage() {
     }
   };
 
-  const handleRestorePreviousDeliverables = async () => {
+  const handleFinishDelivery = async () => {
     if (!selectedBooking?.id) return;
 
-    setDeliverableAction("restore");
+    setDeliverableAction("finish");
     try {
       const response = await fetch(
         `/api/admin/bookings/${selectedBooking.id}/deliverables`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "restore_archived" }),
+          body: JSON.stringify({ action: "finish_delivery" }),
         },
       );
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data?.error || "Failed to use previous files");
+        throw new Error(data?.error || "Failed to finish delivery");
       }
-      updateSelectedBookingFiles(data.filesUrl);
-      alert(
-        'Previous files restored. You can now click "Mark Files Uploaded".',
-      );
+      updateSelectedBooking(data.booking || {});
+      alert("Delivery marked as finished.");
     } catch (error) {
       console.error(error);
-      alert(error.message || "Failed to use previous files");
+      alert(error.message || "Failed to finish delivery");
+    } finally {
+      setDeliverableAction(null);
+    }
+  };
+
+  const handlePublishStagedFiles = async () => {
+    if (!selectedBooking?.id) return;
+    setDeliverableAction("publish");
+    try {
+      const response = await fetch(
+        `/api/admin/bookings/${selectedBooking.id}/deliverables`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "publish_private" }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to publish staged files");
+      }
+      const publishedIds = new Set(data.booking?.publishedFileIds || []);
+      updateSelectedBooking({
+        ...(data.booking || {}),
+        deliveryFiles: getDeliveryFiles(selectedBooking).map((file) =>
+          publishedIds.has(file.id)
+            ? { ...file, status: "UNDER_REVIEW" }
+            : file,
+        ),
+      });
+      alert("Staged files published for customer review.");
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Failed to publish staged files");
     } finally {
       setDeliverableAction(null);
     }
@@ -387,11 +388,11 @@ export default function BookingsPage() {
         (type === "single_service_media_ready" ||
           type === "partial_media_upload" ||
           type === "full_media_upload") &&
-        data?.filesUrl
+        data?.notificationMetadata
       ) {
         const updatedBooking = {
           ...selectedBooking,
-          filesUrl: data.filesUrl,
+          deliveryNotificationMetadata: data.notificationMetadata,
         };
         setSelectedBooking(updatedBooking);
         setBookings((prev) =>
@@ -646,12 +647,7 @@ export default function BookingsPage() {
                         getWorkflowAction(selectedBooking).next,
                       )
                     }
-                    disabled={
-                      workflowUpdating ||
-                      (getWorkflowAction(selectedBooking).next ===
-                        BOOKING_WORKFLOW_STATUS.FILES_UPLOADED &&
-                        !hasUploadedDeliverables(selectedBooking.filesUrl))
-                    }
+                    disabled={workflowUpdating}
                   >
                     {workflowUpdating
                       ? "Updating..."
@@ -661,27 +657,6 @@ export default function BookingsPage() {
               </div>
 
               <BookingWorkflowTracker booking={selectedBooking} />
-
-              {selectedBooking.revisions?.length > 0 && (
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
-                  <h3 className="font-semibold text-amber-200">
-                    Revision Requests
-                  </h3>
-                  <div className="mt-3 space-y-3">
-                    {selectedBooking.revisions.map((revision) => (
-                      <div key={revision.id} className="text-sm">
-                        <p className="font-medium text-zinc-200">
-                          Revision {revision.revisionNumber}{" "}
-                          {revision.resolvedAt ? "(resolved)" : "(active)"}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap text-zinc-400">
-                          {revision.note}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               <div className="border-t border-zinc-800 pt-4">
                 <h3 className="font-semibold text-zinc-300 mb-1">
@@ -728,9 +703,9 @@ export default function BookingsPage() {
                       disabled={
                         notifyingType !== null ||
                         selectedBooking.cancelledAt ||
-                        !hasUploadedDeliverables(selectedBooking.filesUrl) ||
+                        !hasUploadedDeliverables(selectedBooking) ||
                         hasSentMediaTrigger(
-                          selectedBooking.filesUrl,
+                          selectedBooking,
                           "single_service_media_ready",
                         )
                       }
@@ -741,7 +716,7 @@ export default function BookingsPage() {
                       {notifyingType === "single_service_media_ready"
                         ? "Sending..."
                         : hasSentMediaTrigger(
-                              selectedBooking.filesUrl,
+                              selectedBooking,
                               "single_service_media_ready",
                             )
                           ? "Single Service Sent"
@@ -755,9 +730,9 @@ export default function BookingsPage() {
                         disabled={
                           notifyingType !== null ||
                           selectedBooking.cancelledAt ||
-                          !hasUploadedDeliverables(selectedBooking.filesUrl) ||
+                          !hasUploadedDeliverables(selectedBooking) ||
                           hasSentMediaTrigger(
-                            selectedBooking.filesUrl,
+                            selectedBooking,
                             "partial_media_upload",
                           )
                         }
@@ -768,7 +743,7 @@ export default function BookingsPage() {
                         {notifyingType === "partial_media_upload"
                           ? "Sending..."
                           : hasSentMediaTrigger(
-                                selectedBooking.filesUrl,
+                                selectedBooking,
                                 "partial_media_upload",
                               )
                             ? "Photos Ready Sent"
@@ -780,9 +755,10 @@ export default function BookingsPage() {
                         disabled={
                           notifyingType !== null ||
                           selectedBooking.cancelledAt ||
-                          !hasUploadedDeliverables(selectedBooking.filesUrl) ||
+                          !selectedBooking.deliveryFinishedAt ||
+                          !hasUploadedDeliverables(selectedBooking) ||
                           hasSentMediaTrigger(
-                            selectedBooking.filesUrl,
+                            selectedBooking,
                             "full_media_upload",
                           )
                         }
@@ -793,7 +769,7 @@ export default function BookingsPage() {
                         {notifyingType === "full_media_upload"
                           ? "Sending..."
                           : hasSentMediaTrigger(
-                                selectedBooking.filesUrl,
+                                selectedBooking,
                                 "full_media_upload",
                               )
                             ? "All Media Sent"
@@ -804,242 +780,212 @@ export default function BookingsPage() {
                 </div>
               </div>
 
-              {(getWorkflowStatus(selectedBooking) ===
-                BOOKING_WORKFLOW_STATUS.EDITING ||
-                parseDeliverables(selectedBooking.filesUrl).length > 0 ||
-                getArchivedDeliverables(selectedBooking.filesUrl).length >
-                  0) && (
+              {([
+                BOOKING_WORKFLOW_STATUS.EDITING,
+                BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
+              ].includes(getWorkflowStatus(selectedBooking)) ||
+                getDeliveryFiles(selectedBooking).length > 0) && (
                 <div className="border-t border-zinc-800 pt-4">
-                  <h3 className="mb-3 font-semibold text-zinc-300">
-                    Deliverables
-                  </h3>
-                  {parseDeliverables(selectedBooking.filesUrl).length > 0 ? (
-                    <div className="mb-4 rounded-lg border border-blue-900/50 bg-blue-900/20 p-3">
-                      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-blue-300">
-                        Current Files
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-semibold text-zinc-300">
+                        Deliverables
+                      </h3>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Each physical file has its own two-request allowance.
                       </p>
-                      <div className="space-y-4">
-                        {parseDeliverables(selectedBooking.filesUrl).map(
-                          (item, itemIndex) => {
-                            const deliverableId = getDeliverableId(
-                              item,
-                              itemIndex,
-                            );
-                            const itemUrls = getDeliverableUrls(item);
-
-                            return (
-                              <div key={deliverableId}>
-                                <div className="mb-2 flex items-center gap-2">
-                                  <span className="text-sm font-medium text-zinc-200">
-                                    {item.label || item.type || "Files"}
-                                  </span>
-                                  <span className="text-xs text-zinc-500">
-                                    {itemUrls.length}{" "}
-                                    {itemUrls.length === 1 ? "file" : "files"}
-                                  </span>
-                                  {item.deliveryMode === "copy_link" ? (
-                                    <span className="rounded bg-amber-500/10 px-2 py-0.5 text-xs text-amber-300">
-                                      Copy Link
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <div className="space-y-1.5">
-                                  {itemUrls.map((url, urlIndex) => {
-                                    const actionKey = `current:${deliverableId}:${url}`;
-                                    return (
-                                      <div
-                                        key={url}
-                                        className="flex items-center gap-2 rounded-md border border-white/5 bg-black/20 px-3 py-2"
-                                      >
-                                        <Link
-                                          href={url}
-                                          target="_blank"
-                                          className="min-w-0 flex-1 truncate text-sm text-blue-400 hover:text-blue-300 hover:underline"
-                                          title={url}
-                                        >
-                                          {getFileName(url, urlIndex)}
-                                        </Link>
-                                        {getWorkflowStatus(selectedBooking) ===
-                                          BOOKING_WORKFLOW_STATUS.EDITING && (
-                                          <>
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon"
-                                              aria-label={`Delete ${getFileName(url, urlIndex)}`}
-                                              className="h-8 w-8 shrink-0 text-zinc-500 hover:bg-red-500/10 hover:text-red-400"
-                                              disabled={
-                                                deliverableAction !== null
-                                              }
-                                              onClick={() =>
-                                                handleDeleteDeliverable({
-                                                  source: "current",
-                                                  deliverableId,
-                                                  url,
-                                                })
-                                              }
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                            {deliverableAction === actionKey ? (
-                                              <span className="sr-only">
-                                                Deleting
-                                              </span>
-                                            ) : null}
-                                          </>
-                                        )}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          },
-                        )}
-                      </div>
                     </div>
-                  ) : getWorkflowStatus(selectedBooking) ===
-                    BOOKING_WORKFLOW_STATUS.EDITING ? (
-                    <p className="mb-4 text-sm text-zinc-500">
-                      No current files uploaded.
-                    </p>
-                  ) : null}
+                    {getDeliveryFiles(selectedBooking).some(
+                      (file) => file.status === "PRIVATE",
+                    ) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={deliverableAction !== null}
+                        onClick={handlePublishStagedFiles}
+                      >
+                        {deliverableAction === "publish"
+                          ? "Publishing..."
+                          : "Publish Staged Files"}
+                      </Button>
+                    )}
+                    {getWorkflowStatus(selectedBooking) ===
+                      BOOKING_WORKFLOW_STATUS.FILES_UPLOADED &&
+                      !selectedBooking.deliveryFinishedAt && (
+                        <Button
+                          type="button"
+                          className="bg-green-600 text-white hover:bg-green-700"
+                          disabled={
+                            deliverableAction !== null ||
+                            getDeliveryFiles(selectedBooking).length === 0 ||
+                            getDeliveryFiles(selectedBooking).some((file) =>
+                              ["PRIVATE", "CHANGES_REQUESTED"].includes(
+                                file.status,
+                              ),
+                            )
+                          }
+                          onClick={handleFinishDelivery}
+                        >
+                          {deliverableAction === "finish"
+                            ? "Finishing..."
+                            : "Mark Delivery Finished"}
+                        </Button>
+                      )}
+                    {selectedBooking.deliveryFinishedAt && (
+                      <Badge className="bg-emerald-600">
+                        Delivery Finished
+                      </Badge>
+                    )}
+                  </div>
 
-                  {getArchivedDeliverables(selectedBooking.filesUrl).length >
-                    0 && (
-                    <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wide text-amber-300">
-                            Previous Version
-                          </p>
-                          <p className="mt-1 text-xs text-zinc-400">
-                            These files are hidden from the customer during the
-                            revision.
-                          </p>
-                        </div>
-                        {getWorkflowStatus(selectedBooking) ===
-                          BOOKING_WORKFLOW_STATUS.EDITING && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-amber-500/40 text-amber-200 hover:bg-amber-500/10"
-                            disabled={deliverableAction !== null}
-                            onClick={handleRestorePreviousDeliverables}
+                  {getDeliveryFiles(selectedBooking).length > 0 ? (
+                    <div className="mb-5 space-y-3">
+                      {getDeliveryFiles(selectedBooking).map((file) => {
+                        const activeRevision = (file.fileRevisions || []).find(
+                          (revision) => !revision.resolvedAt,
+                        );
+                        const versions = file.versions || [];
+                        return (
+                          <div
+                            key={file.id}
+                            className="rounded-lg border border-white/10 bg-black/20 p-3"
                           >
-                            <RotateCcw className="mr-2 h-4 w-4" />
-                            {deliverableAction === "restore"
-                              ? "Restoring..."
-                              : "Use Previous Files"}
-                          </Button>
-                        )}
-                      </div>
-                      <div className="space-y-4">
-                        {getArchivedDeliverables(selectedBooking.filesUrl).map(
-                          (item, itemIndex) => {
-                            const deliverableId = getDeliverableId(
-                              item,
-                              itemIndex,
-                            );
-                            const itemUrls = getDeliverableUrls(item);
-
-                            return (
-                              <div key={deliverableId}>
-                                <p className="mb-2 text-sm font-medium text-zinc-200">
-                                  {item.label || item.type || "Files"}{" "}
-                                  <span className="font-normal text-zinc-500">
-                                    ({itemUrls.length})
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0">
+                                <Link
+                                  href={file.currentVersion?.url || "#"}
+                                  target="_blank"
+                                  className="block truncate text-sm font-medium text-blue-300 hover:underline"
+                                >
+                                  {getFileName(file)}
+                                </Link>
+                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-zinc-500">
+                                  <span>{file.label || file.type}</span>
+                                  <span>
+                                    Revision {file.revisionCount || 0}/2
                                   </span>
-                                </p>
-                                <div className="space-y-1.5">
-                                  {itemUrls.map((url, urlIndex) => (
-                                    <div
-                                      key={url}
-                                      className="flex items-center gap-2 rounded-md border border-white/5 bg-black/20 px-3 py-2"
-                                    >
-                                      <Link
-                                        href={url}
-                                        target="_blank"
-                                        className="min-w-0 flex-1 truncate text-sm text-amber-200 hover:text-amber-100 hover:underline"
-                                        title={url}
-                                      >
-                                        {getFileName(url, urlIndex)}
-                                      </Link>
-                                      {getWorkflowStatus(selectedBooking) ===
-                                        BOOKING_WORKFLOW_STATUS.EDITING && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          aria-label={`Delete previous ${getFileName(url, urlIndex)}`}
-                                          className="h-8 w-8 shrink-0 text-zinc-500 hover:bg-red-500/10 hover:text-red-400"
-                                          disabled={deliverableAction !== null}
-                                          onClick={() =>
-                                            handleDeleteDeliverable({
-                                              source: "archived",
-                                              deliverableId,
-                                              url,
-                                            })
-                                          }
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      )}
-                                    </div>
-                                  ))}
+                                  <span
+                                    className={
+                                      file.status === "CHANGES_REQUESTED"
+                                        ? "text-amber-300"
+                                        : file.status === "ACCEPTED"
+                                          ? "text-emerald-300"
+                                          : "text-blue-300"
+                                    }
+                                  >
+                                    {file.status.replaceAll("_", " ")}
+                                  </span>
+                                  <span>Version {versions.length || 1}</span>
                                 </div>
+                                {activeRevision && (
+                                  <div className="mt-2 rounded border border-amber-500/20 bg-amber-500/5 p-2 text-xs">
+                                    <p className="font-medium text-amber-200">
+                                      Requested changes
+                                    </p>
+                                    <p className="mt-1 whitespace-pre-wrap text-zinc-400">
+                                      {activeRevision.note}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
-                            );
-                          },
-                        )}
-                      </div>
+                              <div className="flex shrink-0 gap-2">
+                                {file.status === "CHANGES_REQUESTED" && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setReplacementFileId(file.id);
+                                      setDeliverableType(file.type);
+                                      setFiles([]);
+                                      setExternalUrl("");
+                                      if (fileInputRef.current) {
+                                        fileInputRef.current.value = "";
+                                      }
+                                    }}
+                                  >
+                                    <RefreshCcw className="mr-2 h-4 w-4" />
+                                    Replace File
+                                  </Button>
+                                )}
+                                {!selectedBooking.completedAt && (
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    aria-label={`Delete ${getFileName(file)}`}
+                                    className="text-zinc-500 hover:bg-red-500/10 hover:text-red-400"
+                                    disabled={deliverableAction !== null}
+                                    onClick={() =>
+                                      handleDeleteDeliverable(file.id)
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
+                  ) : (
+                    <p className="mb-4 text-sm text-zinc-500">
+                      No files uploaded yet.
+                    </p>
                   )}
 
-                  {getWorkflowStatus(selectedBooking) ===
-                    BOOKING_WORKFLOW_STATUS.EDITING && (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                        <div className="md:col-span-1">
+                  {[
+                    BOOKING_WORKFLOW_STATUS.EDITING,
+                    BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
+                  ].includes(getWorkflowStatus(selectedBooking)) && (
+                    <div className="rounded-lg border border-zinc-800 p-3">
+                      {replacementFileId && (
+                        <div className="mb-3 flex items-center justify-between rounded bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                          <span>
+                            Uploading replacement for{" "}
+                            {getFileName(
+                              getDeliveryFiles(selectedBooking).find(
+                                (file) => file.id === replacementFileId,
+                              ),
+                            )}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setReplacementFileId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-3">
+                        <div>
                           <label
                             htmlFor="deliverable-type"
-                            className="text-xs text-zinc-400 block mb-1"
+                            className="mb-1 block text-xs text-zinc-400"
                           >
                             Deliverable Type
                           </label>
                           <select
                             id="deliverable-type"
                             value={deliverableType}
-                            onChange={(e) => setDeliverableType(e.target.value)}
-                            className="w-full h-10 rounded-md bg-zinc-900 border border-zinc-700 text-zinc-300 px-3 text-sm"
+                            disabled={Boolean(replacementFileId)}
+                            onChange={(event) =>
+                              setDeliverableType(event.target.value)
+                            }
+                            className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300"
                           >
                             <option>Photography</option>
                             <option>Videography</option>
                             <option>360 Virtual Tour</option>
                           </select>
                         </div>
-                        <div className="md:col-span-1">
-                          <label
-                            htmlFor="deliverable-file-count"
-                            className="text-xs text-zinc-400 block mb-1"
-                          >
-                            File Count
-                          </label>
-                          <Input
-                            id="deliverable-file-count"
-                            type="number"
-                            min={1}
-                            value={fileCount}
-                            onChange={(e) => setFileCount(e.target.value)}
-                            placeholder="e.g. 30"
-                            className="bg-zinc-900 border-zinc-700 text-zinc-300"
-                          />
-                        </div>
                         <div className="md:col-span-2">
                           <label
                             htmlFor="deliverable-external-link"
-                            className="text-xs text-zinc-400 block mb-1"
+                            className="mb-1 block text-xs text-zinc-400"
                           >
                             External Link (use for 360)
                           </label>
@@ -1047,39 +993,48 @@ export default function BookingsPage() {
                             id="deliverable-external-link"
                             type="url"
                             value={externalUrl}
-                            onChange={(e) => setExternalUrl(e.target.value)}
+                            onChange={(event) =>
+                              setExternalUrl(event.target.value)
+                            }
                             placeholder="https://..."
-                            className="bg-zinc-900 border-zinc-700 text-zinc-300"
+                            className="border-zinc-700 bg-zinc-900 text-zinc-300"
                           />
                         </div>
                       </div>
-                      <div className="flex gap-3 items-center mt-3">
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
                         <Input
                           ref={fileInputRef}
                           type="file"
-                          multiple
-                          onChange={(e) =>
-                            setFiles(Array.from(e.target.files || []))
+                          multiple={!replacementFileId}
+                          onChange={(event) =>
+                            setFiles(Array.from(event.target.files || []))
                           }
-                          className="max-w-xs bg-zinc-900 border-zinc-700 text-zinc-300"
+                          className="max-w-xs border-zinc-700 bg-zinc-900 text-zinc-300"
                         />
-                        {files.length > 0 ? (
+                        {files.length > 0 && (
                           <span className="text-xs text-zinc-400">
                             {files.length} file(s) selected
                           </span>
-                        ) : null}
+                        )}
                         <Button
+                          type="button"
                           onClick={handleUpload}
                           disabled={
                             uploading ||
-                            (files.length === 0 && !externalUrl.trim())
+                            (files.length === 0 && !externalUrl.trim()) ||
+                            (Boolean(replacementFileId) &&
+                              files.length + (externalUrl.trim() ? 1 : 0) !== 1)
                           }
-                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          className="bg-blue-600 text-white hover:bg-blue-700"
                         >
-                          {uploading ? "Uploading..." : "Upload Deliverable"}
+                          {uploading
+                            ? "Uploading..."
+                            : replacementFileId
+                              ? "Upload Replacement"
+                              : "Upload Files"}
                         </Button>
                       </div>
-                    </>
+                    </div>
                   )}
                 </div>
               )}

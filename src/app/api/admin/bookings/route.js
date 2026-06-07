@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { Op } from "sequelize";
 import Stripe from "stripe";
+import { USER_ROLES } from "@/lib/config/app.config";
 import Booking from "@/lib/db/models/booking";
+import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingRevision from "@/lib/db/models/bookingrevision";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
+import { auth } from "@/lib/helpers/auth";
+import { DELIVERY_FILE_INCLUDE } from "@/lib/services/fileDelivery";
 import "@/lib/db/relations";
 
 const getStripeClient = () => {
@@ -63,6 +67,14 @@ const reconcilePendingTransactions = async () => {
 
 export async function GET() {
   try {
+    const session = await auth();
+    if (!session?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.role !== USER_ROLES.SUPERADMIN) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     await reconcilePendingTransactions();
 
     const bookings = await Booking.findAll({
@@ -87,6 +99,13 @@ export async function GET() {
           as: "revisions",
           separate: true,
           order: [["revisionNumber", "DESC"]],
+        },
+        {
+          model: BookingDeliveryFile,
+          as: "deliveryFiles",
+          include: DELIVERY_FILE_INCLUDE,
+          separate: true,
+          order: [["createdAt", "ASC"]],
         },
       ],
       order: [["createdAt", "DESC"]],

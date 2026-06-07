@@ -1,9 +1,9 @@
-import { GET } from '../route';
-import { NextResponse } from 'next/server';
-import Booking from '../../../../../lib/db/models/booking';
+import { NextResponse } from "next/server";
+import Booking from "@/lib/db/models/booking";
+import { auth } from "@/lib/helpers/auth";
+import { GET } from "../route";
 
-// Mock NextResponse
-jest.mock('next/server', () => ({
+jest.mock("next/server", () => ({
   NextResponse: {
     json: jest.fn((data, init) => ({
       json: async () => data,
@@ -11,22 +11,28 @@ jest.mock('next/server', () => ({
     })),
   },
 }));
-
-// Mock Database Models
-jest.mock('../../../../../lib/db/models/booking', () => ({
+jest.mock("@/lib/db/models/booking", () => ({
   findAll: jest.fn(),
 }));
-jest.mock('../../../../../lib/db/models/transaction', () => ({}));
-jest.mock('../../../../../lib/db/models/user', () => ({}));
-jest.mock('../../../../../lib/db/relations', () => ({}));
+jest.mock("@/lib/db/models/bookingdeliveryfile", () => ({}));
+jest.mock("@/lib/db/models/bookingrevision", () => ({}));
+jest.mock("@/lib/db/models/transaction", () => ({
+  findAll: jest.fn().mockResolvedValue([]),
+}));
+jest.mock("@/lib/db/models/user", () => ({}));
+jest.mock("@/lib/db/relations", () => ({}));
+jest.mock("@/lib/helpers/auth", () => ({
+  auth: jest.fn(),
+}));
 
-describe('Admin Bookings API Route', () => {
+describe("Admin Bookings API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    auth.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
   });
 
-  it('returns bookings on success', async () => {
-    const mockBookings = [{ id: 1, status: 'CONFIRMED' }];
+  it("returns bookings for an admin", async () => {
+    const mockBookings = [{ id: 1, status: "CONFIRMED" }];
     Booking.findAll.mockResolvedValue(mockBookings);
 
     const response = await GET();
@@ -37,18 +43,27 @@ describe('Admin Bookings API Route', () => {
     expect(NextResponse.json).toHaveBeenCalledWith(mockBookings);
   });
 
-  it('returns 500 on error', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-    Booking.findAll.mockRejectedValue(new Error('DB Error'));
+  it("rejects non-admin users before querying bookings", async () => {
+    auth.mockResolvedValue({ id: 2, role: "CUSTOMER" });
 
     const response = await GET();
-    
+
+    expect(response.status).toBe(403);
+    expect(Booking.findAll).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 on error", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+    Booking.findAll.mockRejectedValue(new Error("DB Error"));
+
+    const response = await GET();
+
     expect(response.status).toBe(500);
     expect(NextResponse.json).toHaveBeenCalledWith(
       { error: "Failed to fetch bookings" },
-      { status: 500 }
+      { status: 500 },
     );
-    
+
     consoleSpy.mockRestore();
   });
 });

@@ -1,11 +1,15 @@
+import { randomUUID } from "node:crypto";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
+import { USER_ROLES } from "@/lib/config/app.config";
 import Booking from "@/lib/db/models/booking";
+import { auth } from "@/lib/helpers/auth";
 import {
   BOOKING_WORKFLOW_STATUS,
   getWorkflowStatus,
 } from "@/lib/helpers/bookingWorkflow";
+import { addUploadedDeliveryFiles } from "@/lib/services/fileDelivery";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -108,7 +112,7 @@ async function uploadFileToS3({ file, folder, deliverableType, bucketName }) {
     contentType: file.type,
   });
   const processedFile = await optimizeUploadFile(file);
-  const key = `${uploadCategory}/${folder}/${Date.now()}_${processedFile.fileName}`;
+  const key = `${uploadCategory}/${folder}/${Date.now()}_${randomUUID()}_${processedFile.fileName}`;
 
   const command = new PutObjectCommand({
     Bucket: bucketName,
@@ -122,24 +126,22 @@ async function uploadFileToS3({ file, folder, deliverableType, bucketName }) {
   return {
     url: `https://${bucketName}.s3.amazonaws.com/${key}`,
     optimized: processedFile.optimized,
+    originalFilename: processedFile.fileName,
+    mimeType: processedFile.contentType,
+    sizeBytes: processedFile.body.length,
   };
-}
-
-function parseFilesPayload(filesUrl) {
-  if (!filesUrl || typeof filesUrl !== "string") return null;
-  try {
-    const parsed = JSON.parse(filesUrl);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed;
-    }
-  } catch {
-    return null;
-  }
-  return null;
 }
 
 export async function POST(request) {
   try {
+    const session = await auth();
+    if (!session?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (session.role !== USER_ROLES.SUPERADMIN) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const formData = await request.formData();
     const files = formData
       .getAll("file")
@@ -147,16 +149,17 @@ export async function POST(request) {
         (entry) => entry && typeof entry === "object" && "arrayBuffer" in entry,
       );
     const bookingId = formData.get("bookingId");
+    const replacementFileIdRaw = String(
+      formData.get("replacementFileId") || "",
+    ).trim();
+    const replacementFileId = replacementFileIdRaw
+      ? Number(replacementFileIdRaw)
+      : null;
     const deliverableTypeRaw = String(
       formData.get("deliverableType") || "Photography",
     );
     const deliverableType = deliverableTypeRaw.trim() || "Photography";
     const externalUrlRaw = String(formData.get("externalUrl") || "").trim();
-    const fileCountRaw = String(formData.get("fileCount") || "").trim();
-    const fileCount =
-      fileCountRaw !== "" && Number.isFinite(Number(fileCountRaw))
-        ? Number(fileCountRaw)
-        : null;
     const folderRaw =
       formData.get("folder") ||
       (bookingId ? `bookings/${bookingId}` : "general");
@@ -179,14 +182,83 @@ export async function POST(request) {
         { status: 400 },
       );
     }
+    if (
+      replacementFileIdRaw &&
+      (!Number.isInteger(replacementFileId) || replacementFileId <= 0)
+    ) {
+      return NextResponse.json(
+        { error: "replacementFileId must be a positive integer" },
+        { status: 400 },
+      );
+    }
+    if (externalUrlRaw) {
+      try {
+        const parsedExternalUrl = new URL(externalUrlRaw);
+        if (parsedExternalUrl.protocol !== "https:") throw new Error();
+      } catch {
+        return NextResponse.json(
+          { error: "externalUrl must be a valid https URL" },
+          { status: 400 },
+        );
+      }
+    }
+
+    if (replacementFileId && files.length + (externalUrlRaw ? 1 : 0) !== 1) {
+      return NextResponse.json(
+        { error: "Provide exactly one replacement file or link" },
+        { status: 400 },
+      );
+    }
+
+    if (bookingId) {
+      const booking = await Booking.findByPk(bookingId);
+      if (!booking) {
+        return NextResponse.json(
+          { error: "Booking not found" },
+          { status: 404 },
+        );
+      }
+      if (booking.cancelledAt || booking.status === "CANCELLED") {
+        return NextResponse.json(
+          { error: "Cancelled bookings cannot receive files" },
+          { status: 409 },
+        );
+      }
+      if (booking.status !== "CONFIRMED") {
+        return NextResponse.json(
+          { error: "Only confirmed bookings can receive files" },
+          { status: 409 },
+        );
+      }
+      if (
+        ![
+          BOOKING_WORKFLOW_STATUS.EDITING,
+          BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
+        ].includes(getWorkflowStatus(booking))
+      ) {
+        return NextResponse.json(
+          { error: "Deliverables can only be uploaded after editing starts" },
+          { status: 409 },
+        );
+      }
+    }
 
     const bucketName = process.env.AWS_BUCKET_NAME || "milkywayy-bookings";
-    let fileUrl = externalUrlRaw;
-    let fileUrls = externalUrlRaw ? [externalUrlRaw] : [];
+    let uploadedFiles = externalUrlRaw
+      ? [
+          {
+            url: externalUrlRaw,
+            optimized: false,
+            originalFilename: `${deliverableType} link`,
+            mimeType: "text/uri-list",
+            sizeBytes: null,
+          },
+        ]
+      : [];
     let optimized = false;
 
     if (files.length > 0) {
-      const uploadedFiles = await Promise.all(
+      const s3Uploads = await Promise.all(
         files.map((file) =>
           uploadFileToS3({
             file,
@@ -196,43 +268,14 @@ export async function POST(request) {
           }),
         ),
       );
-      fileUrls = uploadedFiles.map((item) => item.url);
-      fileUrl = fileUrls[0] || externalUrlRaw;
-      optimized = uploadedFiles.some((item) => item.optimized);
+      uploadedFiles = [...uploadedFiles, ...s3Uploads];
+      optimized = s3Uploads.some((item) => item.optimized);
     }
+    const fileUrls = uploadedFiles.map((item) => item.url);
+    const fileUrl = fileUrls[0] || "";
 
     if (!bookingId) {
       return NextResponse.json({ url: fileUrl, urls: fileUrls, optimized });
-    }
-
-    const booking = await Booking.findByPk(bookingId);
-    if (!booking) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-    }
-    if (getWorkflowStatus(booking) !== BOOKING_WORKFLOW_STATUS.EDITING) {
-      return NextResponse.json(
-        { error: "Deliverables can only be uploaded while editing" },
-        { status: 409 },
-      );
-    }
-
-    let deliverables = [];
-    let existingPayload = null;
-    const existingFilesUrl = booking.filesUrl;
-    if (existingFilesUrl) {
-      try {
-        const parsed = JSON.parse(existingFilesUrl);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          existingPayload = parsed;
-        }
-        if (Array.isArray(parsed?.deliverables)) {
-          deliverables = parsed.deliverables;
-        } else if (Array.isArray(parsed)) {
-          deliverables = parsed;
-        }
-      } catch {
-        deliverables = [];
-      }
     }
 
     const typeKey = deliverableType.toLowerCase();
@@ -241,42 +284,42 @@ export async function POST(request) {
       typeKey.includes("tour") ||
       typeKey.includes("virtual");
 
-    const updatedItem = {
-      id: typeKey.replace(/\s+/g, "-"),
+    const result = await addUploadedDeliveryFiles({
+      bookingId,
+      uploads: uploadedFiles,
       type: deliverableType,
       label: deliverableType,
-      url: fileUrl,
-      urls: fileUrls,
-      count: fileCount ?? (fileUrls.length > 0 ? fileUrls.length : null),
-      uploadedAt: new Date().toISOString(),
       deliveryMode: is360 ? "copy_link" : "download",
-    };
-
-    const nextDeliverables = [
-      ...deliverables.filter(
-        (d) => String(d?.type || d?.label || "").toLowerCase() !== typeKey,
-      ),
-      updatedItem,
-    ];
-
-    const payload = JSON.stringify({
-      ...(parseFilesPayload(existingFilesUrl) || existingPayload || {}),
-      version: 2,
-      deliverables: nextDeliverables,
-      updatedAt: new Date().toISOString(),
+      replacementFileId,
     });
-
-    await booking.update({ filesUrl: payload });
 
     return NextResponse.json({
       url: fileUrl,
       urls: fileUrls,
-      filesUrl: payload,
-      deliverable: updatedItem,
+      filesUrl: result.booking.filesUrl,
+      booking: result.booking,
+      deliveryFiles: result.deliveryFiles,
       optimized,
     });
   } catch (error) {
     console.error("Error uploading file:", error);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    const message = error?.message || "Upload failed";
+    const status =
+      message === "Booking not found"
+        ? 404
+        : [
+              "Cancelled bookings cannot receive files",
+              "Only confirmed bookings can receive files",
+              "Deliverables can only be uploaded after editing starts",
+              "Upload exactly one replacement file",
+              "Delivery file not found",
+              "This file is not awaiting a replacement",
+            ].includes(message)
+          ? 409
+          : 500;
+    return NextResponse.json(
+      { error: status === 500 ? "Upload failed" : message },
+      { status },
+    );
   }
 }

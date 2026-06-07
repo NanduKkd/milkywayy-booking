@@ -1,7 +1,4 @@
 import { NextResponse } from "next/server";
-import Booking from "@/lib/db/models/booking";
-import { auth } from "@/lib/helpers/auth";
-import { USER_ROLES } from "@/lib/config/app.config";
 import {
   sendFullMediaUploadNotification,
   sendPartialMediaUploadNotification,
@@ -10,29 +7,16 @@ import {
   sendTeamArrived,
   sendTeamOnTheWay,
 } from "@/lib/actions/notifications";
-
-const parseFilesPayload = (filesUrl) => {
-  if (!filesUrl || typeof filesUrl !== "string") return null;
-  try {
-    const parsed = JSON.parse(filesUrl);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      return parsed;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-};
+import { USER_ROLES } from "@/lib/config/app.config";
+import Booking from "@/lib/db/models/booking";
+import { auth } from "@/lib/helpers/auth";
 
 const markMediaNotificationSent = async (bookingId, type) => {
   const booking = await Booking.findByPk(bookingId);
   if (!booking) return null;
 
-  const parsed = parseFilesPayload(booking.filesUrl);
-  if (!parsed) return booking.filesUrl;
-
   const notifications = {
-    ...(parsed.notifications || {}),
+    ...(booking.deliveryNotificationMetadata || {}),
   };
 
   if (type === "partial_media_upload") {
@@ -50,13 +34,8 @@ const markMediaNotificationSent = async (bookingId, type) => {
       notifications.fullMediaUploadSentAt || new Date().toISOString();
   }
 
-  const nextPayload = JSON.stringify({
-    ...parsed,
-    notifications,
-  });
-
-  await booking.update({ filesUrl: nextPayload });
-  return nextPayload;
+  await booking.update({ deliveryNotificationMetadata: notifications });
+  return notifications;
 };
 
 export async function POST(request) {
@@ -93,24 +72,33 @@ export async function POST(request) {
     if (type === "partial_media_upload") {
       const result = await sendPartialMediaUploadNotification(bookingId);
       if (result?.success) {
-        const filesUrl = await markMediaNotificationSent(bookingId, type);
-        return NextResponse.json({ ...result, filesUrl });
+        const notificationMetadata = await markMediaNotificationSent(
+          bookingId,
+          type,
+        );
+        return NextResponse.json({ ...result, notificationMetadata });
       }
       return NextResponse.json(result);
     }
     if (type === "single_service_media_ready") {
       const result = await sendSingleServiceMediaReadyNotification(bookingId);
       if (result?.success) {
-        const filesUrl = await markMediaNotificationSent(bookingId, type);
-        return NextResponse.json({ ...result, filesUrl });
+        const notificationMetadata = await markMediaNotificationSent(
+          bookingId,
+          type,
+        );
+        return NextResponse.json({ ...result, notificationMetadata });
       }
       return NextResponse.json(result);
     }
     if (type === "full_media_upload") {
       const result = await sendFullMediaUploadNotification(bookingId);
       if (result?.success) {
-        const filesUrl = await markMediaNotificationSent(bookingId, type);
-        return NextResponse.json({ ...result, filesUrl });
+        const notificationMetadata = await markMediaNotificationSent(
+          bookingId,
+          type,
+        );
+        return NextResponse.json({ ...result, notificationMetadata });
       }
       return NextResponse.json(result);
     }

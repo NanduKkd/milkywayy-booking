@@ -3,14 +3,17 @@ import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import puppeteer from "puppeteer";
 import { Op } from "sequelize";
+import { LAUNCH_PROMO_LABEL } from "@/lib/config/promo";
 import Booking from "@/lib/db/models/booking";
 import User from "@/lib/db/models/user";
-import { getPricingConfig } from "@/lib/helpers/pricing";
 import {
   formatBookingReferenceList,
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
 import { ensureTransactionInvoiceNumber } from "@/lib/helpers/numbering";
+import { getPricingConfig } from "@/lib/helpers/pricing";
+
+export const INVOICE_TEMPLATE_VERSION = 2;
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -196,6 +199,61 @@ function formatInvoiceAmount(value, { forceDecimals = false } = {}) {
 
 function toCents(value) {
   return Math.round(Number(value || 0) * 100);
+}
+
+export function buildInvoiceCouponSummary(transaction) {
+  const amount = roundCurrency(transaction?.couponDeduction || 0);
+  if (amount <= 0) return null;
+
+  const couponCode = String(
+    transaction?.metadata?.appliedCouponCode || transaction?.coupon?.code || "",
+  )
+    .trim()
+    .toUpperCase();
+
+  return {
+    label: couponCode ? `Coupon (${couponCode})` : "Coupon Discount",
+    amount,
+  };
+}
+
+export function buildInvoiceDiscountSummaries(transaction) {
+  const summaries = [];
+  const bulkDeduction = roundCurrency(transaction?.bulkDeduction || 0);
+  const launchPromoDeduction = roundCurrency(
+    transaction?.metadata?.appliedLaunchPromoDeduction || 0,
+  );
+
+  if (bulkDeduction > 0) {
+    summaries.push({
+      label:
+        launchPromoDeduction > 0 && launchPromoDeduction === bulkDeduction
+          ? LAUNCH_PROMO_LABEL
+          : "Discount",
+      amount: bulkDeduction,
+    });
+  }
+
+  const couponSummary = buildInvoiceCouponSummary(transaction);
+  if (couponSummary) summaries.push(couponSummary);
+
+  return summaries;
+}
+
+export function isTransactionInvoiceCurrent(
+  transaction,
+  invoiceNumber,
+  bookingCount,
+) {
+  return Boolean(
+    transaction?.invoiceUrl &&
+      (invoiceNumber ? transaction.invoiceUrl.includes(invoiceNumber) : true) &&
+      Number(transaction?.metadata?.invoiceBookingCount || 0) ===
+        bookingCount &&
+      Number(transaction?.metadata?.invoiceTemplateVersion || 0) ===
+        INVOICE_TEMPLATE_VERSION &&
+      bookingCount > 0,
+  );
 }
 
 function findBookingSubsetByAmount(bookings, targetCents) {
@@ -407,6 +465,15 @@ export async function generateAndUploadInvoice(
     const bookingReferences = formatBookingReferenceList(bookings);
     const resolvedInvoiceNumber =
       invoiceNumber || transaction.invoiceNumber || formatInvoiceNumber(transaction);
+    const discountSummaryRows = buildInvoiceDiscountSummaries(transaction)
+      .map(
+        (summary) => `
+  <tr>
+    <td>${escapeHtml(summary.label)}</td>
+    <td>- ${formatInvoiceAmount(summary.amount, { forceDecimals: true })}</td>
+  </tr>`,
+      )
+      .join("");
 
     const bookingTables = bookings
       .map((booking) => {
@@ -704,6 +771,7 @@ ${bookingTables}
     <td>Sub-Total</td>
     <td>${formatInvoiceAmount(subTotal)}</td>
   </tr>
+  ${discountSummaryRows}
   <tr>
     <td>Tax (0%)</td>
     <td>AED 0.00</td>
@@ -763,7 +831,7 @@ ${bookingTables}
     const sanitizedName = customerName
       .replace(/[^a-zA-Z0-9]/g, "_")
       .toLowerCase();
-    const key = `invoices/Milkywayy_Invoice_${resolvedInvoiceNumber}_${sanitizedName}_${dateStr}.pdf`;
+    const key = `invoices/Milkywayy_Invoice_${resolvedInvoiceNumber}_${sanitizedName}_${dateStr}_v${INVOICE_TEMPLATE_VERSION}.pdf`;
 
     const bucketName = process.env.AWS_BUCKET_NAME || "milkywayy-bookings";
 
@@ -792,12 +860,11 @@ export async function ensureTransactionInvoiceUrl(transaction, user = null) {
   if (!transaction) return null;
   const invoiceNumber = await ensureTransactionInvoiceNumber(transaction);
   const resolvedBookings = await resolveTransactionBookings(transaction);
-  const invoiceBookingCount = Number(transaction.metadata?.invoiceBookingCount || 0);
-  const hasCurrentInvoiceUrl =
-    transaction.invoiceUrl &&
-    (invoiceNumber ? transaction.invoiceUrl.includes(invoiceNumber) : true) &&
-    invoiceBookingCount === resolvedBookings.length &&
-    resolvedBookings.length > 0;
+  const hasCurrentInvoiceUrl = isTransactionInvoiceCurrent(
+    transaction,
+    invoiceNumber,
+    resolvedBookings.length,
+  );
   if (hasCurrentInvoiceUrl) return transaction.invoiceUrl;
 
   const resolvedUser =
@@ -819,6 +886,7 @@ export async function ensureTransactionInvoiceUrl(transaction, user = null) {
     metadata: {
       ...(transaction.metadata || {}),
       invoiceBookingCount: resolvedBookings.length,
+      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
     },
   });
   if (typeof transaction.setDataValue === "function") {
@@ -826,12 +894,14 @@ export async function ensureTransactionInvoiceUrl(transaction, user = null) {
     transaction.setDataValue("metadata", {
       ...(transaction.metadata || {}),
       invoiceBookingCount: resolvedBookings.length,
+      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
     });
   } else {
     transaction.invoiceUrl = generatedInvoiceUrl;
     transaction.metadata = {
       ...(transaction.metadata || {}),
       invoiceBookingCount: resolvedBookings.length,
+      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
     };
   }
 

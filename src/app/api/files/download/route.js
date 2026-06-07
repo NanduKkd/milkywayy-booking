@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
+import { Op } from "sequelize";
+import "@/lib/db/relations";
+import Booking from "@/lib/db/models/booking";
+import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
+import BookingDeliveryFileVersion from "@/lib/db/models/bookingdeliveryfileversion";
 import { auth } from "@/lib/helpers/auth";
+import { DELIVERY_FILE_STATUS } from "@/lib/helpers/bookingWorkflow";
 
 const getSafeFilename = (value) => {
   const fallback = "deliverable";
@@ -31,8 +37,35 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const sourceUrl = searchParams.get("url");
+  const fileId = searchParams.get("fileId");
+  let sourceUrl = searchParams.get("url");
   const name = searchParams.get("name");
+
+  if (fileId) {
+    const deliveryFile = await BookingDeliveryFile.findOne({
+      where: {
+        id: fileId,
+        status: { [Op.ne]: DELIVERY_FILE_STATUS.CHANGES_REQUESTED },
+      },
+      include: [
+        {
+          model: Booking,
+          as: "booking",
+          required: true,
+          where: { userId: session.id },
+        },
+        {
+          model: BookingDeliveryFileVersion,
+          as: "currentVersion",
+          required: true,
+        },
+      ],
+    });
+    if (!deliveryFile || deliveryFile.status === DELIVERY_FILE_STATUS.PRIVATE) {
+      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    }
+    sourceUrl = deliveryFile.currentVersion.url;
+  }
 
   if (!sourceUrl) {
     return NextResponse.json(
@@ -49,21 +82,31 @@ export async function GET(request) {
   }
 
   if (parsed.protocol !== "https:") {
-    return NextResponse.json({ error: "Only https urls are allowed" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Only https urls are allowed" },
+      { status: 400 },
+    );
   }
 
   if (!isAllowedDownloadHost(parsed)) {
-    return NextResponse.json({ error: "Download host is not allowed" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Download host is not allowed" },
+      { status: 403 },
+    );
   }
 
   const upstream = await fetch(sourceUrl, { cache: "no-store" });
   if (!upstream.ok) {
-    return NextResponse.json({ error: "Unable to fetch file" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Unable to fetch file" },
+      { status: 502 },
+    );
   }
 
   const fileNameFromUrl =
-    decodeURIComponent(parsed.pathname.split("/").filter(Boolean).pop() || "") ||
-    "deliverable";
+    decodeURIComponent(
+      parsed.pathname.split("/").filter(Boolean).pop() || "",
+    ) || "deliverable";
   const filename = getSafeFilename(name || fileNameFromUrl);
 
   const contentType =

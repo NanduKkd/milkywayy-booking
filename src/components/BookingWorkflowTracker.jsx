@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import {
   BOOKING_WORKFLOW_STATUS,
   BOOKING_WORKFLOW_STEPS,
+  DELIVERY_FILE_STATUS,
   getWorkflowStatus,
 } from "@/lib/helpers/bookingWorkflow";
 import { cn } from "@/lib/utils";
@@ -13,10 +14,25 @@ export default function BookingWorkflowTracker({
   className,
   compact = false,
   verticalOnMobile = false,
+  showRevisionState = false,
 }) {
   const currentStatus = getWorkflowStatus(booking);
+  const deliveryFiles = Array.isArray(booking?.deliveryFiles)
+    ? booking.deliveryFiles.filter(
+        (file) =>
+          !file.deletedAt && file.status !== DELIVERY_FILE_STATUS.PRIVATE,
+      )
+    : [];
+  const hasRevisionUnderReview =
+    showRevisionState &&
+    deliveryFiles.some(
+      (file) => file.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+    );
+  const displayStatus = hasRevisionUnderReview
+    ? BOOKING_WORKFLOW_STATUS.EDITING
+    : currentStatus;
   const currentIndex = BOOKING_WORKFLOW_STEPS.findIndex(
-    (step) => step.status === currentStatus,
+    (step) => step.status === displayStatus,
   );
   const cancelled = Boolean(
     booking?.cancelledAt || booking?.status === "CANCELLED",
@@ -55,10 +71,16 @@ export default function BookingWorkflowTracker({
         {BOOKING_WORKFLOW_STEPS.map((step, index) => {
           const isCompleted = index < currentIndex;
           const isActive = index === currentIndex;
-          const revisionActive =
+          const requestedFiles = deliveryFiles.filter(
+            (file) => file.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+          ).length;
+          const showDeliverySummary =
+            step.status === BOOKING_WORKFLOW_STATUS.FILES_UPLOADED &&
+            displayStatus === BOOKING_WORKFLOW_STATUS.FILES_UPLOADED &&
+            deliveryFiles.length > 0;
+          const showUnderReviewLabel =
             step.status === BOOKING_WORKFLOW_STATUS.EDITING &&
-            currentStatus === BOOKING_WORKFLOW_STATUS.EDITING &&
-            Number(booking?.revisionCount || 0) > 0;
+            hasRevisionUnderReview;
 
           return (
             <div
@@ -117,9 +139,16 @@ export default function BookingWorkflowTracker({
                 >
                   {step.label}
                 </p>
-                {!compact && revisionActive && (
+                {!compact && showUnderReviewLabel && (
                   <p className="mt-1 text-[10px] text-amber-400">
-                    Revision {booking.revisionCount} of 2 requested
+                    Under Review
+                  </p>
+                )}
+                {!compact && showDeliverySummary && (
+                  <p className="mt-1 text-[10px] text-amber-400">
+                    {requestedFiles > 0
+                      ? `${requestedFiles} replacement pending`
+                      : `${deliveryFiles.length} ${deliveryFiles.length === 1 ? "file" : "files"} in review`}
                   </p>
                 )}
               </div>

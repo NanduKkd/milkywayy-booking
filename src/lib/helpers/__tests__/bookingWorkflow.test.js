@@ -1,7 +1,9 @@
 import {
   BOOKING_WORKFLOW_STATUS,
+  DELIVERY_FILE_STATUS,
   getDubaiReviewDeadline,
   hasUploadedDeliverables,
+  isCustomerDeliveryFileVisible,
   isCustomerFileVisible,
 } from "@/lib/helpers/bookingWorkflow";
 
@@ -41,6 +43,39 @@ describe("booking workflow helpers", () => {
     expect(
       isCustomerFileVisible({
         workflowStatus: BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED,
+      }),
+    ).toBe(true);
+    expect(
+      isCustomerFileVisible({
+        workflowStatus: BOOKING_WORKFLOW_STATUS.EDITING,
+        deliveryFiles: [
+          { status: DELIVERY_FILE_STATUS.UNDER_REVIEW, deletedAt: null },
+        ],
+      }),
+    ).toBe(true);
+    expect(
+      isCustomerFileVisible({
+        workflowStatus: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
+        deliveryFiles: [
+          { status: DELIVERY_FILE_STATUS.PRIVATE, deletedAt: null },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      isCustomerFileVisible({
+        workflowStatus: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
+        deliveryFiles: [
+          {
+            status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+            deletedAt: null,
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      isCustomerDeliveryFileVisible({
+        status: DELIVERY_FILE_STATUS.ACCEPTED,
+        deletedAt: null,
       }),
     ).toBe(true);
   });

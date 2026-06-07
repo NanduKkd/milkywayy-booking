@@ -1,10 +1,13 @@
 import Booking from "@/lib/db/models/booking";
-import BookingRevision from "@/lib/db/models/bookingrevision";
+import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
-import { BOOKING_WORKFLOW_STATUS } from "@/lib/helpers/bookingWorkflow";
+import {
+  BOOKING_WORKFLOW_STATUS,
+  DELIVERY_FILE_STATUS,
+} from "@/lib/helpers/bookingWorkflow";
 import {
   autoCompleteEligibleBookings,
-  requestBookingRevisionState,
+  completeDeliveredBookingState,
   updateBookingWorkflowState,
 } from "@/lib/services/bookingWorkflow";
 
@@ -21,9 +24,11 @@ jest.mock("@/lib/db/models/booking", () => ({
   findAll: jest.fn(),
   count: jest.fn(),
 }));
-jest.mock("@/lib/db/models/bookingrevision", () => ({
-  create: jest.fn(),
+jest.mock("@/lib/db/models/bookingdeliveryfile", () => ({
+  findByPk: jest.fn(),
+  findAll: jest.fn(),
   update: jest.fn(),
+  count: jest.fn(),
 }));
 jest.mock("@/lib/db/models/wallettransaction", () => ({
   update: jest.fn(),
@@ -34,110 +39,119 @@ describe("booking workflow service", () => {
     jest.clearAllMocks();
   });
 
-  it("releases uploaded files for customer review", async () => {
+  it("advances the pre-delivery admin workflow", async () => {
     const booking = {
       id: 1,
       status: "CONFIRMED",
-      workflowStatus: BOOKING_WORKFLOW_STATUS.EDITING,
-      filesUrl: JSON.stringify({
-        deliverables: [{ type: "Photography", url: "https://file" }],
-      }),
+      workflowStatus: BOOKING_WORKFLOW_STATUS.SHOOT_DONE,
       update: jest.fn(async (values) => Object.assign(booking, values)),
     };
     Booking.findByPk.mockResolvedValue(booking);
 
     const result = await updateBookingWorkflowState(
       booking.id,
-      BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
+      BOOKING_WORKFLOW_STATUS.EDITING,
     );
 
     expect(booking.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        workflowStatus: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
-        filesUploadedAt: expect.any(Date),
-        reviewDeadlineAt: expect.any(Date),
+        workflowStatus: BOOKING_WORKFLOW_STATUS.EDITING,
+        editingStartedAt: expect.any(Date),
       }),
       { transaction: mockTransaction },
     );
-    expect(BookingRevision.update).toHaveBeenCalledWith(
-      { resolvedAt: expect.any(Date) },
-      expect.objectContaining({
-        where: { bookingId: 1, resolvedAt: null },
-      }),
-    );
-    expect(result).toEqual(
-      expect.objectContaining({
-        id: 1,
-        workflowStatus: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
-      }),
-    );
-    expect(result.update).toBeUndefined();
+    expect(result.workflowStatus).toBe(BOOKING_WORKFLOW_STATUS.EDITING);
   });
 
-  it("requires an upload before files can be released", async () => {
+  it("does not allow manually releasing all files", async () => {
     Booking.findByPk.mockResolvedValue({
       id: 1,
       status: "CONFIRMED",
       workflowStatus: BOOKING_WORKFLOW_STATUS.EDITING,
-      filesUrl: JSON.stringify({ deliverables: [] }),
     });
 
     await expect(
       updateBookingWorkflowState(1, BOOKING_WORKFLOW_STATUS.FILES_UPLOADED),
-    ).rejects.toThrow("Upload at least one deliverable first");
+    ).rejects.toThrow("Invalid workflow transition");
   });
 
-  it("records a revision and hides the released files", async () => {
+  it("completes all reviewable files after admin finishes delivery", async () => {
     const booking = {
       id: 1,
       userId: 7,
+      status: "CONFIRMED",
       workflowStatus: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
-      revisionCount: 0,
-      reviewDeadlineAt: new Date(Date.now() + 60_000),
-      filesUrl: JSON.stringify({
-        deliverables: [{ type: "Photography", url: "https://file" }],
-      }),
+      deliveryFinishedAt: new Date(),
       update: jest.fn(async (values) => Object.assign(booking, values)),
     };
     Booking.findOne.mockResolvedValue(booking);
+    BookingDeliveryFile.findAll.mockResolvedValue([
+      { status: DELIVERY_FILE_STATUS.UNDER_REVIEW },
+      { status: DELIVERY_FILE_STATUS.ACCEPTED },
+    ]);
 
-    await requestBookingRevisionState(1, 7, "Brighten the kitchen");
+    await completeDeliveredBookingState(1, 7);
 
-    expect(BookingRevision.create).toHaveBeenCalledWith(
+    expect(BookingDeliveryFile.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        bookingId: 1,
-        revisionNumber: 1,
-        note: "Brighten the kitchen",
+        status: DELIVERY_FILE_STATUS.ACCEPTED,
+        reviewDeadlineAt: null,
       }),
-      { transaction: mockTransaction },
+      expect.objectContaining({
+        where: {
+          bookingId: 1,
+          status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+        },
+      }),
     );
-    expect(booking.workflowStatus).toBe(BOOKING_WORKFLOW_STATUS.EDITING);
-    expect(JSON.parse(booking.filesUrl).deliverables).toEqual([]);
+    expect(booking.status).toBe("COMPLETED");
   });
 
-  it("auto-completes once and activates wallet credits", async () => {
+  it("blocks completion while a file awaits replacement", async () => {
+    Booking.findOne.mockResolvedValue({
+      id: 1,
+      userId: 7,
+      status: "CONFIRMED",
+      workflowStatus: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
+      deliveryFinishedAt: new Date(),
+    });
+    BookingDeliveryFile.findAll.mockResolvedValue([
+      { status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED },
+    ]);
+
+    await expect(completeDeliveredBookingState(1, 7)).rejects.toThrow(
+      "Resolve all requested file changes first",
+    );
+  });
+
+  it("accepts expired files and completes eligible bookings once", async () => {
+    const file = {
+      id: 5,
+      status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+      reviewDeadlineAt: new Date("2026-06-01T00:00:00.000Z"),
+      update: jest.fn(async (values) => Object.assign(file, values)),
+    };
     const booking = {
       id: 1,
       transactionId: 10,
       workflowStatus: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
-      reviewDeadlineAt: new Date("2026-06-01T00:00:00.000Z"),
+      deliveryFinishedAt: new Date("2026-05-31T00:00:00.000Z"),
       completedAt: null,
       update: jest.fn(async (values) => Object.assign(booking, values)),
     };
+    BookingDeliveryFile.findAll.mockResolvedValue([{ id: 5 }]);
+    BookingDeliveryFile.findByPk.mockResolvedValue(file);
+    BookingDeliveryFile.count.mockResolvedValue(0);
     Booking.findAll.mockResolvedValue([{ id: 1 }]);
     Booking.findByPk.mockResolvedValue(booking);
     Booking.count.mockResolvedValue(0);
 
-    const first = await autoCompleteEligibleBookings(
-      new Date("2026-06-02T00:00:00.000Z"),
-    );
-    const second = await autoCompleteEligibleBookings(
+    const result = await autoCompleteEligibleBookings(
       new Date("2026-06-02T00:00:00.000Z"),
     );
 
-    expect(first.completedCount).toBe(1);
-    expect(second.completedCount).toBe(0);
+    expect(result).toEqual({ acceptedFileCount: 1, completedCount: 1 });
+    expect(file.status).toBe(DELIVERY_FILE_STATUS.ACCEPTED);
     expect(WalletTransaction.update).toHaveBeenCalledTimes(1);
-    expect(booking.status).toBe("COMPLETED");
   });
 });

@@ -1,5 +1,8 @@
 import { sequelize } from "../db.js";
 import Booking from "./booking.js";
+import BookingDeliveryFile from "./bookingdeliveryfile.js";
+import BookingDeliveryFileVersion from "./bookingdeliveryfileversion.js";
+import BookingFileRevision from "./bookingfilerevision.js";
 import BookingRevision from "./bookingrevision.js";
 import Coupon from "./coupon.js";
 import DynamicConfig from "./dynamicconfig.js";
@@ -12,6 +15,9 @@ import WalletTransaction from "./wallettransaction.js";
 const models = {
   User,
   Booking,
+  BookingDeliveryFile,
+  BookingDeliveryFileVersion,
+  BookingFileRevision,
   BookingRevision,
   Transaction,
   Coupon,
@@ -24,6 +30,9 @@ const models = {
 export {
   User,
   Booking,
+  BookingDeliveryFile,
+  BookingDeliveryFileVersion,
+  BookingFileRevision,
   BookingRevision,
   Transaction,
   Coupon,
