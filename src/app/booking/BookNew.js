@@ -610,12 +610,18 @@ export default function BookNew({
       : 0;
   const launchPromoNudgeAmount =
     launchPromoDiscount > 0 ? getLaunchPromoNudgeAmount(totalAmount) : 0;
-  console.log(getLaunchPromoNudgeAmount(totalAmount), launchPromoDiscount);
   const activeCouponDiscount = selectedCouponCode ? selectedCouponDiscount : 0;
   const payableAmount = Math.max(
     0,
     totalAmount - activeCouponDiscount - launchPromoDiscount,
   );
+  const appliedDiscount = totalAmount - payableAmount;
+  const appliedOfferName = [
+    launchPromoDiscount > 0 ? LAUNCH_PROMO_LABEL : "",
+    activeCouponDiscount > 0 ? selectedCouponCode : "",
+  ]
+    .filter(Boolean)
+    .join(" + ");
 
   const applyCouponSelection = async (couponCode) => {
     setCouponError("");
@@ -723,7 +729,7 @@ export default function BookNew({
     isProcessingPayment;
 
   return (
-    <section className="relative min-h-[90vh] pt-12 pb-44 md:pt-16 lg:pb-16">
+    <section className="relative min-h-[90vh] pt-12 md:pt-16 pb-16">
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 fade-in">
@@ -856,7 +862,8 @@ export default function BookNew({
                   {launchPromoNudgeAmount > 0 && (
                     <p className="text-2xs leading-4 text-emerald-300">
                       Add just AED {launchPromoNudgeAmount.toLocaleString()}{" "}
-                      more to unlock AED 500 off <span className="inline-block">instead of AED 250!</span>
+                      more to unlock AED 500 off{" "}
+                      <span className="inline-block">instead of AED 250!</span>
                     </p>
                   )}
 
@@ -981,16 +988,34 @@ export default function BookNew({
               </Button>
 
               <div className="mt-2.5 flex items-end justify-between gap-4">
-                <div className="pb-0.5">
-                  <p className="text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    Total
-                  </p>
-                  <p
+                <div className="flex min-w-0 flex-1 flex-col leading-tight">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Total
+                    </span>
+                    {appliedDiscount > 0 && (
+                      <span className="rounded-full border border-primary/20 bg-primary/15 px-1.5 py-[1px] text-[9px] font-medium uppercase tracking-wider text-primary">
+                        {appliedOfferName}
+                      </span>
+                    )}
+                  </div>
+                  <span
                     data-testid="mobile-booking-total"
-                    className="text-base font-semibold leading-5 text-foreground"
+                    className="price-update text-base text-foreground"
                   >
-                    AED {payableAmount.toLocaleString()}
-                  </p>
+                    {appliedDiscount > 0 && (
+                      <span className="mr-1.5 text-muted-foreground line-through">
+                        AED {totalAmount.toLocaleString()}
+                      </span>
+                    )}
+                    <span
+                      className={
+                        appliedDiscount > 0 ? "font-bold" : "font-semibold"
+                      }
+                    >
+                      AED {payableAmount.toLocaleString()}
+                    </span>
+                  </span>
                 </div>
 
                 <Button

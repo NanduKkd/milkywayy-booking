@@ -8,6 +8,7 @@ export default function BookingLayout({ children }) {
       <NewNavbar />
       <main className="relative z-10">{children}</main>
       <Footer />
+      <div className="h-20 lg:h-0" />
     </div>
   );
 }

@@ -4,11 +4,14 @@ import { Calendar, Folder, Receipt } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import CustomerHeader from "@/components/CustomerHeader";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StarBackground from "@/components/StarBackground";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/lib/contexts/auth";
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
+  const { authState } = useAuth();
+  const username = authState.user?.fullName || authState.user?.email || "User";
 
   const tabs = [
     {
@@ -48,9 +51,12 @@ export default function DashboardLayout({ children }) {
       <CustomerHeader mode="dashboard" />
       <main className="relative mx-auto w-full max-w-7xl px-6 pb-10 pt-12 md:pt-16">
         <div className="mx-auto w-full max-w-6xl">
-          <h1 className="mb-8 font-heading text-4xl font-bold tracking-tight text-foreground">
+          <h1 className="font-heading text-4xl font-bold tracking-tight text-foreground">
             My Dashboard
           </h1>
+          <p className="text-sm md:text-base text-muted-foreground mt-2 mb-8">
+            Hello, {username}
+          </p>
 
           <Tabs value={currentTab} className="mb-8 w-full">
             <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl border border-border bg-secondary p-1 text-sm">

@@ -480,7 +480,9 @@ describe("BookNew", () => {
     fireEvent.click(screen.getByTestId("add-service-0"));
 
     await waitFor(() => {
-      expect(screen.getByText("First-Shoot Launch Credit")).toBeInTheDocument();
+      expect(screen.getAllByText("First-Shoot Launch Credit")).not.toHaveLength(
+        0,
+      );
     });
 
     expect(screen.getByText("- AED 250")).toBeInTheDocument();
@@ -550,9 +552,7 @@ describe("BookNew", () => {
       "AED 570",
     );
     expect(
-      screen.getByText(
-        "Add just AED 180 more to unlock AED 500 off instead of AED 250!",
-      ),
+      screen.getByText(/Add just AED 180 more to unlock AED 500 off/),
     ).toBeInTheDocument();
   });
 
@@ -579,8 +579,15 @@ describe("BookNew", () => {
       expect(screen.getByText("- AED 500")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
+    const mobileTotal = screen.getByTestId("mobile-booking-total");
+    expect(mobileTotal.querySelector(".line-through")).toHaveTextContent(
+      "AED 1,050",
+    );
+    expect(mobileTotal.querySelector(".font-bold")).toHaveTextContent(
       "AED 550",
+    );
+    expect(screen.getByTestId("mobile-booking-footer")).toHaveTextContent(
+      "First-Shoot Launch Credit",
     );
     expect(
       screen.queryByText(/unlock AED 500 off instead of AED 250/i),

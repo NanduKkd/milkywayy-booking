@@ -23,9 +23,9 @@ const INITIAL_FORM_DATA = {
 };
 
 const SOCIAL_LINKS = [
-  { icon: Instagram, href: "#", label: "instagram" },
-  { icon: Linkedin, href: "#", label: "linkedin" },
-  { icon: Youtube, href: "#", label: "youtube" },
+  { icon: Instagram, href: "https://www.instagram.com/milkywayy_com/", label: "instagram" },
+  { icon: Linkedin, href: "https://www.linkedin.com/company/milkywayy-com/", label: "linkedin" },
+  // { icon: Youtube, href: "#", label: "youtube" },
 ];
 
 const ContactSection = () => {
@@ -200,6 +200,7 @@ const ContactSection = () => {
                 <a
                   key={social.label}
                   href={social.href}
+                  target="_blank"
                   className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
                   <social.icon className="w-5 h-5" />

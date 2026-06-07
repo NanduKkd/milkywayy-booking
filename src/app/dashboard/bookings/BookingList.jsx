@@ -495,7 +495,7 @@ export default function BookingList({ bookings }) {
               </p>
             </div>
             <div className="text-right">
-              <div className="leading-tight font-semibold text-foreground text-lg">
+              <div className="leading-tight font-semibold text-foreground text-sm">
                 {formatDate(booking.date)}
               </div>
               <div className="mt-1 text-sm text-muted-foreground">
@@ -508,7 +508,11 @@ export default function BookingList({ bookings }) {
             </div>
           </div>
 
-          <BookingWorkflowTracker booking={booking} className="my-5" />
+          <BookingWorkflowTracker
+            booking={booking}
+            className="my-5"
+            verticalOnMobile
+          />
 
           {renderReviewActions(booking)}
 

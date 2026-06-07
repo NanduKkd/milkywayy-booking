@@ -12,6 +12,7 @@ export default function BookingWorkflowTracker({
   booking,
   className,
   compact = false,
+  verticalOnMobile = false,
 }) {
   const currentStatus = getWorkflowStatus(booking);
   const currentIndex = BOOKING_WORKFLOW_STEPS.findIndex(
@@ -35,8 +36,22 @@ export default function BookingWorkflowTracker({
   }
 
   return (
-    <div className={cn("w-full overflow-x-auto pb-1", className)}>
-      <div className="grid min-w-[620px] grid-cols-5">
+    <div
+      className={cn(
+        "w-full pb-1",
+        verticalOnMobile
+          ? "overflow-visible sm:overflow-x-auto"
+          : "overflow-x-auto",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "grid min-w-[620px] grid-cols-5",
+          verticalOnMobile &&
+            "min-w-0 grid-cols-1 sm:min-w-[620px] sm:grid-cols-5",
+        )}
+      >
         {BOOKING_WORKFLOW_STEPS.map((step, index) => {
           const isCompleted = index < currentIndex;
           const isActive = index === currentIndex;
@@ -48,12 +63,26 @@ export default function BookingWorkflowTracker({
           return (
             <div
               key={step.status}
-              className="relative flex min-w-0 flex-col items-center px-1 text-center"
+              className={cn(
+                "relative flex min-w-0 flex-col items-center px-1 text-center",
+                verticalOnMobile &&
+                  "flex-row items-start pb-5 text-left last:pb-0 sm:flex-col sm:items-center sm:pb-0 sm:text-center",
+              )}
             >
+              {verticalOnMobile &&
+                index < BOOKING_WORKFLOW_STEPS.length - 1 && (
+                  <div
+                    className={cn(
+                      "absolute bottom-0 left-[16px] top-6 w-px sm:hidden",
+                      index < currentIndex ? "bg-zinc-400" : "bg-zinc-800",
+                    )}
+                  />
+                )}
               {index > 0 && (
                 <div
                   className={cn(
                     "absolute right-1/2 top-3 h-px w-[calc(100%-24px)] -translate-x-3",
+                    verticalOnMobile && "hidden sm:block",
                     index <= currentIndex ? "bg-zinc-400" : "bg-zinc-800",
                   )}
                 />
@@ -74,19 +103,26 @@ export default function BookingWorkflowTracker({
                   index + 1
                 )}
               </div>
-              <p
+              <div
                 className={cn(
-                  "mt-2 text-[10px] sm:text-xs",
-                  isCompleted || isActive ? "text-zinc-200" : "text-zinc-600",
+                  verticalOnMobile && "ml-3 pt-0.5 sm:ml-0 sm:pt-0",
                 )}
               >
-                {step.label}
-              </p>
-              {!compact && revisionActive && (
-                <p className="mt-1 text-[10px] text-amber-400">
-                  Revision {booking.revisionCount} of 2 requested
+                <p
+                  className={cn(
+                    "mt-2 text-[10px] sm:text-xs",
+                    verticalOnMobile && "mt-0 text-sm sm:mt-2 sm:text-xs",
+                    isCompleted || isActive ? "text-zinc-200" : "text-zinc-600",
+                  )}
+                >
+                  {step.label}
                 </p>
-              )}
+                {!compact && revisionActive && (
+                  <p className="mt-1 text-[10px] text-amber-400">
+                    Revision {booking.revisionCount} of 2 requested
+                  </p>
+                )}
+              </div>
             </div>
           );
         })}
