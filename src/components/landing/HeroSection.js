@@ -119,10 +119,7 @@ const HeroSection = ({ onWatchVideo }) => {
                           <button
                             key={propertyType.value}
                             type="button"
-                            onClick={() =>
-                              setActivePropertyType(propertyType.value)
-                            }
-                            className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-center text-xs font-semibold transition-all duration-[180ms] active:scale-[0.98] ${
+                            className={`flex pointer-events-none flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-center text-xs font-semibold transition-all duration-[180ms] active:scale-[0.98] ${
                               isActive
                                 ? "border-foreground/20 bg-foreground text-background shadow-sm"
                                 : "border-border bg-secondary text-muted-foreground hover:scale-[1.02] hover:bg-muted hover:text-foreground"
@@ -152,7 +149,7 @@ const HeroSection = ({ onWatchVideo }) => {
                             key={service}
                             type="button"
                             onClick={() => setActiveService(index)}
-                            className={`rounded-xl border p-3 text-center text-xs font-medium transition-all duration-[180ms] active:scale-[0.98] ${
+                            className={`rounded-xl border p-3 text-center text-xs font-medium transition-all duration-[180ms] active:scale-[0.98] pointer-events-none ${
                               activeService === index
                                 ? "border-foreground/20 bg-secondary/80 text-foreground"
                                 : "border-border text-muted-foreground hover:bg-secondary/50"
@@ -182,7 +179,7 @@ const HeroSection = ({ onWatchVideo }) => {
                     </div>
                   </div>
 
-                  <Button className="btn-primary-premium w-full text-sm">
+                  <Button className="btn-primary-premium w-full text-sm pointer-events-none">
                     Continue to Checkout →
                   </Button>
                 </div>
