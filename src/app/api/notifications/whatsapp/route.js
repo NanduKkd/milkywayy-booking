@@ -11,13 +11,23 @@ import { USER_ROLES } from "@/lib/config/app.config";
 import Booking from "@/lib/db/models/booking";
 import { auth } from "@/lib/helpers/auth";
 
-const markMediaNotificationSent = async (bookingId, type) => {
+const markNotificationSent = async (bookingId, type) => {
   const booking = await Booking.findByPk(bookingId);
   if (!booking) return null;
 
   const notifications = {
     ...(booking.deliveryNotificationMetadata || {}),
   };
+
+  if (type === "team_on_the_way") {
+    notifications.teamOnTheWaySentAt =
+      notifications.teamOnTheWaySentAt || new Date().toISOString();
+  }
+
+  if (type === "team_arrived") {
+    notifications.teamArrivedSentAt =
+      notifications.teamArrivedSentAt || new Date().toISOString();
+  }
 
   if (type === "partial_media_upload") {
     notifications.partialMediaUploadSentAt =
@@ -63,16 +73,30 @@ export async function POST(request) {
     }
     if (type === "team_on_the_way") {
       const result = await sendTeamOnTheWay(bookingId);
+      if (result?.success) {
+        const notificationMetadata = await markNotificationSent(
+          bookingId,
+          type,
+        );
+        return NextResponse.json({ ...result, notificationMetadata });
+      }
       return NextResponse.json(result);
     }
     if (type === "team_arrived") {
       const result = await sendTeamArrived(bookingId);
+      if (result?.success) {
+        const notificationMetadata = await markNotificationSent(
+          bookingId,
+          type,
+        );
+        return NextResponse.json({ ...result, notificationMetadata });
+      }
       return NextResponse.json(result);
     }
     if (type === "partial_media_upload") {
       const result = await sendPartialMediaUploadNotification(bookingId);
       if (result?.success) {
-        const notificationMetadata = await markMediaNotificationSent(
+        const notificationMetadata = await markNotificationSent(
           bookingId,
           type,
         );
@@ -83,7 +107,7 @@ export async function POST(request) {
     if (type === "single_service_media_ready") {
       const result = await sendSingleServiceMediaReadyNotification(bookingId);
       if (result?.success) {
-        const notificationMetadata = await markMediaNotificationSent(
+        const notificationMetadata = await markNotificationSent(
           bookingId,
           type,
         );
@@ -94,7 +118,7 @@ export async function POST(request) {
     if (type === "full_media_upload") {
       const result = await sendFullMediaUploadNotification(bookingId);
       if (result?.success) {
-        const notificationMetadata = await markMediaNotificationSent(
+        const notificationMetadata = await markNotificationSent(
           bookingId,
           type,
         );

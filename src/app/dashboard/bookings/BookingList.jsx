@@ -25,6 +25,7 @@ import {
 import {
   BOOKING_WORKFLOW_STATUS,
   getWorkflowStatus,
+  isBookingDispatched,
 } from "@/lib/helpers/bookingWorkflow";
 import {
   buildInvoiceDownloadUrl,
@@ -147,6 +148,11 @@ export default function BookingList({ bookings }) {
 
   const handleCancelConfirm = async () => {
     if (!selectedCancelBooking) return;
+    if (isBookingDispatched(selectedCancelBooking)) {
+      toast.error("This booking can no longer be cancelled.");
+      setCancelOpen(false);
+      return;
+    }
     setLoadingId(selectedCancelBooking.id);
     try {
       const res = await cancelBooking(selectedCancelBooking.id);
@@ -175,6 +181,10 @@ export default function BookingList({ bookings }) {
   };
 
   const handleReschedule = (booking) => {
+    if (isBookingDispatched(booking)) {
+      toast.error("This booking can no longer be rescheduled.");
+      return;
+    }
     const policy = getActionPolicy(booking);
     if (!policy.canReschedule) {
       toast.error(
@@ -451,7 +461,8 @@ export default function BookingList({ bookings }) {
                       e.stopPropagation();
                       handleReschedule(booking);
                     }}
-                    className="rounded-xl border border-border px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                    disabled={isBookingDispatched(booking)}
+                    className="rounded-xl border border-border px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Reschedule
                   </button>
@@ -463,8 +474,10 @@ export default function BookingList({ bookings }) {
                     setSelectedCancelBooking(booking);
                     setCancelOpen(true);
                   }}
-                  disabled={loadingId === booking.id}
-                  className="rounded-xl border border-border px-4 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-destructive/10 disabled:opacity-50"
+                  disabled={
+                    loadingId === booking.id || isBookingDispatched(booking)
+                  }
+                  className="rounded-xl border border-border px-4 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loadingId === booking.id
                     ? "Cancelling..."

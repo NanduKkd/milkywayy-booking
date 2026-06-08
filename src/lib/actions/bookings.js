@@ -26,7 +26,10 @@ import {
   getBookingArrivalWindowFromDetails,
   getBookingBlockedPeriods,
 } from "@/lib/helpers/bookingUtils";
-import { BOOKING_WORKFLOW_STATUS } from "@/lib/helpers/bookingWorkflow";
+import {
+  BOOKING_WORKFLOW_STATUS,
+  isBookingDispatched,
+} from "@/lib/helpers/bookingWorkflow";
 import {
   buildBookingReferenceFromId,
   formatBookingReference,
@@ -1032,6 +1035,9 @@ export const rescheduleBookingByCode = actionWrapper(
     if (booking.cancelledAt || booking.status === "COMPLETED") {
       throw new Error("This booking cannot be rescheduled");
     }
+    if (isBookingDispatched(booking)) {
+      throw new Error("This booking can no longer be rescheduled");
+    }
 
     const hoursUntil = getHoursUntilBooking(booking);
     if (
@@ -1537,6 +1543,9 @@ const cancelBookingHandler = async (bookingId) => {
 
   if (!booking) throw new Error("Booking not found");
   if (booking.cancelledAt) throw new Error("Booking is already cancelled");
+  if (isBookingDispatched(booking)) {
+    throw new Error("This booking can no longer be cancelled");
+  }
   if (
     booking.status === "COMPLETED" ||
     booking.workflowStatus === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED

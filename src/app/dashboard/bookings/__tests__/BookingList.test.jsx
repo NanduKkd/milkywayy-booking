@@ -62,6 +62,24 @@ describe("BookingList", () => {
     expect(cancelBooking).not.toHaveBeenCalled();
   });
 
+  it("disables reschedule and cancel after the team is dispatched", () => {
+    render(
+      <BookingList
+        bookings={[
+          {
+            ...mockBookings[0],
+            deliveryNotificationMetadata: {
+              teamOnTheWaySentAt: "2099-12-25T08:00:00.000Z",
+            },
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /reschedule/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^cancel$/i })).toBeDisabled();
+  });
+
   it("links booking-level delivery summaries to the Files screen", () => {
     render(
       <BookingList

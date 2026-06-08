@@ -27,6 +27,12 @@ export const DELIVERY_FILE_STATUS = {
   ACCEPTED: "ACCEPTED",
 };
 
+export const isBookingDispatched = (booking) =>
+  Boolean(booking?.deliveryNotificationMetadata?.teamOnTheWaySentAt);
+
+export const hasTeamArrivedNotificationBeenSent = (booking) =>
+  Boolean(booking?.deliveryNotificationMetadata?.teamArrivedSentAt);
+
 export const getWorkflowStatus = (booking) => {
   if (booking?.workflowStatus) return booking.workflowStatus;
   if (booking?.completedAt || booking?.status === "COMPLETED") {

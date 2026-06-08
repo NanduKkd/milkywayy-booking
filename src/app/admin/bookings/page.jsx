@@ -26,6 +26,8 @@ import { updateBookingWorkflow } from "@/lib/actions/bookings";
 import {
   BOOKING_WORKFLOW_STATUS,
   getWorkflowStatus,
+  hasTeamArrivedNotificationBeenSent,
+  isBookingDispatched,
 } from "@/lib/helpers/bookingWorkflow";
 import {
   buildInvoiceDownloadUrl,
@@ -385,7 +387,9 @@ export default function BookingsPage() {
       }
 
       if (
-        (type === "single_service_media_ready" ||
+        (type === "team_on_the_way" ||
+          type === "team_arrived" ||
+          type === "single_service_media_ready" ||
           type === "partial_media_upload" ||
           type === "full_media_upload") &&
         data?.notificationMetadata
@@ -673,13 +677,16 @@ export default function BookingsPage() {
                       notifyingType !== null ||
                       selectedBooking.cancelledAt ||
                       selectedBooking.status === "COMPLETED" ||
-                      selectedBooking.completedAt
+                      selectedBooking.completedAt ||
+                      isBookingDispatched(selectedBooking)
                     }
                     onClick={() => handleSendNotification("team_on_the_way")}
                   >
                     {notifyingType === "team_on_the_way"
                       ? "Sending..."
-                      : "Send Team On The Way"}
+                      : isBookingDispatched(selectedBooking)
+                        ? "Team On The Way Sent"
+                        : "Send Team On The Way"}
                   </Button>
                   <Button
                     variant="outline"
@@ -688,13 +695,16 @@ export default function BookingsPage() {
                       notifyingType !== null ||
                       selectedBooking.cancelledAt ||
                       selectedBooking.status === "COMPLETED" ||
-                      selectedBooking.completedAt
+                      selectedBooking.completedAt ||
+                      hasTeamArrivedNotificationBeenSent(selectedBooking)
                     }
                     onClick={() => handleSendNotification("team_arrived")}
                   >
                     {notifyingType === "team_arrived"
                       ? "Sending..."
-                      : "Send Team Arrived"}
+                      : hasTeamArrivedNotificationBeenSent(selectedBooking)
+                        ? "Team Arrived Sent"
+                        : "Send Team Arrived"}
                   </Button>
                   {isSingleServiceBooking(selectedBooking) ? (
                     <Button
