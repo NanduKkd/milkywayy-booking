@@ -226,6 +226,7 @@ export const addUploadedDeliveryFiles = async ({
           status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
           reviewDeadlineAt: deadline,
           currentVersionId: replacement.id,
+          deliveryMode,
           acceptedAt: null,
         },
         { transaction },

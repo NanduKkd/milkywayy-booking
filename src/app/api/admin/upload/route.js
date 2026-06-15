@@ -1,12 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import mime from "mime-types";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { USER_ROLES } from "@/lib/config/app.config";
+import { OUR_WORK_TYPES, USER_ROLES } from "@/lib/config/app.config";
 import Booking from "@/lib/db/models/booking";
 import { auth } from "@/lib/helpers/auth";
 import {
   BOOKING_WORKFLOW_STATUS,
+  DELIVERY_FILE_TYPE,
   getWorkflowStatus,
 } from "@/lib/helpers/bookingWorkflow";
 import { addUploadedDeliveryFiles } from "@/lib/services/fileDelivery";
@@ -21,6 +23,7 @@ const s3Client = new S3Client({
 
 const MAX_IMAGE_DIMENSION = 2400;
 const IMAGE_QUALITY = 82;
+const DELIVERY_FILE_TYPES = new Set(Object.values(DELIVERY_FILE_TYPE));
 
 function slugifySegment(value, fallback = "general") {
   return (
@@ -44,31 +47,46 @@ function sanitizeFileName(fileName, fallbackExtension = "") {
   return `${cleaned || "file"}${fallbackExtension}`;
 }
 
-function detectUploadCategory({ deliverableType, folder, contentType }) {
-  const normalizedType = String(deliverableType || "").toLowerCase();
-  const normalizedFolder = String(folder || "").toLowerCase();
+function detectUploadCategory({ deliverableType, contentType }) {
   const normalizedContentType = String(contentType || "").toLowerCase();
 
   if (
-    normalizedType.includes("360") ||
-    normalizedType.includes("tour") ||
-    normalizedType.includes("virtual")
+    deliverableType === DELIVERY_FILE_TYPE.TOUR_360 ||
+    deliverableType === OUR_WORK_TYPES.THREE_SIXTY
   ) {
     return "360";
   }
 
   if (
-    normalizedType.includes("video") ||
+    deliverableType === DELIVERY_FILE_TYPE.VIDEOGRAPHY ||
+    deliverableType === OUR_WORK_TYPES.VIDEO ||
+    deliverableType === OUR_WORK_TYPES.SHORT_VIDEO ||
     normalizedContentType.startsWith("video/")
   ) {
     return "videography";
   }
 
-  if (normalizedFolder.includes("360")) {
-    return "360";
-  }
-
   return "photography";
+}
+
+function getExternalFileName(url, fallback) {
+  try {
+    const pathname = new URL(url).pathname;
+    const decodedFileName = decodeURIComponent(
+      pathname.split("/").filter(Boolean).pop() || "",
+    );
+    const fileName = [...decodedFileName]
+      .map((character) =>
+        character === "/" || character === "\\" || character.charCodeAt(0) < 32
+          ? "-"
+          : character,
+      )
+      .join("")
+      .trim();
+    return fileName || fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 async function optimizeUploadFile(file) {
@@ -108,7 +126,6 @@ async function optimizeUploadFile(file) {
 async function uploadFileToS3({ file, folder, deliverableType, bucketName }) {
   const uploadCategory = detectUploadCategory({
     deliverableType,
-    folder,
     contentType: file.type,
   });
   const processedFile = await optimizeUploadFile(file);
@@ -156,9 +173,10 @@ export async function POST(request) {
       ? Number(replacementFileIdRaw)
       : null;
     const deliverableTypeRaw = String(
-      formData.get("deliverableType") || "Photography",
+      formData.get("deliverableType") || DELIVERY_FILE_TYPE.PHOTOGRAPHY,
     );
-    const deliverableType = deliverableTypeRaw.trim() || "Photography";
+    const deliverableType =
+      deliverableTypeRaw.trim() || DELIVERY_FILE_TYPE.PHOTOGRAPHY;
     const externalUrlRaw = String(formData.get("externalUrl") || "").trim();
     const folderRaw =
       formData.get("folder") ||
@@ -172,6 +190,12 @@ export async function POST(request) {
     if (!bookingId && !folder) {
       return NextResponse.json(
         { error: "bookingId or folder is required" },
+        { status: 400 },
+      );
+    }
+    if (bookingId && !DELIVERY_FILE_TYPES.has(deliverableType)) {
+      return NextResponse.json(
+        { error: "Invalid deliverableType" },
         { status: 400 },
       );
     }
@@ -244,13 +268,24 @@ export async function POST(request) {
     }
 
     const bucketName = process.env.AWS_BUCKET_NAME || "milkywayy-bookings";
+    const copyLinkDelivery = deliverableType === DELIVERY_FILE_TYPE.TOUR_360;
+    const externalFileName = copyLinkDelivery
+      ? `${deliverableType} link`
+      : getExternalFileName(externalUrlRaw, deliverableType);
+    const deliveryMode = copyLinkDelivery
+      ? "copy_link"
+      : externalUrlRaw && files.length === 0
+        ? "direct_download"
+        : "download";
     let uploadedFiles = externalUrlRaw
       ? [
           {
             url: externalUrlRaw,
             optimized: false,
-            originalFilename: `${deliverableType} link`,
-            mimeType: "text/uri-list",
+            originalFilename: externalFileName,
+            mimeType: copyLinkDelivery
+              ? "text/uri-list"
+              : mime.lookup(externalFileName) || "application/octet-stream",
             sizeBytes: null,
           },
         ]
@@ -278,18 +313,12 @@ export async function POST(request) {
       return NextResponse.json({ url: fileUrl, urls: fileUrls, optimized });
     }
 
-    const typeKey = deliverableType.toLowerCase();
-    const is360 =
-      typeKey.includes("360") ||
-      typeKey.includes("tour") ||
-      typeKey.includes("virtual");
-
     const result = await addUploadedDeliveryFiles({
       bookingId,
       uploads: uploadedFiles,
       type: deliverableType,
       label: deliverableType,
-      deliveryMode: is360 ? "copy_link" : "download",
+      deliveryMode,
       replacementFileId,
     });
 

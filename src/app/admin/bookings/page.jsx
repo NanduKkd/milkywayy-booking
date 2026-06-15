@@ -25,6 +25,7 @@ import {
 import { updateBookingWorkflow } from "@/lib/actions/bookings";
 import {
   BOOKING_WORKFLOW_STATUS,
+  DELIVERY_FILE_TYPE,
   getWorkflowStatus,
   hasTeamArrivedNotificationBeenSent,
   isBookingDispatched,
@@ -105,7 +106,9 @@ export default function BookingsPage() {
   const [workflowUpdating, setWorkflowUpdating] = useState(false);
   const [notifyingType, setNotifyingType] = useState(null);
   const [files, setFiles] = useState([]);
-  const [deliverableType, setDeliverableType] = useState("Photography");
+  const [deliverableType, setDeliverableType] = useState(
+    DELIVERY_FILE_TYPE.PHOTOGRAPHY,
+  );
   const [externalUrl, setExternalUrl] = useState("");
   const [replacementFileId, setReplacementFileId] = useState(null);
   const fileInputRef = useRef(null);
@@ -196,9 +199,7 @@ export default function BookingsPage() {
   };
 
   const handleUpload = async () => {
-    const is360 =
-      deliverableType.toLowerCase().includes("360") ||
-      deliverableType.toLowerCase().includes("tour");
+    const is360 = deliverableType === DELIVERY_FILE_TYPE.TOUR_360;
     const hasExternalUrl = Boolean(externalUrl.trim());
     if ((files.length === 0 && !hasExternalUrl) || !selectedBooking) return;
     setUploading(true);
@@ -987,9 +988,9 @@ export default function BookingsPage() {
                             }
                             className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300"
                           >
-                            <option>Photography</option>
-                            <option>Videography</option>
-                            <option>360 Virtual Tour</option>
+                            {Object.values(DELIVERY_FILE_TYPE).map((type) => (
+                              <option key={type}>{type}</option>
+                            ))}
                           </select>
                         </div>
                         <div className="md:col-span-2">
@@ -997,7 +998,7 @@ export default function BookingsPage() {
                             htmlFor="deliverable-external-link"
                             className="mb-1 block text-xs text-zinc-400"
                           >
-                            External Link (use for 360)
+                            S3 File URL / External Link
                           </label>
                           <Input
                             id="deliverable-external-link"
@@ -1006,7 +1007,7 @@ export default function BookingsPage() {
                             onChange={(event) =>
                               setExternalUrl(event.target.value)
                             }
-                            placeholder="https://..."
+                            placeholder="https://bucket.s3.region.amazonaws.com/file"
                             className="border-zinc-700 bg-zinc-900 text-zinc-300"
                           />
                         </div>

@@ -165,6 +165,7 @@ describe("per-file delivery service", () => {
       deliveryFinishedAt: new Date("2026-06-01T00:00:00.000Z"),
     });
     const file = createDeliveryFile({
+      deliveryMode: "direct_download",
       status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
       revisionCount: 1,
     });
@@ -188,6 +189,7 @@ describe("per-file delivery service", () => {
     });
 
     expect(file.status).toBe(DELIVERY_FILE_STATUS.UNDER_REVIEW);
+    expect(file.deliveryMode).toBe("download");
     expect(file.revisionCount).toBe(1);
     expect(booking.deliveryFinishedAt).toEqual(
       new Date("2026-06-01T00:00:00.000Z"),

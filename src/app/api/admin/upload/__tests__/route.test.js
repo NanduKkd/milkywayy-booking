@@ -138,6 +138,83 @@ describe("Admin Upload API Route", () => {
     );
   });
 
+  it("registers an external videography file as a normal download", async () => {
+    Booking.findByPk.mockResolvedValue({
+      status: "CONFIRMED",
+      workflowStatus: "EDITING",
+    });
+    addUploadedDeliveryFiles.mockResolvedValue({
+      booking: { id: 42, workflowStatus: "FILES_UPLOADED", filesUrl: "{}" },
+      deliveryFiles: [{ id: 10 }],
+    });
+
+    await POST(
+      createRequest({
+        bookingId: "42",
+        deliverableType: "Videography",
+        externalUrl:
+          "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/final-video.mp4",
+      }),
+    );
+
+    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookingId: "42",
+        type: "Videography",
+        label: "Videography",
+        deliveryMode: "direct_download",
+        uploads: [
+          expect.objectContaining({
+            originalFilename: "final-video.mp4",
+            mimeType: "video/mp4",
+          }),
+        ],
+      }),
+    );
+    expect(PutObjectCommand).not.toHaveBeenCalled();
+  });
+
+  it("rejects unknown booking deliverable types", async () => {
+    const response = await POST(
+      createRequest({
+        bookingId: "42",
+        deliverableType: "Videography Virtual Link",
+        externalUrl:
+          "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/final-video.mp4",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(Booking.findByPk).not.toHaveBeenCalled();
+    expect(addUploadedDeliveryFiles).not.toHaveBeenCalled();
+  });
+
+  it("keeps the fixed 360 deliverable type as a copy link", async () => {
+    Booking.findByPk.mockResolvedValue({
+      status: "CONFIRMED",
+      workflowStatus: "EDITING",
+    });
+    addUploadedDeliveryFiles.mockResolvedValue({
+      booking: { id: 42, workflowStatus: "FILES_UPLOADED", filesUrl: "{}" },
+      deliveryFiles: [{ id: 10 }],
+    });
+
+    await POST(
+      createRequest({
+        bookingId: "42",
+        deliverableType: "360 Virtual Tour",
+        externalUrl: "https://example.com/tour",
+      }),
+    );
+
+    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "360 Virtual Tour",
+        deliveryMode: "copy_link",
+      }),
+    );
+  });
+
   it("targets a single logical file for replacement", async () => {
     Booking.findByPk.mockResolvedValue({
       status: "CONFIRMED",

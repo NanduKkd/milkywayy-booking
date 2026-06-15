@@ -27,6 +27,12 @@ export const DELIVERY_FILE_STATUS = {
   ACCEPTED: "ACCEPTED",
 };
 
+export const DELIVERY_FILE_TYPE = {
+  PHOTOGRAPHY: "Photography",
+  VIDEOGRAPHY: "Videography",
+  TOUR_360: "360 Virtual Tour",
+};
+
 export const isBookingDispatched = (booking) =>
   Boolean(booking?.deliveryNotificationMetadata?.teamOnTheWaySentAt);
 

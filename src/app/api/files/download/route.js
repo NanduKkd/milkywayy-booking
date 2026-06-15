@@ -21,11 +21,20 @@ const getSafeFilename = (value) => {
 const isAllowedDownloadHost = (urlObj) => {
   const host = String(urlObj.hostname || "").toLowerCase();
   const bucketName = String(process.env.AWS_BUCKET_NAME || "").toLowerCase();
+  const region = String(process.env.AWS_REGION || "us-east-1").toLowerCase();
   const cloudfrontHost = String(
     process.env.AWS_CLOUDFRONT_DOMAIN || "",
   ).toLowerCase();
 
-  if (bucketName && host === `${bucketName}.s3.amazonaws.com`) return true;
+  const s3Hosts = bucketName
+    ? [
+        `${bucketName}.s3.amazonaws.com`,
+        `${bucketName}.s3.${region}.amazonaws.com`,
+        `${bucketName}.s3-${region}.amazonaws.com`,
+      ]
+    : [];
+
+  if (s3Hosts.includes(host)) return true;
   if (cloudfrontHost && host === cloudfrontHost) return true;
   return false;
 };
@@ -39,6 +48,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("fileId");
   let sourceUrl = searchParams.get("url");
+  let directDownload = false;
   const name = searchParams.get("name");
 
   if (fileId) {
@@ -65,6 +75,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
     }
     sourceUrl = deliveryFile.currentVersion.url;
+    directDownload = deliveryFile.deliveryMode === "direct_download";
   }
 
   if (!sourceUrl) {
@@ -93,6 +104,15 @@ export async function GET(request) {
       { error: "Download host is not allowed" },
       { status: 403 },
     );
+  }
+
+  if (directDownload) {
+    return NextResponse.redirect(parsed, {
+      status: 302,
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
+    });
   }
 
   const upstream = await fetch(sourceUrl, { cache: "no-store" });
