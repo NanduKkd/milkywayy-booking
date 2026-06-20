@@ -25,6 +25,14 @@ models.Booking.hasMany(models.BookingDeliveryFile, {
   foreignKey: "bookingId",
   as: "deliveryFiles",
 });
+models.Booking.hasMany(models.BookingDeliveryUpload, {
+  foreignKey: "bookingId",
+  as: "deliveryUploads",
+});
+models.BookingDeliveryUpload.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
+});
 models.BookingDeliveryFile.belongsTo(models.Booking, {
   foreignKey: "bookingId",
   as: "booking",

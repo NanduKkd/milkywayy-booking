@@ -12,13 +12,22 @@ import {
   getWorkflowStatus,
 } from "@/lib/helpers/bookingWorkflow";
 import { addUploadedDeliveryFiles } from "@/lib/services/fileDelivery";
+import {
+  buildCanonicalObjectUrl,
+  getBookingUploadConfig,
+  headBookingObject,
+  parseOwnedBookingObjectUrl,
+} from "@/lib/storage/s3";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
+  credentials:
+    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        }
+      : undefined,
 });
 
 const MAX_IMAGE_DIMENSION = 2400;
@@ -73,7 +82,7 @@ function getExternalFileName(url, fallback) {
   try {
     const pathname = new URL(url).pathname;
     const decodedFileName = decodeURIComponent(
-      pathname.split("/").filter(Boolean).pop() || "",
+      (pathname.split("/").filter(Boolean).pop() || "").replaceAll("+", " "),
     );
     const fileName = [...decodedFileName]
       .map((character) =>
@@ -206,6 +215,12 @@ export async function POST(request) {
         { status: 400 },
       );
     }
+    if (bookingId && files.length > 0) {
+      return NextResponse.json(
+        { error: "Booking files must use direct multipart upload" },
+        { status: 400 },
+      );
+    }
     if (
       replacementFileIdRaw &&
       (!Number.isInteger(replacementFileId) || replacementFileId <= 0)
@@ -267,7 +282,6 @@ export async function POST(request) {
       }
     }
 
-    const bucketName = process.env.AWS_BUCKET_NAME || "milkywayy-bookings";
     const copyLinkDelivery = deliverableType === DELIVERY_FILE_TYPE.TOUR_360;
     const externalFileName = copyLinkDelivery
       ? `${deliverableType} link`
@@ -277,16 +291,54 @@ export async function POST(request) {
       : externalUrlRaw && files.length === 0
         ? "direct_download"
         : "download";
+    let externalMetadata = null;
+    let registeredExternalUrl = externalUrlRaw;
+    if (bookingId && externalUrlRaw && !copyLinkDelivery) {
+      const ownedObject = parseOwnedBookingObjectUrl(externalUrlRaw);
+      if (!ownedObject) {
+        return NextResponse.json(
+          { error: "File URL must belong to the configured booking bucket" },
+          { status: 400 },
+        );
+      }
+      registeredExternalUrl = buildCanonicalObjectUrl(ownedObject.key);
+      try {
+        externalMetadata = await headBookingObject(ownedObject.key);
+      } catch {
+        return NextResponse.json(
+          { error: "File URL does not identify an accessible S3 object" },
+          { status: 400 },
+        );
+      }
+      const sizeBytes = Number(externalMetadata.ContentLength ?? 0);
+      const { maxBytes } = getBookingUploadConfig();
+      if (
+        !Number.isSafeInteger(sizeBytes) ||
+        sizeBytes <= 0 ||
+        sizeBytes > maxBytes
+      ) {
+        return NextResponse.json(
+          { error: `S3 object must be between 1 byte and ${maxBytes} bytes` },
+          { status: 400 },
+        );
+      }
+    }
+
+    const bucketName = process.env.AWS_BUCKET_NAME || "milkywayy-bookings";
     let uploadedFiles = externalUrlRaw
       ? [
           {
-            url: externalUrlRaw,
+            url: registeredExternalUrl,
             optimized: false,
             originalFilename: externalFileName,
             mimeType: copyLinkDelivery
               ? "text/uri-list"
-              : mime.lookup(externalFileName) || "application/octet-stream",
-            sizeBytes: null,
+              : externalMetadata?.ContentType ||
+                mime.lookup(externalFileName) ||
+                "application/octet-stream",
+            sizeBytes: externalMetadata
+              ? Number(externalMetadata.ContentLength)
+              : null,
           },
         ]
       : [];

@@ -1,5 +1,9 @@
 import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import { auth } from "@/lib/helpers/auth";
+import {
+  createDownloadUrl,
+  parseOwnedBookingObjectUrl,
+} from "@/lib/storage/s3";
 import { GET } from "../route";
 
 jest.mock("@/lib/db/relations", () => ({}));
@@ -10,6 +14,10 @@ jest.mock("@/lib/db/models/bookingdeliveryfile", () => ({
 }));
 jest.mock("@/lib/helpers/auth", () => ({
   auth: jest.fn(),
+}));
+jest.mock("@/lib/storage/s3", () => ({
+  createDownloadUrl: jest.fn(),
+  parseOwnedBookingObjectUrl: jest.fn(),
 }));
 jest.mock("next/server", () => ({
   NextResponse: {
@@ -35,6 +43,13 @@ describe("delivery file download route", () => {
     jest.clearAllMocks();
     process.env.AWS_BUCKET_NAME = "milkywayy";
     process.env.AWS_REGION = "ap-south-1";
+    parseOwnedBookingObjectUrl.mockReturnValue({
+      bucket: "milkywayy",
+      key: "bookings/42/final-video.mp4",
+    });
+    createDownloadUrl.mockResolvedValue(
+      "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/final-video.mp4?signed=1",
+    );
   });
 
   afterAll(() => {
@@ -82,13 +97,14 @@ describe("delivery file download route", () => {
     );
   });
 
-  it("redirects an authorized delivery file directly to regional S3", async () => {
+  it("redirects an authorized delivery file to a signed S3 URL", async () => {
     auth.mockResolvedValue({ id: 7 });
     BookingDeliveryFile.findOne.mockResolvedValue({
       deliveryMode: "direct_download",
       status: "UNDER_REVIEW",
       currentVersion: {
         url: "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/final-video.mp4",
+        originalFilename: "final-video.mp4",
       },
     });
     global.fetch = jest.fn();
@@ -99,8 +115,46 @@ describe("delivery file download route", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(
-      "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/final-video.mp4",
+      "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/final-video.mp4?signed=1",
     );
+    expect(createDownloadUrl).toHaveBeenCalledWith({
+      key: "bookings/42/final-video.mp4",
+      fileName: "final-video.mp4",
+    });
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("normalizes form-encoded spaces in legacy S3 filenames", async () => {
+    auth.mockResolvedValue({ id: 7 });
+    BookingDeliveryFile.findOne.mockResolvedValue({
+      deliveryMode: "direct_download",
+      status: "ACCEPTED",
+      currentVersion: {
+        url: "https://milkywayy.s3.ap-south-1.amazonaws.com/photography/bookings/881/M10%2C+Address.zip",
+        originalFilename: "M10,+Address.zip",
+      },
+    });
+    parseOwnedBookingObjectUrl.mockReturnValue({
+      bucket: "milkywayy",
+      key: "photography/bookings/881/M10, Address.zip",
+    });
+
+    await GET({ url: "http://localhost/api/files/download?fileId=10" });
+
+    expect(createDownloadUrl).toHaveBeenCalledWith({
+      key: "photography/bookings/881/M10, Address.zip",
+      fileName: "M10, Address.zip",
+    });
+  });
+
+  it("rejects raw url downloads without a file id", async () => {
+    auth.mockResolvedValue({ id: 7 });
+
+    const response = await GET({
+      url: "http://localhost/api/files/download?url=https://example.com/file.mp4",
+    });
+
+    expect(response.status).toBe(400);
+    expect(BookingDeliveryFile.findOne).not.toHaveBeenCalled();
   });
 });

@@ -52,7 +52,8 @@ export function formatBookingReferenceList(bookings) {
 }
 
 export function formatInvoiceCardProperty(bookings) {
-  if (!Array.isArray(bookings) || bookings.length === 0) return "Property booking";
+  if (!Array.isArray(bookings) || bookings.length === 0)
+    return "Property booking";
 
   const firstBooking = bookings[0];
   const property = firstBooking?.propertyDetails || {};
@@ -64,10 +65,12 @@ export function formatInvoiceCardProperty(bookings) {
   return [primary, community].filter(Boolean).join(" - ") || "Property booking";
 }
 
-export function buildInvoiceDownloadUrl(sourceUrl, invoiceNumber) {
-  if (!sourceUrl) return null;
-  const safeName = `Milkywayy_${invoiceNumber || "invoice"}.pdf`;
-  const encodedName = encodeURIComponent(safeName);
-  const encodedUrl = encodeURIComponent(sourceUrl);
-  return `/api/files/download?url=${encodedUrl}&name=${encodedName}`;
+export function buildInvoiceDownloadUrl(
+  sourceUrl,
+  _invoiceNumber,
+  transactionId,
+) {
+  const numericId = Number(transactionId);
+  if (!sourceUrl || !Number.isInteger(numericId) || numericId <= 0) return null;
+  return `/api/invoices/download?transactionId=${numericId}`;
 }

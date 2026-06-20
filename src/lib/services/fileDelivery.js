@@ -139,8 +139,9 @@ export const addUploadedDeliveryFiles = async ({
   label,
   deliveryMode,
   replacementFileId = null,
-}) =>
-  sequelize.transaction(async (transaction) => {
+  transaction: providedTransaction = null,
+}) => {
+  const registerUploads = async (transaction) => {
     const booking = await Booking.findByPk(bookingId, {
       transaction,
       lock: transaction.LOCK.UPDATE,
@@ -290,7 +291,12 @@ export const addUploadedDeliveryFiles = async ({
       },
       deliveryFiles: createdFiles.map(serializeDeliveryFile),
     };
-  });
+  };
+
+  return providedTransaction
+    ? registerUploads(providedTransaction)
+    : sequelize.transaction(registerUploads);
+};
 
 export const requestFileRevisionState = async (fileId, userId, note) =>
   sequelize.transaction(async (transaction) => {

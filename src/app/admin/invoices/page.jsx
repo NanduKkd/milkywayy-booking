@@ -63,6 +63,7 @@ export default function InvoicesPage() {
                 const downloadUrl = buildInvoiceDownloadUrl(
                   invoice.invoiceUrl,
                   invoiceNumber,
+                  invoice.id,
                 );
                 return (
                   <TableRow

@@ -2,6 +2,10 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import Booking from "@/lib/db/models/booking";
 import { auth } from "@/lib/helpers/auth";
 import { addUploadedDeliveryFiles } from "@/lib/services/fileDelivery";
+import {
+  headBookingObject,
+  parseOwnedBookingObjectUrl,
+} from "@/lib/storage/s3";
 import { POST } from "../route";
 
 jest.mock("@aws-sdk/client-s3", () => ({
@@ -23,6 +27,14 @@ jest.mock("@/lib/helpers/auth", () => ({
 }));
 jest.mock("@/lib/services/fileDelivery", () => ({
   addUploadedDeliveryFiles: jest.fn(),
+}));
+jest.mock("@/lib/storage/s3", () => ({
+  buildCanonicalObjectUrl: jest.fn(
+    (key) => `https://milkywayy.s3.ap-south-1.amazonaws.com/${key}`,
+  ),
+  getBookingUploadConfig: jest.fn(() => ({ maxBytes: 2_147_483_648 })),
+  headBookingObject: jest.fn(),
+  parseOwnedBookingObjectUrl: jest.fn(),
 }));
 jest.mock("next/server", () => ({
   NextResponse: {
@@ -52,6 +64,14 @@ describe("Admin Upload API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     auth.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
+    parseOwnedBookingObjectUrl.mockReturnValue({
+      bucket: "milkywayy",
+      key: "bookings/42/final-video.mp4",
+    });
+    headBookingObject.mockResolvedValue({
+      ContentLength: 1024,
+      ContentType: "video/mp4",
+    });
   });
 
   it("uploads a portfolio image for an admin", async () => {
@@ -75,7 +95,7 @@ describe("Admin Upload API Route", () => {
     );
   });
 
-  it("creates one delivery record per uploaded booking file", async () => {
+  it("rejects booking file bodies in favor of multipart upload", async () => {
     Booking.findByPk.mockResolvedValue({
       status: "CONFIRMED",
       workflowStatus: "EDITING",
@@ -92,24 +112,12 @@ describe("Admin Upload API Route", () => {
         deliverableType: "Photography",
       }),
     );
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data.deliveryFiles).toHaveLength(2);
-    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bookingId: "42",
-        type: "Photography",
-        replacementFileId: null,
-        uploads: expect.arrayContaining([
-          expect.objectContaining({ originalFilename: "one.webp" }),
-          expect.objectContaining({ originalFilename: "two.webp" }),
-        ]),
-      }),
-    );
+    expect(response.status).toBe(400);
+    expect(addUploadedDeliveryFiles).not.toHaveBeenCalled();
+    expect(PutObjectCommand).not.toHaveBeenCalled();
   });
 
-  it("keeps an external link when physical files are uploaded with it", async () => {
+  it("rejects mixed booking file bodies and external links", async () => {
     Booking.findByPk.mockResolvedValue({
       status: "CONFIRMED",
       workflowStatus: "EDITING",
@@ -128,14 +136,7 @@ describe("Admin Upload API Route", () => {
       }),
     );
 
-    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
-      expect.objectContaining({
-        uploads: expect.arrayContaining([
-          expect.objectContaining({ url: "https://example.com/gallery" }),
-          expect.objectContaining({ originalFilename: "one.webp" }),
-        ]),
-      }),
-    );
+    expect(addUploadedDeliveryFiles).not.toHaveBeenCalled();
   });
 
   it("registers an external videography file as a normal download", async () => {
@@ -227,10 +228,11 @@ describe("Admin Upload API Route", () => {
 
     await POST(
       createRequest({
-        files: [createImage("replacement.jpg")],
         bookingId: "42",
         deliverableType: "Photography",
         replacementFileId: "10",
+        externalUrl:
+          "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/replacement.jpg",
       }),
     );
 
@@ -252,7 +254,7 @@ describe("Admin Upload API Route", () => {
     expect(PutObjectCommand).not.toHaveBeenCalled();
   });
 
-  it("does not upload files for cancelled bookings", async () => {
+  it("does not register URLs for cancelled bookings", async () => {
     Booking.findByPk.mockResolvedValue({
       status: "CANCELLED",
       cancelledAt: new Date(),
@@ -261,8 +263,9 @@ describe("Admin Upload API Route", () => {
 
     const response = await POST(
       createRequest({
-        files: [createImage("one.jpg")],
         bookingId: "42",
+        externalUrl:
+          "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/one.jpg",
       }),
     );
 

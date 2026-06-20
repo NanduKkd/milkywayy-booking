@@ -17,10 +17,13 @@ export const INVOICE_TEMPLATE_VERSION = 2;
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "mock",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "mock",
-  },
+  credentials:
+    process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+      ? {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        }
+      : undefined,
 });
 
 async function getPublicAssetDataUrl(fileName) {

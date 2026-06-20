@@ -1,4 +1,3 @@
-import { DeleteObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { auth } from "@/lib/helpers/auth";
@@ -7,14 +6,10 @@ import {
   finishBookingDeliveryState,
   publishPrivateDeliveryFilesState,
 } from "@/lib/services/fileDelivery";
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+import {
+  deleteBookingObject,
+  parseOwnedBookingObjectUrl,
+} from "@/lib/storage/s3";
 
 const authorizeAdmin = async () => {
   const session = await auth();
@@ -28,22 +23,9 @@ const authorizeAdmin = async () => {
 };
 
 const deleteOwnedS3Object = async (fileUrl) => {
-  const bucketName = process.env.AWS_BUCKET_NAME || "milkywayy-bookings";
-
   try {
-    const parsedUrl = new URL(fileUrl);
-    const ownedHosts = [
-      `${bucketName}.s3.amazonaws.com`,
-      `${bucketName}.s3.${process.env.AWS_REGION || "us-east-1"}.amazonaws.com`,
-    ];
-    if (!ownedHosts.includes(parsedUrl.hostname)) return;
-
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: bucketName,
-        Key: decodeURIComponent(parsedUrl.pathname.replace(/^\/+/, "")),
-      }),
-    );
+    const ownedObject = parseOwnedBookingObjectUrl(fileUrl);
+    if (ownedObject) await deleteBookingObject(ownedObject.key);
   } catch (error) {
     console.error("Failed to remove deliverable from S3:", error);
   }

@@ -34,6 +34,10 @@ import {
   buildInvoiceDownloadUrl,
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
+import {
+  MAX_BOOKING_UPLOAD_BYTES,
+  uploadBookingFile,
+} from "@/lib/uploads/multipart";
 
 const getDeliveryFiles = (booking) =>
   (booking?.deliveryFiles || []).filter((file) => !file.deletedAt);
@@ -111,7 +115,9 @@ export default function BookingsPage() {
   );
   const [externalUrl, setExternalUrl] = useState("");
   const [replacementFileId, setReplacementFileId] = useState(null);
+  const [uploadItems, setUploadItems] = useState([]);
   const fileInputRef = useRef(null);
+  const uploadAbortRef = useRef(null);
   const selectedTransaction = selectedBooking?.transaction;
   const selectedInvoiceNumber = selectedTransaction?.id
     ? formatInvoiceNumber(selectedTransaction)
@@ -121,6 +127,7 @@ export default function BookingsPage() {
       ? buildInvoiceDownloadUrl(
           selectedTransaction.invoiceUrl,
           selectedInvoiceNumber,
+          selectedTransaction.id,
         )
       : null;
 
@@ -202,62 +209,107 @@ export default function BookingsPage() {
     const is360 = deliverableType === DELIVERY_FILE_TYPE.TOUR_360;
     const hasExternalUrl = Boolean(externalUrl.trim());
     if ((files.length === 0 && !hasExternalUrl) || !selectedBooking) return;
-    setUploading(true);
-    const formData = new FormData();
-    files.forEach((file) => {
-      formData.append("file", file);
-    });
-    formData.append("bookingId", selectedBooking.id);
-    formData.append("deliverableType", deliverableType);
-    if (hasExternalUrl) formData.append("externalUrl", externalUrl.trim());
-    if (replacementFileId) {
-      formData.append("replacementFileId", replacementFileId);
+    const invalidFile = files.find(
+      (file) => file.size <= 0 || file.size > MAX_BOOKING_UPLOAD_BYTES,
+    );
+    if (invalidFile) {
+      alert(`${invalidFile.name} must be smaller than or equal to 2 GiB.`);
+      return;
     }
-
+    setUploading(true);
+    setUploadItems(
+      files.map((file) => ({
+        name: file.name,
+        status: "Preparing",
+        progress: 0,
+      })),
+    );
+    const controller = new AbortController();
+    uploadAbortRef.current = controller;
+    let workingBooking = selectedBooking;
+    let completedCount = 0;
+    const applyUploadResult = (data, targetReplacementFileId = null) => {
+      const createdFiles = data.deliveryFiles || [];
+      const nextDeliveryFiles = targetReplacementFileId
+        ? getDeliveryFiles(workingBooking).map((file) =>
+            file.id === targetReplacementFileId ? createdFiles[0] : file,
+          )
+        : [...getDeliveryFiles(workingBooking), ...createdFiles];
+      workingBooking = {
+        ...workingBooking,
+        ...(data.booking || {}),
+        filesUrl: data.filesUrl || data.url,
+        deliveryFiles: nextDeliveryFiles,
+      };
+      setSelectedBooking(workingBooking);
+      setBookings((previous) =>
+        previous.map((booking) =>
+          booking.id === workingBooking.id ? workingBooking : booking,
+        ),
+      );
+    };
     try {
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (res.ok && data.url) {
-        const createdFiles = data.deliveryFiles || [];
-        const nextDeliveryFiles = replacementFileId
-          ? getDeliveryFiles(selectedBooking).map((file) =>
-              file.id === replacementFileId ? createdFiles[0] : file,
-            )
-          : [...getDeliveryFiles(selectedBooking), ...createdFiles];
-        const updatedBooking = {
-          ...selectedBooking,
-          ...(data.booking || {}),
-          filesUrl: data.filesUrl || data.url,
-          deliveryFiles: nextDeliveryFiles,
-        };
-        setSelectedBooking(updatedBooking);
-        setBookings((prev) =>
-          prev.map((b) => (b.id === selectedBooking.id ? updatedBooking : b)),
-        );
-        alert(
-          replacementFileId
-            ? "Replacement uploaded successfully"
-            : is360
-              ? "360 link uploaded successfully"
-              : `${data.urls?.length || files.length || 1} file(s) uploaded successfully`,
-        );
-      } else {
-        alert(`Upload failed: ${data.error || "Unknown error"}`);
+      if (hasExternalUrl) {
+        const formData = new FormData();
+        formData.append("bookingId", selectedBooking.id);
+        formData.append("deliverableType", deliverableType);
+        formData.append("externalUrl", externalUrl.trim());
+        if (replacementFileId) {
+          formData.append("replacementFileId", replacementFileId);
+        }
+        const response = await fetch("/api/admin/upload", {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok)
+          throw new Error(data.error || "URL registration failed");
+        applyUploadResult(data, replacementFileId);
+        setExternalUrl("");
+        completedCount += 1;
       }
-    } catch (error) {
-      console.error(error);
-      alert("Upload failed");
-    } finally {
-      setUploading(false);
+
+      for (const [index, file] of files.entries()) {
+        const data = await uploadBookingFile({
+          bookingId: selectedBooking.id,
+          replacementFileId,
+          deliverableType,
+          file,
+          signal: controller.signal,
+          onState: (changes) =>
+            setUploadItems((items) =>
+              items.map((item, itemIndex) =>
+                itemIndex === index ? { ...item, ...changes } : item,
+              ),
+            ),
+        });
+        applyUploadResult(data, replacementFileId);
+        setFiles((pendingFiles) =>
+          pendingFiles.filter((pendingFile) => pendingFile !== file),
+        );
+        completedCount += 1;
+      }
+
+      alert(
+        replacementFileId
+          ? "Replacement uploaded successfully"
+          : is360 && hasExternalUrl
+            ? "360 link uploaded successfully"
+            : `${completedCount} file(s) uploaded successfully`,
+      );
       setFiles([]);
       setExternalUrl("");
       setReplacementFileId(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      console.error(error);
+      if (error.name !== "AbortError") {
+        alert(`Upload failed: ${error.message || "Unknown error"}`);
       }
+    } finally {
+      setUploading(false);
+      uploadAbortRef.current = null;
     }
   };
 
@@ -505,7 +557,12 @@ export default function BookingsPage() {
         </Table>
       </div>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!uploading) setIsOpen(open);
+        }}
+      >
         <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden border-zinc-800 bg-[#181818] p-0 text-white sm:max-w-2xl">
           <DialogHeader className="shrink-0 border-b border-zinc-800 px-6 py-5 pr-12">
             <DialogTitle>Booking Details #{selectedBooking?.id}</DialogTitle>
@@ -982,7 +1039,7 @@ export default function BookingsPage() {
                           <select
                             id="deliverable-type"
                             value={deliverableType}
-                            disabled={Boolean(replacementFileId)}
+                            disabled={Boolean(replacementFileId) || uploading}
                             onChange={(event) =>
                               setDeliverableType(event.target.value)
                             }
@@ -1008,6 +1065,7 @@ export default function BookingsPage() {
                               setExternalUrl(event.target.value)
                             }
                             placeholder="https://bucket.s3.region.amazonaws.com/file"
+                            disabled={uploading}
                             className="border-zinc-700 bg-zinc-900 text-zinc-300"
                           />
                         </div>
@@ -1017,9 +1075,25 @@ export default function BookingsPage() {
                           ref={fileInputRef}
                           type="file"
                           multiple={!replacementFileId}
-                          onChange={(event) =>
-                            setFiles(Array.from(event.target.files || []))
-                          }
+                          disabled={uploading}
+                          onChange={(event) => {
+                            const selected = Array.from(
+                              event.target.files || [],
+                            );
+                            const oversized = selected.find(
+                              (file) => file.size > MAX_BOOKING_UPLOAD_BYTES,
+                            );
+                            if (oversized) {
+                              alert(
+                                `${oversized.name} exceeds the 2 GiB limit.`,
+                              );
+                              event.target.value = "";
+                              setFiles([]);
+                              return;
+                            }
+                            setFiles(selected);
+                            setUploadItems([]);
+                          }}
                           className="max-w-xs border-zinc-700 bg-zinc-900 text-zinc-300"
                         />
                         {files.length > 0 && (
@@ -1044,7 +1118,46 @@ export default function BookingsPage() {
                               ? "Upload Replacement"
                               : "Upload Files"}
                         </Button>
+                        {uploading && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => uploadAbortRef.current?.abort()}
+                          >
+                            Cancel Upload
+                          </Button>
+                        )}
                       </div>
+                      {uploadItems.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {uploadItems.map((item, index) => (
+                            <div
+                              key={`${item.name}-${index}`}
+                              className="rounded border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs"
+                            >
+                              <div className="flex justify-between gap-3">
+                                <span className="truncate text-zinc-300">
+                                  {item.name}
+                                </span>
+                                <span className="shrink-0 text-zinc-400">
+                                  {item.status}
+                                  {typeof item.progress === "number"
+                                    ? ` ${item.progress}%`
+                                    : ""}
+                                </span>
+                              </div>
+                              {typeof item.progress === "number" && (
+                                <div className="mt-2 h-1.5 overflow-hidden rounded bg-zinc-800">
+                                  <div
+                                    className="h-full bg-blue-500 transition-[width]"
+                                    style={{ width: `${item.progress}%` }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1056,6 +1169,7 @@ export default function BookingsPage() {
             <Button
               variant="ghost"
               onClick={() => setIsOpen(false)}
+              disabled={uploading}
               className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
             >
               Close

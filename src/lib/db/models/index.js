@@ -2,6 +2,7 @@ import { sequelize } from "../db.js";
 import Booking from "./booking.js";
 import BookingDeliveryFile from "./bookingdeliveryfile.js";
 import BookingDeliveryFileVersion from "./bookingdeliveryfileversion.js";
+import BookingDeliveryUpload from "./bookingdeliveryupload.js";
 import BookingFileRevision from "./bookingfilerevision.js";
 import BookingRevision from "./bookingrevision.js";
 import Coupon from "./coupon.js";
@@ -17,6 +18,7 @@ const models = {
   Booking,
   BookingDeliveryFile,
   BookingDeliveryFileVersion,
+  BookingDeliveryUpload,
   BookingFileRevision,
   BookingRevision,
   Transaction,
@@ -32,6 +34,7 @@ export {
   Booking,
   BookingDeliveryFile,
   BookingDeliveryFileVersion,
+  BookingDeliveryUpload,
   BookingFileRevision,
   BookingRevision,
   Transaction,

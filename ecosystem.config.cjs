@@ -1,3 +1,14 @@
+const fs = require("node:fs");
+const path = require("node:path");
+const dotenv = require("dotenv");
+
+let fileEnv = {};
+try {
+  fileEnv = dotenv.parse(fs.readFileSync(path.join(__dirname, ".env")));
+} catch {
+  // PM2 can still use a CRON_SECRET supplied by its parent environment.
+}
+
 module.exports = {
   apps: [
     {
@@ -18,6 +29,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         INTERNAL_APP_URL: "http://127.0.0.1:3000",
+        CRON_SECRET: process.env.CRON_SECRET || fileEnv.CRON_SECRET,
       },
     },
   ],

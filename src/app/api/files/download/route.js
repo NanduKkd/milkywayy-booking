@@ -6,38 +6,10 @@ import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingDeliveryFileVersion from "@/lib/db/models/bookingdeliveryfileversion";
 import { auth } from "@/lib/helpers/auth";
 import { DELIVERY_FILE_STATUS } from "@/lib/helpers/bookingWorkflow";
-
-const getSafeFilename = (value) => {
-  const fallback = "deliverable";
-  const raw = String(value || "").trim();
-  if (!raw) return fallback;
-  const cleaned = raw
-    .replace(/[/\\?%*:|"<>]/g, "-")
-    .replace(/\s+/g, " ")
-    .trim();
-  return cleaned || fallback;
-};
-
-const isAllowedDownloadHost = (urlObj) => {
-  const host = String(urlObj.hostname || "").toLowerCase();
-  const bucketName = String(process.env.AWS_BUCKET_NAME || "").toLowerCase();
-  const region = String(process.env.AWS_REGION || "us-east-1").toLowerCase();
-  const cloudfrontHost = String(
-    process.env.AWS_CLOUDFRONT_DOMAIN || "",
-  ).toLowerCase();
-
-  const s3Hosts = bucketName
-    ? [
-        `${bucketName}.s3.amazonaws.com`,
-        `${bucketName}.s3.${region}.amazonaws.com`,
-        `${bucketName}.s3-${region}.amazonaws.com`,
-      ]
-    : [];
-
-  if (s3Hosts.includes(host)) return true;
-  if (cloudfrontHost && host === cloudfrontHost) return true;
-  return false;
-};
+import {
+  createDownloadUrl,
+  parseOwnedBookingObjectUrl,
+} from "@/lib/storage/s3";
 
 export async function GET(request) {
   const session = await auth();
@@ -46,106 +18,69 @@ export async function GET(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const fileId = searchParams.get("fileId");
-  let sourceUrl = searchParams.get("url");
-  let directDownload = false;
-  const name = searchParams.get("name");
-
-  if (fileId) {
-    const deliveryFile = await BookingDeliveryFile.findOne({
-      where: {
-        id: fileId,
-        status: { [Op.ne]: DELIVERY_FILE_STATUS.CHANGES_REQUESTED },
-      },
-      include: [
-        {
-          model: Booking,
-          as: "booking",
-          required: true,
-          where: { userId: session.id },
-        },
-        {
-          model: BookingDeliveryFileVersion,
-          as: "currentVersion",
-          required: true,
-        },
-      ],
-    });
-    if (!deliveryFile || deliveryFile.status === DELIVERY_FILE_STATUS.PRIVATE) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
-    }
-    sourceUrl = deliveryFile.currentVersion.url;
-    directDownload = deliveryFile.deliveryMode === "direct_download";
+  const fileId = Number(searchParams.get("fileId"));
+  if (!Number.isInteger(fileId) || fileId <= 0) {
+    return NextResponse.json({ error: "fileId is required" }, { status: 400 });
   }
 
-  if (!sourceUrl) {
+  const deliveryFile = await BookingDeliveryFile.findOne({
+    where: {
+      id: fileId,
+      status: {
+        [Op.in]: [
+          DELIVERY_FILE_STATUS.UNDER_REVIEW,
+          DELIVERY_FILE_STATUS.ACCEPTED,
+        ],
+      },
+    },
+    include: [
+      {
+        model: Booking,
+        as: "booking",
+        required: true,
+        where: { userId: session.id },
+      },
+      {
+        model: BookingDeliveryFileVersion,
+        as: "currentVersion",
+        required: true,
+      },
+    ],
+  });
+  if (!deliveryFile) {
+    return NextResponse.json({ error: "File not found" }, { status: 404 });
+  }
+
+  const ownedObject = parseOwnedBookingObjectUrl(
+    deliveryFile.currentVersion.url,
+  );
+  if (!ownedObject) {
     return NextResponse.json(
-      { error: "Missing url query parameter" },
-      { status: 400 },
+      { error: "Delivery file is not stored in the configured bucket" },
+      { status: 409 },
     );
   }
 
-  let parsed;
   try {
-    parsed = new URL(sourceUrl);
-  } catch {
-    return NextResponse.json({ error: "Invalid url" }, { status: 400 });
-  }
-
-  if (parsed.protocol !== "https:") {
-    return NextResponse.json(
-      { error: "Only https urls are allowed" },
-      { status: 400 },
-    );
-  }
-
-  if (!isAllowedDownloadHost(parsed)) {
-    return NextResponse.json(
-      { error: "Download host is not allowed" },
-      { status: 403 },
-    );
-  }
-
-  if (directDownload) {
-    return NextResponse.redirect(parsed, {
-      status: 302,
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
+    const legacyFormEncodedPath = new URL(
+      deliveryFile.currentVersion.url,
+    ).pathname.includes("+");
+    const fileName = legacyFormEncodedPath
+      ? deliveryFile.currentVersion.originalFilename?.replaceAll("+", " ")
+      : deliveryFile.currentVersion.originalFilename;
+    const signedUrl = await createDownloadUrl({
+      key: ownedObject.key,
+      fileName,
     });
-  }
-
-  const upstream = await fetch(sourceUrl, { cache: "no-store" });
-  if (!upstream.ok) {
+    return NextResponse.redirect(signedUrl, {
+      status: 302,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  } catch (error) {
+    console.error("Failed to sign delivery download:", error);
     return NextResponse.json(
-      { error: "Unable to fetch file" },
+      { error: "Unable to prepare download" },
       { status: 502 },
     );
   }
-
-  const fileNameFromUrl =
-    decodeURIComponent(
-      parsed.pathname.split("/").filter(Boolean).pop() || "",
-    ) || "deliverable";
-  const filename = getSafeFilename(name || fileNameFromUrl);
-
-  const contentType =
-    upstream.headers.get("content-type") || "application/octet-stream";
-  const contentLength = upstream.headers.get("content-length");
-  const buffer = await upstream.arrayBuffer();
-
-  const headers = new Headers();
-  headers.set("Content-Type", contentType);
-  headers.set(
-    "Content-Disposition",
-    `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
-  );
-  if (contentLength) {
-    headers.set("Content-Length", contentLength);
-  }
-
-  return new Response(buffer, {
-    status: 200,
-    headers,
-  });
 }

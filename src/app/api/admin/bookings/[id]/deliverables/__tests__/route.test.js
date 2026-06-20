@@ -1,15 +1,18 @@
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { auth } from "@/lib/helpers/auth";
 import {
   deleteDeliveryFileState,
   finishBookingDeliveryState,
   publishPrivateDeliveryFilesState,
 } from "@/lib/services/fileDelivery";
+import {
+  deleteBookingObject,
+  parseOwnedBookingObjectUrl,
+} from "@/lib/storage/s3";
 import { DELETE, POST } from "../route";
 
-jest.mock("@aws-sdk/client-s3", () => ({
-  DeleteObjectCommand: jest.fn(),
-  S3Client: jest.fn(() => ({ send: jest.fn().mockResolvedValue({}) })),
+jest.mock("@/lib/storage/s3", () => ({
+  deleteBookingObject: jest.fn(),
+  parseOwnedBookingObjectUrl: jest.fn(),
 }));
 jest.mock("@/lib/helpers/auth", () => ({
   auth: jest.fn(),
@@ -37,6 +40,10 @@ describe("Admin booking deliverables API", () => {
     jest.clearAllMocks();
     process.env.AWS_BUCKET_NAME = "milkywayy-bookings";
     auth.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
+    parseOwnedBookingObjectUrl.mockImplementation((url) => ({
+      key: new URL(url).pathname.replace(/^\//, ""),
+    }));
+    deleteBookingObject.mockResolvedValue(true);
   });
 
   afterAll(() => {
@@ -67,8 +74,8 @@ describe("Admin booking deliverables API", () => {
   it("deletes one normalized delivery file", async () => {
     deleteDeliveryFileState.mockResolvedValue({
       urls: [
-        "https://milkywayy-bookings.s3.amazonaws.com/old.jpg",
-        "https://milkywayy-bookings.s3.amazonaws.com/replacement.jpg",
+        "https://milkywayy-bookings.s3.amazonaws.com/bookings/42/old.jpg",
+        "https://milkywayy-bookings.s3.amazonaws.com/bookings/42/replacement.jpg",
       ],
       filesUrl: "{}",
     });
@@ -78,7 +85,7 @@ describe("Admin booking deliverables API", () => {
 
     expect(response.status).toBe(200);
     expect(deleteDeliveryFileState).toHaveBeenCalledWith(10, "42");
-    expect(DeleteObjectCommand).toHaveBeenCalledTimes(2);
+    expect(deleteBookingObject).toHaveBeenCalledTimes(2);
     expect(data.fileId).toBe(10);
   });
 

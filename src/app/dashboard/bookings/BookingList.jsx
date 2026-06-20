@@ -58,6 +58,7 @@ export default function BookingList({ bookings }) {
       ? buildInvoiceDownloadUrl(
           selectedTransaction.invoiceUrl,
           selectedInvoiceNumber,
+          selectedTransaction.id,
         )
       : null;
 

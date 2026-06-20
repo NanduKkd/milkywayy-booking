@@ -1,8 +1,13 @@
 import { updateBookingWorkflow } from "../../../../lib/actions/bookings";
+import { uploadBookingFile } from "../../../../lib/uploads/multipart";
 import { fireEvent, render, screen, waitFor } from "../../../../test-utils";
 import BookingsPage from "../page";
 
 global.fetch = jest.fn();
+jest.mock("../../../../lib/uploads/multipart", () => ({
+  MAX_BOOKING_UPLOAD_BYTES: 2_147_483_648,
+  uploadBookingFile: jest.fn(),
+}));
 
 const baseBooking = {
   id: 1,
@@ -77,47 +82,46 @@ describe("Admin Bookings Page", () => {
   });
 
   it("appends every uploaded physical file", async () => {
-    global.fetch.mockImplementation((url, init) => {
+    global.fetch.mockImplementation((url) => {
       if (url === "/api/admin/bookings") {
         return Promise.resolve({
           ok: true,
           json: async () => [baseBooking],
         });
       }
-      if (url === "/api/admin/upload" && init?.method === "POST") {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            url: "https://example.com/one.webp",
-            urls: [
-              "https://example.com/one.webp",
-              "https://example.com/two.webp",
-            ],
-            filesUrl: "{}",
-            booking: { workflowStatus: "FILES_UPLOADED" },
-            deliveryFiles: [
-              {
-                ...deliveryFile,
-                currentVersion: {
-                  ...deliveryFile.currentVersion,
-                  originalFilename: "one.webp",
-                },
-              },
-              {
-                ...deliveryFile,
-                id: 11,
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "two.webp",
-                  url: "https://example.com/two.webp",
-                },
-              },
-            ],
-          }),
-        });
-      }
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
+    uploadBookingFile
+      .mockResolvedValueOnce({
+        url: "https://example.com/one.jpg",
+        filesUrl: "{}",
+        booking: { workflowStatus: "FILES_UPLOADED" },
+        deliveryFiles: [
+          {
+            ...deliveryFile,
+            currentVersion: {
+              ...deliveryFile.currentVersion,
+              originalFilename: "one.jpg",
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        url: "https://example.com/two.jpg",
+        filesUrl: "{}",
+        booking: { workflowStatus: "FILES_UPLOADED" },
+        deliveryFiles: [
+          {
+            ...deliveryFile,
+            id: 11,
+            currentVersion: {
+              id: 101,
+              originalFilename: "two.jpg",
+              url: "https://example.com/two.jpg",
+            },
+          },
+        ],
+      });
 
     render(<BookingsPage />);
     fireEvent.click(await screen.findByText("101, Tower A, Marina"));
@@ -133,10 +137,7 @@ describe("Admin Bookings Page", () => {
     fireEvent.click(screen.getByRole("button", { name: /upload files/i }));
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/admin/upload",
-        expect.objectContaining({ method: "POST" }),
-      );
+      expect(uploadBookingFile).toHaveBeenCalledTimes(2);
     });
     expect(window.alert).toHaveBeenCalledWith(
       "2 file(s) uploaded successfully",
@@ -157,33 +158,27 @@ describe("Admin Bookings Page", () => {
       workflowStatus: "FILES_UPLOADED",
       deliveryFiles: [requestedFile],
     };
-    global.fetch.mockImplementation((url, init) => {
+    global.fetch.mockImplementation((url) => {
       if (url === "/api/admin/bookings") {
         return Promise.resolve({ ok: true, json: async () => [booking] });
       }
-      if (url === "/api/admin/upload" && init?.method === "POST") {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            url: "https://example.com/replacement.webp",
-            urls: ["https://example.com/replacement.webp"],
-            filesUrl: "{}",
-            booking: {},
-            deliveryFiles: [
-              {
-                ...requestedFile,
-                status: "UNDER_REVIEW",
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "replacement.webp",
-                  url: "https://example.com/replacement.webp",
-                },
-              },
-            ],
-          }),
-        });
-      }
       return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+    uploadBookingFile.mockResolvedValue({
+      url: "https://example.com/replacement.jpg",
+      filesUrl: "{}",
+      booking: {},
+      deliveryFiles: [
+        {
+          ...requestedFile,
+          status: "UNDER_REVIEW",
+          currentVersion: {
+            id: 101,
+            originalFilename: "replacement.jpg",
+            url: "https://example.com/replacement.jpg",
+          },
+        },
+      ],
     });
 
     render(<BookingsPage />);
@@ -206,10 +201,13 @@ describe("Admin Bookings Page", () => {
     );
 
     await waitFor(() => {
-      const uploadCall = global.fetch.mock.calls.find(
-        ([url, init]) => url === "/api/admin/upload" && init?.method === "POST",
+      expect(uploadBookingFile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bookingId: 1,
+          replacementFileId: 10,
+          deliverableType: "Photography",
+        }),
       );
-      expect(uploadCall[1].body.get("replacementFileId")).toBe("10");
     });
   });
 

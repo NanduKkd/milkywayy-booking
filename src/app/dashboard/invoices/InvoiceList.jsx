@@ -21,7 +21,11 @@ export default function InvoiceList({ invoices }) {
     <div className="space-y-4">
       {invoices.map((invoice) => {
         const invoiceNumber = formatInvoiceNumber(invoice);
-        const downloadUrl = buildInvoiceDownloadUrl(invoice.invoiceUrl, invoiceNumber);
+        const downloadUrl = buildInvoiceDownloadUrl(
+          invoice.invoiceUrl,
+          invoiceNumber,
+          invoice.id,
+        );
         return (
           <div
             key={invoice.id}
@@ -35,7 +39,8 @@ export default function InvoiceList({ invoices }) {
                 {formatInvoiceCardProperty(invoice.bookings)}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Booking ID: {formatBookingReferenceList(invoice.bookings) || "N/A"} •{" "}
+                Booking ID:{" "}
+                {formatBookingReferenceList(invoice.bookings) || "N/A"} •{" "}
                 {new Date(invoice.createdAt).toLocaleDateString("en-GB", {
                   day: "numeric",
                   month: "short",
