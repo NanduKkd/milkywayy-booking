@@ -48,8 +48,8 @@ const TEMPLATE_VARIABLE_MAP = {
     3: "Shoot_Date",
   },
   single_service_media_ready: {
-    1: "Client_Name",
-    2: "Property_Name",
+    2: "Client_Name",
+    1: "Property_Name",
   },
   partial_media_upload: {
     1: "Property_Name",
