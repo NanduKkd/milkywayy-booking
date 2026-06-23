@@ -204,6 +204,7 @@ export const createDownloadUrl = async ({ key, fileName }) => {
       Bucket: bucket,
       Key: key,
       ResponseContentDisposition: contentDisposition(fileName),
+      ResponseContentType: "application/octet-stream",
     }),
     { expiresIn: downloadUrlTtlSeconds },
   );
@@ -221,6 +222,7 @@ export const createInvoiceDownloadUrl = async ({ key, fileName }) => {
       Bucket: bucket,
       Key: key,
       ResponseContentDisposition: contentDisposition(fileName),
+      ResponseContentType: "application/octet-stream",
     }),
     { expiresIn: downloadUrlTtlSeconds },
   );

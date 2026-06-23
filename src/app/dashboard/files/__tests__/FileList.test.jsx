@@ -69,6 +69,18 @@ describe("customer FileList", () => {
     expect(screen.getAllByText(/review by/i)).toHaveLength(2);
   });
 
+  it("uses a real download link for browser-native mobile downloads", () => {
+    render(<FileList bookings={[makeBooking()]} />);
+
+    const link = screen.getByRole("link", { name: /download/i });
+    expect(link).toHaveAttribute(
+      "href",
+      "/api/files/download?fileId=10&name=living-room.webp",
+    );
+    expect(link).toHaveAttribute("download", "living-room.webp");
+    expect(link).toHaveAttribute("target", "_blank");
+  });
+
   it("submits a revision against only the selected file", async () => {
     render(<FileList bookings={[makeBooking()]} />);
 

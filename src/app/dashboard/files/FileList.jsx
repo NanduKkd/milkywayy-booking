@@ -57,6 +57,9 @@ const getFileName = (file) => {
   }
 };
 
+const getDownloadHref = (file) =>
+  `/api/files/download?fileId=${encodeURIComponent(file.id)}&name=${encodeURIComponent(getFileName(file))}`;
+
 const formatDeadline = (value) => {
   if (!value) return "";
   const deadline = new Date(value);
@@ -137,16 +140,6 @@ export default function FileList({ bookings }) {
     } finally {
       setLoadingKey("");
     }
-  };
-
-  const downloadFile = (file) => {
-    const endpoint = `/api/files/download?fileId=${encodeURIComponent(file.id)}&name=${encodeURIComponent(getFileName(file))}`;
-    const anchor = document.createElement("a");
-    anchor.href = endpoint;
-    anchor.download = getFileName(file);
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
   };
 
   const copyLink = async (file) => {
@@ -307,14 +300,16 @@ export default function FileList({ bookings }) {
                             </Button>
                           )}
                           {file.deliveryMode !== "copy_link" && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => downloadFile(file)}
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                              Download
+                            <Button asChild size="sm" variant="outline">
+                              <a
+                                href={getDownloadHref(file)}
+                                download={getFileName(file)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                                Download
+                              </a>
                             </Button>
                           )}
                           {!accepted && (

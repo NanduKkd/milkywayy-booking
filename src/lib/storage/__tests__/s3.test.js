@@ -1,9 +1,23 @@
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import {
   createBookingObjectKey,
+  createDownloadUrl,
   parseOwnedBookingObjectUrl,
   parseOwnedInvoiceObjectUrl,
   sanitizeFilename,
 } from "../s3";
+
+jest.mock("@aws-sdk/client-s3", () => ({
+  DeleteObjectCommand: jest.fn((input) => input),
+  GetObjectCommand: jest.fn((input) => input),
+  HeadObjectCommand: jest.fn((input) => input),
+  S3Client: jest.fn(() => ({})),
+  UploadPartCommand: jest.fn((input) => input),
+}));
+
+jest.mock("@aws-sdk/s3-request-presigner", () => ({
+  getSignedUrl: jest.fn(() => Promise.resolve("https://signed.example/file")),
+}));
 
 describe("booking S3 storage helpers", () => {
   const originalBucket = process.env.AWS_BUCKET_NAME;
@@ -86,5 +100,19 @@ describe("booking S3 storage helpers", () => {
 
   it("sanitizes path and header metacharacters from filenames", () => {
     expect(sanitizeFilename("../bad\nname?.mp4")).toBe("badname-.mp4");
+  });
+
+  it("signs booking downloads as attachment binary responses", async () => {
+    await createDownloadUrl({
+      key: "deliverables/bookings/42/final.mp4",
+      fileName: "Final Video.mp4",
+    });
+
+    expect(GetObjectCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ResponseContentDisposition: expect.stringContaining("attachment;"),
+        ResponseContentType: "application/octet-stream",
+      }),
+    );
   });
 });
