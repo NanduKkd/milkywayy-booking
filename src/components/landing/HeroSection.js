@@ -9,7 +9,7 @@ const HeroSection = ({ onWatchVideo }) => {
 
   const trustChips = [
     { icon: Clock, text: "Photos in 24h*" },
-    { icon: BadgeCheck, text: "From AED 350" },
+    { icon: BadgeCheck, text: "From AED 450" },
     { icon: MapPin, text: "Dubai-wide" },
   ];
 
@@ -92,13 +92,13 @@ const HeroSection = ({ onWatchVideo }) => {
                 <div className="flex border-b border-border">
                   <button
                     type="button"
-                    className="flex-1 border-b-2 border-foreground/30 bg-secondary/50 px-4 py-3 text-sm font-medium"
+                    className="flex-1 pointer-events-none border-b-2 border-foreground/30 bg-secondary/50 px-4 py-3 text-sm font-medium"
                   >
                     Booking Flow
                   </button>
                   <button
                     type="button"
-                    className="flex-1 px-4 py-3 text-sm font-medium text-muted-foreground"
+                    className="flex-1 px-4 py-3 text-sm pointer-events-none font-medium text-muted-foreground"
                   >
                     Dashboard
                   </button>

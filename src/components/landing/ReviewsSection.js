@@ -226,7 +226,7 @@ const ReviewsSection = () => {
           <Link href="/booking">
             <Button
               variant="outline"
-              className="rounded-xl border-border px-8 hover:bg-secondary"
+              className="rounded-xl border-border px-8"
             >
               Book your first shoot
             </Button>

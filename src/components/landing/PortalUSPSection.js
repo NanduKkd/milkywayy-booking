@@ -28,7 +28,7 @@ const PortalUSPSection = () => {
             <div className="relative bg-card border border-border rounded-2xl overflow-hidden shadow-2xl">
               <div className="flex border-b border-border">
                 {["Bookings", "Files", "Invoices"].map((tab, i) =>
-                <button key={tab} className={`flex-1 py-3 px-4 text-sm font-medium ${i === 0 ? "bg-secondary/50 border-b-2 border-accent" : "text-muted-foreground"}`}>
+                <button key={tab} className={`flex-1 py-3 px-4 text-sm font-medium ${i === 0 ? "bg-secondary/50 border-b-2 border-accent" : "text-muted-foreground"} pointer-events-none`}>
                     {tab}
                   </button>
                 )}
@@ -42,10 +42,10 @@ const PortalUSPSection = () => {
                   <p className="font-semibold mb-1">Marina Tower - Unit 2304</p>
                   <p className="text-sm text-muted-foreground">Photography + Video</p>
                   <div className="flex gap-2 mt-3">
-                    <Button size="sm" variant="outline" className="text-xs rounded-lg">
+                    <Button size="sm" variant="outline" className="text-xs rounded-lg pointer-events-none">
                       Reschedule
                     </Button>
-                    <Button size="sm" variant="outline" className="text-xs rounded-lg text-destructive">
+                    <Button size="sm" variant="outline" className="text-xs rounded-lg text-destructive pointer-events-none">
                       Cancel
                     </Button>
                   </div>
@@ -57,7 +57,7 @@ const PortalUSPSection = () => {
                   </div>
                   <p className="font-semibold mb-1">Palm Jumeirah Villa</p>
                   <p className="text-sm text-muted-foreground">45 photos ready</p>
-                  <Button size="sm" className="mt-3 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90">
+                  <Button size="sm" className="mt-3 rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 pointer-events-none">
                     Download Files
                   </Button>
                 </div>
