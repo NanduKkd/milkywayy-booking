@@ -12,12 +12,12 @@ This is the authoritative progress tracker. Status values and update rules are d
 |---|---|---:|---:|---:|
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
-| M2 - OAuth persistence | `NOT_STARTED` | 0 | 5 | 10-14 h |
+| M2 - OAuth persistence | `IN_PROGRESS` | 1 | 5 | 10-14 h |
 | M3 - Authorization and token service | `NOT_STARTED` | 0 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **8** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **9** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -200,11 +200,17 @@ Acceptance criteria:
 
 ### DB-001 - Create OAuth database migrations
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-4 h
 - Depends on: OAUTH-004
-- Evidence: —
+- Evidence:
+  - Remaining OAuth persistence tables and indexes added in `src/lib/db/migrations/20260629010000-create-oauth-persistence.js`.
+  - Existing PostgreSQL-backed OAuth rate-limit storage from `src/lib/db/migrations/20260629000000-add-customer-auth-otp-controls.js` remains the canonical limiter table required by `ARCHITECTURE.md`.
+  - PostgreSQL-backed migration verification added in `src/lib/db/migrations/__tests__/20260629010000-create-oauth-persistence.test.js`.
+  - Focused verification passed:
+    - `npx jest src/lib/db/migrations/__tests__/20260629010000-create-oauth-persistence.test.js --runInBand`
+    - `npx biome check src/lib/db/migrations/20260629010000-create-oauth-persistence.js src/lib/db/migrations/__tests__/20260629010000-create-oauth-persistence.test.js`
 
 Acceptance criteria:
 
