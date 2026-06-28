@@ -7,7 +7,13 @@ import BookingFileRevision from "./bookingfilerevision.js";
 import BookingRevision from "./bookingrevision.js";
 import Coupon from "./coupon.js";
 import DynamicConfig from "./dynamicconfig.js";
+import OAuthAccessToken from "./oauthaccesstoken.js";
+import OAuthAuditEvent from "./oauthauditevent.js";
+import OAuthAuthorizationCode from "./oauthauthorizationcode.js";
+import OAuthClient from "./oauthclient.js";
+import OAuthConsent from "./oauthconsent.js";
 import OAuthRateLimit from "./oauthratelimit.js";
+import OAuthRefreshToken from "./oauthrefreshtoken.js";
 import OurWork from "./ourwork.js";
 import Review from "./review.js";
 import Transaction from "./transaction.js";
@@ -26,6 +32,12 @@ const models = {
   Coupon,
   WalletTransaction,
   DynamicConfig,
+  OAuthClient,
+  OAuthAuthorizationCode,
+  OAuthAccessToken,
+  OAuthRefreshToken,
+  OAuthConsent,
+  OAuthAuditEvent,
   OAuthRateLimit,
   OurWork,
   Review,
@@ -43,6 +55,12 @@ export {
   Coupon,
   WalletTransaction,
   DynamicConfig,
+  OAuthClient,
+  OAuthAuthorizationCode,
+  OAuthAccessToken,
+  OAuthRefreshToken,
+  OAuthConsent,
+  OAuthAuditEvent,
   OAuthRateLimit,
   OurWork,
   Review,

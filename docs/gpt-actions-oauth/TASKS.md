@@ -12,12 +12,12 @@ This is the authoritative progress tracker. Status values and update rules are d
 |---|---|---:|---:|---:|
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
-| M2 - OAuth persistence | `IN_PROGRESS` | 1 | 5 | 10-14 h |
+| M2 - OAuth persistence | `IN_PROGRESS` | 2 | 5 | 10-14 h |
 | M3 - Authorization and token service | `NOT_STARTED` | 0 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **9** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **10** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -221,11 +221,17 @@ Acceptance criteria:
 
 ### DB-002 - Add Sequelize OAuth models and relations
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: DB-001
-- Evidence: —
+- Evidence:
+  - Sequelize OAuth persistence models added in `src/lib/db/models/oauthclient.js`, `src/lib/db/models/oauthauthorizationcode.js`, `src/lib/db/models/oauthaccesstoken.js`, `src/lib/db/models/oauthrefreshtoken.js`, `src/lib/db/models/oauthconsent.js`, and `src/lib/db/models/oauthauditevent.js`.
+  - Explicit OAuth associations to `User` and `OAuthClient` records, including refresh-token self-relations, added in `src/lib/db/relations.js`.
+  - Sensitive hash fields are excluded from default model serialization through `src/lib/db/models/oauthmodelutils.js`.
+  - Focused verification passed:
+    - `npx jest src/lib/db/models/__tests__/oauthmodels.test.js --runInBand`
+    - `npx biome check src/lib/db/models/oauthmodelutils.js src/lib/db/models/oauthclient.js src/lib/db/models/oauthauthorizationcode.js src/lib/db/models/oauthaccesstoken.js src/lib/db/models/oauthrefreshtoken.js src/lib/db/models/oauthconsent.js src/lib/db/models/oauthauditevent.js src/lib/db/models/__tests__/oauthmodels.test.js src/lib/db/models/index.js src/lib/db/relations.js`
 
 Acceptance criteria:
 

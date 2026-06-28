@@ -71,6 +71,59 @@ models.BookingRevision.belongsTo(models.Booking, {
   as: "booking",
 });
 
+models.OAuthAuthorizationCode.belongsTo(models.OAuthClient, {
+  foreignKey: "clientId",
+  as: "client",
+});
+models.OAuthAuthorizationCode.belongsTo(models.User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
+models.OAuthAccessToken.belongsTo(models.OAuthClient, {
+  foreignKey: "clientId",
+  as: "client",
+});
+models.OAuthAccessToken.belongsTo(models.User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
+models.OAuthRefreshToken.belongsTo(models.OAuthClient, {
+  foreignKey: "clientId",
+  as: "client",
+});
+models.OAuthRefreshToken.belongsTo(models.User, {
+  foreignKey: "userId",
+  as: "user",
+});
+models.OAuthRefreshToken.belongsTo(models.OAuthRefreshToken, {
+  foreignKey: "parentTokenId",
+  as: "parentToken",
+});
+models.OAuthRefreshToken.hasMany(models.OAuthRefreshToken, {
+  foreignKey: "parentTokenId",
+  as: "childTokens",
+});
+
+models.OAuthConsent.belongsTo(models.OAuthClient, {
+  foreignKey: "clientId",
+  as: "client",
+});
+models.OAuthConsent.belongsTo(models.User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
+models.OAuthAuditEvent.belongsTo(models.OAuthClient, {
+  foreignKey: "clientId",
+  as: "client",
+});
+models.OAuthAuditEvent.belongsTo(models.User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
 // User has many transactions, wallet transactions, and bookings
 models.User.hasMany(models.Transaction, {
   foreignKey: "userId",
@@ -81,6 +134,47 @@ models.User.hasMany(models.WalletTransaction, {
   as: "walletTransactions",
 });
 models.User.hasMany(models.Booking, { foreignKey: "userId", as: "bookings" });
+models.User.hasMany(models.OAuthAuthorizationCode, {
+  foreignKey: "userId",
+  as: "oauthAuthorizationCodes",
+});
+models.User.hasMany(models.OAuthAccessToken, {
+  foreignKey: "userId",
+  as: "oauthAccessTokens",
+});
+models.User.hasMany(models.OAuthRefreshToken, {
+  foreignKey: "userId",
+  as: "oauthRefreshTokens",
+});
+models.User.hasMany(models.OAuthConsent, {
+  foreignKey: "userId",
+  as: "oauthConsents",
+});
+models.User.hasMany(models.OAuthAuditEvent, {
+  foreignKey: "userId",
+  as: "oauthAuditEvents",
+});
+
+models.OAuthClient.hasMany(models.OAuthAuthorizationCode, {
+  foreignKey: "clientId",
+  as: "authorizationCodes",
+});
+models.OAuthClient.hasMany(models.OAuthAccessToken, {
+  foreignKey: "clientId",
+  as: "accessTokens",
+});
+models.OAuthClient.hasMany(models.OAuthRefreshToken, {
+  foreignKey: "clientId",
+  as: "refreshTokens",
+});
+models.OAuthClient.hasMany(models.OAuthConsent, {
+  foreignKey: "clientId",
+  as: "consents",
+});
+models.OAuthClient.hasMany(models.OAuthAuditEvent, {
+  foreignKey: "clientId",
+  as: "auditEvents",
+});
 
 // Transaction has many bookings
 models.Transaction.hasMany(models.Booking, {
