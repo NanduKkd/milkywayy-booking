@@ -35,15 +35,17 @@ export default function CustomerHeader({ mode = "default" }) {
             />
           </Link>
 
-          <div className="flex items-center gap-6">
-            <Button
-              variant="outline"
-              className="h-12 rounded-2xl border-border px-6 text-muted-foreground hover:bg-secondary hover:text-foreground"
-              onClick={logout}
-            >
-              Logout
-            </Button>
-          </div>
+          {isAuthenticated && (
+            <div className="flex items-center gap-6">
+              <Button
+                variant="outline"
+                className="h-12 rounded-2xl border-border px-6 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                onClick={logout}
+              >
+                Logout
+              </Button>
+            </div>
+          )}
         </div>
       </HeaderBackground>
     );

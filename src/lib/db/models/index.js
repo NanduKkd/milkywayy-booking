@@ -7,6 +7,7 @@ import BookingFileRevision from "./bookingfilerevision.js";
 import BookingRevision from "./bookingrevision.js";
 import Coupon from "./coupon.js";
 import DynamicConfig from "./dynamicconfig.js";
+import OAuthRateLimit from "./oauthratelimit.js";
 import OurWork from "./ourwork.js";
 import Review from "./review.js";
 import Transaction from "./transaction.js";
@@ -25,6 +26,7 @@ const models = {
   Coupon,
   WalletTransaction,
   DynamicConfig,
+  OAuthRateLimit,
   OurWork,
   Review,
 };
@@ -41,6 +43,7 @@ export {
   Coupon,
   WalletTransaction,
   DynamicConfig,
+  OAuthRateLimit,
   OurWork,
   Review,
   sequelize,

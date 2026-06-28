@@ -60,6 +60,22 @@ const User = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true,
     },
+    otpExpiresAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "otp_expires_at",
+    },
+    otpAttemptCount: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      field: "otp_attempt_count",
+    },
+    otpResendAvailableAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "otp_resend_available_at",
+    },
   },
   {
     tableName: "users",

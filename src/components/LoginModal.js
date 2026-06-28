@@ -1,22 +1,20 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Info } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Info } from "lucide-react";
 import PhoneNumberInput from "@/components/PhoneInput";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
   InputOTP,
   InputOTPGroup,
-  InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { customerSendOtp, customerVerifyOtp } from "@/lib/actions/auth";
@@ -26,7 +24,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
   const [step, setStep] = useState(1); // 1: phone input, 2: OTP input
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [userId, setUserId] = useState(null); // Store userId after OTP generation
+  const [verificationId, setVerificationId] = useState(null);
 
   const phoneForm = useForm({
     resolver: zodResolver(phoneSchema),
@@ -55,10 +53,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
         throw new Error(res.message);
       }
       const result = res.data;
-      if (result?.requiresRegistration) {
-        throw new Error("No account found for this phone number. Please create an account first.");
-      }
-      setUserId(result.userId);
+      setVerificationId(result.verificationId);
       setStep(2);
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -72,7 +67,14 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
     setError("");
 
     try {
-      const res = await customerVerifyOtp({ userId, otp: data.otp });
+      if (!verificationId) {
+        throw new Error("Please request a new OTP.");
+      }
+
+      const res = await customerVerifyOtp({
+        verificationId,
+        otp: data.otp,
+      });
       if (!res.success) {
         throw new Error(res.message);
       }
@@ -97,7 +99,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
       if (!res.success) {
         throw new Error(res.message);
       }
-      const result = res.data;
+      setVerificationId(res.data?.verificationId || null);
     } catch (err) {
       setError(err.message || "Failed to resend OTP");
     } finally {
@@ -109,6 +111,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
     setStep(1);
     otpForm.reset();
     setError("");
+    setVerificationId(null);
   };
 
   const resetModal = () => {
@@ -116,7 +119,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
     phoneForm.reset();
     otpForm.reset();
     setError("");
-    setUserId(null);
+    setVerificationId(null);
   };
 
   const handleClose = () => {
@@ -149,7 +152,10 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
                   control={phoneForm.control}
                   render={({ field }) => (
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5">
+                      <label
+                        htmlFor="login-whatsapp-number"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-1.5"
+                      >
                         WhatsApp Number
                         <span
                           className="inline-flex text-muted-foreground cursor-help"
@@ -159,6 +165,7 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
                         </span>
                       </label>
                       <PhoneNumberInput
+                        id="login-whatsapp-number"
                         value={field.value}
                         onChange={field.onChange}
                         name={field.name}
@@ -179,7 +186,8 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
                   )}
                 />
                 <p className="text-sm text-muted-foreground">
-                  We will send an OTP to your WhatsApp number to verify.
+                  We will send a verification code if this number matches an
+                  existing account.
                 </p>
                 <Button type="submit" disabled={isLoading} className="w-full">
                   {isLoading ? "Sending..." : "Send OTP"}
@@ -263,4 +271,3 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
     </Dialog>
   );
 }
-

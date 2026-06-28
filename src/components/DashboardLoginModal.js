@@ -62,7 +62,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
   const [activeTab, setActiveTab] = useState("login");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [userId, setUserId] = useState(null);
+  const [verificationId, setVerificationId] = useState(null);
 
   const phoneForm = useForm({
     resolver: zodResolver(phoneSchema),
@@ -108,16 +108,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
       }
 
       const result = res.data;
-      if (result?.requiresRegistration) {
-        createAccountForm.setValue("phone", phone);
-        setActiveTab("create");
-        setError(
-          "No account found for this phone number. Please create an account.",
-        );
-        return;
-      }
-
-      setUserId(result.userId);
+      setVerificationId(result.verificationId);
       setActiveTab("otp");
     } catch (err) {
       setError(err.message || "Failed to send OTP");
@@ -131,13 +122,20 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
     setError("");
 
     try {
-      const res = await customerVerifyOtp({ userId, otp: data.otp });
+      if (!verificationId) {
+        throw new Error("Please request a new OTP.");
+      }
+
+      const res = await customerVerifyOtp({
+        verificationId,
+        otp: data.otp,
+      });
       if (!res.success) {
         throw new Error(res.message);
       }
 
       onSuccess(res.data);
-      handleClose();
+      handleClose("success");
     } catch (err) {
       setError(err.message || "Invalid OTP");
     } finally {
@@ -177,13 +175,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
       }
 
       const otpData = otpRes.data;
-      if (otpData?.requiresRegistration) {
-        throw new Error(
-          "Account was created, but OTP setup failed. Please try again.",
-        );
-      }
-
-      setUserId(otpData.userId);
+      setVerificationId(otpData.verificationId);
       setActiveTab("otp");
       setError("");
     } catch (err) {
@@ -199,11 +191,11 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
     otpForm.reset();
     createAccountForm.reset();
     setError("");
-    setUserId(null);
+    setVerificationId(null);
   };
 
-  const handleClose = () => {
-    onClose();
+  const handleClose = (reason = "cancel") => {
+    onClose(reason);
     resetModal();
   };
 
@@ -211,7 +203,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
     <Dialog
       open={isOpen}
       onOpenChange={(open) => {
-        if (!open) handleClose();
+        if (!open) handleClose("cancel");
       }}
     >
       <DialogContent className="flex gap-0 max-h-[82vh] overflow-hidden border-white/10 bg-[#171717] p-0 text-foreground shadow-2xl sm:max-w-[430px]">
@@ -250,7 +242,8 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                 Login to access your dashboard
               </h2>
               <p className="text-sm text-muted-foreground">
-                Enter your WhatsApp number to receive a OTP.
+                Enter your WhatsApp number to request a verification code. If
+                you do not have an account yet, use the create-account tab.
               </p>
             </div>
 
@@ -279,6 +272,7 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                       </span>
                     </Label>
                     <PhoneNumberInput
+                      id="dashboard-login-phone"
                       value={field.value}
                       onChange={field.onChange}
                       name={field.name}
@@ -333,18 +327,45 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                       maxLength={6}
                       value={field.value}
                       onChange={field.onChange}
-                      render={({ slots }) => (
-                        <InputOTPGroup>
-                          {slots.slice(0, 6).map((slot, index) => (
+                      render={({ slots }) => {
+                        const [slot0, slot1, slot2, slot3, slot4, slot5] =
+                          slots;
+
+                        return (
+                          <InputOTPGroup>
                             <InputOTPSlot
-                              key={index}
-                              index={index}
-                              char={slot.char ?? ""}
-                              hasFakeCaret={slot.isActive}
+                              index={0}
+                              char={slot0?.char ?? ""}
+                              hasFakeCaret={slot0?.isActive}
                             />
-                          ))}
-                        </InputOTPGroup>
-                      )}
+                            <InputOTPSlot
+                              index={1}
+                              char={slot1?.char ?? ""}
+                              hasFakeCaret={slot1?.isActive}
+                            />
+                            <InputOTPSlot
+                              index={2}
+                              char={slot2?.char ?? ""}
+                              hasFakeCaret={slot2?.isActive}
+                            />
+                            <InputOTPSlot
+                              index={3}
+                              char={slot3?.char ?? ""}
+                              hasFakeCaret={slot3?.isActive}
+                            />
+                            <InputOTPSlot
+                              index={4}
+                              char={slot4?.char ?? ""}
+                              hasFakeCaret={slot4?.isActive}
+                            />
+                            <InputOTPSlot
+                              index={5}
+                              char={slot5?.char ?? ""}
+                              hasFakeCaret={slot5?.isActive}
+                            />
+                          </InputOTPGroup>
+                        );
+                      }}
                     />
                   )}
                 />
@@ -438,47 +459,42 @@ export default function DashboardLoginModal({ isOpen, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {accountType === "INDIVIDUAL" ? (
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="fullName"
-                    className="text-sm font-semibold"
-                  >
-                    Full Name *
-                  </Label>
-                  <Input
-                    id="fullName"
-                    {...createAccountForm.register("fullName")}
-                    placeholder="Your full name"
-                    className="h-9 rounded-lg border-white/10 bg-white/[0.04] text-sm"
-                  />
-                  <FieldError
-                    message={
-                      createAccountForm.formState.errors.fullName?.message
-                    }
-                  />
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="companyName"
-                    className="text-sm font-semibold"
-                  >
-                    Company Name *
-                  </Label>
-                  <Input
-                    id="companyName"
-                    {...createAccountForm.register("companyName")}
-                    placeholder="Your company name"
-                    className="h-9 rounded-lg border-white/10 bg-white/[0.04] text-sm"
-                  />
-                  <FieldError
-                    message={
-                      createAccountForm.formState.errors.companyName?.message
-                    }
-                  />
-                </div>
-              )}
+              {accountType === "INDIVIDUAL"
+                ? <div className="space-y-1.5">
+                    <Label htmlFor="fullName" className="text-sm font-semibold">
+                      Full Name *
+                    </Label>
+                    <Input
+                      id="fullName"
+                      {...createAccountForm.register("fullName")}
+                      placeholder="Your full name"
+                      className="h-9 rounded-lg border-white/10 bg-white/[0.04] text-sm"
+                    />
+                    <FieldError
+                      message={
+                        createAccountForm.formState.errors.fullName?.message
+                      }
+                    />
+                  </div>
+                : <div className="space-y-1.5">
+                    <Label
+                      htmlFor="companyName"
+                      className="text-sm font-semibold"
+                    >
+                      Company Name *
+                    </Label>
+                    <Input
+                      id="companyName"
+                      {...createAccountForm.register("companyName")}
+                      placeholder="Your company name"
+                      className="h-9 rounded-lg border-white/10 bg-white/[0.04] text-sm"
+                    />
+                    <FieldError
+                      message={
+                        createAccountForm.formState.errors.companyName?.message
+                      }
+                    />
+                  </div>}
 
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5 text-sm font-semibold">

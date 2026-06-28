@@ -1,9 +1,7 @@
 "use server";
 import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"; // Use environment variable in production
-const key = new TextEncoder().encode(JWT_SECRET);
+import { sessionConfig } from "@/lib/config/session";
 
 /**
  * Sets the session user by converting the object to a JWT token and storing it in an httpOnly cookie.
@@ -13,18 +11,18 @@ export async function setSessionUser(user) {
   const cookieStore = await cookies();
 
   if (!user) {
-    cookieStore.delete("session-token");
+    cookieStore.delete(sessionConfig.cookieName);
     return;
   }
 
   const token = await new SignJWT(user)
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
-    .sign(key);
+    .sign(sessionConfig.key);
 
-  cookieStore.set("session-token", token, {
+  cookieStore.set(sessionConfig.cookieName, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: sessionConfig.secureCookies,
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: "/",
@@ -37,16 +35,16 @@ export async function setSessionUser(user) {
  */
 export async function getSessionUser() {
   const cookieStore = await cookies();
-  const token = cookieStore.get("session-token")?.value;
+  const token = cookieStore.get(sessionConfig.cookieName)?.value;
 
   if (!token) {
     return null;
   }
 
   try {
-    const { payload } = await jwtVerify(token, key);
+    const { payload } = await jwtVerify(token, sessionConfig.key);
     return payload;
-  } catch (error) {
+  } catch (_error) {
     // Token is invalid or expired
     return null;
   }

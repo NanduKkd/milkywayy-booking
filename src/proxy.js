@@ -1,18 +1,21 @@
 import { jwtVerify } from "jose";
 import { NextResponse } from "next/server";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const key = new TextEncoder().encode(JWT_SECRET);
+import { sessionConfig } from "@/lib/config/session";
+import {
+  buildDashboardAccessHref,
+  isDashboardPath,
+  isDashboardRootPath,
+} from "@/lib/helpers/dashboardAuth";
 
 export async function proxy(request) {
-  const token = request.cookies.get("session-token")?.value;
+  const token = request.cookies.get(sessionConfig.cookieName)?.value;
   let user = null;
 
   if (token) {
     try {
-      const { payload } = await jwtVerify(token, key);
+      const { payload } = await jwtVerify(token, sessionConfig.key);
       user = payload;
-    } catch (err) {
+    } catch (_err) {
       // Invalid token
     }
   }
@@ -26,7 +29,7 @@ export async function proxy(request) {
   // Admin Logic
   if (isAdmin) {
     // Redirect /dashboard and / to /admin
-    if (pathname.startsWith("/dashboard") || pathname === "/") {
+    if (isDashboardPath(pathname) || pathname === "/") {
       return NextResponse.redirect(new URL("/admin", request.url));
     }
     // Allow /admin and other routes (like /booking if needed)
@@ -51,8 +54,11 @@ export async function proxy(request) {
     }
 
     // Protect /dashboard routes
-    if (pathname.startsWith("/dashboard")) {
-      return NextResponse.redirect(new URL("/", request.url));
+    if (isDashboardPath(pathname) && !isDashboardRootPath(pathname)) {
+      const redirectHref = buildDashboardAccessHref(
+        `${pathname}${request.nextUrl.search}`,
+      );
+      return NextResponse.redirect(new URL(redirectHref, request.url));
     }
   }
 

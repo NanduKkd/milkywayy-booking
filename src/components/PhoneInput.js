@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import countryFlags from "@/lib/config/countryFlags.json";
 import countryNames from "@/lib/config/countryNames.json";
 import dialCodeCountries from "@/lib/config/dialCodeCountries.json";
@@ -7,11 +7,12 @@ import dialCodeCountries from "@/lib/config/dialCodeCountries.json";
 const uae = {
   code: "AE",
   dial_code: "+971",
-  flag: countryFlags["AE"],
-  name: countryNames["AE"],
+  flag: countryFlags.AE,
+  name: countryNames.AE,
 };
 
 export default function PhoneNumberInput({
+  id,
   name,
   value = "",
   onChange: onChangeProp,
@@ -21,7 +22,7 @@ export default function PhoneNumberInput({
   const [country, formatted] = useMemo(() => {
     const toCheck = value.split(" ").join("");
     if (!toCheck.startsWith("+") && toCheck.length > 0)
-      return [uae, "+971 " + value];
+      return [uae, `+971 ${value}`];
     else if (toCheck.length === 0) return [null, ""];
     const max = Math.min(6, toCheck.length);
     let countryCode;
@@ -68,8 +69,8 @@ export default function PhoneNumberInput({
                 " " +
                 restText.substring(2),
             ];
-          return [countryData, countryData.dial_code + " " + restText];
-        } else return [countryData, countryData.dial_code + restText];
+          return [countryData, `${countryData.dial_code} ${restText}`];
+        } else return [countryData, `${countryData.dial_code}${restText}`];
       }
     }
     return [null, value];
@@ -86,10 +87,12 @@ export default function PhoneNumberInput({
         {country ? <span>{country.flag}</span> : null}
       </div>
       <input
+        id={id}
         type="tel"
         name={name}
         value={formatted}
         placeholder="+971"
+        disabled={isDisabled}
         className={`${classNames.input}`}
         onChange={onChange}
       />

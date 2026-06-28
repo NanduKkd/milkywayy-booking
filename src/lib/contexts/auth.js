@@ -1,12 +1,22 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { createContext, useContext, useState } from "react";
-import { logout as logoutAction } from "@/lib/actions/auth";
 import DashboardLoginModal from "@/components/DashboardLoginModal";
+import { logout as logoutAction } from "@/lib/actions/auth";
+import {
+  normalizeAuthorizationErrorPath,
+  normalizeAuthorizationResumePath,
+} from "@/lib/oauth/authorizationResume";
 
 const AuthContext = createContext(null);
+const EMPTY_LOGIN_FLOW = Object.freeze({
+  nextPath: null,
+  cancelPath: null,
+});
 
 export function AuthProvider({ children, initialUser }) {
+  const router = useRouter();
   const [authState, setAuthState] = useState({
     user: initialUser || null,
     isLoading: false,
@@ -14,8 +24,13 @@ export function AuthProvider({ children, initialUser }) {
   });
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginFlowState, setLoginFlowState] = useState(EMPTY_LOGIN_FLOW);
 
-  const login = () => {
+  const login = (options = {}) => {
+    setLoginFlowState({
+      nextPath: normalizeAuthorizationResumePath(options.nextPath),
+      cancelPath: normalizeAuthorizationErrorPath(options.cancelPath),
+    });
     setIsLoginModalOpen(true);
   };
 
@@ -34,7 +49,21 @@ export function AuthProvider({ children, initialUser }) {
       isLoading: false,
       isAuthenticated: true,
     });
+
+    if (loginFlowState.nextPath) {
+      router.replace(loginFlowState.nextPath);
+    }
+  };
+
+  const handleLoginClose = (reason = "cancel") => {
     setIsLoginModalOpen(false);
+
+    const cancelPath = reason === "cancel" ? loginFlowState.cancelPath : null;
+    setLoginFlowState(EMPTY_LOGIN_FLOW);
+
+    if (cancelPath) {
+      router.replace(cancelPath);
+    }
   };
 
   return (
@@ -44,7 +73,7 @@ export function AuthProvider({ children, initialUser }) {
       {/* ✅ LOGIN MODAL MOUNTED ONCE */}
       <DashboardLoginModal
         isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
+        onClose={handleLoginClose}
         onSuccess={handleLoginSuccess}
       />
     </AuthContext.Provider>
