@@ -12,12 +12,12 @@ This is the authoritative progress tracker. Status values and update rules are d
 |---|---|---:|---:|---:|
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
-| M2 - OAuth persistence | `IN_PROGRESS` | 3 | 5 | 10-14 h |
+| M2 - OAuth persistence | `IN_PROGRESS` | 4 | 5 | 10-14 h |
 | M3 - Authorization and token service | `NOT_STARTED` | 0 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **11** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **12** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -277,11 +277,17 @@ Acceptance criteria:
 
 ### DB-005 - Add expired/revoked artifact cleanup
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2 h
 - Depends on: DB-002
-- Evidence: —
+- Evidence:
+  - Bounded OAuth artifact cleanup service added in `src/lib/oauth/cleanup.js`, covering expired authorization codes, expired/revoked access tokens, expired/revoked refresh tokens, expired rate-limit buckets, and expired audit-retention rows.
+  - Protected internal cleanup endpoint added in `src/app/api/internal/oauth/cleanup/route.js` and scheduled PM2 worker added in `scripts/oauth-cleanup-worker.mjs` with `npm run worker:oauth-cleanup`.
+  - Operational ownership and schedule documented in `ARCHITECTURE.md`.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/cleanup.test.js src/app/api/internal/oauth/cleanup/__tests__/route.test.js --runInBand`
+    - `npx biome check src/lib/oauth/cleanup.js src/lib/oauth/__tests__/cleanup.test.js src/app/api/internal/oauth/cleanup/route.js src/app/api/internal/oauth/cleanup/__tests__/route.test.js scripts/oauth-cleanup-worker.mjs docs/gpt-actions-oauth/ARCHITECTURE.md docs/gpt-actions-oauth/SECURITY-TEST-PLAN.md docs/gpt-actions-oauth/TASKS.md package.json`
 
 Acceptance criteria:
 

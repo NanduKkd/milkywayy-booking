@@ -266,5 +266,7 @@ Resource APIs use stable JSON errors with HTTP `401`, `403`, `404`, `409`, `422`
 - Responses are JSON text and remain below 100,000 characters through pagination and field selection.
 - No custom request headers are required beyond standard OAuth authorization.
 - `429` responses include a safe retry signal and are monitored.
+- OAuth artifact cleanup runs through the internal `POST /api/internal/oauth/cleanup` endpoint protected by `CRON_SECRET`; each run deletes expired or revoked rows in bounded batches so active grants remain untouched and issuance paths are not blocked indefinitely.
+- Production runs `npm run worker:oauth-cleanup` under PM2 at least hourly against the local application URL. The Milkywayy application operator owns the worker process, `CRON_SECRET`, and monitoring of cleanup failures or repeated batch-limit hits.
 - Database migrations are backward-compatible and deployed before application code that requires them.
 - Rollback must leave existing website login and booking flows functional.

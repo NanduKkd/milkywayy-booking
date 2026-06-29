@@ -118,7 +118,7 @@ Mock-only tests are insufficient for authorization-code consumption, refresh rot
 | LOG-03 | `NOT_STARTED` | Resource responses are inspected. | Only consented fields are returned. |
 | LOG-04 | `NOT_STARTED` | A customer revokes consent. | Audit trail records who/what/when without sensitive artifacts. |
 | LOG-05 | `NOT_STARTED` | Refresh-token reuse occurs. | High-severity event is observable and actionable. |
-| LOG-06 | `NOT_STARTED` | Database audit retention cleanup runs. | Events remain queryable for 30 days and older events are removed in bounded batches. |
+| LOG-06 | `DONE` | Database audit retention cleanup runs. | Focused cleanup tests cover bounded batch deletion for expired OAuth audit events and other expired/revoked artifacts. |
 
 ## Manual browser verification
 
