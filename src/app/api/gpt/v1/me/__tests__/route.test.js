@@ -164,6 +164,30 @@ describe("GPT API /me route", () => {
     expect(mockFindUserByPk).not.toHaveBeenCalled();
   });
 
+  it("returns insufficient_scope when the bearer token lacks customer:read", async () => {
+    const scopeError = new GptApiAuthorizationError({
+      code: "insufficient_scope",
+      reasonCode: "scope_missing",
+      statusCode: 403,
+    });
+    mockAuthenticateGptApiRequest.mockRejectedValue(scopeError);
+
+    const response = await GET({
+      headers: new Headers({
+        authorization: "Bearer limited-token",
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "insufficient_scope",
+    });
+    expect(mockBuildGptApiAuthorizationErrorResponse).toHaveBeenCalledWith(
+      scopeError,
+    );
+    expect(mockFindUserByPk).not.toHaveBeenCalled();
+  });
+
   it("returns invalid_token when the token principal no longer resolves to a user", async () => {
     mockAuthenticateGptApiRequest.mockResolvedValue({
       clientId: 19,

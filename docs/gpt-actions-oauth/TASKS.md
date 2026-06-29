@@ -15,9 +15,9 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
-| M5 - Verification and security release gates | `IN_PROGRESS` | 2 | 7 | 16-24 h |
+| M5 - Verification and security release gates | `IN_PROGRESS` | 3 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **31** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **32** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -678,11 +678,16 @@ Acceptance criteria:
 
 ### TEST-003 - Add route and cross-user authorization tests
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-4 h
 - Depends on: API-005
-- Evidence: —
+- Evidence:
+  - GPT API route suites now cover revoked-token `401`, insufficient-scope `403`, validation `422`, pagination, detail-route `404`, and shared `429` rate-limit handling across `/me`, bookings list/detail, invoices, and files in `src/app/api/gpt/v1/**/__tests__/route.test.js`.
+  - Existing list-route assertions continue to prove customer scoping at the query boundary for bookings, invoices, and files, and booking detail continues to return `404` for unavailable or other-customer resources.
+  - Focused verification passed:
+    - `npx jest --runTestsByPath src/app/api/gpt/v1/me/__tests__/route.test.js src/app/api/gpt/v1/bookings/__tests__/route.test.js src/app/api/gpt/v1/bookings/[bookingCode]/__tests__/route.test.js src/app/api/gpt/v1/invoices/__tests__/route.test.js src/app/api/gpt/v1/files/__tests__/route.test.js --runInBand`
+    - `npx biome check src/app/api/gpt/v1/me/__tests__/route.test.js src/app/api/gpt/v1/bookings/__tests__/route.test.js src/app/api/gpt/v1/bookings/[bookingCode]/__tests__/route.test.js src/app/api/gpt/v1/invoices/__tests__/route.test.js src/app/api/gpt/v1/files/__tests__/route.test.js docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 

@@ -73,7 +73,10 @@ jest.mock("next/server", () => ({
   },
 }));
 
-const { GptApiAuthorizationError } = require("../../_lib/auth");
+const {
+  GptApiAuthorizationError,
+  GptApiRateLimitError,
+} = require("../../_lib/auth");
 const { GET } = require("../route");
 
 describe("GPT API delivery files list route", () => {
@@ -292,6 +295,54 @@ describe("GPT API delivery files list route", () => {
     expect(mockBuildGptApiAuthorizationErrorResponse).toHaveBeenCalledWith(
       authError,
     );
+    expect(mockFindAllDeliveryFiles).not.toHaveBeenCalled();
+  });
+
+  it("returns insufficient_scope when the bearer token lacks customer:read", async () => {
+    const authError = new GptApiAuthorizationError({
+      code: "insufficient_scope",
+      reasonCode: "scope_missing",
+      statusCode: 403,
+    });
+    mockAuthenticateGptApiRequest.mockRejectedValue(authError);
+
+    const response = await GET({
+      headers: new Headers({
+        authorization: "Bearer limited-token",
+      }),
+      url: "https://milkywayy.com/api/gpt/v1/files",
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "insufficient_scope",
+    });
+    expect(mockBuildGptApiAuthorizationErrorResponse).toHaveBeenCalledWith(
+      authError,
+    );
+    expect(mockFindAllDeliveryFiles).not.toHaveBeenCalled();
+  });
+
+  it("returns a shared 429 response when the request hits GPT API rate limits", async () => {
+    mockAuthenticateGptApiRequest.mockRejectedValue(
+      new GptApiRateLimitError({
+        retryAfterSeconds: 17,
+      }),
+    );
+
+    const response = await GET({
+      headers: new Headers({
+        authorization: "Bearer throttled-token",
+      }),
+      url: "https://milkywayy.com/api/gpt/v1/files",
+    });
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("17");
+    await expect(response.json()).resolves.toEqual({
+      error: "rate_limited",
+      retryAfterSeconds: 17,
+    });
     expect(mockFindAllDeliveryFiles).not.toHaveBeenCalled();
   });
 });
