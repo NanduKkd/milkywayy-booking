@@ -8,6 +8,7 @@
     "start": "next start",
     "oauth:provision-client": "node scripts/provision-oauth-client.mjs",
     "verify:oauth-log-safety": "node scripts/verify-oauth-log-safety.mjs",
+    "verify:oauth-quality": "node scripts/verify-oauth-quality.mjs",
     "verify:oauth-security": "node scripts/verify-oauth-security.mjs",
     "worker:auto-complete": "node scripts/booking-auto-complete-worker.mjs",
     "worker:oauth-cleanup": "node scripts/oauth-cleanup-worker.mjs",

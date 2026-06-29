@@ -209,6 +209,16 @@ Last updated: 2026-06-29
   - GPT Actions return metadata and authenticated website links only; binary file delivery remains on the existing website to avoid expanding token misuse and data-exfiltration risk in the first release.
 - Consequence: Every mapped control is release-blocking unless the task tracker or security plan explicitly records a defer or exception decision.
 
+### DEC-019 - Record the single-reviewer exception explicitly when no secondary reviewer is available
+
+- Status: `ACCEPTED`
+- Date: 2026-06-29
+- Owner: Project owner
+- Needed by: TEST-007
+- Decision: `TEST-007` may be satisfied by a repeatable focused quality-review bundle when no second engineer is available to review the OAuth/GPT changes. The absence of an independent reviewer must stay documented as an explicit release exception instead of being treated as silent approval.
+- Reason: The current repository workflow is operating with one implementation author, but the release still needs a concrete, reviewable quality gate rather than leaving the exception implicit.
+- Consequence: `npm run verify:oauth-quality` becomes required evidence for `TEST-007`, and any production go/no-go decision must acknowledge that the independent-review criterion was not met because staffing did not permit it.
+
 ## Decision change template
 
 Copy this section for a new decision:

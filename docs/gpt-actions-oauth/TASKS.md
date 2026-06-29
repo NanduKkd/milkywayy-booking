@@ -15,9 +15,9 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
-| M5 - Verification and security release gates | `IN_PROGRESS` | 5 | 7 | 16-24 h |
+| M5 - Verification and security release gates | `IN_PROGRESS` | 6 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **34** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **35** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -755,11 +755,14 @@ Acceptance criteria:
 
 ### TEST-007 - Complete code-quality review
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: TEST-001, TEST-002, TEST-003
-- Evidence: —
+- Evidence:
+  - Added repeatable focused quality-review entrypoint `npm run verify:oauth-quality` via `scripts/verify-oauth-quality.mjs`; it runs the OAuth/GPT Biome scope, the release-blocking Jest suites, and fails if those suites contain skipped or todo tests.
+  - `npm run verify:oauth-quality` passed on 2026-06-29.
+  - `DEC-019` records the explicit single-reviewer staffing exception so the lack of a second reviewer is visible as a release decision instead of an implicit waiver.
 
 Acceptance criteria:
 
@@ -887,3 +890,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Completed `API-005` invoice metadata endpoint. | Codex |
 | 2026-06-29 | Completed `TEST-005` existing application regression coverage and restored dashboard/sign-in Jest compatibility after the OAuth auth-context changes. | Codex |
 | 2026-06-29 | Started `TEST-004` with an automated security verification runner and recorded the first passing abuse-case report. | Codex |
+| 2026-06-29 | Completed `TEST-007` with a repeatable focused quality-review runner and an explicit single-reviewer release decision. | Codex |

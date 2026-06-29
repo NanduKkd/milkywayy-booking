@@ -14,11 +14,11 @@ Mock-only tests are insufficient for authorization-code consumption, refresh rot
 | Gate | Status | Requirement | Evidence |
 |---|---|---|---|
 | GATE-01 | `NOT_STARTED` | All release-blocking tasks in `TASKS.md` are `DONE`. | — |
-| GATE-02 | `NOT_STARTED` | Changed OAuth/API files pass Biome and relevant Jest suites. | — |
+| GATE-02 | `DONE` | Changed OAuth/API files pass Biome and relevant Jest suites. | `npm run verify:oauth-quality` passed on 2026-06-29, covering the focused OAuth/GPT Biome scope, release-blocking Jest suites, and no skipped/todo release-blocking tests. |
 | GATE-03 | `NOT_STARTED` | No critical or high security finding remains open. | — |
 | GATE-04 | `NOT_STARTED` | Cross-customer isolation passes for every resource endpoint. | — |
 | GATE-05 | `NOT_STARTED` | Actual ChatGPT authorization, token exchange, API call, refresh, and revocation pass. | — |
-| GATE-06 | `NOT_STARTED` | Log review finds no secret, OTP, session, code, or token leakage. | — |
+| GATE-06 | `DONE` | Log review finds no secret, OTP, session, code, or token leakage. | `npm run verify:oauth-log-safety` passed on 2026-06-29; see `TEST-006` evidence and `SECURITY-VERIFICATION-REPORT.md`. |
 | GATE-07 | `NOT_STARTED` | Production TLS, domain, timeout, payload, and rate-limit requirements pass. | — |
 | GATE-08 | `NOT_STARTED` | Rollback and emergency client revocation procedures are verified. | — |
 | GATE-09 | `NOT_STARTED` | Current public-GPT privacy policy, domain verification, support contact, and publication-review requirements are satisfied. | — |
