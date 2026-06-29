@@ -1,7 +1,7 @@
 import { POST } from "../route";
 
 const mockAuthenticateOAuthClient = jest.fn();
-const mockExchangeAuthorizationCode = jest.fn();
+const mockExchangeOAuthToken = jest.fn();
 
 jest.mock("@/lib/oauth/clientAuthentication", () => {
   class MockOAuthClientAuthenticationError extends Error {
@@ -38,8 +38,7 @@ jest.mock("@/lib/oauth/tokenExchange", () => {
 
   return {
     OAuthTokenExchangeError: MockOAuthTokenExchangeError,
-    exchangeAuthorizationCode: (...args) =>
-      mockExchangeAuthorizationCode(...args),
+    exchangeOAuthToken: (...args) => mockExchangeOAuthToken(...args),
   };
 });
 
@@ -98,7 +97,7 @@ describe("oauth token route", () => {
         id: 7,
       },
     });
-    mockExchangeAuthorizationCode.mockResolvedValue({
+    mockExchangeOAuthToken.mockResolvedValue({
       access_token: "raw-access-token",
       expires_in: 900,
       refresh_token: "raw-refresh-token",
@@ -132,7 +131,7 @@ describe("oauth token route", () => {
       body: expect.any(URLSearchParams),
       headers: expect.any(Headers),
     });
-    expect(mockExchangeAuthorizationCode).toHaveBeenCalledWith({
+    expect(mockExchangeOAuthToken).toHaveBeenCalledWith({
       client: {
         id: 7,
       },
@@ -190,7 +189,7 @@ describe("oauth token route", () => {
         id: 7,
       },
     });
-    mockExchangeAuthorizationCode.mockRejectedValue(
+    mockExchangeOAuthToken.mockRejectedValue(
       new OAuthTokenExchangeError({ code: "invalid_grant" }),
     );
 
@@ -209,6 +208,47 @@ describe("oauth token route", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "invalid_grant",
+    });
+  });
+
+  it("supports refresh-token exchanges through the shared token exchange service", async () => {
+    mockAuthenticateOAuthClient.mockResolvedValue({
+      client: {
+        id: 7,
+      },
+    });
+    mockExchangeOAuthToken.mockResolvedValue({
+      access_token: "rotated-access-token",
+      expires_in: 900,
+      refresh_token: "rotated-refresh-token",
+      scope: "customer:read",
+      token_type: "bearer",
+    });
+
+    const response = await POST(
+      createRequest({
+        body: new URLSearchParams({
+          client_id: "client-123",
+          client_secret: "secret-abc",
+          grant_type: "refresh_token",
+          refresh_token: "previous-refresh-token",
+        }).toString(),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      access_token: "rotated-access-token",
+      expires_in: 900,
+      refresh_token: "rotated-refresh-token",
+      scope: "customer:read",
+      token_type: "bearer",
+    });
+    expect(mockExchangeOAuthToken).toHaveBeenCalledWith({
+      client: {
+        id: 7,
+      },
+      parameters: expect.any(URLSearchParams),
     });
   });
 

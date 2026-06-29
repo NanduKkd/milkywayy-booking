@@ -13,11 +13,11 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
-| M3 - Authorization and token service | `IN_PROGRESS` | 5 | 8 | 22-30 h |
+| M3 - Authorization and token service | `IN_PROGRESS` | 6 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **18** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **19** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -409,11 +409,17 @@ Acceptance criteria:
 
 ### FLOW-006 - Implement rotating refresh tokens
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-4 h
 - Depends on: FLOW-004, DB-004
-- Evidence: —
+- Evidence:
+  - Refresh-token rotation and replay handling added in `src/lib/oauth/tokenExchange.js`, including `grant_type=refresh_token` parsing, row-locked refresh-token consumption, subset scope validation, parent-token chaining, and family-wide revocation plus a high-severity audit event on replay.
+  - The token endpoint now delegates both authorization-code and refresh grants through the shared exchange entrypoint in `src/app/oauth/token/route.js`.
+  - Focused refresh coverage added in `src/lib/oauth/__tests__/tokenExchange.test.js` and `src/app/oauth/token/__tests__/route.test.js` for successful rotation, scope-expansion rejection, family revocation on replay, and route-level refresh exchanges.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/tokenExchange.test.js src/app/oauth/token/__tests__/route.test.js src/lib/oauth/__tests__/authorizationCodes.test.js src/lib/oauth/__tests__/clientAuthentication.test.js --runInBand`
+    - `npx biome check src/lib/oauth/tokenExchange.js src/lib/oauth/__tests__/tokenExchange.test.js src/app/oauth/token/route.js src/app/oauth/token/__tests__/route.test.js docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 

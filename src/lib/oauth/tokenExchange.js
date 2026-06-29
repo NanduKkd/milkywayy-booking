@@ -14,11 +14,13 @@ const OAUTH_AUDIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 export const OAUTH_TOKEN_EXCHANGE_ERROR_CODES = Object.freeze({
   invalidGrant: "invalid_grant",
   invalidRequest: "invalid_request",
+  invalidScope: "invalid_scope",
   unsupportedGrantType: "unsupported_grant_type",
 });
 
 export const OAUTH_TOKEN_EXCHANGE_AUDIT_EVENTS = Object.freeze({
   issued: "oauth.token.issued",
+  refreshReplayDetected: "oauth.refresh_token.replay_detected",
 });
 
 export class OAuthTokenExchangeError extends Error {
@@ -173,6 +175,30 @@ function normalizeScopes(scopes) {
   return normalizedScopes;
 }
 
+function normalizeScopeString(scopeValue) {
+  if (typeof scopeValue !== "string") {
+    throw new OAuthTokenExchangeError({
+      code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.invalidScope,
+      description: "scope must be a space-delimited string.",
+      reasonCode: "scope_invalid",
+    });
+  }
+
+  const normalizedScopes = [
+    ...new Set(scopeValue.split(/\s+/u).map((scope) => scope.trim())),
+  ].filter(Boolean);
+
+  if (normalizedScopes.length === 0) {
+    throw new OAuthTokenExchangeError({
+      code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.invalidScope,
+      description: "scope must not be empty.",
+      reasonCode: "scope_invalid",
+    });
+  }
+
+  return normalizedScopes;
+}
+
 function verifyPkceBinding({ authorizationCodeRecord, codeVerifier }) {
   const codeChallenge = authorizationCodeRecord.codeChallenge;
   const codeChallengeMethod = authorizationCodeRecord.codeChallengeMethod;
@@ -227,8 +253,11 @@ function verifyPkceBinding({ authorizationCodeRecord, codeVerifier }) {
 async function createTokenAuditEvent({
   clientId,
   correlationId,
+  eventType = OAUTH_TOKEN_EXCHANGE_AUDIT_EVENTS.issued,
   metadata,
   now,
+  outcome = "success",
+  reasonCode = "token_issued_authorization_code",
   transaction,
   userId,
 }) {
@@ -239,15 +268,170 @@ async function createTokenAuditEvent({
       clientId,
       correlationId,
       createdAt,
-      eventType: OAUTH_TOKEN_EXCHANGE_AUDIT_EVENTS.issued,
+      eventType,
       expiresAt: buildAuditExpiry(createdAt),
       metadata,
-      outcome: "success",
-      reasonCode: "token_issued_authorization_code",
+      outcome,
+      reasonCode,
       userId,
     },
     { transaction },
   );
+}
+
+async function rejectRefreshToken({
+  clientId = null,
+  correlationId,
+  metadata = {},
+  now,
+  reasonCode,
+  transaction,
+  userId = null,
+}) {
+  await createTokenAuditEvent({
+    clientId,
+    correlationId,
+    eventType: "oauth.refresh_token.invalid_grant",
+    metadata,
+    now,
+    outcome: "failure",
+    reasonCode,
+    transaction,
+    userId,
+  });
+
+  throw new OAuthTokenExchangeError({
+    code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.invalidGrant,
+    description: "Refresh token is invalid.",
+    reasonCode,
+  });
+}
+
+function normalizeRefreshRequestScopes(requestedScopes, grantedScopes) {
+  if (!requestedScopes) {
+    return grantedScopes;
+  }
+
+  const normalizedRequestedScopes = normalizeScopeString(requestedScopes);
+  const grantedScopeSet = new Set(grantedScopes);
+  const hasInvalidScope = normalizedRequestedScopes.some(
+    (scope) => !grantedScopeSet.has(scope),
+  );
+
+  if (hasInvalidScope) {
+    throw new OAuthTokenExchangeError({
+      code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.invalidScope,
+      description: "scope must not expand the original grant.",
+      reasonCode: "scope_not_granted",
+    });
+  }
+
+  return normalizedRequestedScopes;
+}
+
+async function revokeRefreshTokenFamilyInTransaction({
+  familyId,
+  revokedAt,
+  transaction,
+}) {
+  await models.OAuthAccessToken.update(
+    {
+      revokedAt,
+    },
+    {
+      where: {
+        refreshFamilyId: familyId,
+        revokedAt: null,
+      },
+      transaction,
+    },
+  );
+
+  await models.OAuthRefreshToken.update(
+    {
+      revokedAt,
+    },
+    {
+      where: {
+        familyId,
+        revokedAt: null,
+      },
+      transaction,
+    },
+  );
+}
+
+async function issueTokenPairInTransaction({
+  authMethod,
+  clientId,
+  correlationId,
+  familyId,
+  now,
+  parentRefreshTokenId = null,
+  scopes,
+  transaction,
+  userId,
+}) {
+  const issuedAt = normalizeDate(now);
+  const normalizedScopes = normalizeScopes(scopes);
+  const rawAccessToken = generateAccessToken();
+  const rawRefreshToken = generateRefreshToken();
+  const accessTokenExpiresAt = new Date(
+    issuedAt.getTime() + oauthConfig.accessTokenTtlSeconds * 1000,
+  );
+  const refreshTokenExpiresAt = new Date(
+    issuedAt.getTime() + oauthConfig.refreshTokenTtlSeconds * 1000,
+  );
+  const accessTokenRecord = await models.OAuthAccessToken.create(
+    {
+      clientId,
+      expiresAt: accessTokenExpiresAt,
+      refreshFamilyId: familyId,
+      revokedAt: null,
+      scopes: normalizedScopes,
+      tokenHash: hashOAuthSecret(rawAccessToken),
+      userId,
+    },
+    { transaction },
+  );
+  const refreshTokenRecord = await models.OAuthRefreshToken.create(
+    {
+      clientId,
+      consumedAt: null,
+      expiresAt: refreshTokenExpiresAt,
+      familyId,
+      parentTokenId: parentRefreshTokenId,
+      revokedAt: null,
+      scopes: normalizedScopes,
+      tokenHash: hashOAuthSecret(rawRefreshToken),
+      userId,
+    },
+    { transaction },
+  );
+
+  await createTokenAuditEvent({
+    clientId,
+    correlationId,
+    metadata: {
+      accessTokenId: accessTokenRecord.id ?? null,
+      authMethod,
+      refreshFamilyId: familyId,
+      refreshTokenId: refreshTokenRecord.id ?? null,
+      scopeCount: normalizedScopes.length,
+    },
+    now: issuedAt,
+    reasonCode: `token_issued_${authMethod}`,
+    transaction,
+    userId,
+  });
+
+  return {
+    access_token: rawAccessToken,
+    expires_in: oauthConfig.accessTokenTtlSeconds,
+    refresh_token: rawRefreshToken,
+    scope: normalizedScopes.join(" "),
+    token_type: "bearer",
+  };
 }
 
 export function parseAuthorizationCodeTokenRequest(parameters) {
@@ -270,6 +454,29 @@ export function parseAuthorizationCodeTokenRequest(parameters) {
       getSingleRequiredParameter(searchParams, "redirect_uri"),
     ),
   };
+}
+
+export function parseRefreshTokenRequest(parameters) {
+  const searchParams = toSearchParams(parameters);
+  const grantType = getSingleRequiredParameter(searchParams, "grant_type");
+
+  if (grantType !== "refresh_token") {
+    throw new OAuthTokenExchangeError({
+      code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.unsupportedGrantType,
+      description: "grant_type must be refresh_token.",
+      reasonCode: "grant_type_unsupported",
+    });
+  }
+
+  return {
+    grantType,
+    refreshToken: getSingleRequiredParameter(searchParams, "refresh_token"),
+    scope: getSingleOptionalParameter(searchParams, "scope"),
+  };
+}
+
+export function getOAuthGrantType(parameters) {
+  return getSingleRequiredParameter(toSearchParams(parameters), "grant_type");
 }
 
 export async function exchangeAuthorizationCode({
@@ -295,6 +502,7 @@ export async function exchangeAuthorizationCode({
         redirectUri: parsedRequest.redirectUri,
         transaction,
       });
+    const familyId = randomUUID();
     const normalizedScopes = normalizeScopes(authorizationCodeRecord.scopes);
 
     verifyPkceBinding({
@@ -302,62 +510,181 @@ export async function exchangeAuthorizationCode({
       codeVerifier: parsedRequest.codeVerifier,
     });
 
-    const rawAccessToken = generateAccessToken();
-    const rawRefreshToken = generateRefreshToken();
-    const familyId = randomUUID();
-    const accessTokenExpiresAt = new Date(
-      issuedAt.getTime() + oauthConfig.accessTokenTtlSeconds * 1000,
-    );
-    const refreshTokenExpiresAt = new Date(
-      issuedAt.getTime() + oauthConfig.refreshTokenTtlSeconds * 1000,
-    );
-    const accessTokenRecord = await models.OAuthAccessToken.create(
-      {
-        clientId: authorizationCodeRecord.clientId,
-        expiresAt: accessTokenExpiresAt,
-        refreshFamilyId: familyId,
-        revokedAt: null,
-        scopes: normalizedScopes,
-        tokenHash: hashOAuthSecret(rawAccessToken),
-        userId: authorizationCodeRecord.userId,
-      },
-      { transaction },
-    );
-    const refreshTokenRecord = await models.OAuthRefreshToken.create(
-      {
-        clientId: authorizationCodeRecord.clientId,
-        consumedAt: null,
-        expiresAt: refreshTokenExpiresAt,
-        familyId,
-        parentTokenId: null,
-        revokedAt: null,
-        scopes: normalizedScopes,
-        tokenHash: hashOAuthSecret(rawRefreshToken),
-        userId: authorizationCodeRecord.userId,
-      },
-      { transaction },
-    );
-
-    await createTokenAuditEvent({
+    return issueTokenPairInTransaction({
+      authMethod: "authorization_code",
       clientId: authorizationCodeRecord.clientId,
       correlationId,
-      metadata: {
-        accessTokenId: accessTokenRecord.id ?? null,
-        authMethod: "authorization_code",
-        refreshTokenId: refreshTokenRecord.id ?? null,
-        scopeCount: normalizedScopes.length,
-      },
+      familyId,
       now: issuedAt,
+      scopes: normalizedScopes,
       transaction,
       userId: authorizationCodeRecord.userId,
     });
+  });
+}
 
-    return {
-      access_token: rawAccessToken,
-      expires_in: oauthConfig.accessTokenTtlSeconds,
-      refresh_token: rawRefreshToken,
-      scope: normalizedScopes.join(" "),
-      token_type: "bearer",
-    };
+export async function exchangeRefreshToken({
+  client,
+  correlationId = randomUUID(),
+  now = new Date(),
+  parameters,
+}) {
+  if (!client?.id) {
+    throw new TypeError("A persisted OAuth client is required.");
+  }
+
+  const issuedAt = normalizeDate(now);
+  const parsedRequest = parseRefreshTokenRequest(parameters);
+
+  return sequelize.transaction(async (transaction) => {
+    const refreshTokenRecord = await models.OAuthRefreshToken.findOne({
+      where: {
+        tokenHash: hashOAuthSecret(parsedRequest.refreshToken),
+      },
+      lock: transaction.LOCK.UPDATE,
+      transaction,
+    });
+
+    if (!refreshTokenRecord) {
+      return rejectRefreshToken({
+        clientId: client.id,
+        correlationId,
+        now: issuedAt,
+        reasonCode: "refresh_token_not_found",
+        transaction,
+      });
+    }
+
+    if (refreshTokenRecord.clientId !== client.id) {
+      return rejectRefreshToken({
+        clientId: refreshTokenRecord.clientId,
+        correlationId,
+        metadata: {
+          presentedClientId: client.id,
+          refreshTokenId: refreshTokenRecord.id ?? null,
+        },
+        now: issuedAt,
+        reasonCode: "client_mismatch",
+        transaction,
+        userId: refreshTokenRecord.userId,
+      });
+    }
+
+    if (refreshTokenRecord.expiresAt.getTime() <= issuedAt.getTime()) {
+      return rejectRefreshToken({
+        clientId: refreshTokenRecord.clientId,
+        correlationId,
+        metadata: {
+          refreshTokenId: refreshTokenRecord.id ?? null,
+        },
+        now: issuedAt,
+        reasonCode: "refresh_token_expired",
+        transaction,
+        userId: refreshTokenRecord.userId,
+      });
+    }
+
+    if (refreshTokenRecord.revokedAt) {
+      return rejectRefreshToken({
+        clientId: refreshTokenRecord.clientId,
+        correlationId,
+        metadata: {
+          familyId: refreshTokenRecord.familyId,
+          refreshTokenId: refreshTokenRecord.id ?? null,
+        },
+        now: issuedAt,
+        reasonCode: "refresh_token_revoked",
+        transaction,
+        userId: refreshTokenRecord.userId,
+      });
+    }
+
+    if (refreshTokenRecord.consumedAt) {
+      await revokeRefreshTokenFamilyInTransaction({
+        familyId: refreshTokenRecord.familyId,
+        revokedAt: issuedAt,
+        transaction,
+      });
+
+      await createTokenAuditEvent({
+        clientId: refreshTokenRecord.clientId,
+        correlationId,
+        eventType: OAUTH_TOKEN_EXCHANGE_AUDIT_EVENTS.refreshReplayDetected,
+        metadata: {
+          familyId: refreshTokenRecord.familyId,
+          refreshTokenId: refreshTokenRecord.id ?? null,
+          severity: "high",
+        },
+        now: issuedAt,
+        outcome: "failure",
+        reasonCode: "refresh_token_replayed",
+        transaction,
+        userId: refreshTokenRecord.userId,
+      });
+
+      throw new OAuthTokenExchangeError({
+        code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.invalidGrant,
+        description: "Refresh token is invalid.",
+        reasonCode: "refresh_token_replayed",
+      });
+    }
+
+    const grantedScopes = normalizeScopes(refreshTokenRecord.scopes);
+    const effectiveScopes = normalizeRefreshRequestScopes(
+      parsedRequest.scope,
+      grantedScopes,
+    );
+
+    await refreshTokenRecord.update(
+      {
+        consumedAt: issuedAt,
+      },
+      { transaction },
+    );
+
+    return issueTokenPairInTransaction({
+      authMethod: "refresh_token",
+      clientId: refreshTokenRecord.clientId,
+      correlationId,
+      familyId: refreshTokenRecord.familyId,
+      now: issuedAt,
+      parentRefreshTokenId: refreshTokenRecord.id,
+      scopes: effectiveScopes,
+      transaction,
+      userId: refreshTokenRecord.userId,
+    });
+  });
+}
+
+export async function exchangeOAuthToken({
+  client,
+  correlationId = randomUUID(),
+  now = new Date(),
+  parameters,
+}) {
+  const grantType = getOAuthGrantType(parameters);
+
+  if (grantType === "authorization_code") {
+    return exchangeAuthorizationCode({
+      client,
+      correlationId,
+      now,
+      parameters,
+    });
+  }
+
+  if (grantType === "refresh_token") {
+    return exchangeRefreshToken({
+      client,
+      correlationId,
+      now,
+      parameters,
+    });
+  }
+
+  throw new OAuthTokenExchangeError({
+    code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.unsupportedGrantType,
+    description: "grant_type is unsupported.",
+    reasonCode: "grant_type_unsupported",
   });
 }

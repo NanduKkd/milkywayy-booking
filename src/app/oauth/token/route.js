@@ -3,7 +3,7 @@ import {
   OAuthClientAuthenticationError,
 } from "@/lib/oauth/clientAuthentication";
 import {
-  exchangeAuthorizationCode,
+  exchangeOAuthToken,
   OAuthTokenExchangeError,
 } from "@/lib/oauth/tokenExchange";
 import { RateLimitExceededError } from "@/lib/services/oauthRateLimits";
@@ -55,7 +55,7 @@ export async function POST(request) {
       body,
       headers: request.headers,
     });
-    const tokenResponse = await exchangeAuthorizationCode({
+    const tokenResponse = await exchangeOAuthToken({
       client,
       parameters: body,
     });
