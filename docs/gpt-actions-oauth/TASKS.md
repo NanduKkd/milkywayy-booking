@@ -12,12 +12,12 @@ This is the authoritative progress tracker. Status values and update rules are d
 |---|---|---:|---:|---:|
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
-| M2 - OAuth persistence | `IN_PROGRESS` | 4 | 5 | 10-14 h |
+| M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `IN_PROGRESS` | 3 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **15** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **16** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -242,11 +242,17 @@ Acceptance criteria:
 
 ### DB-003 - Implement secure client provisioning
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: DB-002, OAUTH-003
-- Evidence: —
+- Evidence:
+  - Reusable OAuth client provisioning and verification helpers added in `src/lib/oauth/clientProvisioning.js`, including approved callback allowlist enforcement, scope/auth-method validation, random client credential generation, and bcrypt client-secret hashing with the configured pepper.
+  - Controlled operator script added in `scripts/provision-oauth-client.mjs` and exposed as `npm run oauth:provision-client`; it creates the client from runtime-supplied GPT callback values, prints the plaintext secret once, and persists only the hash.
+  - Focused verification added in `src/lib/oauth/__tests__/clientProvisioning.test.js`.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/clientProvisioning.test.js --runInBand`
+    - `npx biome check src/lib/oauth/clientProvisioning.js src/lib/oauth/secrets.js src/lib/oauth/__tests__/clientProvisioning.test.js scripts/provision-oauth-client.mjs package.json`
 
 Acceptance criteria:
 

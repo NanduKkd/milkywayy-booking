@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "oauth:provision-client": "node scripts/provision-oauth-client.mjs",
     "worker:auto-complete": "node scripts/booking-auto-complete-worker.mjs",
     "worker:oauth-cleanup": "node scripts/oauth-cleanup-worker.mjs",
     "lint": "biome check",

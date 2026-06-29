@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { oauthConfig } from "@/lib/config/oauth";
+import { oauthConfig } from "../config/oauth.js";
 
 const OAUTH_SECRET_BYTES = 32;
 const SHA256_HEX_LENGTH = 64;
