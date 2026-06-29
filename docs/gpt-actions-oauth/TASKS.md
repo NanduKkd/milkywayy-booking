@@ -13,11 +13,11 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
-| M3 - Authorization and token service | `IN_PROGRESS` | 3 | 8 | 22-30 h |
+| M3 - Authorization and token service | `IN_PROGRESS` | 4 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **16** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **17** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -367,11 +367,16 @@ Acceptance criteria:
 
 ### FLOW-004 - Implement OAuth client authentication
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: DB-003
-- Evidence: —
+- Evidence:
+  - Reusable OAuth client-authentication service added in `src/lib/oauth/clientAuthentication.js`, including strict `client_secret_post` and `client_secret_basic` parsing, duplicate/conflict rejection, per-client PostgreSQL-backed rate limiting, registered-method enforcement, and generic `invalid_client` failures that do not reveal whether the client is unknown, disabled, or has a bad secret.
+  - Focused verification added in `src/lib/oauth/__tests__/clientAuthentication.test.js` for valid `client_secret_post` and `client_secret_basic` authentication plus missing, duplicated, conflicting, malformed, rate-limited, disabled, and invalid-secret scenarios.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/clientAuthentication.test.js --runInBand`
+    - `npx biome check src/lib/oauth/clientAuthentication.js src/lib/oauth/__tests__/clientAuthentication.test.js`
 
 Acceptance criteria:
 
@@ -777,3 +782,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Completed `DB-004` token hashing and random-secret utilities. | Codex |
 | 2026-06-29 | Completed `FLOW-001` authorization-request validator. | Codex |
 | 2026-06-29 | Completed `FLOW-003` authorization-code issuance and atomic consumption. | Codex |
+| 2026-06-29 | Completed `FLOW-004` OAuth client authentication. | Codex |
