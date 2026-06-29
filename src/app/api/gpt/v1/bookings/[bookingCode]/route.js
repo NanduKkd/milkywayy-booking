@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { Op } from "sequelize";
 import models from "@/lib/db/models";
 import { parseBookingReferenceToId } from "@/lib/helpers/invoice-format";
@@ -6,8 +5,18 @@ import {
   authenticateGptApiRequest,
   buildGptApiAuthorizationErrorResponse,
   GptApiAuthorizationError,
+  GptApiRateLimitError,
 } from "../../_lib/auth";
 import { serializeBookingDto } from "../../_lib/dtos";
+import {
+  buildGptApiInternalErrorResponse,
+  buildGptApiJsonResponse,
+  buildGptApiRateLimitErrorResponse,
+  buildGptApiTemporaryUnavailableResponse,
+  GptApiResponseBudgetError,
+  GptApiTimeoutError,
+  runWithGptApiDeadline,
+} from "../../_lib/runtime";
 
 const CUSTOMER_READ_SCOPE = "customer:read";
 const BOOKING_DETAIL_ATTRIBUTES = [
@@ -48,14 +57,11 @@ function buildBookingIdentifierWhere(bookingCode) {
 }
 
 function buildNotFoundResponse() {
-  return NextResponse.json(
+  return buildGptApiJsonResponse(
     {
       error: "not_found",
     },
     {
-      headers: {
-        "Cache-Control": "no-store",
-      },
       status: 404,
     },
   );
@@ -63,45 +69,52 @@ function buildNotFoundResponse() {
 
 export async function GET(request, context) {
   try {
-    const principal = await authenticateGptApiRequest(request, {
-      requiredScopes: [CUSTOMER_READ_SCOPE],
-    });
-    const params = await context.params;
-    const bookingCode = String(params?.bookingCode || "").trim();
-    const bookingIdentifierWhere = buildBookingIdentifierWhere(bookingCode);
+    return await runWithGptApiDeadline(async () => {
+      const principal = await authenticateGptApiRequest(request, {
+        requiredScopes: [CUSTOMER_READ_SCOPE],
+      });
+      const params = await context.params;
+      const bookingCode = String(params?.bookingCode || "").trim();
+      const bookingIdentifierWhere = buildBookingIdentifierWhere(bookingCode);
 
-    if (!bookingIdentifierWhere) {
-      return buildNotFoundResponse();
-    }
+      if (!bookingIdentifierWhere) {
+        return buildNotFoundResponse();
+      }
 
-    const booking = await models.Booking.findOne({
-      attributes: BOOKING_DETAIL_ATTRIBUTES,
-      where: {
-        [Op.and]: [{ userId: principal.customerId }, bookingIdentifierWhere],
-      },
-    });
+      const booking = await models.Booking.findOne({
+        attributes: BOOKING_DETAIL_ATTRIBUTES,
+        where: {
+          [Op.and]: [{ userId: principal.customerId }, bookingIdentifierWhere],
+        },
+      });
 
-    if (!booking) {
-      return buildNotFoundResponse();
-    }
+      if (!booking) {
+        return buildNotFoundResponse();
+      }
 
-    return NextResponse.json(serializeBookingDto(booking), {
-      headers: {
-        "Cache-Control": "no-store",
-      },
+      return buildGptApiJsonResponse(serializeBookingDto(booking));
     });
   } catch (error) {
     if (error instanceof GptApiAuthorizationError) {
       return buildGptApiAuthorizationErrorResponse(error);
     }
 
-    return NextResponse.json(
-      {
-        error: "internal_server_error",
-      },
-      {
-        status: 500,
-      },
-    );
+    if (error instanceof GptApiRateLimitError) {
+      return buildGptApiRateLimitErrorResponse(error);
+    }
+
+    if (
+      error instanceof GptApiResponseBudgetError ||
+      error instanceof GptApiTimeoutError
+    ) {
+      console.error(
+        "GPT API booking detail request exceeded runtime safety budget:",
+        error,
+      );
+      return buildGptApiTemporaryUnavailableResponse();
+    }
+
+    console.error("GPT API booking detail request failed:", error);
+    return buildGptApiInternalErrorResponse();
   }
 }

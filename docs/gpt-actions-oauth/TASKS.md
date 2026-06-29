@@ -14,10 +14,10 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
-| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 5 | 8 | 19-29 h |
+| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 6 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **26** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **27** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -574,11 +574,18 @@ Acceptance criteria:
 
 ### API-006 - Add resource rate limits and response bounds
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: API-001
-- Evidence: —
+- Evidence:
+  - Shared GPT resource throttling added in `src/app/api/gpt/v1/_lib/auth.js`, applying PostgreSQL-backed per-client and per-customer buckets after Bearer-token resolution so limits remain effective across PM2 restarts and multiple web processes.
+  - Shared GPT runtime safeguards added in `src/app/api/gpt/v1/_lib/runtime.js`, enforcing an 80,000-character response ceiling and a 15-second route deadline so resource responses stay materially below the platform's 100,000-character and 45-second limits.
+  - Existing GPT resource endpoints in `src/app/api/gpt/v1/me/route.js`, `src/app/api/gpt/v1/bookings/route.js`, `src/app/api/gpt/v1/bookings/[bookingCode]/route.js`, and `src/app/api/gpt/v1/invoices/route.js` now map limiter failures to `429` with `Retry-After` guidance and map budget overruns to safe temporary-unavailable responses.
+  - Focused coverage added in `src/app/api/gpt/v1/_lib/__tests__/auth.test.js`, `src/app/api/gpt/v1/_lib/__tests__/runtime.test.js`, and the GPT route tests for `/me`, bookings list/detail, and invoices.
+  - Focused verification passed:
+    - `npx jest --runInBand --runTestsByPath src/app/api/gpt/v1/_lib/__tests__/auth.test.js src/app/api/gpt/v1/_lib/__tests__/runtime.test.js src/app/api/gpt/v1/me/__tests__/route.test.js src/app/api/gpt/v1/bookings/__tests__/route.test.js src/app/api/gpt/v1/bookings/[bookingCode]/__tests__/route.test.js src/app/api/gpt/v1/invoices/__tests__/route.test.js`
+    - `npx biome check src/app/api/gpt/v1/_lib/auth.js src/app/api/gpt/v1/_lib/runtime.js src/app/api/gpt/v1/_lib/__tests__/auth.test.js src/app/api/gpt/v1/_lib/__tests__/runtime.test.js src/app/api/gpt/v1/me/route.js src/app/api/gpt/v1/me/__tests__/route.test.js src/app/api/gpt/v1/bookings/route.js src/app/api/gpt/v1/bookings/[bookingCode]/route.js src/app/api/gpt/v1/bookings/[bookingCode]/__tests__/route.test.js src/app/api/gpt/v1/bookings/__tests__/route.test.js src/app/api/gpt/v1/invoices/route.js src/app/api/gpt/v1/invoices/__tests__/route.test.js`
 
 Acceptance criteria:
 

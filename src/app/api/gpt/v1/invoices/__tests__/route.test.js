@@ -36,12 +36,27 @@ jest.mock("../../_lib/auth", () => {
     }
   }
 
+  class MockGptApiRateLimitError extends Error {
+    constructor({
+      bucketType = "oauth-gpt-resource-user",
+      retryAfterSeconds = 30,
+      statusCode = 429,
+    } = {}) {
+      super("Too many requests. Please wait before trying again.");
+      this.name = "GptApiRateLimitError";
+      this.bucketType = bucketType;
+      this.retryAfterSeconds = retryAfterSeconds;
+      this.statusCode = statusCode;
+    }
+  }
+
   return {
     authenticateGptApiRequest: (...args) =>
       mockAuthenticateGptApiRequest(...args),
     buildGptApiAuthorizationErrorResponse: (...args) =>
       mockBuildGptApiAuthorizationErrorResponse(...args),
     GptApiAuthorizationError: MockGptApiAuthorizationError,
+    GptApiRateLimitError: MockGptApiRateLimitError,
   };
 });
 

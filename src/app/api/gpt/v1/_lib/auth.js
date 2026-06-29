@@ -3,8 +3,25 @@ import {
   OAuthAccessTokenError,
   resolveOAuthAccessToken,
 } from "@/lib/oauth/accessTokens";
+import {
+  consumeRateLimit,
+  RateLimitExceededError,
+} from "@/lib/services/oauthRateLimits";
 
 const GPT_API_BEARER_REALM = "gpt-action-api";
+
+export const GPT_API_RATE_LIMITS = Object.freeze({
+  client: {
+    bucketType: "oauth-gpt-resource-client",
+    limit: 120,
+    windowMs: 60 * 1000,
+  },
+  user: {
+    bucketType: "oauth-gpt-resource-user",
+    limit: 90,
+    windowMs: 60 * 1000,
+  },
+});
 
 export const GPT_API_AUTH_ERROR_CODES = Object.freeze({
   insufficientScope: "insufficient_scope",
@@ -27,6 +44,16 @@ export class GptApiAuthorizationError extends Error {
     this.headers = headers || buildBearerAuthenticateHeaders({ code });
     this.reasonCode = reasonCode;
     this.statusCode = statusCode;
+  }
+}
+
+export class GptApiRateLimitError extends Error {
+  constructor({ bucketType, retryAfterSeconds }) {
+    super("Too many requests. Please wait before trying again.");
+    this.name = "GptApiRateLimitError";
+    this.bucketType = bucketType;
+    this.retryAfterSeconds = retryAfterSeconds;
+    this.statusCode = 429;
   }
 }
 
@@ -155,18 +182,68 @@ function assertRequiredScopes(principal, requiredScopes) {
   });
 }
 
+async function consumeGptApiRateLimits(
+  principal,
+  {
+    consumePrincipalRateLimit = consumeRateLimit,
+    rateLimits = GPT_API_RATE_LIMITS,
+    now,
+  } = {},
+) {
+  const resolvedNow =
+    now instanceof Date ? now : now ? new Date(now) : new Date();
+
+  await consumePrincipalRateLimit({
+    bucketType: rateLimits.client.bucketType,
+    key: `client:${principal.clientId}`,
+    limit: rateLimits.client.limit,
+    now: resolvedNow,
+    windowMs: rateLimits.client.windowMs,
+  });
+
+  await consumePrincipalRateLimit({
+    bucketType: rateLimits.user.bucketType,
+    key: `user:${principal.customerId}`,
+    limit: rateLimits.user.limit,
+    now: resolvedNow,
+    windowMs: rateLimits.user.windowMs,
+  });
+}
+
 export async function authenticateGptApiRequest(
   requestLike,
-  { now, requiredScopes, resolveAccessToken = resolveOAuthAccessToken } = {},
+  {
+    consumePrincipalRateLimit = consumeRateLimit,
+    now,
+    rateLimits = GPT_API_RATE_LIMITS,
+    requiredScopes,
+    resolveAccessToken = resolveOAuthAccessToken,
+  } = {},
 ) {
   const accessToken = extractBearerTokenFromRequest(requestLike);
+  const resolvedNow =
+    now instanceof Date ? now : now ? new Date(now) : undefined;
 
   try {
-    const principal = await resolveAccessToken(accessToken, { now });
+    const principal = await resolveAccessToken(accessToken, {
+      now: resolvedNow,
+    });
+    await consumeGptApiRateLimits(principal, {
+      consumePrincipalRateLimit,
+      now: resolvedNow,
+      rateLimits,
+    });
     return assertRequiredScopes(principal, requiredScopes);
   } catch (error) {
     if (error instanceof GptApiAuthorizationError) {
       throw error;
+    }
+
+    if (error instanceof RateLimitExceededError) {
+      throw new GptApiRateLimitError({
+        bucketType: error.bucketType,
+        retryAfterSeconds: error.retryAfterSeconds,
+      });
     }
 
     if (error instanceof OAuthAccessTokenError) {

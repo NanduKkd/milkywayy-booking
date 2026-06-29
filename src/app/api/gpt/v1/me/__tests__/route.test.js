@@ -29,6 +29,20 @@ jest.mock("../../_lib/auth", () => {
     }
   }
 
+  class MockGptApiRateLimitError extends Error {
+    constructor({
+      bucketType = "oauth-gpt-resource-user",
+      retryAfterSeconds = 30,
+      statusCode = 429,
+    } = {}) {
+      super("Too many requests. Please wait before trying again.");
+      this.name = "GptApiRateLimitError";
+      this.bucketType = bucketType;
+      this.retryAfterSeconds = retryAfterSeconds;
+      this.statusCode = statusCode;
+    }
+  }
+
   return {
     authenticateGptApiRequest: (...args) =>
       mockAuthenticateGptApiRequest(...args),
@@ -40,6 +54,7 @@ jest.mock("../../_lib/auth", () => {
       invalidToken: "invalid_token",
     },
     GptApiAuthorizationError: MockGptApiAuthorizationError,
+    GptApiRateLimitError: MockGptApiRateLimitError,
   };
 });
 
@@ -58,7 +73,10 @@ jest.mock("next/server", () => ({
   },
 }));
 
-const { GptApiAuthorizationError } = require("../../_lib/auth");
+const {
+  GptApiAuthorizationError,
+  GptApiRateLimitError,
+} = require("../../_lib/auth");
 const { GET } = require("../route");
 
 describe("GPT API /me route", () => {
@@ -201,5 +219,26 @@ describe("GPT API /me route", () => {
         reasonCode: "access_token_principal_unavailable",
       }),
     );
+  });
+
+  it("returns a 429 response with retry guidance when the shared limiter blocks the request", async () => {
+    mockAuthenticateGptApiRequest.mockRejectedValue(
+      new GptApiRateLimitError({
+        retryAfterSeconds: 21,
+      }),
+    );
+
+    const response = await GET({
+      headers: new Headers({
+        authorization: "Bearer throttled-token",
+      }),
+    });
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("21");
+    await expect(response.json()).resolves.toEqual({
+      error: "rate_limited",
+      retryAfterSeconds: 21,
+    });
   });
 });

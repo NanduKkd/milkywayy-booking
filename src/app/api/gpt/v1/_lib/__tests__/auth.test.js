@@ -1,4 +1,5 @@
 const mockResolveOAuthAccessToken = jest.fn();
+const mockConsumeRateLimit = jest.fn();
 
 global.Response = class MockResponse {
   constructor(body, { headers = {}, status = 200 } = {}) {
@@ -37,7 +38,27 @@ jest.mock("@/lib/oauth/accessTokens", () => {
     resolveOAuthAccessToken: (...args) => mockResolveOAuthAccessToken(...args),
   };
 });
+
+jest.mock("@/lib/services/oauthRateLimits", () => {
+  class MockRateLimitExceededError extends Error {
+    constructor({
+      bucketType = "oauth-gpt-resource-user",
+      retryAfterSeconds = 30,
+    } = {}) {
+      super("Too many requests.");
+      this.name = "RateLimitExceededError";
+      this.bucketType = bucketType;
+      this.retryAfterSeconds = retryAfterSeconds;
+    }
+  }
+
+  return {
+    consumeRateLimit: (...args) => mockConsumeRateLimit(...args),
+    RateLimitExceededError: MockRateLimitExceededError,
+  };
+});
 const { OAuthAccessTokenError } = require("@/lib/oauth/accessTokens");
+const { RateLimitExceededError } = require("@/lib/services/oauthRateLimits");
 const {
   authenticateGptApiRequest,
   buildGptApiAuthorizationErrorResponse,
@@ -69,6 +90,12 @@ function createRequest({ authorization, cookie, sessionToken } = {}) {
 describe("GPT API authorization helper", () => {
   beforeEach(() => {
     mockResolveOAuthAccessToken.mockReset();
+    mockConsumeRateLimit.mockReset();
+    mockConsumeRateLimit.mockResolvedValue({
+      expiresAt: new Date("2026-06-29T00:01:00.000Z"),
+      remaining: 89,
+      requestCount: 1,
+    });
   });
 
   it("extracts a bearer token from the authorization header only", () => {
@@ -142,6 +169,20 @@ describe("GPT API authorization helper", () => {
         now: undefined,
       },
     );
+    expect(mockConsumeRateLimit).toHaveBeenNthCalledWith(1, {
+      bucketType: "oauth-gpt-resource-client",
+      key: "client:7",
+      limit: 120,
+      now: expect.any(Date),
+      windowMs: 60000,
+    });
+    expect(mockConsumeRateLimit).toHaveBeenNthCalledWith(2, {
+      bucketType: "oauth-gpt-resource-user",
+      key: "user:15",
+      limit: 90,
+      now: expect.any(Date),
+      windowMs: 60000,
+    });
   });
 
   it("rejects a website session token passed as a bearer token", async () => {
@@ -188,6 +229,35 @@ describe("GPT API authorization helper", () => {
         code: GPT_API_AUTH_ERROR_CODES.insufficientScope,
         reasonCode: "scope_missing",
         statusCode: 403,
+      }),
+    );
+  });
+
+  it("maps PostgreSQL-backed limiter failures to a typed GPT API rate-limit error", async () => {
+    mockResolveOAuthAccessToken.mockResolvedValue({
+      clientId: 7,
+      customerId: 15,
+      scopes: ["customer:read"],
+    });
+    mockConsumeRateLimit.mockRejectedValue(
+      new RateLimitExceededError({
+        bucketType: "oauth-gpt-resource-user",
+        retryAfterSeconds: 17,
+      }),
+    );
+
+    await expect(
+      authenticateGptApiRequest(
+        createRequest({
+          authorization: "Bearer oauth-access-token",
+        }),
+      ),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        bucketType: "oauth-gpt-resource-user",
+        name: "GptApiRateLimitError",
+        retryAfterSeconds: 17,
+        statusCode: 429,
       }),
     );
   });

@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { Op } from "sequelize";
 import models from "@/lib/db/models";
 import { parseBookingReferenceToId } from "@/lib/helpers/invoice-format";
@@ -6,6 +5,7 @@ import {
   authenticateGptApiRequest,
   buildGptApiAuthorizationErrorResponse,
   GptApiAuthorizationError,
+  GptApiRateLimitError,
 } from "../_lib/auth";
 import {
   buildBookingsListResponse,
@@ -13,6 +13,15 @@ import {
   GptApiDtoValidationError,
   parseBookingsListQuery,
 } from "../_lib/dtos";
+import {
+  buildGptApiInternalErrorResponse,
+  buildGptApiJsonResponse,
+  buildGptApiRateLimitErrorResponse,
+  buildGptApiTemporaryUnavailableResponse,
+  GptApiResponseBudgetError,
+  GptApiTimeoutError,
+  runWithGptApiDeadline,
+} from "../_lib/runtime";
 
 const CUSTOMER_READ_SCOPE = "customer:read";
 const BOOKING_LIST_ATTRIBUTES = [
@@ -99,33 +108,34 @@ function getBookingCursorValue(booking) {
 
 export async function GET(request) {
   try {
-    const principal = await authenticateGptApiRequest(request, {
-      requiredScopes: [CUSTOMER_READ_SCOPE],
-    });
-    const query = parseBookingsListQuery(new URL(request.url).searchParams);
-    const bookingQuery = buildBookingListWhere(query, principal.customerId);
-    const bookings = await models.Booking.findAll({
-      attributes: BOOKING_LIST_ATTRIBUTES,
-      limit: query.limit + 1,
-      order: bookingQuery.order,
-      where: bookingQuery.where,
-    });
+    return await runWithGptApiDeadline(async () => {
+      const principal = await authenticateGptApiRequest(request, {
+        requiredScopes: [CUSTOMER_READ_SCOPE],
+      });
+      const query = parseBookingsListQuery(new URL(request.url).searchParams);
+      const bookingQuery = buildBookingListWhere(query, principal.customerId);
+      const bookings = await models.Booking.findAll({
+        attributes: BOOKING_LIST_ATTRIBUTES,
+        limit: query.limit + 1,
+        order: bookingQuery.order,
+        where: bookingQuery.where,
+      });
 
-    return NextResponse.json(
-      buildBookingsListResponse(bookings, query.limit, getBookingCursorValue),
-      {
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
-    );
+      return buildGptApiJsonResponse(
+        buildBookingsListResponse(bookings, query.limit, getBookingCursorValue),
+      );
+    });
   } catch (error) {
     if (error instanceof GptApiAuthorizationError) {
       return buildGptApiAuthorizationErrorResponse(error);
     }
 
+    if (error instanceof GptApiRateLimitError) {
+      return buildGptApiRateLimitErrorResponse(error);
+    }
+
     if (error instanceof GptApiDtoValidationError) {
-      return NextResponse.json(
+      return buildGptApiJsonResponse(
         {
           details: error.issues,
           error: "invalid_request",
@@ -136,13 +146,18 @@ export async function GET(request) {
       );
     }
 
-    return NextResponse.json(
-      {
-        error: "internal_server_error",
-      },
-      {
-        status: 500,
-      },
-    );
+    if (
+      error instanceof GptApiResponseBudgetError ||
+      error instanceof GptApiTimeoutError
+    ) {
+      console.error(
+        "GPT API bookings list request exceeded runtime safety budget:",
+        error,
+      );
+      return buildGptApiTemporaryUnavailableResponse();
+    }
+
+    console.error("GPT API bookings list request failed:", error);
+    return buildGptApiInternalErrorResponse();
   }
 }
