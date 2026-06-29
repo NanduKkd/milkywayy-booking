@@ -697,11 +697,15 @@ Acceptance criteria:
 
 ### TEST-004 - Run security abuse-case verification
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `IN_PROGRESS`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: TEST-001, TEST-002, TEST-003
-- Evidence: —
+- Evidence:
+  - Added repeatable automated security verification entrypoint: `npm run verify:oauth-security` via `scripts/verify-oauth-security.mjs`.
+  - Executed the runner successfully on 2026-06-29; it passed the focused OAuth/GPT security suites covering configuration, authorization flow, token exchange/refresh, resource authorization, rate limits, audit logging, cleanup, and PostgreSQL-backed protocol behavior.
+  - Run summary recorded in `SECURITY-VERIFICATION-REPORT.md`.
+  - Remaining blockers before `DONE`: manual browser checks (`MAN-*`), Custom GPT end-to-end checks (`GPT-*`), production-topology verification, and explicit log/secret-leak review tracked separately by `TEST-006`.
 
 Acceptance criteria:
 
@@ -874,3 +878,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Completed `FLOW-008` OAuth protocol audit events and metrics. | Codex |
 | 2026-06-29 | Completed `API-005` invoice metadata endpoint. | Codex |
 | 2026-06-29 | Completed `TEST-005` existing application regression coverage and restored dashboard/sign-in Jest compatibility after the OAuth auth-context changes. | Codex |
+| 2026-06-29 | Started `TEST-004` with an automated security verification runner and recorded the first passing abuse-case report. | Codex |

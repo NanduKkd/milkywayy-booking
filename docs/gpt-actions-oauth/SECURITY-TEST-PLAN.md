@@ -25,6 +25,12 @@ Mock-only tests are insufficient for authorization-code consumption, refresh rot
 
 ## Automated test matrix
 
+Run the automated OAuth/GPT security matrix with:
+
+- `npm run verify:oauth-security`
+
+This command executes the repository's focused OAuth, GPT resource API, rate-limit, audit, cleanup, and PostgreSQL-backed protocol suites. Manual browser, Custom GPT, production-topology, and explicit log-review checks remain separate release blockers.
+
 ### Configuration and secrets
 
 | ID | Status | Scenario | Expected result |
