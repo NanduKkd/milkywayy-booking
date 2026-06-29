@@ -59,6 +59,7 @@ export const securityVerificationGroups = [
       "REF-04",
       "REF-05",
       "REF-06",
+      "REF-07",
     ],
     name: "Token exchange, refresh rotation, and revocation",
     tests: [
@@ -90,6 +91,7 @@ export const securityVerificationGroups = [
       "API-12",
       "RES-03",
       "RES-04",
+      "RES-07",
       "LOG-03",
     ],
     name: "Resource API authorization, bounds, and deep links",

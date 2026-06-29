@@ -32,10 +32,13 @@ describe("oauth protocol postgres integration", () => {
   let exchangeAuthorizationCode;
   let exchangeRefreshToken;
   let resolveOAuthAccessToken;
+  let validateAuthorizationRequest;
   let grantOAuthConsent;
   let revokeOAuthConsent;
   let cleanupOAuthArtifacts;
   let hashOAuthSecret;
+  let hashOAuthClientSecret;
+  let tokenRoutePost;
   let databaseName;
   let userSequence = 0;
   let clientSequence = 0;
@@ -116,6 +119,16 @@ describe("oauth protocol postgres integration", () => {
     });
   }
 
+  function buildTokenRouteRequest(body) {
+    return new Request("https://milkywayy.com/oauth/token", {
+      body: body.toString(),
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      method: "POST",
+    });
+  }
+
   async function issueCodeForClient({
     client,
     now,
@@ -148,9 +161,12 @@ describe("oauth protocol postgres integration", () => {
     ({ exchangeAuthorizationCode, exchangeRefreshToken } =
       require("../tokenExchange"));
     ({ resolveOAuthAccessToken } = require("../accessTokens"));
+    ({ validateAuthorizationRequest } = require("../authorizationRequest"));
     ({ grantOAuthConsent, revokeOAuthConsent } = require("../consent"));
     ({ cleanupOAuthArtifacts } = require("../cleanup"));
     ({ hashOAuthSecret } = require("../secrets"));
+    ({ hashOAuthClientSecret } = require("../clientProvisioning"));
+    ({ POST: tokenRoutePost } = require("@/app/oauth/token/route"));
 
     await sequelize.authenticate();
     await applyMigrations(sequelize.getQueryInterface());
@@ -455,6 +471,94 @@ describe("oauth protocol postgres integration", () => {
     expect(consent.revokedAt).toEqual(revokedAt);
     expect(accessTokens[0].revokedAt).toEqual(revokedAt);
     expect(refreshTokens[0].revokedAt).toEqual(revokedAt);
+  });
+
+  it("blocks new authorization and token operations for disabled clients while active access tokens still expire normally", async () => {
+    const user = await createUser();
+    const clientSecret = "chatgpt-client-secret";
+    const client = await createClient({
+      clientSecretHash: await hashOAuthClientSecret(clientSecret),
+    });
+    const initialIssueTime = new Date("2026-06-29T13:30:00.000Z");
+    const existingGrant = await issueCodeForClient({
+      client,
+      now: initialIssueTime,
+      user,
+    });
+    const existingTokenResponse = await exchangeAuthorizationCode({
+      client,
+      correlationId: randomUUID(),
+      now: new Date("2026-06-29T13:31:00.000Z"),
+      parameters: buildAuthorizationCodeRequest(
+        existingGrant.authorizationCode,
+      ),
+    });
+    const pendingGrant = await issueCodeForClient({
+      client,
+      now: new Date("2026-06-29T13:32:00.000Z"),
+      user,
+    });
+
+    await client.update({ isEnabled: false });
+
+    await expect(
+      validateAuthorizationRequest(
+        new URLSearchParams({
+          client_id: client.clientId,
+          redirect_uri: DEFAULT_REDIRECT_URI,
+          response_type: "code",
+          scope: TEST_SCOPES.join(" "),
+          state: "disabled-client-state",
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: "unauthorized_client",
+      reasonCode: "client_unavailable",
+    });
+
+    const codeExchangeResponse = await tokenRoutePost(
+      buildTokenRouteRequest(
+        new URLSearchParams({
+          client_id: client.clientId,
+          client_secret: clientSecret,
+          code: pendingGrant.authorizationCode,
+          grant_type: "authorization_code",
+          redirect_uri: DEFAULT_REDIRECT_URI,
+        }),
+      ),
+    );
+
+    expect(codeExchangeResponse.status).toBe(401);
+    await expect(codeExchangeResponse.json()).resolves.toEqual({
+      error: "invalid_client",
+    });
+
+    const refreshResponse = await tokenRoutePost(
+      buildTokenRouteRequest(
+        new URLSearchParams({
+          client_id: client.clientId,
+          client_secret: clientSecret,
+          grant_type: "refresh_token",
+          refresh_token: existingTokenResponse.refresh_token,
+        }),
+      ),
+    );
+
+    expect(refreshResponse.status).toBe(401);
+    await expect(refreshResponse.json()).resolves.toEqual({
+      error: "invalid_client",
+    });
+
+    await expect(
+      resolveOAuthAccessToken(existingTokenResponse.access_token, {
+        now: new Date("2026-06-29T13:40:00.000Z"),
+      }),
+    ).resolves.toEqual({
+      accessTokenId: expect.any(Number),
+      clientId: client.id,
+      customerId: user.id,
+      scopes: TEST_SCOPES,
+    });
   });
 
   it("cleans up expired and revoked artifacts without deleting active OAuth state", async () => {

@@ -704,7 +704,9 @@ Acceptance criteria:
 - Evidence:
   - Added repeatable automated security verification entrypoint: `npm run verify:oauth-security` via `scripts/verify-oauth-security.mjs`.
   - Extended the runner to regenerate `SECURITY-VERIFICATION-REPORT.md` with group-level suite/test counts and explicit automated case coverage for the current security-plan matrix.
-  - Executed the runner successfully on 2026-06-29; it passed 42 grouped OAuth/GPT security suite executions covering 217 executed tests across configuration, authorization flow, token exchange/refresh, resource authorization, rate limits, audit logging, cleanup, and PostgreSQL-backed protocol behavior.
+  - Expanded automated abuse-case coverage for `REF-07` with a disabled-client integration test spanning authorization rejection, token-route `invalid_client` failures for authorization-code and refresh exchanges, and continued access-token authorization until expiry.
+  - Expanded automated abuse-case coverage for `RES-07` with JSON-serialization and dashboard-rendering tests that keep markup-like and control-character input bounded, valid, and text-escaped.
+  - Executed the runner successfully on 2026-06-29; it passed 42 grouped OAuth/GPT security suite executions covering 221 executed tests across configuration, authorization flow, token exchange/refresh, resource authorization, rate limits, audit logging, cleanup, and PostgreSQL-backed protocol behavior.
   - `SECURITY-TEST-PLAN.md` now records `GATE-04` as complete from the automated cross-customer isolation coverage and points automated abuse-case evidence at the generated report.
   - Remaining blockers before `DONE`: manual browser checks (`MAN-*`), Custom GPT end-to-end checks (`GPT-*`), and live production TLS/topology/rollback verification.
 
@@ -907,5 +909,6 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Started `TEST-004` with an automated security verification runner and recorded the first passing abuse-case report. | Codex |
 | 2026-06-29 | Expanded `TEST-004` so the security runner now regenerates a case-level verification report, refreshed automated suite counts, and closed `GATE-04` from the repeated cross-customer authorization evidence. | Codex |
 | 2026-06-29 | Completed `TEST-007` with a repeatable focused quality-review runner and an explicit single-reviewer release decision. | Codex |
+| 2026-06-29 | Expanded `TEST-004` automated abuse-case coverage for disabled-client shutdown behavior and markup/control-character handling, then refreshed the generated security report counts. | Codex |
 | 2026-06-29 | Started `OPS-001` with a production OAuth operations runbook and managed client rotation/enablement tooling. | Codex |
 | 2026-06-29 | Started `OPS-002` with a committed Nginx topology template, PM2 cleanup-worker registration, and a repeatable topology verification runner. | Codex |

@@ -249,4 +249,34 @@ describe("customer FileList", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("renders file metadata as plain text even when it contains markup-like content", () => {
+    const { container } = render(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile({
+                label: 'Review <script>alert("x")</script>\nFinal',
+                currentVersion: {
+                  id: 100,
+                  originalFilename:
+                    'living-room-<img src=x onerror=alert("x")>.webp',
+                  url: "https://bucket.example/living-room.webp",
+                },
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByText('living-room-<img src=x onerror=alert("x")>.webp'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Review <script>alert\("x"\)<\/script>/),
+    ).toHaveTextContent('Review <script>alert("x")</script> Final');
+    expect(container.querySelector("script")).toBeNull();
+  });
 });

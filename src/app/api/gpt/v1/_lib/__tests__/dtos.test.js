@@ -105,6 +105,21 @@ describe("GPT API DTO and pagination helpers", () => {
     });
   });
 
+  it("keeps markup and control characters JSON-safe in serialized DTOs", () => {
+    const response = serializeConnectedAccountDto({
+      accountType: "COMPANY",
+      companyName: 'Orbit <script>alert("x")</script>\nHoldings',
+      phone: "+971 50 123 4567",
+      role: "customer",
+    });
+
+    const json = JSON.stringify(response);
+
+    expect(JSON.parse(json)).toEqual(response);
+    expect(json).toContain('\\"x\\"');
+    expect(json).toContain("\\n");
+  });
+
   it("builds booking list responses with opaque next cursors", () => {
     const response = buildBookingsListResponse(
       [
