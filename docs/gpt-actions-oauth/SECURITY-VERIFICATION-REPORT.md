@@ -6,53 +6,41 @@
 
 ## Automated verification result
 
-The automated OAuth/GPT security verification runner completed successfully on 2026-06-29 and executed these groups:
-
-1. Configuration, models, and secrets
-2. Authorization request, consent, and resume flow
-3. Token exchange, refresh rotation, and revocation
-4. Resource API authorization, bounds, and deep links
-5. Rate limits, audit logging, and cleanup
+The automated OAuth/GPT security verification runner completed successfully on 2026-06-29.
 
 Result summary:
 
-- 36 test suites passed.
-- 186 tests passed.
+- 42 grouped suite executions passed.
+- 217 tests executed across those verification groups.
 - No failing automated abuse-case checks were observed.
 - No critical or high-severity finding was opened by this automated run.
 
-## Covered evidence areas
+## Automated case matrix
 
-The runner executes the focused Jest suites already associated with the OAuth threat model in `TASKS.md`, including:
+| Verification group | Evidence | Coverage |
+|---|---:|---:|
+| Configuration, models, and secrets | 4 suites | 28 tests | CFG-01, CFG-02, CFG-03, CFG-04 |
+| Authorization request, consent, and resume flow | 11 suites | 43 tests | AUT-01, AUT-02, AUT-03, AUT-04, AUT-05, AUT-06, AUT-07, AUT-08, AUT-09, AUT-10, AUT-11, AUT-12, AUT-13 |
+| Token exchange, refresh rotation, and revocation | 10 suites | 58 tests | COD-01, COD-02, COD-03, COD-04, COD-05, COD-06, COD-07, COD-08, COD-09, COD-10, COD-11, REF-01, REF-02, REF-03, REF-04, REF-05, REF-06 |
+| Resource API authorization, bounds, and deep links | 10 suites | 58 tests | API-01, API-02, API-03, API-04, API-05, API-06, API-07, API-08, API-09, API-10, API-11, API-12, RES-03, RES-04, LOG-03 |
+| Rate limits, audit logging, and cleanup | 7 suites | 30 tests | LOG-01, LOG-04, LOG-05, LOG-06, RES-01, RES-02, RES-05, RES-06 |
 
-- fail-closed OAuth configuration and approved callback validation
-- exact redirect validation and safe authorization error handling
-- signed login resume, CSRF protection, and consent transitions
-- atomic authorization-code issuance/consumption
-- client authentication, code exchange, and refresh-token replay handling
-- Bearer-token parsing, scope enforcement, customer isolation, and file-link deep links
-- PostgreSQL-backed rate limits, audit-event emission, and bounded cleanup
+The current automated run materially covers these security-plan cases:
 
-## Companion log review
+- Configuration, models, and secrets: CFG-01, CFG-02, CFG-03, CFG-04
+- Authorization request, consent, and resume flow: AUT-01, AUT-02, AUT-03, AUT-04, AUT-05, AUT-06, AUT-07, AUT-08, AUT-09, AUT-10, AUT-11, AUT-12, AUT-13
+- Token exchange, refresh rotation, and revocation: COD-01, COD-02, COD-03, COD-04, COD-05, COD-06, COD-07, COD-08, COD-09, COD-10, COD-11, REF-01, REF-02, REF-03, REF-04, REF-05, REF-06
+- Resource API authorization, bounds, and deep links: API-01, API-02, API-03, API-04, API-05, API-06, API-07, API-08, API-09, API-10, API-11, API-12, RES-03, RES-04, LOG-03
+- Rate limits, audit logging, and cleanup: LOG-01, LOG-04, LOG-05, LOG-06, RES-01, RES-02, RES-05, RES-06
 
-The separate log and secret-leak review command also completed successfully on 2026-06-29:
+## Companion verification commands
 
-- Command: `npm run verify:oauth-log-safety`
-- Result: reviewed OAuth/GPT logging files, selected config/worker secret-handling paths, and source/docs/scripts fixtures without finding raw logged secrets or live credentials
-- Note: repository review found no application error-monitoring SDK packages in `package.json`, so the shared scrubbed application logging path is the only in-repo sink currently requiring verification
-
-## Companion code-quality review
-
-The focused OAuth/GPT code-quality verification command also completed successfully on 2026-06-29:
-
-- Command: `npm run verify:oauth-quality`
-- Result: passed the focused Biome scope for changed OAuth/GPT files, passed the release-blocking Jest suites, and confirmed there were no skipped or todo release-blocking tests
-- Note: the independent-review preference remains documented separately in `DEC-019`; the current pass records the explicit single-reviewer staffing exception rather than implying secondary approval
+- `npm run verify:oauth-log-safety`: keeps the separate log and secret-leak review current for `LOG-02`.
+- `npm run verify:oauth-quality`: keeps the focused Biome and release-blocking Jest quality gate current for `GATE-02`.
+- `npm run verify:oauth-topology`: verifies the repo-managed Nginx and PM2 topology, but live host validation remains a production rollout task.
 
 ## Remaining release-blocking work
 
-This runner does not replace the still-required checks tracked elsewhere in `SECURITY-TEST-PLAN.md`:
-
-- manual browser verification (`MAN-*`)
-- Custom GPT end-to-end verification (`GPT-*`)
-- production topology, TLS, and rollback smoke checks
+- MAN-*: Manual browser verification still requires operator-driven OTP, consent, denial, reconnect, and dashboard disconnect checks.
+- GPT-*: End-to-end Custom GPT verification still requires the actual GPT editor, callback registration, and two production-like customer accounts.
+- GATE-07/GATE-08: Live production TLS, topology, rollback rehearsal, and emergency disablement still need host-level execution beyond the repo-managed templates.

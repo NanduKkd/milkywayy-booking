@@ -16,7 +16,7 @@ Mock-only tests are insufficient for authorization-code consumption, refresh rot
 | GATE-01 | `NOT_STARTED` | All release-blocking tasks in `TASKS.md` are `DONE`. | — |
 | GATE-02 | `DONE` | Changed OAuth/API files pass Biome and relevant Jest suites. | `npm run verify:oauth-quality` passed on 2026-06-29, covering the focused OAuth/GPT Biome scope, release-blocking Jest suites, and no skipped/todo release-blocking tests. |
 | GATE-03 | `NOT_STARTED` | No critical or high security finding remains open. | — |
-| GATE-04 | `NOT_STARTED` | Cross-customer isolation passes for every resource endpoint. | — |
+| GATE-04 | `DONE` | Cross-customer isolation passes for every resource endpoint. | `npm run verify:oauth-security` on 2026-06-29 regenerated `SECURITY-VERIFICATION-REPORT.md` with automated coverage for `API-04`, `API-05`, `API-09`, `API-11`, and `API-12`, plus the shared `401`/`403`/`429` GPT API authorization paths. |
 | GATE-05 | `NOT_STARTED` | Actual ChatGPT authorization, token exchange, API call, refresh, and revocation pass. | — |
 | GATE-06 | `DONE` | Log review finds no secret, OTP, session, code, or token leakage. | `npm run verify:oauth-log-safety` passed on 2026-06-29; see `TEST-006` evidence and `SECURITY-VERIFICATION-REPORT.md`. |
 | GATE-07 | `NOT_STARTED` | Production TLS, domain, timeout, payload, and rate-limit requirements pass. | — |
@@ -30,6 +30,8 @@ Run the automated OAuth/GPT security matrix with:
 - `npm run verify:oauth-security`
 
 This command executes the repository's focused OAuth, GPT resource API, rate-limit, audit, cleanup, and PostgreSQL-backed protocol suites. Manual browser, Custom GPT, production-topology, and explicit log-review checks remain separate release blockers.
+
+After each passing run, `SECURITY-VERIFICATION-REPORT.md` is regenerated with the current suite counts and automated case coverage. Treat that report as the execution evidence for automated abuse-case checks; the tables below remain the authoritative scenario list and still require separate manual/GPT/production evidence where noted.
 
 ### Configuration and secrets
 

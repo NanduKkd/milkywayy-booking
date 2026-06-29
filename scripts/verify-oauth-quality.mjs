@@ -10,6 +10,7 @@ const biomeTargets = [
   "docs/gpt-actions-oauth",
   "scripts/provision-oauth-client.mjs",
   "scripts/oauth-cleanup-worker.mjs",
+  "scripts/lib/oauthSecurityReport.mjs",
   "scripts/verify-oauth-log-safety.mjs",
   "scripts/verify-oauth-quality.mjs",
   "scripts/verify-oauth-security.mjs",
