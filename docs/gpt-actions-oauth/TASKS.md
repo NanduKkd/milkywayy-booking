@@ -14,10 +14,10 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
-| M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
+| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 1 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **21** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **22** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -474,11 +474,16 @@ Acceptance criteria:
 
 ### API-001 - Implement Bearer-token authorization middleware
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-4 h
 - Depends on: FLOW-005
-- Evidence: —
+- Evidence:
+  - Framework-light access-token validation added in `src/lib/oauth/accessTokens.js`, including hashed token lookup, active-token resolution, revoked/expired/unknown token rejection, and customer-only principal validation.
+  - GPT resource API Bearer auth helper added in `src/app/api/gpt/v1/_lib/auth.js`, including Authorization header parsing, scope enforcement, standardized `WWW-Authenticate` headers, and JSON error responses that do not disclose protected data.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/accessTokens.test.js src/app/api/gpt/v1/_lib/__tests__/auth.test.js --runInBand`
+    - `npx biome check src/lib/oauth/accessTokens.js src/lib/oauth/__tests__/accessTokens.test.js src/app/api/gpt/v1/_lib/auth.js src/app/api/gpt/v1/_lib/__tests__/auth.test.js`
 
 Acceptance criteria:
 
