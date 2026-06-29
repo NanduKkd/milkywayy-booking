@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { oauthConfig } from "@/lib/config/oauth";
 import models from "@/lib/db/models";
 import { auth } from "@/lib/helpers/auth";
+import { issueAuthorizationCode } from "@/lib/oauth/authorizationCodes";
 import {
   clearAuthorizationCsrfCookie,
   readAuthorizationCsrfCookie,
@@ -17,10 +18,6 @@ import {
   OAUTH_AUTHORIZE_ERROR_CODES,
 } from "@/lib/oauth/authorizationResume";
 import { buildAuthorizationRequestPath } from "@/lib/oauth/interaction";
-import {
-  generateAuthorizationCode,
-  hashOAuthSecret,
-} from "@/lib/oauth/secrets";
 
 function buildLocalUrl(pathname) {
   return new URL(pathname, oauthConfig.baseUrl);
@@ -100,22 +97,16 @@ export async function POST(request) {
     return buildErrorResponse("Unsupported authorization decision.", 400);
   }
 
-  const rawCode = generateAuthorizationCode();
-  const now = new Date();
-
-  await models.OAuthAuthorizationCode.create({
+  const { authorizationCode } = await issueAuthorizationCode({
     clientId: client.id,
-    codeHash: hashOAuthSecret(rawCode),
-    consumedAt: null,
-    expiresAt: new Date(now.getTime() + oauthConfig.codeTtlSeconds * 1000),
     redirectUri: decision.interaction.redirectUri,
     scopes: decision.interaction.scopes,
-    userId: session.id,
+    userId: Number(session.id),
   });
 
   return NextResponse.redirect(
     buildOAuthCallbackRedirect(decision.interaction, {
-      code: rawCode,
+      code: authorizationCode,
       state: decision.interaction.state,
     }),
   );

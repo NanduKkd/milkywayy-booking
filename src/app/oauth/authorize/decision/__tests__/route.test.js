@@ -3,10 +3,8 @@ import { POST } from "../route";
 const mockAuth = jest.fn();
 const mockCookies = jest.fn();
 const mockFindOAuthClient = jest.fn();
-const mockCreateAuthorizationCode = jest.fn();
 const mockVerifyAuthorizationDecisionToken = jest.fn();
-const mockGenerateAuthorizationCode = jest.fn();
-const mockHashOAuthSecret = jest.fn();
+const mockIssueAuthorizationCode = jest.fn();
 const mockRedirect = jest.fn((url) => ({
   status: 307,
   url: String(url),
@@ -43,9 +41,6 @@ jest.mock("@/lib/helpers/auth", () => ({
 jest.mock("@/lib/db/models", () => ({
   __esModule: true,
   default: {
-    OAuthAuthorizationCode: {
-      create: (...args) => mockCreateAuthorizationCode(...args),
-    },
     OAuthClient: {
       findByPk: (...args) => mockFindOAuthClient(...args),
     },
@@ -73,10 +68,8 @@ jest.mock("@/lib/oauth/authorizationResume", () => ({
     `/oauth/authorize/error?error=${errorCode}`,
 }));
 
-jest.mock("@/lib/oauth/secrets", () => ({
-  generateAuthorizationCode: (...args) =>
-    mockGenerateAuthorizationCode(...args),
-  hashOAuthSecret: (...args) => mockHashOAuthSecret(...args),
+jest.mock("@/lib/oauth/authorizationCodes", () => ({
+  issueAuthorizationCode: (...args) => mockIssueAuthorizationCode(...args),
 }));
 
 function createRequest(formEntries) {
@@ -146,15 +139,16 @@ describe("oauth authorize decision route", () => {
     expect(response.url).toBe(
       "https://chatgpt.com/aip/oauth/callback-test?error=access_denied&state=opaque-state",
     );
-    expect(mockCreateAuthorizationCode).not.toHaveBeenCalled();
+    expect(mockIssueAuthorizationCode).not.toHaveBeenCalled();
   });
 
   it("issues a hashed authorization code and redirects approved requests", async () => {
     mockAuth.mockResolvedValue({
       id: 42,
     });
-    mockGenerateAuthorizationCode.mockReturnValue("raw-code");
-    mockHashOAuthSecret.mockReturnValue("hashed-code");
+    mockIssueAuthorizationCode.mockResolvedValue({
+      authorizationCode: "raw-code",
+    });
 
     const response = await POST(
       createRequest([
@@ -165,15 +159,12 @@ describe("oauth authorize decision route", () => {
     );
 
     expect(response.status).toBe(307);
-    expect(mockCreateAuthorizationCode).toHaveBeenCalledWith(
-      expect.objectContaining({
-        clientId: 7,
-        codeHash: "hashed-code",
-        redirectUri: "https://chatgpt.com/aip/oauth/callback-test",
-        scopes: ["customer:read"],
-        userId: 42,
-      }),
-    );
+    expect(mockIssueAuthorizationCode).toHaveBeenCalledWith({
+      clientId: 7,
+      redirectUri: "https://chatgpt.com/aip/oauth/callback-test",
+      scopes: ["customer:read"],
+      userId: 42,
+    });
     expect(response.url).toBe(
       "https://chatgpt.com/aip/oauth/callback-test?code=raw-code&state=opaque-state",
     );

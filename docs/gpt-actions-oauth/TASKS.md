@@ -13,11 +13,11 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `IN_PROGRESS` | 4 | 5 | 10-14 h |
-| M3 - Authorization and token service | `IN_PROGRESS` | 2 | 8 | 22-30 h |
+| M3 - Authorization and token service | `IN_PROGRESS` | 3 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **14** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **15** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -340,11 +340,17 @@ Acceptance criteria:
 
 ### FLOW-003 - Issue and atomically consume authorization codes
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-4 h
 - Depends on: FLOW-001, FLOW-002, DB-004
-- Evidence: —
+- Evidence:
+  - Reusable authorization-code issue/consume service added in `src/lib/oauth/authorizationCodes.js`, including transaction-backed issuance, row-locked atomic consumption, client/redirect/expiry/replay validation, and safe audit persistence without raw code logging.
+  - The authorization approval route now delegates code issuance to the shared service in `src/app/oauth/authorize/decision/route.js`.
+  - Focused verification added in `src/lib/oauth/__tests__/authorizationCodes.test.js` and route coverage updated in `src/app/oauth/authorize/decision/__tests__/route.test.js`.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/authorizationCodes.test.js src/app/oauth/authorize/decision/__tests__/route.test.js --runInBand`
+    - `npx biome check src/lib/oauth/authorizationCodes.js src/lib/oauth/__tests__/authorizationCodes.test.js src/app/oauth/authorize/decision/route.js src/app/oauth/authorize/decision/__tests__/route.test.js docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 
@@ -764,3 +770,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Initial implementation plan created. | Codex |
 | 2026-06-29 | Completed `DB-004` token hashing and random-secret utilities. | Codex |
 | 2026-06-29 | Completed `FLOW-001` authorization-request validator. | Codex |
+| 2026-06-29 | Completed `FLOW-003` authorization-code issuance and atomic consumption. | Codex |
