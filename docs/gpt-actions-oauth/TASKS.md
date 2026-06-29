@@ -14,10 +14,10 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
-| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 4 | 8 | 19-29 h |
+| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 5 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **25** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **26** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -554,11 +554,17 @@ Acceptance criteria:
 
 ### API-005 - Implement invoice metadata endpoint
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: API-001, API-002
-- Evidence: —
+- Evidence:
+  - `GET /api/gpt/v1/invoices` added in `src/app/api/gpt/v1/invoices/route.js`, requiring `customer:read`, applying authenticated-customer ownership filters before optional invoice-number, paid-date, and status filters, and returning bounded invoice metadata DTOs with safe dashboard links only.
+  - Legacy public invoice-number fallback matching added in the same route so stored rows without `invoiceNumber` can still be queried by their stable `INV-######` identifier.
+  - Focused route coverage added in `src/app/api/gpt/v1/invoices/__tests__/route.test.js` for valid customer responses plus malformed-query and invalid-token failures.
+  - Focused verification passed:
+    - `npx jest src/app/api/gpt/v1/invoices/__tests__/route.test.js --runInBand`
+    - `npx biome check src/app/api/gpt/v1/invoices/route.js src/app/api/gpt/v1/invoices/__tests__/route.test.js docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 
@@ -829,3 +835,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Completed `FLOW-003` authorization-code issuance and atomic consumption. | Codex |
 | 2026-06-29 | Completed `FLOW-004` OAuth client authentication. | Codex |
 | 2026-06-29 | Completed `FLOW-008` OAuth protocol audit events and metrics. | Codex |
+| 2026-06-29 | Completed `API-005` invoice metadata endpoint. | Codex |
