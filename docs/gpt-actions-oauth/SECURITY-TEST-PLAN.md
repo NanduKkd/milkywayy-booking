@@ -1,7 +1,7 @@
 # GPT Actions OAuth security and test plan
 
 - Last updated: 2026-06-29
-- Verification status: `NOT_STARTED`
+- Verification status: `IN_PROGRESS`
 
 ## Test strategy
 

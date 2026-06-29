@@ -15,9 +15,9 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
-| M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
+| M5 - Verification and security release gates | `IN_PROGRESS` | 1 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **29** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **30** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -640,11 +640,16 @@ Acceptance criteria:
 
 ### TEST-001 - Add OAuth service unit tests
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-4 h
 - Depends on: FLOW-006
-- Evidence: —
+- Evidence:
+  - Focused OAuth helper unit coverage added for CSRF helpers, signed authorization-decision tokens, interaction normalization/building, and scope metadata in `src/lib/oauth/__tests__/authorizationCsrf.test.js`, `src/lib/oauth/__tests__/authorizationDecision.test.js`, `src/lib/oauth/__tests__/interaction.test.js`, and `src/lib/oauth/__tests__/scopes.test.js`.
+  - Existing focused unit suites continue to cover authorization validators, token/code hashing, access-token validation, consent, audit logging, and refresh-token rotation in `src/lib/oauth/__tests__/authorizationRequest.test.js`, `src/lib/oauth/__tests__/secrets.test.js`, `src/lib/oauth/__tests__/accessTokens.test.js`, `src/lib/oauth/__tests__/consent.test.js`, `src/lib/oauth/__tests__/audit.test.js`, and `src/lib/oauth/__tests__/tokenExchange.test.js`.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/authorizationCsrf.test.js src/lib/oauth/__tests__/authorizationDecision.test.js src/lib/oauth/__tests__/interaction.test.js src/lib/oauth/__tests__/scopes.test.js src/lib/oauth/__tests__/authorizationRequest.test.js src/lib/oauth/__tests__/secrets.test.js src/lib/oauth/__tests__/accessTokens.test.js src/lib/oauth/__tests__/audit.test.js src/lib/oauth/__tests__/consent.test.js src/lib/oauth/__tests__/tokenExchange.test.js --runInBand`
+    - `npx biome check src/lib/oauth/authorizationCsrf.js src/lib/oauth/authorizationDecision.js src/lib/oauth/interaction.js src/lib/oauth/scopes.js src/lib/oauth/__tests__/authorizationCsrf.test.js src/lib/oauth/__tests__/authorizationDecision.test.js src/lib/oauth/__tests__/interaction.test.js src/lib/oauth/__tests__/scopes.test.js docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 
