@@ -1,10 +1,8 @@
 import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import {
-  OAUTH_AUTHORIZE_ERROR_CODES,
-  OAUTH_AUTHORIZE_PATH,
-} from "@/lib/oauth/authorizationResume";
+import { OAUTH_AUTHORIZE_ERROR_CODES } from "@/lib/oauth/authorizationResumePaths";
+import { OAUTH_AUTHORIZE_PATH } from "@/lib/oauth/interaction";
 
 const ERROR_CONTENT = Object.freeze({
   [OAUTH_AUTHORIZE_ERROR_CODES.interactionExpired]: {

@@ -7,7 +7,7 @@ import { logout as logoutAction } from "@/lib/actions/auth";
 import {
   normalizeAuthorizationErrorPath,
   normalizeAuthorizationResumePath,
-} from "@/lib/oauth/authorizationResume";
+} from "@/lib/oauth/authorizationResumePaths";
 
 const AuthContext = createContext(null);
 const EMPTY_LOGIN_FLOW = Object.freeze({

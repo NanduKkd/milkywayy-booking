@@ -15,9 +15,9 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
-| M5 - Verification and security release gates | `IN_PROGRESS` | 3 | 7 | 16-24 h |
+| M5 - Verification and security release gates | `IN_PROGRESS` | 4 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **32** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **33** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -711,11 +711,15 @@ Acceptance criteria:
 
 ### TEST-005 - Verify existing application regression coverage
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 1-2 h
 - Depends on: AUTH-005, API-005
-- Evidence: —
+- Evidence:
+  - Existing regression suites covering customer auth, dashboard access, admin/customer separation, bookings, invoices, file delivery, proxy behavior, OAuth routes, cleanup, and GPT API routes passed:
+    - `npx jest --runInBand src/lib/services/__tests__/customerAuth.test.js src/lib/helpers/__tests__/dashboardAuth.test.js src/lib/contexts/__tests__/auth.test.jsx src/app/auth/signin/__tests__/page.test.jsx src/__tests__/proxy.test.js src/lib/actions/__tests__/bookings.test.js src/app/dashboard/bookings/__tests__/BookingList.test.jsx src/app/dashboard/invoices/__tests__/InvoiceList.test.jsx src/app/dashboard/files/__tests__/page.test.jsx src/app/dashboard/files/__tests__/FileList.test.jsx src/app/dashboard/connections/__tests__/page.test.jsx src/lib/helpers/__tests__/invoice.test.js src/lib/services/__tests__/fileDelivery.test.js src/app/api/files/download/__tests__/route.test.js src/app/api/invoices/download/__tests__/route.test.js src/app/api/admin/bookings/__tests__/route.test.js 'src/app/api/admin/bookings/[id]/deliverables/__tests__/route.test.js' src/app/oauth/authorize/__tests__/page.test.jsx src/app/oauth/authorize/resume/__tests__/route.test.js src/app/oauth/authorize/decision/__tests__/route.test.js src/app/oauth/token/__tests__/route.test.js src/app/oauth/revoke/__tests__/route.test.js src/app/api/internal/oauth/cleanup/__tests__/route.test.js src/app/api/gpt/v1/_lib/__tests__/auth.test.js src/app/api/gpt/v1/_lib/__tests__/dtos.test.js src/app/api/gpt/v1/_lib/__tests__/runtime.test.js src/app/api/gpt/v1/me/__tests__/route.test.js src/app/api/gpt/v1/bookings/__tests__/route.test.js 'src/app/api/gpt/v1/bookings/[bookingCode]/__tests__/route.test.js' src/app/api/gpt/v1/invoices/__tests__/route.test.js src/app/api/gpt/v1/files/__tests__/route.test.js`
+  - Regression coverage initially exposed a Jest compatibility break in the existing sign-in and dashboard suites after OAuth path normalization started importing `jose` through the shared auth context; the path helpers were split into `src/lib/oauth/authorizationResumePaths.js` so client-side auth code no longer depends on token-signing internals.
+  - The repository-wide baseline failures recorded in `OAUTH-001` remain the separately documented unrelated failures for full-suite `npm test -- --runInBand` and `npm run lint`.
 
 Acceptance criteria:
 
@@ -869,3 +873,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Completed `FLOW-004` OAuth client authentication. | Codex |
 | 2026-06-29 | Completed `FLOW-008` OAuth protocol audit events and metrics. | Codex |
 | 2026-06-29 | Completed `API-005` invoice metadata endpoint. | Codex |
+| 2026-06-29 | Completed `TEST-005` existing application regression coverage and restored dashboard/sign-in Jest compatibility after the OAuth auth-context changes. | Codex |
