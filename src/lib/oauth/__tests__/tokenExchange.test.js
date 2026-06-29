@@ -364,7 +364,9 @@ describe("oauth token exchange", () => {
       .mockReturnValueOnce("hashed-refresh-lookup")
       .mockReturnValueOnce("hashed-access-token")
       .mockReturnValueOnce("hashed-refresh-token");
-    mockFindRefreshToken.mockResolvedValue(refreshTokenRecord);
+    mockFindRefreshToken
+      .mockResolvedValueOnce(refreshTokenRecord)
+      .mockResolvedValueOnce(null);
     mockGenerateAccessToken.mockReturnValue("rotated-access-token");
     mockGenerateRefreshToken.mockReturnValue("rotated-refresh-token");
     mockCreateAccessToken.mockResolvedValue({ id: 41 });
@@ -450,17 +452,19 @@ describe("oauth token exchange", () => {
 
   it("rejects refresh token scope expansion requests", async () => {
     mockHashOAuthSecret.mockReturnValue("hashed-refresh-lookup");
-    mockFindRefreshToken.mockResolvedValue({
-      clientId: 7,
-      consumedAt: null,
-      expiresAt: new Date("2026-07-01T12:00:00.000Z"),
-      familyId: "family-2",
-      id: 78,
-      revokedAt: null,
-      scopes: ["customer:read"],
-      update: jest.fn(),
-      userId: 42,
-    });
+    mockFindRefreshToken
+      .mockResolvedValueOnce({
+        clientId: 7,
+        consumedAt: null,
+        expiresAt: new Date("2026-07-01T12:00:00.000Z"),
+        familyId: "family-2",
+        id: 78,
+        revokedAt: null,
+        scopes: ["customer:read"],
+        update: jest.fn(),
+        userId: 42,
+      })
+      .mockResolvedValueOnce(null);
 
     await expect(
       exchangeRefreshToken({
@@ -558,6 +562,46 @@ describe("oauth token exchange", () => {
       }),
       { transaction: mockTransaction },
     );
+    expect(mockCreateAccessToken).not.toHaveBeenCalled();
+    expect(mockCreateRefreshToken).not.toHaveBeenCalled();
+  });
+
+  it("rejects a refresh token when another token in its family has already been revoked", async () => {
+    mockHashOAuthSecret.mockReturnValue("hashed-refresh-lookup");
+    mockFindRefreshToken
+      .mockResolvedValueOnce({
+        clientId: 7,
+        consumedAt: null,
+        expiresAt: new Date("2026-07-01T12:00:00.000Z"),
+        familyId: "family-4",
+        id: 80,
+        revokedAt: null,
+        scopes: ["customer:read"],
+        update: jest.fn(),
+        userId: 42,
+      })
+      .mockResolvedValueOnce({ id: 81 });
+    mockCreateAuditEvent.mockResolvedValue({ id: 61 });
+
+    await expect(
+      exchangeRefreshToken({
+        client: {
+          id: 7,
+        },
+        correlationId: "corr-9",
+        now: new Date("2026-06-29T12:00:00.000Z"),
+        parameters: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: "family-compromised-token",
+        }),
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        code: "invalid_grant",
+        reasonCode: "refresh_token_revoked",
+      }),
+    );
+
     expect(mockCreateAccessToken).not.toHaveBeenCalled();
     expect(mockCreateRefreshToken).not.toHaveBeenCalled();
   });

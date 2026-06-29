@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import { USER_ROLES } from "@/lib/config/app.config";
 import models from "@/lib/db/models";
 import { hashOAuthSecret } from "@/lib/oauth/secrets";
@@ -53,6 +54,24 @@ function buildTokenLookupInclude() {
   ];
 }
 
+async function hasCompromisedRefreshFamily(refreshFamilyId) {
+  if (!refreshFamilyId) {
+    return false;
+  }
+
+  const revokedFamilyToken = await models.OAuthRefreshToken.findOne({
+    attributes: ["id"],
+    where: {
+      familyId: refreshFamilyId,
+      revokedAt: {
+        [Op.ne]: null,
+      },
+    },
+  });
+
+  return Boolean(revokedFamilyToken);
+}
+
 export async function resolveOAuthAccessToken(
   rawAccessToken,
   {
@@ -64,6 +83,7 @@ export async function resolveOAuthAccessToken(
           "clientId",
           "expiresAt",
           "id",
+          "refreshFamilyId",
           "revokedAt",
           "scopes",
           "userId",
@@ -79,6 +99,7 @@ export async function resolveOAuthAccessToken(
           "clientId",
           "expiresAt",
           "id",
+          "refreshFamilyId",
           "revokedAt",
           "scopes",
           "userId",
@@ -105,6 +126,17 @@ export async function resolveOAuthAccessToken(
   const accessTokenRecord = await loadActiveAccessToken(tokenHash, resolvedAt);
 
   if (accessTokenRecord) {
+    const familyCompromised = await hasCompromisedRefreshFamily(
+      accessTokenRecord.refreshFamilyId,
+    );
+
+    if (familyCompromised) {
+      throw new OAuthAccessTokenError({
+        description: "OAuth access token has been revoked.",
+        reasonCode: "access_token_revoked",
+      });
+    }
+
     const normalizedScopes = normalizeScopes(accessTokenRecord.scopes);
 
     if (normalizedScopes.length === 0) {

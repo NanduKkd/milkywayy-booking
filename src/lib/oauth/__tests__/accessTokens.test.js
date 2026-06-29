@@ -1,5 +1,6 @@
 const mockFindActiveAccessToken = jest.fn();
 const mockFindAccessToken = jest.fn();
+const mockFindCompromisedRefreshToken = jest.fn();
 const mockHashOAuthSecret = jest.fn();
 
 jest.mock("@/lib/db/models", () => ({
@@ -16,6 +17,9 @@ jest.mock("@/lib/db/models", () => ({
 
         throw new Error("Unexpected scope call.");
       },
+    },
+    OAuthRefreshToken: {
+      findOne: (...args) => mockFindCompromisedRefreshToken(...args),
     },
     User: { name: "User" },
   },
@@ -37,8 +41,10 @@ describe("resolveOAuthAccessToken", () => {
   beforeEach(() => {
     mockFindActiveAccessToken.mockReset();
     mockFindAccessToken.mockReset();
+    mockFindCompromisedRefreshToken.mockReset();
     mockHashOAuthSecret.mockReset();
     mockHashOAuthSecret.mockReturnValue("hashed-token");
+    mockFindCompromisedRefreshToken.mockResolvedValue(null);
   });
 
   it("resolves an active customer token to a minimal principal", async () => {
@@ -68,6 +74,7 @@ describe("resolveOAuthAccessToken", () => {
         "clientId",
         "expiresAt",
         "id",
+        "refreshFamilyId",
         "revokedAt",
         "scopes",
         "userId",
@@ -159,6 +166,29 @@ describe("resolveOAuthAccessToken", () => {
     ).rejects.toEqual(
       expect.objectContaining({
         reasonCode: "access_token_principal_unavailable",
+      }),
+    );
+  });
+
+  it("rejects an otherwise active token when its refresh family has been compromised", async () => {
+    mockFindActiveAccessToken.mockResolvedValue({
+      clientId: 9,
+      id: 12,
+      refreshFamilyId: "family-1",
+      scopes: ["customer:read"],
+      user: {
+        id: 22,
+        role: "CUSTOMER",
+      },
+      userId: 22,
+    });
+    mockFindCompromisedRefreshToken.mockResolvedValue({ id: 99 });
+
+    await expect(
+      resolveOAuthAccessToken("compromised-token", { now }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        reasonCode: "access_token_revoked",
       }),
     );
   });

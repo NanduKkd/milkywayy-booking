@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { Op } from "sequelize";
 import { oauthConfig } from "@/lib/config/oauth";
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
@@ -38,6 +39,26 @@ export class OAuthTokenExchangeError extends Error {
     this.code = code;
     this.reasonCode = reasonCode || code;
     this.statusCode = statusCode;
+  }
+}
+
+class OAuthRefreshTokenReplayDetectedError extends Error {
+  constructor({
+    clientId,
+    correlationId,
+    familyId,
+    now,
+    refreshTokenId,
+    userId,
+  }) {
+    super("Refresh token replay detected.");
+    this.name = "OAuthRefreshTokenReplayDetectedError";
+    this.clientId = clientId;
+    this.correlationId = correlationId;
+    this.familyId = familyId;
+    this.now = now;
+    this.refreshTokenId = refreshTokenId;
+    this.userId = userId;
   }
 }
 
@@ -531,124 +552,167 @@ export async function exchangeRefreshToken({
   const issuedAt = normalizeDate(now);
   const parsedRequest = parseRefreshTokenRequest(parameters);
 
-  return sequelize.transaction(async (transaction) => {
-    const refreshTokenRecord = await models.OAuthRefreshToken.findOne({
-      where: {
-        tokenHash: hashOAuthSecret(parsedRequest.refreshToken),
-      },
-      lock: transaction.LOCK.UPDATE,
-      transaction,
-    });
-
-    if (!refreshTokenRecord) {
-      return rejectRefreshToken({
-        clientId: client.id,
-        correlationId,
-        now: issuedAt,
-        reasonCode: "refresh_token_not_found",
-        transaction,
-      });
-    }
-
-    if (refreshTokenRecord.clientId !== client.id) {
-      return rejectRefreshToken({
-        clientId: refreshTokenRecord.clientId,
-        correlationId,
-        metadata: {
-          presentedClientId: client.id,
-          refreshTokenId: refreshTokenRecord.id ?? null,
+  try {
+    return await sequelize.transaction(async (transaction) => {
+      const refreshTokenRecord = await models.OAuthRefreshToken.findOne({
+        where: {
+          tokenHash: hashOAuthSecret(parsedRequest.refreshToken),
         },
-        now: issuedAt,
-        reasonCode: "client_mismatch",
+        lock: transaction.LOCK.UPDATE,
         transaction,
-        userId: refreshTokenRecord.userId,
       });
-    }
 
-    if (refreshTokenRecord.expiresAt.getTime() <= issuedAt.getTime()) {
-      return rejectRefreshToken({
-        clientId: refreshTokenRecord.clientId,
-        correlationId,
-        metadata: {
-          refreshTokenId: refreshTokenRecord.id ?? null,
-        },
-        now: issuedAt,
-        reasonCode: "refresh_token_expired",
-        transaction,
-        userId: refreshTokenRecord.userId,
-      });
-    }
+      if (!refreshTokenRecord) {
+        return rejectRefreshToken({
+          clientId: client.id,
+          correlationId,
+          now: issuedAt,
+          reasonCode: "refresh_token_not_found",
+          transaction,
+        });
+      }
 
-    if (refreshTokenRecord.revokedAt) {
-      return rejectRefreshToken({
-        clientId: refreshTokenRecord.clientId,
-        correlationId,
-        metadata: {
+      if (refreshTokenRecord.clientId !== client.id) {
+        return rejectRefreshToken({
+          clientId: refreshTokenRecord.clientId,
+          correlationId,
+          metadata: {
+            presentedClientId: client.id,
+            refreshTokenId: refreshTokenRecord.id ?? null,
+          },
+          now: issuedAt,
+          reasonCode: "client_mismatch",
+          transaction,
+          userId: refreshTokenRecord.userId,
+        });
+      }
+
+      if (refreshTokenRecord.expiresAt.getTime() <= issuedAt.getTime()) {
+        return rejectRefreshToken({
+          clientId: refreshTokenRecord.clientId,
+          correlationId,
+          metadata: {
+            refreshTokenId: refreshTokenRecord.id ?? null,
+          },
+          now: issuedAt,
+          reasonCode: "refresh_token_expired",
+          transaction,
+          userId: refreshTokenRecord.userId,
+        });
+      }
+
+      if (refreshTokenRecord.revokedAt) {
+        return rejectRefreshToken({
+          clientId: refreshTokenRecord.clientId,
+          correlationId,
+          metadata: {
+            familyId: refreshTokenRecord.familyId,
+            refreshTokenId: refreshTokenRecord.id ?? null,
+          },
+          now: issuedAt,
+          reasonCode: "refresh_token_revoked",
+          transaction,
+          userId: refreshTokenRecord.userId,
+        });
+      }
+
+      if (refreshTokenRecord.consumedAt) {
+        throw new OAuthRefreshTokenReplayDetectedError({
+          clientId: refreshTokenRecord.clientId,
+          correlationId,
           familyId: refreshTokenRecord.familyId,
+          now: issuedAt,
           refreshTokenId: refreshTokenRecord.id ?? null,
+          userId: refreshTokenRecord.userId,
+        });
+      }
+
+      const compromisedFamilyToken = await models.OAuthRefreshToken.findOne({
+        attributes: ["id"],
+        transaction,
+        where: {
+          familyId: refreshTokenRecord.familyId,
+          revokedAt: {
+            [Op.ne]: null,
+          },
         },
+      });
+
+      if (compromisedFamilyToken) {
+        return rejectRefreshToken({
+          clientId: refreshTokenRecord.clientId,
+          correlationId,
+          metadata: {
+            familyId: refreshTokenRecord.familyId,
+            refreshTokenId: refreshTokenRecord.id ?? null,
+          },
+          now: issuedAt,
+          reasonCode: "refresh_token_revoked",
+          transaction,
+          userId: refreshTokenRecord.userId,
+        });
+      }
+
+      const grantedScopes = normalizeScopes(refreshTokenRecord.scopes);
+      const effectiveScopes = normalizeRefreshRequestScopes(
+        parsedRequest.scope,
+        grantedScopes,
+      );
+
+      await refreshTokenRecord.update(
+        {
+          consumedAt: issuedAt,
+        },
+        { transaction },
+      );
+
+      return issueTokenPairInTransaction({
+        authMethod: "refresh_token",
+        clientId: refreshTokenRecord.clientId,
+        correlationId,
+        familyId: refreshTokenRecord.familyId,
         now: issuedAt,
-        reasonCode: "refresh_token_revoked",
+        parentRefreshTokenId: refreshTokenRecord.id,
+        scopes: effectiveScopes,
         transaction,
         userId: refreshTokenRecord.userId,
       });
+    });
+  } catch (error) {
+    if (!(error instanceof OAuthRefreshTokenReplayDetectedError)) {
+      throw error;
     }
 
-    if (refreshTokenRecord.consumedAt) {
+    await sequelize.transaction(async (transaction) => {
       await revokeRefreshTokenFamilyInTransaction({
-        familyId: refreshTokenRecord.familyId,
-        revokedAt: issuedAt,
+        familyId: error.familyId,
+        revokedAt: error.now,
         transaction,
       });
 
       await createTokenAuditEvent({
-        clientId: refreshTokenRecord.clientId,
-        correlationId,
+        clientId: error.clientId,
+        correlationId: error.correlationId,
         eventType: OAUTH_TOKEN_EXCHANGE_AUDIT_EVENTS.refreshReplayDetected,
         metadata: {
-          familyId: refreshTokenRecord.familyId,
-          refreshTokenId: refreshTokenRecord.id ?? null,
+          familyId: error.familyId,
+          refreshTokenId: error.refreshTokenId,
           severity: "high",
         },
-        now: issuedAt,
+        now: error.now,
         outcome: OAUTH_AUDIT_OUTCOMES.failure,
         reasonCode: "refresh_token_replayed",
         transaction,
-        userId: refreshTokenRecord.userId,
+        userId: error.userId,
       });
-
-      throw new OAuthTokenExchangeError({
-        code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.invalidGrant,
-        description: "Refresh token is invalid.",
-        reasonCode: "refresh_token_replayed",
-      });
-    }
-
-    const grantedScopes = normalizeScopes(refreshTokenRecord.scopes);
-    const effectiveScopes = normalizeRefreshRequestScopes(
-      parsedRequest.scope,
-      grantedScopes,
-    );
-
-    await refreshTokenRecord.update(
-      {
-        consumedAt: issuedAt,
-      },
-      { transaction },
-    );
-
-    return issueTokenPairInTransaction({
-      authMethod: "refresh_token",
-      clientId: refreshTokenRecord.clientId,
-      correlationId,
-      familyId: refreshTokenRecord.familyId,
-      now: issuedAt,
-      parentRefreshTokenId: refreshTokenRecord.id,
-      scopes: effectiveScopes,
-      transaction,
-      userId: refreshTokenRecord.userId,
     });
-  });
+
+    throw new OAuthTokenExchangeError({
+      code: OAUTH_TOKEN_EXCHANGE_ERROR_CODES.invalidGrant,
+      description: "Refresh token is invalid.",
+      reasonCode: "refresh_token_replayed",
+    });
+  }
 }
 
 export async function exchangeOAuthToken({

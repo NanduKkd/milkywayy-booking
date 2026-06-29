@@ -15,9 +15,9 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
-| M5 - Verification and security release gates | `IN_PROGRESS` | 1 | 7 | 16-24 h |
+| M5 - Verification and security release gates | `IN_PROGRESS` | 2 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **30** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **31** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -658,11 +658,17 @@ Acceptance criteria:
 
 ### TEST-002 - Add database-backed protocol integration tests
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 4-6 h
 - Depends on: FLOW-007
-- Evidence: —
+- Evidence:
+  - Isolated PostgreSQL-backed protocol integration coverage added in `src/lib/oauth/__tests__/protocol.integration.test.js`, including temporary-database setup/teardown, real migrations, concurrent authorization-code redemption, concurrent refresh replay handling, expiry failures, consent revocation, cleanup retention, and uniqueness-constraint assertions.
+  - Refresh-family replay remediation added in `src/lib/oauth/tokenExchange.js` and `src/lib/oauth/accessTokens.js` so a consumed-token replay now revokes the persisted family with a fresh committed view and causes replacement access/refresh tokens from that family to fail authorization.
+  - Focused unit coverage updated in `src/lib/oauth/__tests__/tokenExchange.test.js` and `src/lib/oauth/__tests__/accessTokens.test.js` for compromised refresh-family handling.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/protocol.integration.test.js src/lib/oauth/__tests__/tokenExchange.test.js src/lib/oauth/__tests__/accessTokens.test.js src/lib/db/migrations/__tests__/20260629010000-create-oauth-persistence.test.js --runInBand`
+    - `npx biome check src/lib/oauth/tokenExchange.js src/lib/oauth/accessTokens.js src/lib/oauth/__tests__/protocol.integration.test.js src/lib/oauth/__tests__/tokenExchange.test.js src/lib/oauth/__tests__/accessTokens.test.js docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 
