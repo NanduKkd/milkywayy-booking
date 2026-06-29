@@ -1,10 +1,13 @@
 import bcrypt from "bcrypt";
 import models from "../../db/models/index.js";
 import {
+  findOAuthClientByClientId,
   hashOAuthClientSecret,
   OAUTH_CLIENT_SECRET_HASH_ROUNDS,
   OAUTH_CLIENT_TOKEN_ENDPOINT_AUTH_METHODS,
   provisionOAuthClient,
+  rotateOAuthClientSecret,
+  setOAuthClientEnabledState,
   verifyOAuthClientSecret,
 } from "../clientProvisioning";
 import { generateOAuthSecret } from "../secrets.js";
@@ -23,6 +26,7 @@ jest.mock("../../db/models/index.js", () => ({
   default: {
     OAuthClient: {
       create: jest.fn(),
+      findOne: jest.fn(),
     },
   },
 }));
@@ -47,6 +51,7 @@ describe("OAuth client provisioning", () => {
       .mockReturnValueOnce("generated-client-id")
       .mockReturnValueOnce("generated-client-secret");
     models.OAuthClient.create.mockImplementation(async (values) => values);
+    models.OAuthClient.findOne.mockResolvedValue(null);
   });
 
   it("hashes client secrets with the configured pepper and bcrypt cost", async () => {
@@ -147,5 +152,78 @@ describe("OAuth client provisioning", () => {
       "test-client-secret-pepper:plain-secret",
       "stored-hash",
     );
+  });
+
+  it("loads an existing client by client ID", async () => {
+    const existingClient = { clientId: "existing-client" };
+    models.OAuthClient.findOne.mockResolvedValue(existingClient);
+
+    await expect(findOAuthClientByClientId(" existing-client ")).resolves.toBe(
+      existingClient,
+    );
+
+    expect(models.OAuthClient.findOne).toHaveBeenCalledWith({
+      where: {
+        clientId: "existing-client",
+      },
+    });
+  });
+
+  it("rejects rotation and state changes for unknown clients", async () => {
+    await expect(rotateOAuthClientSecret("missing-client")).rejects.toThrow(
+      "OAuth client not found for client ID: missing-client",
+    );
+
+    await expect(
+      setOAuthClientEnabledState("missing-client", false),
+    ).rejects.toThrow("OAuth client not found for client ID: missing-client");
+  });
+
+  it("rotates a stored client secret and returns the plaintext once", async () => {
+    const update = jest.fn().mockResolvedValue(undefined);
+    const existingClient = {
+      clientId: "existing-client",
+      isEnabled: true,
+      update,
+    };
+
+    models.OAuthClient.findOne.mockResolvedValue(existingClient);
+    generateOAuthSecret.mockReset();
+    generateOAuthSecret.mockReturnValue("rotated-client-secret");
+
+    const result = await rotateOAuthClientSecret("existing-client");
+
+    expect(update).toHaveBeenCalledWith({
+      clientSecretHash: "hashed-client-secret",
+    });
+    expect(result.client).toBe(existingClient);
+    expect(result.clientSecret).toBe("rotated-client-secret");
+  });
+
+  it("updates the enabled state only when it changes", async () => {
+    const update = jest.fn().mockResolvedValue(undefined);
+    const disabledClient = {
+      clientId: "existing-client",
+      isEnabled: false,
+      update,
+    };
+
+    models.OAuthClient.findOne.mockResolvedValue(disabledClient);
+
+    const enabledClient = await setOAuthClientEnabledState(
+      "existing-client",
+      true,
+    );
+
+    expect(update).toHaveBeenCalledWith({
+      isEnabled: true,
+    });
+    expect(enabledClient).toBe(disabledClient);
+
+    update.mockClear();
+    disabledClient.isEnabled = true;
+
+    await setOAuthClientEnabledState("existing-client", true);
+    expect(update).not.toHaveBeenCalled();
   });
 });

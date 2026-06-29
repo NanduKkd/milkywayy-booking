@@ -16,7 +16,7 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `IN_PROGRESS` | 6 | 7 | 16-24 h |
-| M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
+| M6 - Deployment and ChatGPT UAT | `IN_PROGRESS` | 0 | 6 | 8-13 h |
 | **Total** | `IN_PROGRESS` | **35** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
@@ -775,11 +775,18 @@ Acceptance criteria:
 
 ### OPS-001 - Prepare production secrets and client configuration
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `IN_PROGRESS`
+- Owner: `Codex`
 - Estimate: 1-2 h
 - Depends on: DB-003, AUTH-001
-- Evidence: —
+- Evidence:
+  - Production preparation runbook added in `OPERATIONS.md`, documenting the required OAuth/worker secrets, exact GPT callback capture, controlled client provisioning flow, secret rotation steps, and emergency client disablement notes.
+  - Operator lifecycle script added in `scripts/manage-oauth-client.mjs` and exposed as `npm run oauth:manage-client`; it rotates an existing client secret once-per-run and enables or disables the registered OAuth client by `client_id`.
+  - Client-management helpers added in `src/lib/oauth/clientProvisioning.js` with focused coverage in `src/lib/oauth/__tests__/clientProvisioning.test.js`.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/clientProvisioning.test.js --runInBand`
+    - `npx biome check src/lib/oauth/clientProvisioning.js src/lib/oauth/__tests__/clientProvisioning.test.js scripts/manage-oauth-client.mjs docs/gpt-actions-oauth/OPERATIONS.md docs/gpt-actions-oauth/README.md docs/gpt-actions-oauth/TASKS.md package.json`
+  - Remaining blocker before `DONE`: the actual production secret-manager entries, exact GPT-editor callback values, and live client provisioning still require deployment and project-owner access.
 
 Acceptance criteria:
 
@@ -891,3 +898,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Completed `TEST-005` existing application regression coverage and restored dashboard/sign-in Jest compatibility after the OAuth auth-context changes. | Codex |
 | 2026-06-29 | Started `TEST-004` with an automated security verification runner and recorded the first passing abuse-case report. | Codex |
 | 2026-06-29 | Completed `TEST-007` with a repeatable focused quality-review runner and an explicit single-reviewer release decision. | Codex |
+| 2026-06-29 | Started `OPS-001` with a production OAuth operations runbook and managed client rotation/enablement tooling. | Codex |

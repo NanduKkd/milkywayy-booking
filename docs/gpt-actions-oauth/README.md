@@ -19,6 +19,7 @@ This is OAuth 2.0 API authorization. It is not an OpenID Connect implementation:
 - [ARCHITECTURE.md](./ARCHITECTURE.md): target flow, endpoints, persistence, scopes, and code boundaries.
 - [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md): security requirements, automated tests, manual verification, and release gates.
 - [DECISIONS.md](./DECISIONS.md): accepted decisions and questions that must be resolved during implementation.
+- [OPERATIONS.md](./OPERATIONS.md): production secret preparation, client provisioning, rotation, and emergency disablement steps.
 - [gpt-action-openapi.json](./gpt-action-openapi.json): validated GPT Action OpenAPI artifact for the approved read-only resource API.
 
 If documents disagree, `DECISIONS.md` controls architectural choices and `TASKS.md` controls progress status.

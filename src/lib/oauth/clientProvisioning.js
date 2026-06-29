@@ -188,3 +188,78 @@ export async function provisionOAuthClient(
     clientSecret,
   };
 }
+
+export async function findOAuthClientByClientId(
+  clientId,
+  {
+    findClient = (normalizedClientId) =>
+      models.OAuthClient.findOne({
+        where: {
+          clientId: normalizedClientId,
+        },
+      }),
+  } = {},
+) {
+  assertNonEmptyString(clientId, "OAuth client ID");
+
+  const normalizedClientId = clientId.trim();
+  const client = await findClient(normalizedClientId);
+
+  if (!client) {
+    throw new Error(
+      `OAuth client not found for client ID: ${normalizedClientId}`,
+    );
+  }
+
+  return client;
+}
+
+export async function rotateOAuthClientSecret(
+  clientId,
+  {
+    findClient,
+    generateClientSecret = generateOAuthSecret,
+    hashClientSecret = hashOAuthClientSecret,
+    persistClient = (client, values) => client.update(values),
+  } = {},
+) {
+  const client = await findOAuthClientByClientId(clientId, {
+    findClient,
+  });
+  const clientSecret = generateClientSecret();
+  const clientSecretHash = await hashClientSecret(clientSecret);
+
+  await persistClient(client, {
+    clientSecretHash,
+  });
+
+  return {
+    client,
+    clientSecret,
+  };
+}
+
+export async function setOAuthClientEnabledState(
+  clientId,
+  isEnabled,
+  {
+    findClient,
+    persistClient = (client, values) => client.update(values),
+  } = {},
+) {
+  if (typeof isEnabled !== "boolean") {
+    throw new TypeError("OAuth client enabled flag must be a boolean.");
+  }
+
+  const client = await findOAuthClientByClientId(clientId, {
+    findClient,
+  });
+
+  if (client.isEnabled !== isEnabled) {
+    await persistClient(client, {
+      isEnabled,
+    });
+  }
+
+  return client;
+}

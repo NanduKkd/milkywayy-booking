@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "oauth:provision-client": "node scripts/provision-oauth-client.mjs",
+    "oauth:manage-client": "node scripts/manage-oauth-client.mjs",
     "verify:oauth-log-safety": "node scripts/verify-oauth-log-safety.mjs",
     "verify:oauth-quality": "node scripts/verify-oauth-quality.mjs",
     "verify:oauth-security": "node scripts/verify-oauth-security.mjs",
