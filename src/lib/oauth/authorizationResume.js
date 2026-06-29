@@ -1,8 +1,8 @@
 import { jwtVerify, SignJWT } from "jose";
 import { oauthConfig } from "@/lib/config/oauth";
 import { sessionConfig } from "@/lib/config/session";
+import { normalizeOAuthInteraction } from "@/lib/oauth/interaction";
 
-export const OAUTH_AUTHORIZE_PATH = "/oauth/authorize";
 export const OAUTH_AUTHORIZE_RESUME_PATH = "/oauth/authorize/resume";
 export const OAUTH_AUTHORIZE_ERROR_PATH = "/oauth/authorize/error";
 
@@ -15,87 +15,6 @@ export const OAUTH_AUTHORIZE_ERROR_CODES = Object.freeze({
 const AUTHORIZATION_RESUME_AUDIENCE = "oauth-authorization-resume";
 const LOCAL_BASE_URL = "https://milkywayy.local";
 const ALLOWED_ERROR_CODES = new Set(Object.values(OAUTH_AUTHORIZE_ERROR_CODES));
-
-function normalizeScope(scope) {
-  const values = Array.isArray(scope)
-    ? scope
-    : String(scope ?? "")
-        .split(/\s+/)
-        .map((value) => value.trim())
-        .filter(Boolean);
-
-  if (values.length === 0) {
-    throw new Error("Authorization resume scope is required.");
-  }
-
-  const uniqueScopes = [...new Set(values)];
-
-  for (const value of uniqueScopes) {
-    if (!oauthConfig.allowedScopes.includes(value)) {
-      throw new Error(`Unsupported authorization resume scope: ${value}.`);
-    }
-  }
-
-  return uniqueScopes.join(" ");
-}
-
-function normalizeRedirectUri(redirectUri) {
-  const normalizedValue = String(redirectUri ?? "").trim();
-
-  if (!normalizedValue) {
-    throw new Error("Authorization resume redirect URI is required.");
-  }
-
-  let parsedUri;
-
-  try {
-    parsedUri = new URL(normalizedValue);
-  } catch {
-    throw new Error("Authorization resume redirect URI must be absolute.");
-  }
-
-  if (parsedUri.hash) {
-    throw new Error(
-      "Authorization resume redirect URI must not include a fragment.",
-    );
-  }
-
-  return parsedUri.toString();
-}
-
-function normalizeInteraction(interaction) {
-  if (
-    !interaction ||
-    typeof interaction !== "object" ||
-    Array.isArray(interaction)
-  ) {
-    throw new Error("Authorization resume interaction must be an object.");
-  }
-
-  const clientId = String(interaction.clientId ?? "").trim();
-  const state = String(interaction.state ?? "").trim();
-  const responseType = String(interaction.responseType ?? "code").trim();
-
-  if (!clientId) {
-    throw new Error("Authorization resume client ID is required.");
-  }
-
-  if (!state) {
-    throw new Error("Authorization resume state is required.");
-  }
-
-  if (responseType !== "code") {
-    throw new Error("Authorization resume response type must be code.");
-  }
-
-  return {
-    clientId,
-    redirectUri: normalizeRedirectUri(interaction.redirectUri),
-    responseType,
-    scope: normalizeScope(interaction.scope),
-    state,
-  };
-}
 
 function parseLocalPath(rawPath, allowedPathname) {
   const normalizedPath = String(rawPath ?? "").trim();
@@ -132,7 +51,7 @@ export async function issueAuthorizationResumeToken({
   interaction,
   issuedAt = new Date(),
 } = {}) {
-  const normalizedInteraction = normalizeInteraction(interaction);
+  const normalizedInteraction = normalizeOAuthInteraction(interaction);
   const issuedAtSeconds = Math.floor(issuedAt.getTime() / 1000);
 
   return new SignJWT({ interaction: normalizedInteraction })
@@ -158,7 +77,7 @@ export async function verifyAuthorizationResumeToken(token, options = {}) {
     issuer: oauthConfig.baseUrl,
   });
 
-  return normalizeInteraction(payload.interaction);
+  return normalizeOAuthInteraction(payload.interaction);
 }
 
 export function buildAuthorizationResumePath(resumeToken) {

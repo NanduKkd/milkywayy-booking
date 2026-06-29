@@ -1,0 +1,122 @@
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import { oauthConfig } from "@/lib/config/oauth";
+import models from "@/lib/db/models";
+import { auth } from "@/lib/helpers/auth";
+import {
+  clearAuthorizationCsrfCookie,
+  readAuthorizationCsrfCookie,
+  verifyAuthorizationCsrfToken,
+} from "@/lib/oauth/authorizationCsrf";
+import {
+  buildOAuthCallbackRedirect,
+  verifyAuthorizationDecisionToken,
+} from "@/lib/oauth/authorizationDecision";
+import {
+  buildAuthorizationErrorPath,
+  OAUTH_AUTHORIZE_ERROR_CODES,
+} from "@/lib/oauth/authorizationResume";
+import { buildAuthorizationRequestPath } from "@/lib/oauth/interaction";
+import {
+  generateAuthorizationCode,
+  hashOAuthSecret,
+} from "@/lib/oauth/secrets";
+
+function buildLocalUrl(pathname) {
+  return new URL(pathname, oauthConfig.baseUrl);
+}
+
+function buildErrorResponse(message, status) {
+  return new Response(message, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+    },
+    status,
+  });
+}
+
+export async function POST(request) {
+  const formData = await request.formData();
+  const intent = String(formData.get("intent") ?? "").trim();
+  const csrfToken = String(formData.get("csrfToken") ?? "").trim();
+  const decisionToken = String(formData.get("decisionToken") ?? "").trim();
+  const cookieStore = await cookies();
+  const cookieToken = readAuthorizationCsrfCookie(cookieStore);
+
+  clearAuthorizationCsrfCookie(cookieStore);
+
+  if (
+    !verifyAuthorizationCsrfToken({
+      cookieToken,
+      formToken: csrfToken,
+    })
+  ) {
+    return buildErrorResponse("Invalid CSRF token.", 403);
+  }
+
+  let decision;
+
+  try {
+    decision = await verifyAuthorizationDecisionToken(decisionToken);
+  } catch (error) {
+    const errorCode =
+      error?.code === "ERR_JWT_EXPIRED"
+        ? OAUTH_AUTHORIZE_ERROR_CODES.interactionExpired
+        : OAUTH_AUTHORIZE_ERROR_CODES.invalidResume;
+
+    return NextResponse.redirect(
+      buildLocalUrl(buildAuthorizationErrorPath(errorCode)),
+    );
+  }
+
+  const session = await auth();
+
+  if (!session) {
+    return NextResponse.redirect(
+      buildLocalUrl(buildAuthorizationRequestPath(decision.interaction)),
+    );
+  }
+
+  if (Number(session.id) !== decision.userId) {
+    return buildErrorResponse("Authorization session mismatch.", 403);
+  }
+
+  const client = await models.OAuthClient.findByPk(decision.oauthClientId);
+
+  if (!client || client.isEnabled !== true) {
+    return buildErrorResponse("OAuth client is unavailable.", 400);
+  }
+
+  if (intent === "deny") {
+    return NextResponse.redirect(
+      buildOAuthCallbackRedirect(decision.interaction, {
+        error: "access_denied",
+        state: decision.interaction.state,
+      }),
+    );
+  }
+
+  if (intent !== "approve") {
+    return buildErrorResponse("Unsupported authorization decision.", 400);
+  }
+
+  const rawCode = generateAuthorizationCode();
+  const now = new Date();
+
+  await models.OAuthAuthorizationCode.create({
+    clientId: client.id,
+    codeHash: hashOAuthSecret(rawCode),
+    consumedAt: null,
+    expiresAt: new Date(now.getTime() + oauthConfig.codeTtlSeconds * 1000),
+    redirectUri: decision.interaction.redirectUri,
+    scopes: decision.interaction.scopes,
+    userId: session.id,
+  });
+
+  return NextResponse.redirect(
+    buildOAuthCallbackRedirect(decision.interaction, {
+      code: rawCode,
+      state: decision.interaction.state,
+    }),
+  );
+}

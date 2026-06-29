@@ -2,7 +2,7 @@
 
 - Last updated: 2026-06-29
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M2 - OAuth persistence`
+- Current milestone: `M3 - Authorization and token service`
 
 This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
 
@@ -13,11 +13,11 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `IN_PROGRESS` | 4 | 5 | 10-14 h |
-| M3 - Authorization and token service | `IN_PROGRESS` | 1 | 8 | 22-30 h |
+| M3 - Authorization and token service | `IN_PROGRESS` | 2 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **13** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **14** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -319,11 +319,17 @@ Acceptance criteria:
 
 ### FLOW-002 - Implement authorization interaction page
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-5 h
 - Depends on: FLOW-001, AUTH-005
-- Evidence: —
+- Evidence:
+  - OAuth authorization UI added in `src/app/oauth/authorize/page.js` with a dedicated login gate in `src/app/oauth/authorize/AuthorizeLoginGate.jsx`, local error handling in `src/app/oauth/authorize/error/page.jsx`, and safe resume routing in `src/app/oauth/authorize/resume/route.js`.
+  - CSRF-protected approval and denial POST handling added in `src/app/oauth/authorize/decision/route.js` using signed decision state from `src/lib/oauth/authorizationDecision.js`, double-submit protection from `src/lib/oauth/authorizationCsrf.js`, and shared interaction normalization in `src/lib/oauth/interaction.js`.
+  - Human-readable scope rendering added in `src/lib/oauth/scopes.js`, and the existing resume helper now reuses the shared interaction normalization in `src/lib/oauth/authorizationResume.js`.
+  - Focused verification passed:
+    - `npx jest src/app/oauth/authorize/__tests__/page.test.jsx src/app/oauth/authorize/resume/__tests__/route.test.js src/app/oauth/authorize/decision/__tests__/route.test.js src/lib/oauth/__tests__/authorizationResume.test.js --runInBand`
+    - `npx biome check src/app/oauth/authorize/page.js src/app/oauth/authorize/AuthorizeLoginGate.jsx src/app/oauth/authorize/error/page.jsx src/app/oauth/authorize/resume/route.js src/app/oauth/authorize/decision/route.js src/app/oauth/authorize/__tests__/page.test.jsx src/app/oauth/authorize/resume/__tests__/route.test.js src/app/oauth/authorize/decision/__tests__/route.test.js src/lib/oauth/interaction.js src/lib/oauth/authorizationResume.js src/lib/oauth/authorizationCsrf.js src/lib/oauth/authorizationDecision.js src/lib/oauth/scopes.js src/lib/oauth/__tests__/authorizationResume.test.js`
 
 Acceptance criteria:
 

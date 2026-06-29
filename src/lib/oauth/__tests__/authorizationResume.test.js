@@ -103,7 +103,10 @@ describe("authorizationResume helpers", () => {
       verifyAuthorizationResumeToken(token, {
         currentDate: new Date("2026-06-29T00:09:00.000Z"),
       }),
-    ).resolves.toEqual(baseInteraction);
+    ).resolves.toEqual({
+      ...baseInteraction,
+      scopes: ["customer:read"],
+    });
   });
 
   it("rejects an expired authorization resume token", async () => {
