@@ -17,6 +17,7 @@ import {
   buildAuthorizationErrorPath,
   OAUTH_AUTHORIZE_ERROR_CODES,
 } from "@/lib/oauth/authorizationResume";
+import { grantOAuthConsent } from "@/lib/oauth/consent";
 import { buildAuthorizationRequestPath } from "@/lib/oauth/interaction";
 
 function buildLocalUrl(pathname) {
@@ -96,6 +97,12 @@ export async function POST(request) {
   if (intent !== "approve") {
     return buildErrorResponse("Unsupported authorization decision.", 400);
   }
+
+  await grantOAuthConsent({
+    clientId: client.id,
+    scopes: decision.interaction.scopes,
+    userId: Number(session.id),
+  });
 
   const { authorizationCode } = await issueAuthorizationCode({
     clientId: client.id,

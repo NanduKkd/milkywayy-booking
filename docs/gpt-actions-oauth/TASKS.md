@@ -13,11 +13,11 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
-| M3 - Authorization and token service | `IN_PROGRESS` | 6 | 8 | 22-30 h |
+| M3 - Authorization and token service | `IN_PROGRESS` | 7 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **19** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **20** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -430,11 +430,17 @@ Acceptance criteria:
 
 ### FLOW-007 - Implement consent persistence and revocation
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: FLOW-002, DB-002
-- Evidence: —
+- Evidence:
+  - Shared OAuth consent and revocation service added in `src/lib/oauth/consent.js`, covering active-consent lookup, reconnect scope checks, persisted consent upgrades, active-connection listing, and client/user-scoped revocation of both access and refresh tokens.
+  - Authorization screens now use persisted consent state in `src/app/oauth/authorize/page.js`, and approval now records consent before code issuance in `src/app/oauth/authorize/decision/route.js`.
+  - Customer-managed dashboard revocation added through `src/app/dashboard/connections/page.js`, `src/app/dashboard/layout.js`, and `src/app/oauth/revoke/route.js`.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/consent.test.js src/app/oauth/authorize/__tests__/page.test.jsx src/app/oauth/authorize/decision/__tests__/route.test.js src/app/dashboard/connections/__tests__/page.test.jsx src/app/oauth/revoke/__tests__/route.test.js --runInBand`
+    - `npx biome check src/lib/oauth/consent.js src/lib/oauth/__tests__/consent.test.js src/app/oauth/authorize/page.js src/app/oauth/authorize/__tests__/page.test.jsx src/app/oauth/authorize/decision/route.js src/app/oauth/authorize/decision/__tests__/route.test.js src/app/dashboard/connections/page.js src/app/dashboard/connections/__tests__/page.test.jsx src/app/oauth/revoke/route.js src/app/oauth/revoke/__tests__/route.test.js src/app/dashboard/layout.js`
 
 Acceptance criteria:
 

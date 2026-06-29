@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import AuthorizeLoginGate from "@/app/oauth/authorize/AuthorizeLoginGate";
 import { Button } from "@/components/ui/button";
 import { USER_ROLES } from "@/lib/config/app.config";
-import models from "@/lib/db/models";
 import { auth } from "@/lib/helpers/auth";
 import {
   clearAuthorizationCsrfCookie,
@@ -18,6 +17,10 @@ import {
   issueAuthorizationResumeToken,
   OAUTH_AUTHORIZE_ERROR_CODES,
 } from "@/lib/oauth/authorizationResume";
+import {
+  hasActiveConsentForScopes,
+  loadActiveOAuthConsent,
+} from "@/lib/oauth/consent";
 import { getOAuthScopeDetails } from "@/lib/oauth/scopes";
 
 function AuthorizeErrorState({ title, message }) {
@@ -37,16 +40,6 @@ function AuthorizeErrorState({ title, message }) {
       </section>
     </main>
   );
-}
-
-async function loadActiveConsent({ clientId, userId }) {
-  return models.OAuthConsent.findOne({
-    where: {
-      clientId,
-      revokedAt: null,
-      userId,
-    },
-  });
 }
 
 export default async function OAuthAuthorizePage({ searchParams }) {
@@ -112,18 +105,14 @@ export default async function OAuthAuthorizePage({ searchParams }) {
   const csrfToken = issueAuthorizationCsrfToken();
   setAuthorizationCsrfCookie(cookieStore, csrfToken);
 
-  const activeConsent = await loadActiveConsent({
+  const activeConsent = await loadActiveOAuthConsent({
     clientId: request.client.id,
     userId: session.id,
   }).catch(() => null);
-  const isReconnect = Boolean(
-    activeConsent &&
-      request.scopes.every((scope) =>
-        Array.isArray(activeConsent.scopes)
-          ? activeConsent.scopes.includes(scope)
-          : false,
-      ),
-  );
+  const isReconnect = hasActiveConsentForScopes({
+    consent: activeConsent,
+    scopes: request.scopes,
+  });
   const accountLabel =
     session.fullName ||
     session.companyName ||
@@ -207,8 +196,8 @@ export default async function OAuthAuthorizePage({ searchParams }) {
         <p className="mt-6 text-xs leading-6 text-muted-foreground">
           Milkywayy shares only the approved scope data with this OAuth client.
           Your website session cookie and any client secret remain server-only.
-          To manage connections later, use your dashboard after revocation
-          support is enabled.
+          You can review or revoke this connection from your dashboard at any
+          time.
         </p>
         <p className="mt-2 text-xs leading-6 text-muted-foreground">
           By continuing, you will be redirected back to the validated ChatGPT

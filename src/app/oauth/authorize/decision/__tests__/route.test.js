@@ -5,6 +5,7 @@ const mockCookies = jest.fn();
 const mockFindOAuthClient = jest.fn();
 const mockVerifyAuthorizationDecisionToken = jest.fn();
 const mockIssueAuthorizationCode = jest.fn();
+const mockGrantOAuthConsent = jest.fn();
 const mockRedirect = jest.fn((url) => ({
   status: 307,
   url: String(url),
@@ -72,6 +73,10 @@ jest.mock("@/lib/oauth/authorizationCodes", () => ({
   issueAuthorizationCode: (...args) => mockIssueAuthorizationCode(...args),
 }));
 
+jest.mock("@/lib/oauth/consent", () => ({
+  grantOAuthConsent: (...args) => mockGrantOAuthConsent(...args),
+}));
+
 function createRequest(formEntries) {
   const formData = new FormData();
 
@@ -87,6 +92,7 @@ function createRequest(formEntries) {
 describe("oauth authorize decision route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGrantOAuthConsent.mockResolvedValue({ id: 11 });
     mockCookies.mockResolvedValue({
       delete: jest.fn(),
       get: jest.fn((name) =>
@@ -159,6 +165,11 @@ describe("oauth authorize decision route", () => {
     );
 
     expect(response.status).toBe(307);
+    expect(mockGrantOAuthConsent).toHaveBeenCalledWith({
+      clientId: 7,
+      scopes: ["customer:read"],
+      userId: 42,
+    });
     expect(mockIssueAuthorizationCode).toHaveBeenCalledWith({
       clientId: 7,
       redirectUri: "https://chatgpt.com/aip/oauth/callback-test",

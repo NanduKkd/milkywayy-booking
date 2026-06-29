@@ -6,7 +6,7 @@ const mockCookies = jest.fn();
 const mockValidateAuthorizationRequest = jest.fn();
 const mockIssueAuthorizationDecisionToken = jest.fn();
 const mockIssueAuthorizationResumeToken = jest.fn();
-const mockFindConsent = jest.fn();
+const mockLoadActiveOAuthConsent = jest.fn();
 
 jest.mock("next/headers", () => ({
   cookies: (...args) => mockCookies(...args),
@@ -16,13 +16,14 @@ jest.mock("@/lib/helpers/auth", () => ({
   auth: (...args) => mockAuth(...args),
 }));
 
-jest.mock("@/lib/db/models", () => ({
-  __esModule: true,
-  default: {
-    OAuthConsent: {
-      findOne: (...args) => mockFindConsent(...args),
-    },
-  },
+jest.mock("@/lib/oauth/consent", () => ({
+  hasActiveConsentForScopes: ({ consent, scopes }) =>
+    Array.isArray(scopes) &&
+    scopes.every(
+      (scope) =>
+        Array.isArray(consent?.scopes) && consent.scopes.includes(scope),
+    ),
+  loadActiveOAuthConsent: (...args) => mockLoadActiveOAuthConsent(...args),
 }));
 
 jest.mock("@/lib/oauth/authorizationDecision", () => ({
@@ -68,7 +69,7 @@ describe("OAuth authorize page", () => {
       get: jest.fn(),
       set: jest.fn(),
     });
-    mockFindConsent.mockResolvedValue(null);
+    mockLoadActiveOAuthConsent.mockResolvedValue(null);
   });
 
   it("renders the shared login gate for anonymous users", async () => {
@@ -169,6 +170,47 @@ describe("OAuth authorize page", () => {
         sameSite: "lax",
       }),
     );
+  });
+
+  it("switches to reconnect copy when the customer already granted the same scopes", async () => {
+    mockValidateAuthorizationRequest.mockResolvedValue({
+      client: {
+        id: 7,
+        name: "ChatGPT",
+      },
+      clientId: "client-123",
+      redirectUri: "https://chatgpt.com/aip/oauth/callback-test",
+      responseType: "code",
+      scope: "customer:read",
+      scopes: ["customer:read"],
+      state: "opaque-state",
+    });
+    mockAuth.mockResolvedValue({
+      fullName: "Jane Customer",
+      id: 42,
+      role: "CUSTOMER",
+    });
+    mockIssueAuthorizationDecisionToken.mockResolvedValue("decision-token");
+    mockLoadActiveOAuthConsent.mockResolvedValue({
+      scopes: ["customer:read"],
+    });
+
+    const page = await OAuthAuthorizePage({
+      searchParams: Promise.resolve({
+        client_id: "client-123",
+      }),
+    });
+
+    render(page);
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Reconnect ChatGPT",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Reconnect ChatGPT" }),
+    ).toBeInTheDocument();
   });
 
   it("renders a safe local error when validation fails", async () => {

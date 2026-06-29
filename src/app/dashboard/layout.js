@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Folder, Receipt } from "lucide-react";
+import { Calendar, Folder, Link2, Receipt } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -55,6 +55,12 @@ export default function DashboardLayout({ children }) {
       icon: <Receipt size={16} />,
       href: "/dashboard/invoices",
     },
+    {
+      key: "/dashboard/connections",
+      title: "Connections",
+      icon: <Link2 size={16} />,
+      href: "/dashboard/connections",
+    },
   ];
 
   // Find the active tab based on the current path
@@ -85,7 +91,7 @@ export default function DashboardLayout({ children }) {
                 </p>
 
                 <Tabs value={currentTab} className="mb-8 w-full">
-                  <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl border border-border bg-secondary p-1 text-sm">
+                  <TabsList className="grid h-auto w-full grid-cols-4 rounded-xl border border-border bg-secondary p-1 text-sm">
                     {tabs.map((item) => (
                       <TabsTrigger
                         key={item.key}
