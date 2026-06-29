@@ -58,6 +58,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
     "@biomejs/biome": "2.2.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

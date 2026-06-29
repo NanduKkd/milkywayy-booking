@@ -2,7 +2,7 @@
 
 - Last updated: 2026-06-29
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M4 - GPT resource API and OpenAPI schema`
+- Current milestone: `M5 - Verification and security release gates`
 
 This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
 
@@ -14,10 +14,10 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
-| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 7 | 8 | 19-29 h |
+| M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **28** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **29** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -596,11 +596,16 @@ Acceptance criteria:
 
 ### API-007 - Create and validate the GPT Action OpenAPI schema
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: API-003, API-004, API-005, API-008
-- Evidence: —
+- Evidence:
+  - Importable GPT Action OpenAPI artifact added in `docs/gpt-actions-oauth/gpt-action-openapi.json`, exposing only the approved read-only `/me`, bookings list/detail, invoices, and files operations on the production `https://milkywayy.com` server with `customer:read` OAuth security.
+  - Validator-backed regression coverage added in `docs/gpt-actions-oauth/__tests__/gpt-action-openapi.test.js`, asserting OpenAPI validity, approved operation IDs and paths only, production OAuth URLs, and structured DTO responses instead of conversational wrappers.
+  - Focused verification passed:
+    - `npx jest docs/gpt-actions-oauth/__tests__/gpt-action-openapi.test.js --runInBand`
+    - `npx biome check docs/gpt-actions-oauth/gpt-action-openapi.json docs/gpt-actions-oauth/__tests__/gpt-action-openapi.test.js`
 
 Acceptance criteria:
 

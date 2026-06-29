@@ -1,0 +1,1023 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Milkywayy GPT Action API",
+    "version": "1.0.0",
+    "description": "Read-only customer-scoped API for the Milkywayy ChatGPT Custom GPT integration."
+  },
+  "servers": [
+    {
+      "url": "https://milkywayy.com",
+      "description": "Production HTTPS API"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Account",
+      "description": "Connected customer account information."
+    },
+    {
+      "name": "Bookings",
+      "description": "Customer-owned booking data."
+    },
+    {
+      "name": "Invoices",
+      "description": "Customer invoice metadata and dashboard links."
+    },
+    {
+      "name": "Files",
+      "description": "Customer-visible delivery-file metadata and dashboard links."
+    }
+  ],
+  "paths": {
+    "/api/gpt/v1/me": {
+      "get": {
+        "tags": ["Account"],
+        "summary": "Get the connected customer account",
+        "description": "Returns the minimal customer identity approved by the customer:read scope.",
+        "operationId": "getConnectedAccount",
+        "security": [
+          {
+            "OAuthAuthorizationCode": ["customer:read"]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Connected customer account details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectedAccountResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimitedResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TemporarilyUnavailableResponse"
+          }
+        }
+      }
+    },
+    "/api/gpt/v1/bookings": {
+      "get": {
+        "tags": ["Bookings"],
+        "summary": "List customer bookings",
+        "description": "Returns customer-owned bookings with bounded filters and descending cursor pagination.",
+        "operationId": "listCustomerBookings",
+        "security": [
+          {
+            "OAuthAuthorizationCode": ["customer:read"]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/BookingCodeFilter"
+          },
+          {
+            "$ref": "#/components/parameters/ScheduledFrom"
+          },
+          {
+            "$ref": "#/components/parameters/ScheduledTo"
+          },
+          {
+            "$ref": "#/components/parameters/BookingStatusFilter"
+          },
+          {
+            "$ref": "#/components/parameters/BookingWorkflowStatusFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated customer booking metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookingListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenResponse"
+          },
+          "422": {
+            "$ref": "#/components/responses/InvalidRequestResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimitedResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TemporarilyUnavailableResponse"
+          }
+        }
+      }
+    },
+    "/api/gpt/v1/bookings/{bookingCode}": {
+      "get": {
+        "tags": ["Bookings"],
+        "summary": "Get one customer booking by code",
+        "description": "Returns one customer-owned booking by its public booking code.",
+        "operationId": "getCustomerBookingByCode",
+        "security": [
+          {
+            "OAuthAuthorizationCode": ["customer:read"]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/BookingCodePath"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer booking details.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenResponse"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFoundResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimitedResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TemporarilyUnavailableResponse"
+          }
+        }
+      }
+    },
+    "/api/gpt/v1/invoices": {
+      "get": {
+        "tags": ["Invoices"],
+        "summary": "List customer invoices",
+        "description": "Returns customer-owned invoice metadata with safe dashboard links and bounded filters.",
+        "operationId": "listCustomerInvoices",
+        "security": [
+          {
+            "OAuthAuthorizationCode": ["customer:read"]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/InvoiceNumberFilter"
+          },
+          {
+            "$ref": "#/components/parameters/PaidFrom"
+          },
+          {
+            "$ref": "#/components/parameters/PaidTo"
+          },
+          {
+            "$ref": "#/components/parameters/InvoiceStatusFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated customer invoice metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenResponse"
+          },
+          "422": {
+            "$ref": "#/components/responses/InvalidRequestResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimitedResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TemporarilyUnavailableResponse"
+          }
+        }
+      }
+    },
+    "/api/gpt/v1/files": {
+      "get": {
+        "tags": ["Files"],
+        "summary": "List customer delivery files",
+        "description": "Returns customer-visible delivery-file metadata and authenticated dashboard deep links.",
+        "operationId": "listCustomerDeliveryFiles",
+        "security": [
+          {
+            "OAuthAuthorizationCode": ["customer:read"]
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/BookingCodeFilter"
+          },
+          {
+            "$ref": "#/components/parameters/FileIdFilter"
+          },
+          {
+            "$ref": "#/components/parameters/FileStatusFilter"
+          },
+          {
+            "$ref": "#/components/parameters/FileTypeFilter"
+          },
+          {
+            "$ref": "#/components/parameters/UploadedFrom"
+          },
+          {
+            "$ref": "#/components/parameters/UploadedTo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated customer delivery-file metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/UnauthorizedResponse"
+          },
+          "403": {
+            "$ref": "#/components/responses/ForbiddenResponse"
+          },
+          "422": {
+            "$ref": "#/components/responses/InvalidRequestResponse"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimitedResponse"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerErrorResponse"
+          },
+          "503": {
+            "$ref": "#/components/responses/TemporarilyUnavailableResponse"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "OAuthAuthorizationCode": {
+        "type": "oauth2",
+        "description": "Milkywayy customer OAuth 2.0 authorization-code flow for GPT Actions.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "https://milkywayy.com/oauth/authorize",
+            "tokenUrl": "https://milkywayy.com/oauth/token",
+            "scopes": {
+              "customer:read": "View your account, bookings, invoices, and delivery-file metadata."
+            }
+          }
+        }
+      }
+    },
+    "parameters": {
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "description": "Maximum number of items to return.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 20
+        }
+      },
+      "Cursor": {
+        "name": "cursor",
+        "in": "query",
+        "description": "Opaque pagination cursor returned by a prior list response.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "BookingCodeFilter": {
+        "name": "bookingCode",
+        "in": "query",
+        "description": "Filter by one public booking code.",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/BookingCode"
+        }
+      },
+      "BookingCodePath": {
+        "name": "bookingCode",
+        "in": "path",
+        "description": "Public booking code.",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/BookingCode"
+        }
+      },
+      "ScheduledFrom": {
+        "name": "scheduledFrom",
+        "in": "query",
+        "description": "Filter for bookings scheduled on or after this date.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "ScheduledTo": {
+        "name": "scheduledTo",
+        "in": "query",
+        "description": "Filter for bookings scheduled on or before this date.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "BookingStatusFilter": {
+        "name": "status",
+        "in": "query",
+        "description": "Filter by booking lifecycle status.",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/BookingStatus"
+        }
+      },
+      "BookingWorkflowStatusFilter": {
+        "name": "workflowStatus",
+        "in": "query",
+        "description": "Filter by booking delivery workflow stage.",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/BookingWorkflowStatus"
+        }
+      },
+      "InvoiceNumberFilter": {
+        "name": "invoiceNumber",
+        "in": "query",
+        "description": "Filter by one public invoice number.",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/InvoiceNumber"
+        }
+      },
+      "PaidFrom": {
+        "name": "paidFrom",
+        "in": "query",
+        "description": "Filter for invoices paid on or after this date.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "PaidTo": {
+        "name": "paidTo",
+        "in": "query",
+        "description": "Filter for invoices paid on or before this date.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "InvoiceStatusFilter": {
+        "name": "status",
+        "in": "query",
+        "description": "Filter by invoice payment status.",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/InvoiceStatus"
+        }
+      },
+      "FileIdFilter": {
+        "name": "fileId",
+        "in": "query",
+        "description": "Filter by one customer-visible delivery file ID.",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "FileStatusFilter": {
+        "name": "status",
+        "in": "query",
+        "description": "Filter by customer-visible delivery file status.",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FileStatus"
+        }
+      },
+      "FileTypeFilter": {
+        "name": "type",
+        "in": "query",
+        "description": "Filter by delivery file type.",
+        "required": false,
+        "schema": {
+          "$ref": "#/components/schemas/FileType"
+        }
+      },
+      "UploadedFrom": {
+        "name": "uploadedFrom",
+        "in": "query",
+        "description": "Filter for files uploaded on or after this date.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "UploadedTo": {
+        "name": "uploadedTo",
+        "in": "query",
+        "description": "Filter for files uploaded on or before this date.",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "responses": {
+      "UnauthorizedResponse": {
+        "description": "The Bearer token is missing, malformed, expired, revoked, or otherwise invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/UnauthorizedError"
+            }
+          }
+        }
+      },
+      "ForbiddenResponse": {
+        "description": "The Bearer token does not grant the required scope.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ForbiddenError"
+            }
+          }
+        }
+      },
+      "NotFoundResponse": {
+        "description": "The requested customer-owned record was not found.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/NotFoundError"
+            }
+          }
+        }
+      },
+      "InvalidRequestResponse": {
+        "description": "The request parameters are invalid.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/InvalidRequestError"
+            }
+          }
+        }
+      },
+      "RateLimitedResponse": {
+        "description": "The request exceeded a rate limit.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/RateLimitedError"
+            }
+          }
+        }
+      },
+      "InternalServerErrorResponse": {
+        "description": "The server could not complete the request.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/InternalServerError"
+            }
+          }
+        }
+      },
+      "TemporarilyUnavailableResponse": {
+        "description": "The server temporarily cannot complete the request safely.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/TemporarilyUnavailableError"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "AccountType": {
+        "type": "string",
+        "enum": ["INDIVIDUAL", "COMPANY"]
+      },
+      "BookingCode": {
+        "type": "string",
+        "pattern": "^MWB-\\d{4,}$"
+      },
+      "BookingStatus": {
+        "type": "string",
+        "enum": ["DRAFT", "CONFIRMED", "COMPLETED", "CANCELLED"]
+      },
+      "BookingWorkflowStatus": {
+        "type": "string",
+        "enum": [
+          "SHOOT_BOOKED",
+          "SHOOT_DONE",
+          "EDITING",
+          "FILES_UPLOADED",
+          "PROJECT_COMPLETED"
+        ]
+      },
+      "InvoiceNumber": {
+        "type": "string",
+        "pattern": "^(?:MW-\\d{4}-\\d{4}-\\d{3}|INV-\\d{6})$"
+      },
+      "InvoiceStatus": {
+        "type": "string",
+        "enum": ["pending", "success", "failed"]
+      },
+      "FileStatus": {
+        "type": "string",
+        "enum": ["UNDER_REVIEW", "ACCEPTED"]
+      },
+      "FileType": {
+        "type": "string",
+        "enum": ["Photography", "Videography", "360 Virtual Tour"]
+      },
+      "Pagination": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["hasMore", "nextCursor"],
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "nextCursor": {
+            "type": ["string", "null"],
+            "minLength": 1
+          }
+        }
+      },
+      "ConnectedAccountResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["account"],
+        "properties": {
+          "account": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["accountType", "displayName", "phoneLast4"],
+            "properties": {
+              "accountType": {
+                "$ref": "#/components/schemas/AccountType"
+              },
+              "displayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "phoneLast4": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{4}$"
+              }
+            }
+          }
+        }
+      },
+      "BookingProperty": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "building",
+          "community",
+          "locationLabel",
+          "propertySize",
+          "propertyType",
+          "unitNumber"
+        ],
+        "properties": {
+          "building": {
+            "type": ["string", "null"],
+            "minLength": 1
+          },
+          "community": {
+            "type": ["string", "null"],
+            "minLength": 1
+          },
+          "locationLabel": {
+            "type": ["string", "null"],
+            "minLength": 1
+          },
+          "propertySize": {
+            "type": ["string", "null"],
+            "minLength": 1
+          },
+          "propertyType": {
+            "type": ["string", "null"],
+            "minLength": 1
+          },
+          "unitNumber": {
+            "type": ["string", "null"],
+            "minLength": 1
+          }
+        }
+      },
+      "Booking": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bookingCode",
+          "createdAt",
+          "currency",
+          "property",
+          "scheduledDate",
+          "scheduledStartTime",
+          "services",
+          "status",
+          "totalAmount",
+          "workflowStatus"
+        ],
+        "properties": {
+          "bookingCode": {
+            "$ref": "#/components/schemas/BookingCode"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string",
+            "const": "AED"
+          },
+          "property": {
+            "$ref": "#/components/schemas/BookingProperty"
+          },
+          "scheduledDate": {
+            "type": ["string", "null"],
+            "format": "date"
+          },
+          "scheduledStartTime": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "services": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "totalAmount": {
+            "type": ["number", "null"],
+            "minimum": 0
+          },
+          "workflowStatus": {
+            "$ref": "#/components/schemas/BookingWorkflowStatus"
+          }
+        }
+      },
+      "BookingListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bookings", "pagination"],
+        "properties": {
+          "bookings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Booking"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "Invoice": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "amount",
+          "bookingCodes",
+          "createdAt",
+          "currency",
+          "invoiceNumber",
+          "paidAt",
+          "status",
+          "websiteUrl"
+        ],
+        "properties": {
+          "amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "bookingCodes": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/BookingCode"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "currency": {
+            "type": "string",
+            "const": "AED"
+          },
+          "invoiceNumber": {
+            "$ref": "#/components/schemas/InvoiceNumber"
+          },
+          "paidAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvoiceStatus"
+          },
+          "websiteUrl": {
+            "type": "string",
+            "pattern": "^/dashboard/invoices\\?invoiceNumber=[A-Za-z0-9\\-_.~%]+$"
+          }
+        }
+      },
+      "InvoiceListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["invoices", "pagination"],
+        "properties": {
+          "invoices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Invoice"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "DeliveryFile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bookingCode",
+          "fileId",
+          "fileName",
+          "label",
+          "mimeType",
+          "reviewDeadlineAt",
+          "revisionCount",
+          "sizeBytes",
+          "status",
+          "type",
+          "uploadedAt",
+          "websiteUrl"
+        ],
+        "properties": {
+          "bookingCode": {
+            "$ref": "#/components/schemas/BookingCode"
+          },
+          "fileId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fileName": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "mimeType": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "reviewDeadlineAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "revisionCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sizeBytes": {
+            "type": ["integer", "null"],
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/FileStatus"
+          },
+          "type": {
+            "$ref": "#/components/schemas/FileType"
+          },
+          "uploadedAt": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "websiteUrl": {
+            "type": "string",
+            "pattern": "^/dashboard/files\\?fileId=\\d+$"
+          }
+        }
+      },
+      "FileListResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["files", "pagination"],
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryFile"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "UnauthorizedError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": ["invalid_request", "invalid_token"]
+          }
+        }
+      },
+      "ForbiddenError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "insufficient_scope"
+          }
+        }
+      },
+      "NotFoundError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "not_found"
+          }
+        }
+      },
+      "ValidationIssue": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["code", "message", "path"],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "array",
+            "items": {
+              "type": ["string", "integer"]
+            }
+          }
+        }
+      },
+      "InvalidRequestError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["details", "error"],
+        "properties": {
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationIssue"
+            }
+          },
+          "error": {
+            "type": "string",
+            "const": "invalid_request"
+          }
+        }
+      },
+      "RateLimitedError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error", "retryAfterSeconds"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "rate_limited"
+          },
+          "retryAfterSeconds": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "InternalServerError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "internal_server_error"
+          }
+        }
+      },
+      "TemporarilyUnavailableError": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "temporarily_unavailable"
+          }
+        }
+      }
+    }
+  }
+}
