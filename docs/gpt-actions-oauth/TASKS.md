@@ -14,10 +14,10 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
-| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 1 | 8 | 19-29 h |
+| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 2 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **22** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **23** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -494,11 +494,16 @@ Acceptance criteria:
 
 ### API-002 - Define stable GPT API DTOs and pagination
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: OAUTH-002
-- Evidence: —
+- Evidence:
+  - Shared GPT API DTO and pagination helpers added in `src/app/api/gpt/v1/_lib/dtos.js`, including runtime-validated connected-account, booking, invoice, and delivery-file response shapes, strict query parsing, allowlisted filters, bounded date windows, and opaque cursor handling for stable descending pagination.
+  - Focused validation and serialization coverage added in `src/app/api/gpt/v1/_lib/__tests__/dtos.test.js`.
+  - Focused verification passed:
+    - `npx jest src/app/api/gpt/v1/_lib/__tests__/dtos.test.js --runInBand`
+    - `npx biome check src/app/api/gpt/v1/_lib/dtos.js src/app/api/gpt/v1/_lib/__tests__/dtos.test.js docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 
