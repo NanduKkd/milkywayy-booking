@@ -32,5 +32,17 @@ module.exports = {
         CRON_SECRET: process.env.CRON_SECRET || fileEnv.CRON_SECRET,
       },
     },
+    {
+      name: "milkywayy-booking-oauth-cleanup",
+      script: "scripts/oauth-cleanup-worker.mjs",
+      cwd: __dirname,
+      interpreter: "node",
+      autorestart: true,
+      env: {
+        NODE_ENV: "production",
+        INTERNAL_APP_URL: "http://127.0.0.1:3000",
+        CRON_SECRET: process.env.CRON_SECRET || fileEnv.CRON_SECRET,
+      },
+    },
   ],
 };

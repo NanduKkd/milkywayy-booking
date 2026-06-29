@@ -1,7 +1,7 @@
 # GPT Actions OAuth operations runbook
 
 - Last updated: 2026-06-29
-- Scope: `OPS-001` preparation for production OAuth secrets and ChatGPT client configuration
+- Scope: `OPS-001` and `OPS-002` production OAuth preparation and topology controls
 
 This runbook covers the repo-controlled part of production preparation. It does not store production secrets in the repository and it does not replace the manual GPT-editor and deployment-secret steps owned by the project operator.
 
@@ -94,3 +94,46 @@ Important limitation:
 - already-issued access tokens can remain usable until their 15-minute expiry unless the affected customer connection is explicitly revoked
 
 Use disablement for incident containment, then follow the customer revocation and deployment rollback procedures tracked in `OPS-003` through `OPS-006`.
+
+## TLS, proxy, and PM2 topology
+
+Install the repo-managed Nginx template from `deploy/nginx/milkywayy-booking.conf` on the production host, then adapt only the certificate paths and any operator-owned server-name aliases if needed.
+
+Required topology:
+
+- Nginx terminates HTTPS on port 443 with `TLSv1.2` or `TLSv1.3`.
+- Port 80 redirects to the equivalent HTTPS URL.
+- Nginx reverse-proxies to the local PM2-managed Next.js process at `http://127.0.0.1:3000`.
+- Nginx forwards `Host` and `X-Forwarded-Host` from the controlled proxy value and pins `X-Forwarded-Proto` to `https`.
+- Proxy body and timeout limits remain bounded for GPT Actions: `client_max_body_size 256k`, `proxy_connect_timeout 5s`, `proxy_send_timeout 30s`, and `proxy_read_timeout 30s`.
+
+The repo-managed PM2 process file now includes all production processes:
+
+- `milkywayy-booking`
+- `milkywayy-booking-auto-complete`
+- `milkywayy-booking-oauth-cleanup`
+
+Start or reload them with:
+
+```bash
+pm2 start ecosystem.config.cjs
+pm2 save
+```
+
+The cleanup and booking workers target `http://127.0.0.1:3000` through `INTERNAL_APP_URL` and require `CRON_SECRET`.
+
+## Rate-limit topology
+
+OAuth and GPT resource throttling already uses PostgreSQL-backed rate limiting rather than per-process memory buckets. That means the current single-process PM2 deployment and any later increase in web-process count still share the same counters without weakening token, OTP, or resource API limits.
+
+The deployment operator still needs to keep every public web process pointed at the same PostgreSQL database and avoid bypassing Nginx with a second public listener.
+
+## Repo-controlled topology verification
+
+Before or alongside production rollout, run:
+
+```bash
+npm run verify:oauth-topology
+```
+
+This checks the repo-managed PM2 topology, confirms the OAuth cleanup worker is registered, validates the committed Nginx TLS/proxy template, and ensures the runbook still documents the PostgreSQL-backed rate-limit topology.

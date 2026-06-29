@@ -797,11 +797,18 @@ Acceptance criteria:
 
 ### OPS-002 - Configure TLS, proxying, and rate-limit topology
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `IN_PROGRESS`
+- Owner: `Codex`
 - Estimate: 1-2 h
 - Depends on: API-006
-- Evidence: —
+- Evidence:
+  - Repo-managed Nginx production template added in `deploy/nginx/milkywayy-booking.conf`, including HTTPS termination on port 443, HTTP-to-HTTPS redirect, controlled forwarded-host/proto headers, bounded body size, and bounded proxy timeouts for the PM2-local Next.js upstream.
+  - PM2 topology updated in `ecosystem.config.cjs` so production now declares the web app, booking auto-complete worker, and OAuth cleanup worker together against the same local application URL and shared `CRON_SECRET` handling.
+  - Repeatable topology verification added as `npm run verify:oauth-topology` via `scripts/verify-oauth-topology.mjs`, and the deployment/runbook steps are documented in `OPERATIONS.md`.
+  - Focused verification passed:
+    - `npm run verify:oauth-topology`
+    - `npx biome check ecosystem.config.cjs scripts/verify-oauth-topology.mjs docs/gpt-actions-oauth/OPERATIONS.md docs/gpt-actions-oauth/TASKS.md`
+  - Remaining blocker before `DONE`: the committed topology template still needs to be installed on the production host and validated there with the live certificate, Nginx reload, and real public endpoint checks.
 
 Acceptance criteria:
 
@@ -899,3 +906,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Started `TEST-004` with an automated security verification runner and recorded the first passing abuse-case report. | Codex |
 | 2026-06-29 | Completed `TEST-007` with a repeatable focused quality-review runner and an explicit single-reviewer release decision. | Codex |
 | 2026-06-29 | Started `OPS-001` with a production OAuth operations runbook and managed client rotation/enablement tooling. | Codex |
+| 2026-06-29 | Started `OPS-002` with a committed Nginx topology template, PM2 cleanup-worker registration, and a repeatable topology verification runner. | Codex |
