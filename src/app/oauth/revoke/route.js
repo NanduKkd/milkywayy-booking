@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
 import models from "@/lib/db/models";
 import { auth } from "@/lib/helpers/auth";
+import {
+  OAUTH_AUDIT_EVENTS,
+  OAUTH_AUDIT_OUTCOMES,
+  OAUTH_AUDIT_PERSISTENCE,
+  recordOAuthAuditEvent,
+} from "@/lib/oauth/audit";
 import { revokeOAuthConsent } from "@/lib/oauth/consent";
 
 function buildTextResponse(message, status) {
@@ -38,8 +44,24 @@ export async function POST(request) {
   });
 
   if (client) {
-    await revokeOAuthConsent({
+    const revokeResult = await revokeOAuthConsent({
       clientId: client.id,
+      userId: Number(session.id),
+    });
+
+    await recordOAuthAuditEvent({
+      clientId: client.id,
+      eventType: OAUTH_AUDIT_EVENTS.consentRevoked,
+      metadata: {
+        activeConsentId: revokeResult.activeConsentId,
+        clientPublicId,
+        revokedAccessTokenCount: revokeResult.revokedAccessTokenCount,
+        revokedConsent: revokeResult.revokedConsent,
+        revokedRefreshTokenCount: revokeResult.revokedRefreshTokenCount,
+      },
+      outcome: OAUTH_AUDIT_OUTCOMES.success,
+      persistence: OAUTH_AUDIT_PERSISTENCE.failOpen,
+      reasonCode: "customer_revoked_connection",
       userId: Number(session.id),
     });
   }

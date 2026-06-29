@@ -1,4 +1,10 @@
 import models from "@/lib/db/models/index.js";
+import {
+  OAUTH_AUDIT_EVENTS,
+  OAUTH_AUDIT_OUTCOMES,
+  OAUTH_AUDIT_PERSISTENCE,
+  recordOAuthAuditEvent,
+} from "@/lib/oauth/audit";
 import { consumeRateLimit } from "@/lib/services/oauthRateLimits";
 import { verifyOAuthClientSecret } from "./clientProvisioning";
 
@@ -266,6 +272,26 @@ function getRateLimitKey({ headers, body }) {
   return "missing";
 }
 
+async function auditInvalidOAuthClient({
+  authMethod = null,
+  client,
+  clientId = null,
+  reasonCode,
+}) {
+  await recordOAuthAuditEvent({
+    clientId: client?.id ?? null,
+    eventType: OAUTH_AUDIT_EVENTS.invalidClient,
+    metadata: {
+      authMethod,
+      clientPublicId: client?.clientId ?? clientId,
+    },
+    outcome: OAUTH_AUDIT_OUTCOMES.failure,
+    persistence: OAUTH_AUDIT_PERSISTENCE.failOpen,
+    reasonCode,
+    userId: null,
+  });
+}
+
 export async function authenticateOAuthClient(
   requestLike,
   {
@@ -282,11 +308,30 @@ export async function authenticateOAuthClient(
     windowMs: rateLimit.windowMs,
   });
 
-  const credentials = extractOAuthClientCredentials(requestLike);
+  let credentials;
+
+  try {
+    credentials = extractOAuthClientCredentials(requestLike);
+  } catch (error) {
+    if (error instanceof OAuthClientAuthenticationError) {
+      await auditInvalidOAuthClient({
+        reasonCode: error.reasonCode,
+      });
+    }
+
+    throw error;
+  }
 
   const client = await loadClient(credentials.clientId);
 
   if (!client || client.isEnabled !== true) {
+    await auditInvalidOAuthClient({
+      authMethod: credentials.authMethod,
+      client,
+      clientId: credentials.clientId,
+      reasonCode: "client_unavailable",
+    });
+
     throw new OAuthClientAuthenticationError({
       reasonCode: "client_unavailable",
     });
@@ -297,6 +342,13 @@ export async function authenticateOAuthClient(
     : [];
 
   if (!allowedAuthMethods.includes(credentials.authMethod)) {
+    await auditInvalidOAuthClient({
+      authMethod: credentials.authMethod,
+      client,
+      clientId: credentials.clientId,
+      reasonCode: "auth_method_not_allowed",
+    });
+
     throw new OAuthClientAuthenticationError({
       reasonCode: "auth_method_not_allowed",
     });
@@ -308,6 +360,13 @@ export async function authenticateOAuthClient(
   );
 
   if (!isSecretValid) {
+    await auditInvalidOAuthClient({
+      authMethod: credentials.authMethod,
+      client,
+      clientId: credentials.clientId,
+      reasonCode: "client_secret_invalid",
+    });
+
     throw new OAuthClientAuthenticationError({
       reasonCode: "client_secret_invalid",
     });

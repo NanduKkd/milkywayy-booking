@@ -2,6 +2,7 @@ import { POST } from "../route";
 
 const mockAuth = jest.fn();
 const mockFindOAuthClient = jest.fn();
+const mockRecordOAuthAuditEvent = jest.fn();
 const mockRevokeOAuthConsent = jest.fn();
 const mockRedirect = jest.fn((url) => ({
   status: 307,
@@ -45,6 +46,19 @@ jest.mock("@/lib/oauth/consent", () => ({
   revokeOAuthConsent: (...args) => mockRevokeOAuthConsent(...args),
 }));
 
+jest.mock("@/lib/oauth/audit", () => ({
+  OAUTH_AUDIT_EVENTS: {
+    consentRevoked: "oauth.consent.revoked",
+  },
+  OAUTH_AUDIT_OUTCOMES: {
+    success: "success",
+  },
+  OAUTH_AUDIT_PERSISTENCE: {
+    failOpen: "fail_open",
+  },
+  recordOAuthAuditEvent: (...args) => mockRecordOAuthAuditEvent(...args),
+}));
+
 function createRequest(formEntries) {
   const formData = new FormData();
 
@@ -61,6 +75,7 @@ function createRequest(formEntries) {
 describe("oauth revoke route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRecordOAuthAuditEvent.mockResolvedValue(null);
     mockRevokeOAuthConsent.mockResolvedValue({
       revokedAccessTokenCount: 1,
       revokedConsent: true,
@@ -105,6 +120,23 @@ describe("oauth revoke route", () => {
       clientId: 7,
       userId: 42,
     });
+    expect(mockRecordOAuthAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 7,
+        eventType: "oauth.consent.revoked",
+        metadata: {
+          activeConsentId: undefined,
+          clientPublicId: "client-public-123",
+          revokedAccessTokenCount: 1,
+          revokedConsent: true,
+          revokedRefreshTokenCount: 1,
+        },
+        outcome: "success",
+        persistence: "fail_open",
+        reasonCode: "customer_revoked_connection",
+        userId: 42,
+      }),
+    );
     expect(response.status).toBe(307);
     expect(response.url).toBe(
       "https://milkywayy.com/dashboard/connections?revoked=1",

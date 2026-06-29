@@ -3,6 +3,7 @@ import { POST } from "../route";
 const mockAuth = jest.fn();
 const mockCookies = jest.fn();
 const mockFindOAuthClient = jest.fn();
+const mockRecordOAuthAuditEvent = jest.fn();
 const mockVerifyAuthorizationDecisionToken = jest.fn();
 const mockIssueAuthorizationCode = jest.fn();
 const mockGrantOAuthConsent = jest.fn();
@@ -77,6 +78,20 @@ jest.mock("@/lib/oauth/consent", () => ({
   grantOAuthConsent: (...args) => mockGrantOAuthConsent(...args),
 }));
 
+jest.mock("@/lib/oauth/audit", () => ({
+  OAUTH_AUDIT_EVENTS: {
+    authorizationApproved: "oauth.authorization.approved",
+    authorizationDenied: "oauth.authorization.denied",
+  },
+  OAUTH_AUDIT_OUTCOMES: {
+    success: "success",
+  },
+  OAUTH_AUDIT_PERSISTENCE: {
+    failOpen: "fail_open",
+  },
+  recordOAuthAuditEvent: (...args) => mockRecordOAuthAuditEvent(...args),
+}));
+
 function createRequest(formEntries) {
   const formData = new FormData();
 
@@ -92,6 +107,7 @@ function createRequest(formEntries) {
 describe("oauth authorize decision route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRecordOAuthAuditEvent.mockResolvedValue(null);
     mockGrantOAuthConsent.mockResolvedValue({ id: 11 });
     mockCookies.mockResolvedValue({
       delete: jest.fn(),
@@ -146,6 +162,18 @@ describe("oauth authorize decision route", () => {
       "https://chatgpt.com/aip/oauth/callback-test?error=access_denied&state=opaque-state",
     );
     expect(mockIssueAuthorizationCode).not.toHaveBeenCalled();
+    expect(mockRecordOAuthAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "oauth.authorization.denied",
+        metadata: {
+          scopeCount: 1,
+        },
+        outcome: "success",
+        persistence: "fail_open",
+        reasonCode: "customer_denied",
+        userId: 42,
+      }),
+    );
   });
 
   it("issues a hashed authorization code and redirects approved requests", async () => {
@@ -172,10 +200,25 @@ describe("oauth authorize decision route", () => {
     });
     expect(mockIssueAuthorizationCode).toHaveBeenCalledWith({
       clientId: 7,
+      correlationId: expect.any(String),
       redirectUri: "https://chatgpt.com/aip/oauth/callback-test",
       scopes: ["customer:read"],
       userId: 42,
     });
+    expect(mockRecordOAuthAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        clientId: 7,
+        correlationId: expect.any(String),
+        eventType: "oauth.authorization.approved",
+        metadata: {
+          scopeCount: 1,
+        },
+        outcome: "success",
+        persistence: "fail_open",
+        reasonCode: "authorization_approved",
+        userId: 42,
+      }),
+    );
     expect(response.url).toBe(
       "https://chatgpt.com/aip/oauth/callback-test?code=raw-code&state=opaque-state",
     );

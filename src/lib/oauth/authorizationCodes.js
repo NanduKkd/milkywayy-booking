@@ -3,21 +3,24 @@ import { oauthConfig } from "@/lib/config/oauth";
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
 import {
+  OAUTH_AUDIT_EVENTS,
+  OAUTH_AUDIT_OUTCOMES,
+  recordOAuthAuditEvent,
+} from "@/lib/oauth/audit";
+import {
   generateAuthorizationCode,
   hashOAuthSecret,
 } from "@/lib/oauth/secrets";
-
-const OAUTH_AUDIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const OAUTH_AUTHORIZATION_CODE_ERROR_CODES = Object.freeze({
   invalidGrant: "invalid_grant",
 });
 
 export const OAUTH_AUTHORIZATION_CODE_AUDIT_EVENTS = Object.freeze({
-  issued: "oauth.authorization_code.issued",
-  consumed: "oauth.authorization_code.consumed",
-  invalidGrant: "oauth.authorization_code.invalid_grant",
-  replayRejected: "oauth.authorization_code.replay_rejected",
+  issued: OAUTH_AUDIT_EVENTS.authorizationCodeIssued,
+  consumed: OAUTH_AUDIT_EVENTS.authorizationCodeConsumed,
+  invalidGrant: OAUTH_AUDIT_EVENTS.authorizationCodeInvalidGrant,
+  replayRejected: OAUTH_AUDIT_EVENTS.authorizationCodeReplayRejected,
 });
 
 export class OAuthAuthorizationCodeError extends Error {
@@ -61,10 +64,6 @@ function normalizeScopes(scopes) {
   return normalizedScopes;
 }
 
-function buildAuditExpiry(createdAt) {
-  return new Date(createdAt.getTime() + OAUTH_AUDIT_RETENTION_MS);
-}
-
 async function createAuthorizationCodeAuditEvent({
   clientId = null,
   correlationId,
@@ -76,22 +75,17 @@ async function createAuthorizationCodeAuditEvent({
   transaction,
   userId = null,
 }) {
-  const createdAt = normalizeDate(now);
-
-  await models.OAuthAuditEvent.create(
-    {
-      clientId,
-      correlationId,
-      createdAt,
-      eventType,
-      expiresAt: buildAuditExpiry(createdAt),
-      metadata,
-      outcome,
-      reasonCode,
-      userId,
-    },
-    { transaction },
-  );
+  await recordOAuthAuditEvent({
+    clientId,
+    correlationId,
+    eventType,
+    metadata,
+    now,
+    outcome,
+    reasonCode,
+    transaction,
+    userId,
+  });
 }
 
 async function rejectAuthorizationCode({
@@ -109,7 +103,7 @@ async function rejectAuthorizationCode({
     eventType,
     metadata: {},
     now,
-    outcome: "failure",
+    outcome: OAUTH_AUDIT_OUTCOMES.failure,
     reasonCode,
     transaction,
     userId: authorizationCodeRecord?.userId ?? null,
@@ -158,7 +152,7 @@ export async function issueAuthorizationCode({
           scopeCount: normalizedScopes.length,
         },
         now: issuedAt,
-        outcome: "success",
+        outcome: OAUTH_AUDIT_OUTCOMES.success,
         reasonCode: "authorization_code_issued",
         transaction,
         userId,
@@ -285,7 +279,7 @@ export async function consumeAuthorizationCodeInTransaction({
         : 0,
     },
     now: consumedAt,
-    outcome: "success",
+    outcome: OAUTH_AUDIT_OUTCOMES.success,
     reasonCode: "authorization_code_consumed",
     transaction,
     userId: authorizationCodeRecord.userId,

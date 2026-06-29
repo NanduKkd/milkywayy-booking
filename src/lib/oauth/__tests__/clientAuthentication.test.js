@@ -1,3 +1,18 @@
+const mockRecordOAuthAuditEvent = jest.fn();
+
+jest.mock("@/lib/oauth/audit", () => ({
+  OAUTH_AUDIT_EVENTS: {
+    invalidClient: "oauth.client.invalid",
+  },
+  OAUTH_AUDIT_OUTCOMES: {
+    failure: "failure",
+  },
+  OAUTH_AUDIT_PERSISTENCE: {
+    failOpen: "fail_open",
+  },
+  recordOAuthAuditEvent: (...args) => mockRecordOAuthAuditEvent(...args),
+}));
+
 import { RateLimitExceededError } from "@/lib/services/oauthRateLimits";
 import {
   authenticateOAuthClient,
@@ -21,6 +36,7 @@ describe("OAuth client authentication", () => {
   let consumeClientRateLimit;
 
   beforeEach(() => {
+    mockRecordOAuthAuditEvent.mockReset();
     loadClient = jest.fn().mockResolvedValue(validClient);
     verifyClientSecret = jest.fn().mockResolvedValue(true);
     consumeClientRateLimit = jest.fn().mockResolvedValue({
@@ -214,6 +230,14 @@ describe("OAuth client authentication", () => {
       limit: 30,
       windowMs: 60_000,
     });
+    expect(mockRecordOAuthAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "oauth.client.invalid",
+        outcome: "failure",
+        persistence: "fail_open",
+        reasonCode: "credentials_missing",
+      }),
+    );
   });
 
   it("returns the same invalid_client response shape for unknown, disabled, and invalid secrets", async () => {
@@ -293,6 +317,45 @@ describe("OAuth client authentication", () => {
         "WWW-Authenticate": 'Basic realm="oauth"',
       },
     });
+    expect(mockRecordOAuthAuditEvent).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        eventType: "oauth.client.invalid",
+        metadata: expect.objectContaining({
+          authMethod: "client_secret_post",
+          clientPublicId: "missing-client",
+        }),
+        outcome: "failure",
+        persistence: "fail_open",
+        reasonCode: "client_unavailable",
+      }),
+    );
+    expect(mockRecordOAuthAuditEvent).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        eventType: "oauth.client.invalid",
+        metadata: expect.objectContaining({
+          authMethod: "client_secret_post",
+          clientPublicId: "client-123",
+        }),
+        outcome: "failure",
+        persistence: "fail_open",
+        reasonCode: "client_unavailable",
+      }),
+    );
+    expect(mockRecordOAuthAuditEvent).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        eventType: "oauth.client.invalid",
+        metadata: expect.objectContaining({
+          authMethod: "client_secret_post",
+          clientPublicId: "client-123",
+        }),
+        outcome: "failure",
+        persistence: "fail_open",
+        reasonCode: "client_secret_invalid",
+      }),
+    );
   });
 
   it("rejects auth methods that are not enabled on the registered client", async () => {

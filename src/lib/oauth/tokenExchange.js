@@ -2,14 +2,17 @@ import { createHash, randomUUID } from "node:crypto";
 import { oauthConfig } from "@/lib/config/oauth";
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
+import {
+  OAUTH_AUDIT_EVENTS,
+  OAUTH_AUDIT_OUTCOMES,
+  recordOAuthAuditEvent,
+} from "@/lib/oauth/audit";
 import { consumeAuthorizationCodeInTransaction } from "@/lib/oauth/authorizationCodes";
 import {
   generateAccessToken,
   generateRefreshToken,
   hashOAuthSecret,
 } from "@/lib/oauth/secrets";
-
-const OAUTH_AUDIT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const OAUTH_TOKEN_EXCHANGE_ERROR_CODES = Object.freeze({
   invalidGrant: "invalid_grant",
@@ -19,8 +22,8 @@ export const OAUTH_TOKEN_EXCHANGE_ERROR_CODES = Object.freeze({
 });
 
 export const OAUTH_TOKEN_EXCHANGE_AUDIT_EVENTS = Object.freeze({
-  issued: "oauth.token.issued",
-  refreshReplayDetected: "oauth.refresh_token.replay_detected",
+  issued: OAUTH_AUDIT_EVENTS.tokenIssued,
+  refreshReplayDetected: OAUTH_AUDIT_EVENTS.refreshReplayDetected,
 });
 
 export class OAuthTokenExchangeError extends Error {
@@ -50,10 +53,6 @@ function normalizeDate(value) {
   }
 
   return date;
-}
-
-function buildAuditExpiry(createdAt) {
-  return new Date(createdAt.getTime() + OAUTH_AUDIT_RETENTION_MS);
 }
 
 function appendSearchParam(searchParams, key, value) {
@@ -261,22 +260,17 @@ async function createTokenAuditEvent({
   transaction,
   userId,
 }) {
-  const createdAt = normalizeDate(now);
-
-  await models.OAuthAuditEvent.create(
-    {
-      clientId,
-      correlationId,
-      createdAt,
-      eventType,
-      expiresAt: buildAuditExpiry(createdAt),
-      metadata,
-      outcome,
-      reasonCode,
-      userId,
-    },
-    { transaction },
-  );
+  await recordOAuthAuditEvent({
+    clientId,
+    correlationId,
+    eventType,
+    metadata,
+    now,
+    outcome,
+    reasonCode,
+    transaction,
+    userId,
+  });
 }
 
 async function rejectRefreshToken({
@@ -294,7 +288,7 @@ async function rejectRefreshToken({
     eventType: "oauth.refresh_token.invalid_grant",
     metadata,
     now,
-    outcome: "failure",
+    outcome: OAUTH_AUDIT_OUTCOMES.failure,
     reasonCode,
     transaction,
     userId,
@@ -420,6 +414,7 @@ async function issueTokenPairInTransaction({
       scopeCount: normalizedScopes.length,
     },
     now: issuedAt,
+    outcome: OAUTH_AUDIT_OUTCOMES.success,
     reasonCode: `token_issued_${authMethod}`,
     transaction,
     userId,
@@ -616,7 +611,7 @@ export async function exchangeRefreshToken({
           severity: "high",
         },
         now: issuedAt,
-        outcome: "failure",
+        outcome: OAUTH_AUDIT_OUTCOMES.failure,
         reasonCode: "refresh_token_replayed",
         transaction,
         userId: refreshTokenRecord.userId,

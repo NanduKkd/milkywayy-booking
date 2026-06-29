@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import OAuthAuthorizePage from "../page";
 
 const mockAuth = jest.fn();
+const mockRecordOAuthAuditEvent = jest.fn();
 const mockCookies = jest.fn();
 const mockValidateAuthorizationRequest = jest.fn();
 const mockIssueAuthorizationDecisionToken = jest.fn();
@@ -48,6 +49,20 @@ jest.mock("@/lib/oauth/authorizationRequest", () => ({
     mockValidateAuthorizationRequest(...args),
 }));
 
+jest.mock("@/lib/oauth/audit", () => ({
+  OAUTH_AUDIT_EVENTS: {
+    authorizationInvalidClient: "oauth.authorization.invalid_client",
+    authorizationInvalidRedirect: "oauth.authorization.invalid_redirect",
+  },
+  OAUTH_AUDIT_OUTCOMES: {
+    failure: "failure",
+  },
+  OAUTH_AUDIT_PERSISTENCE: {
+    failOpen: "fail_open",
+  },
+  recordOAuthAuditEvent: (...args) => mockRecordOAuthAuditEvent(...args),
+}));
+
 jest.mock("../AuthorizeLoginGate", () => ({
   __esModule: true,
   default: function MockAuthorizeLoginGate({ cancelPath, resumePath }) {
@@ -64,6 +79,7 @@ jest.mock("../AuthorizeLoginGate", () => ({
 describe("OAuth authorize page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRecordOAuthAuditEvent.mockResolvedValue(null);
     mockCookies.mockResolvedValue({
       delete: jest.fn(),
       get: jest.fn(),
@@ -214,9 +230,11 @@ describe("OAuth authorize page", () => {
   });
 
   it("renders a safe local error when validation fails", async () => {
-    mockValidateAuthorizationRequest.mockRejectedValue(
-      new Error("redirect_uri must exactly match a registered callback."),
+    const error = new Error(
+      "redirect_uri must exactly match a registered callback.",
     );
+    error.reasonCode = "redirect_uri_unregistered";
+    mockValidateAuthorizationRequest.mockRejectedValue(error);
 
     const page = await OAuthAuthorizePage({
       searchParams: Promise.resolve({
@@ -237,5 +255,17 @@ describe("OAuth authorize page", () => {
       ),
     ).toBeInTheDocument();
     expect(mockAuth).not.toHaveBeenCalled();
+    expect(mockRecordOAuthAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "oauth.authorization.invalid_redirect",
+        metadata: expect.objectContaining({
+          clientPublicId: "client-123",
+          redirectUriOrigin: null,
+        }),
+        outcome: "failure",
+        persistence: "fail_open",
+        reasonCode: "redirect_uri_unregistered",
+      }),
+    );
   });
 });

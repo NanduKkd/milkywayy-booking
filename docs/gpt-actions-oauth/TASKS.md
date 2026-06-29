@@ -2,7 +2,7 @@
 
 - Last updated: 2026-06-29
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M3 - Authorization and token service`
+- Current milestone: `M4 - GPT resource API and OpenAPI schema`
 
 This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
 
@@ -13,11 +13,11 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
-| M3 - Authorization and token service | `IN_PROGRESS` | 7 | 8 | 22-30 h |
+| M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **20** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **21** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -451,11 +451,17 @@ Acceptance criteria:
 
 ### FLOW-008 - Add OAuth protocol audit events and metrics
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3 h
 - Depends on: FLOW-003, FLOW-005, FLOW-006
-- Evidence: —
+- Evidence:
+  - Shared OAuth audit emitter added in `src/lib/oauth/audit.js`, with 30-day persistence, structured `[OAUTH_AUDIT]` / `[OAUTH_METRIC]` logs, correlation IDs, bounded metadata sanitization, and explicit fail-open/fail-closed behavior.
+  - Existing authorization-code and token-exchange services now emit through the shared audit path in `src/lib/oauth/authorizationCodes.js` and `src/lib/oauth/tokenExchange.js`, preserving code replay, token issue, refresh, and refresh reuse telemetry while adding metric classification for suspicious failures.
+  - Missing protocol telemetry added for invalid clients, invalid redirect attempts, authorization approval/denial, and customer revocation in `src/lib/oauth/clientAuthentication.js`, `src/app/oauth/authorize/page.js`, `src/app/oauth/authorize/decision/route.js`, and `src/app/oauth/revoke/route.js`.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/audit.test.js src/lib/oauth/__tests__/clientAuthentication.test.js src/app/oauth/authorize/__tests__/page.test.jsx src/app/oauth/authorize/decision/__tests__/route.test.js src/app/oauth/revoke/__tests__/route.test.js src/lib/oauth/__tests__/authorizationCodes.test.js src/lib/oauth/__tests__/tokenExchange.test.js --runInBand`
+    - `npx biome check src/lib/oauth/audit.js src/lib/oauth/authorizationCodes.js src/lib/oauth/tokenExchange.js src/lib/oauth/clientAuthentication.js src/app/oauth/authorize/page.js src/app/oauth/authorize/decision/route.js src/app/oauth/revoke/route.js src/lib/oauth/__tests__/audit.test.js src/lib/oauth/__tests__/clientAuthentication.test.js src/app/oauth/authorize/__tests__/page.test.jsx src/app/oauth/authorize/decision/__tests__/route.test.js src/app/oauth/revoke/__tests__/route.test.js`
 
 Acceptance criteria:
 
@@ -801,3 +807,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Completed `FLOW-001` authorization-request validator. | Codex |
 | 2026-06-29 | Completed `FLOW-003` authorization-code issuance and atomic consumption. | Codex |
 | 2026-06-29 | Completed `FLOW-004` OAuth client authentication. | Codex |
+| 2026-06-29 | Completed `FLOW-008` OAuth protocol audit events and metrics. | Codex |

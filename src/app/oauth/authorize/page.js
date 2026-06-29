@@ -1,9 +1,16 @@
+import { randomUUID } from "node:crypto";
 import { ShieldCheck } from "lucide-react";
 import { cookies } from "next/headers";
 import AuthorizeLoginGate from "@/app/oauth/authorize/AuthorizeLoginGate";
 import { Button } from "@/components/ui/button";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { auth } from "@/lib/helpers/auth";
+import {
+  OAUTH_AUDIT_EVENTS,
+  OAUTH_AUDIT_OUTCOMES,
+  OAUTH_AUDIT_PERSISTENCE,
+  recordOAuthAuditEvent,
+} from "@/lib/oauth/audit";
 import {
   clearAuthorizationCsrfCookie,
   issueAuthorizationCsrfToken,
@@ -22,6 +29,42 @@ import {
   loadActiveOAuthConsent,
 } from "@/lib/oauth/consent";
 import { getOAuthScopeDetails } from "@/lib/oauth/scopes";
+
+function getAuthorizationRequestFailureAuditEvent(reasonCode) {
+  if (
+    reasonCode === "client_unavailable" ||
+    reasonCode === "client_id_invalid"
+  ) {
+    return OAUTH_AUDIT_EVENTS.authorizationInvalidClient;
+  }
+
+  if (
+    typeof reasonCode === "string" &&
+    reasonCode.startsWith("redirect_uri_")
+  ) {
+    return OAUTH_AUDIT_EVENTS.authorizationInvalidRedirect;
+  }
+
+  return null;
+}
+
+function getSearchParamValue(searchParams, key) {
+  const rawValue = searchParams?.[key];
+
+  if (Array.isArray(rawValue)) {
+    return typeof rawValue[0] === "string" ? rawValue[0].trim() : null;
+  }
+
+  return typeof rawValue === "string" ? rawValue.trim() : null;
+}
+
+function getRedirectUriOrigin(redirectUri) {
+  try {
+    return new URL(redirectUri).origin;
+  } catch {
+    return null;
+  }
+}
 
 function AuthorizeErrorState({ title, message }) {
   return (
@@ -50,6 +93,29 @@ export default async function OAuthAuthorizePage({ searchParams }) {
   try {
     request = await validateAuthorizationRequest(resolvedSearchParams);
   } catch (error) {
+    const auditEventType = getAuthorizationRequestFailureAuditEvent(
+      error?.reasonCode,
+    );
+
+    if (auditEventType) {
+      await recordOAuthAuditEvent({
+        correlationId: randomUUID(),
+        eventType: auditEventType,
+        metadata: {
+          clientPublicId: getSearchParamValue(
+            resolvedSearchParams,
+            "client_id",
+          ),
+          redirectUriOrigin: getRedirectUriOrigin(
+            getSearchParamValue(resolvedSearchParams, "redirect_uri"),
+          ),
+        },
+        outcome: OAUTH_AUDIT_OUTCOMES.failure,
+        persistence: OAUTH_AUDIT_PERSISTENCE.failOpen,
+        reasonCode: error?.reasonCode ?? "authorization_request_invalid",
+      });
+    }
+
     return (
       <AuthorizeErrorState
         title="Invalid authorization request"
