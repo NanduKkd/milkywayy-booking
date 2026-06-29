@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logSecurityError } from "@/lib/logging/security";
 import { cleanupOAuthArtifacts } from "@/lib/oauth/cleanup";
 
 const getRequestSecret = (request) => {
@@ -27,7 +28,9 @@ export async function POST(request) {
     const result = await cleanupOAuthArtifacts();
     return NextResponse.json(result);
   } catch (error) {
-    console.error("OAuth cleanup failed:", error);
+    logSecurityError("OAuth cleanup failed.", error, {
+      route: "/api/internal/oauth/cleanup",
+    });
     return NextResponse.json(
       { error: "OAuth cleanup failed" },
       { status: 500 },

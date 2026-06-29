@@ -33,6 +33,14 @@ The runner executes the focused Jest suites already associated with the OAuth th
 - Bearer-token parsing, scope enforcement, customer isolation, and file-link deep links
 - PostgreSQL-backed rate limits, audit-event emission, and bounded cleanup
 
+## Companion log review
+
+The separate log and secret-leak review command also completed successfully on 2026-06-29:
+
+- Command: `npm run verify:oauth-log-safety`
+- Result: reviewed OAuth/GPT logging files, selected config/worker secret-handling paths, and source/docs/scripts fixtures without finding raw logged secrets or live credentials
+- Note: repository review found no application error-monitoring SDK packages in `package.json`, so the shared scrubbed application logging path is the only in-repo sink currently requiring verification
+
 ## Remaining release-blocking work
 
 This runner does not replace the still-required checks tracked elsewhere in `SECURITY-TEST-PLAN.md`:
@@ -40,5 +48,4 @@ This runner does not replace the still-required checks tracked elsewhere in `SEC
 - manual browser verification (`MAN-*`)
 - Custom GPT end-to-end verification (`GPT-*`)
 - production topology, TLS, and rollback smoke checks
-- explicit log/secret-leak review tracked by `TEST-006`
 - final code-quality review tracked by `TEST-007`

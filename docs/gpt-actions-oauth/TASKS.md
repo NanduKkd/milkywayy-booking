@@ -15,9 +15,9 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
-| M5 - Verification and security release gates | `IN_PROGRESS` | 4 | 7 | 16-24 h |
+| M5 - Verification and security release gates | `IN_PROGRESS` | 5 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **33** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **34** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -733,11 +733,19 @@ Acceptance criteria:
 
 ### TEST-006 - Perform log and secret-leak review
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 1-2 h
 - Depends on: FLOW-008, API-006
-- Evidence: —
+- Evidence:
+  - Import-time database credential logging was removed from `src/lib/config/config.js`, eliminating the tracked `DB_PASSWORD` leak.
+  - Shared log scrubbing helper added in `src/lib/logging/security.js` and wired into OAuth/GPT error paths in `src/app/oauth/token/route.js`, `src/app/api/internal/oauth/cleanup/route.js`, and `src/app/api/gpt/v1/**/route.js` so unexpected failures log only sanitized metadata and safe error fields.
+  - Repeatable static review added as `npm run verify:oauth-log-safety` via `scripts/verify-oauth-log-safety.mjs`; it passed after checking reviewed OAuth/GPT files for raw console logging, checking selected worker/config files for environment-value logging, and scanning source/docs/scripts fixtures for live credentials.
+  - Repository review found no application error-monitoring SDK packages in `package.json`, so there is no separate in-repo monitoring sink that bypasses the shared scrubbed logging path.
+  - Focused verification passed:
+    - `npm run verify:oauth-log-safety`
+    - `npx jest src/lib/logging/__tests__/security.test.js src/lib/oauth/__tests__/audit.test.js src/app/oauth/token/__tests__/route.test.js src/app/api/internal/oauth/cleanup/__tests__/route.test.js --runInBand`
+    - `npx biome check src/lib/logging/security.js src/lib/logging/__tests__/security.test.js src/app/oauth/token/route.js src/app/api/internal/oauth/cleanup/route.js src/app/api/gpt/v1/me/route.js src/app/api/gpt/v1/bookings/route.js src/app/api/gpt/v1/bookings/[bookingCode]/route.js src/app/api/gpt/v1/invoices/route.js src/app/api/gpt/v1/files/route.js src/lib/config/config.js scripts/verify-oauth-log-safety.mjs package.json docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 

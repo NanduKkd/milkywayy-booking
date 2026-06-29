@@ -120,7 +120,7 @@ This command executes the repository's focused OAuth, GPT resource API, rate-lim
 | ID | Status | Scenario | Expected result |
 |---|---|---|---|
 | LOG-01 | `NOT_STARTED` | Successful and failed OAuth flows are captured. | Logs contain safe event codes and correlation IDs. |
-| LOG-02 | `NOT_STARTED` | Logs/error tracker are searched for test secrets. | No client secret, code, token, OTP, cookie, or full authorization header appears. |
+| LOG-02 | `DONE` | Logs/error tracker are searched for test secrets. | `npm run verify:oauth-log-safety` now enforces the reviewed OAuth/GPT logging boundaries, verifies no environment secrets are logged in reviewed config/worker paths, confirms no live credentials appear in source/docs/scripts fixtures, and repo review found no separate in-repo error-monitoring SDK. |
 | LOG-03 | `NOT_STARTED` | Resource responses are inspected. | Only consented fields are returned. |
 | LOG-04 | `NOT_STARTED` | A customer revokes consent. | Audit trail records who/what/when without sensitive artifacts. |
 | LOG-05 | `NOT_STARTED` | Refresh-token reuse occurs. | High-severity event is observable and actionable. |

@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import models from "@/lib/db/models";
 import { parseBookingReferenceToId } from "@/lib/helpers/invoice-format";
+import { logSecurityError } from "@/lib/logging/security";
 import {
   authenticateGptApiRequest,
   buildGptApiAuthorizationErrorResponse,
@@ -107,14 +108,19 @@ export async function GET(request, context) {
       error instanceof GptApiResponseBudgetError ||
       error instanceof GptApiTimeoutError
     ) {
-      console.error(
-        "GPT API booking detail request exceeded runtime safety budget:",
+      logSecurityError(
+        "GPT API booking detail request exceeded runtime safety budget.",
         error,
+        {
+          route: "/api/gpt/v1/bookings/[bookingCode]",
+        },
       );
       return buildGptApiTemporaryUnavailableResponse();
     }
 
-    console.error("GPT API booking detail request failed:", error);
+    logSecurityError("GPT API booking detail request failed.", error, {
+      route: "/api/gpt/v1/bookings/[bookingCode]",
+    });
     return buildGptApiInternalErrorResponse();
   }
 }

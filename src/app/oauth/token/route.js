@@ -1,3 +1,4 @@
+import { logSecurityError } from "@/lib/logging/security";
 import {
   authenticateOAuthClient,
   OAuthClientAuthenticationError,
@@ -84,7 +85,9 @@ export async function POST(request) {
       });
     }
 
-    console.error("OAuth token exchange failed:", error);
+    logSecurityError("OAuth token exchange failed.", error, {
+      route: "/oauth/token",
+    });
 
     return buildOAuthErrorResponse("temporarily_unavailable", { status: 503 });
   }
