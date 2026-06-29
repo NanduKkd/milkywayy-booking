@@ -1,9 +1,22 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   completeDeliveredBooking,
   requestFileRevision,
 } from "@/lib/actions/bookings";
-import { fireEvent, render, screen, waitFor } from "@/test-utils";
 import FileList from "../FileList";
+
+const mockRefresh = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: mockRefresh,
+  }),
+}));
+
+jest.mock("@/lib/actions/bookings", () => ({
+  completeDeliveredBooking: jest.fn(),
+  requestFileRevision: jest.fn(),
+}));
 
 const makeFile = (overrides = {}) => ({
   id: 10,
@@ -35,6 +48,7 @@ describe("customer FileList", () => {
     jest.clearAllMocks();
     requestFileRevision.mockResolvedValue({ success: true });
     completeDeliveredBooking.mockResolvedValue({ success: true });
+    Element.prototype.scrollIntoView = jest.fn();
     Object.assign(navigator, {
       clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
     });
@@ -179,5 +193,60 @@ describe("customer FileList", () => {
     await waitFor(() => {
       expect(completeDeliveredBooking).toHaveBeenCalledWith(1);
     });
+  });
+
+  it("scrolls to and visually identifies the requested file card", async () => {
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile(),
+              makeFile({
+                id: 11,
+                currentVersion: {
+                  id: 101,
+                  originalFilename: "kitchen.webp",
+                  url: "https://bucket.example/kitchen.webp",
+                },
+              }),
+            ],
+          }),
+        ]}
+        highlightedFileId={11}
+        requestedFileAvailable
+        requestedFileIdWasProvided
+      />,
+    );
+
+    await waitFor(() => {
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    });
+
+    expect(screen.getByText("Selected file")).toBeInTheDocument();
+    expect(
+      screen.getByText("Opened from a shared dashboard link."),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("delivery-file-card-11")).toHaveAttribute(
+      "data-highlighted",
+      "true",
+    );
+  });
+
+  it("shows a generic notice for missing or inaccessible deep-linked files", () => {
+    render(
+      <FileList
+        bookings={[makeBooking()]}
+        highlightedFileId={null}
+        requestedFileAvailable={false}
+        requestedFileIdWasProvided
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "The selected file is unavailable in this dashboard. Browse your available files below.",
+      ),
+    ).toBeInTheDocument();
   });
 });

@@ -14,10 +14,10 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
-| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 6 | 8 | 19-29 h |
+| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 7 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **27** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **28** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -612,11 +612,16 @@ Acceptance criteria:
 
 ### API-008 - Implement delivery-file metadata endpoint and dashboard deep links
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-5 h
 - Depends on: API-001, API-002
-- Evidence: —
+- Evidence:
+  - `GET /api/gpt/v1/files` added in `src/app/api/gpt/v1/files/route.js`, requiring `customer:read`, applying customer ownership through the booking join, enforcing customer-visible status filters, supporting bounded file/booking/status/type/uploaded-date filters, and returning only metadata DTOs with authenticated dashboard links.
+  - Dashboard file deep-link preservation completed in `src/app/dashboard/files/page.js` and `src/app/dashboard/files/FileList.jsx`; unauthenticated visits now preserve `fileId` through the shared dashboard gate, valid links scroll the matching owned file card into view, and invalid or inaccessible `fileId` values render a generic unavailable notice without revealing file existence.
+  - Focused verification passed:
+    - `npx jest src/app/api/gpt/v1/files/__tests__/route.test.js src/app/dashboard/files/__tests__/page.test.jsx src/app/dashboard/files/__tests__/FileList.test.jsx --runInBand`
+    - `npx biome check src/app/api/gpt/v1/files/route.js src/app/api/gpt/v1/files/__tests__/route.test.js src/app/dashboard/files/page.js src/app/dashboard/files/FileList.jsx src/app/dashboard/files/__tests__/page.test.jsx src/app/dashboard/files/__tests__/FileList.test.jsx docs/gpt-actions-oauth/TASKS.md`
 
 Acceptance criteria:
 

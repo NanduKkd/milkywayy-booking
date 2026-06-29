@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getBookings } from "@/lib/actions/bookings";
 import { auth } from "@/lib/helpers/auth";
 import {
@@ -8,11 +7,49 @@ import {
 } from "@/lib/helpers/bookingWorkflow";
 import FileList from "./FileList";
 
-export default async function FilesPage() {
+function parseRequestedFileId(rawValue) {
+  const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+
+  if (value === undefined || value === null) {
+    return {
+      requestedFileId: null,
+      requestedFileIdWasProvided: false,
+    };
+  }
+
+  const normalized = String(value).trim();
+
+  if (!/^\d+$/u.test(normalized)) {
+    return {
+      requestedFileId: null,
+      requestedFileIdWasProvided: true,
+    };
+  }
+
+  const requestedFileId = Number(normalized);
+
+  if (!Number.isSafeInteger(requestedFileId) || requestedFileId <= 0) {
+    return {
+      requestedFileId: null,
+      requestedFileIdWasProvided: true,
+    };
+  }
+
+  return {
+    requestedFileId,
+    requestedFileIdWasProvided: true,
+  };
+}
+
+export default async function FilesPage({ searchParams }) {
   const session = await auth();
+  const resolvedSearchParams = await searchParams;
+  const { requestedFileId, requestedFileIdWasProvided } = parseRequestedFileId(
+    resolvedSearchParams?.fileId,
+  );
 
   if (!session) {
-    redirect("/");
+    return null;
   }
 
   const res = await getBookings(session.id);
@@ -41,11 +78,21 @@ export default async function FilesPage() {
       };
     })
     .filter((b) => isCustomerFileVisible(b));
+  const requestedFileAvailable = requestedFileId
+    ? bookingsWithFiles.some((booking) =>
+        booking.deliveryFiles.some((file) => file.id === requestedFileId),
+      )
+    : false;
 
   return (
     <div>
       <div className="max-w-6xl mx-auto">
-        <FileList bookings={bookingsWithFiles} />
+        <FileList
+          bookings={bookingsWithFiles}
+          highlightedFileId={requestedFileAvailable ? requestedFileId : null}
+          requestedFileAvailable={requestedFileAvailable}
+          requestedFileIdWasProvided={requestedFileIdWasProvided}
+        />
       </div>
     </div>
   );

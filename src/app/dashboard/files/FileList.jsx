@@ -10,7 +10,7 @@ import {
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,12 +92,18 @@ const canCompleteBooking = (booking, files) =>
     ),
   );
 
-export default function FileList({ bookings }) {
+export default function FileList({
+  bookings,
+  highlightedFileId = null,
+  requestedFileAvailable = true,
+  requestedFileIdWasProvided = false,
+}) {
   const router = useRouter();
   const [selectedFile, setSelectedFile] = useState(null);
   const [revisionNote, setRevisionNote] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
   const [copyingId, setCopyingId] = useState(null);
+  const highlightedFileRef = useRef(null);
 
   const openRevision = (file) => {
     setSelectedFile(file);
@@ -171,11 +177,32 @@ export default function FileList({ bookings }) {
       };
     })
     .filter((booking) => booking.deliveryFiles.length > 0);
+  const showUnavailableLinkNotice =
+    requestedFileIdWasProvided && !requestedFileAvailable;
+  const assignHighlightedFileRef = (node) => {
+    if (!node || highlightedFileRef.current === node) {
+      return;
+    }
+
+    highlightedFileRef.current = node;
+    highlightedFileRef.current.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
 
   if (visibleBookings.length === 0) {
     return (
-      <div className="rounded-xl border border-white/10 bg-[#101114]/80 p-6 text-sm text-muted-foreground">
-        No files available yet.
+      <div className="space-y-4">
+        {showUnavailableLinkNotice ? (
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
+            The selected file is unavailable in this dashboard. Browse your
+            available files below.
+          </div>
+        ) : null}
+        <div className="rounded-xl border border-white/10 bg-[#101114]/80 p-6 text-sm text-muted-foreground">
+          No files available yet.
+        </div>
       </div>
     );
   }
@@ -183,6 +210,12 @@ export default function FileList({ bookings }) {
   return (
     <>
       <div className="space-y-5">
+        {showUnavailableLinkNotice ? (
+          <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
+            The selected file is unavailable in this dashboard. Browse your
+            available files below.
+          </div>
+        ) : null}
         {visibleBookings.map((booking) => {
           const files = booking.deliveryFiles;
           const unresolvedCount = Number(booking.pendingReplacementCount || 0);
@@ -252,16 +285,30 @@ export default function FileList({ bookings }) {
                     new Date(file.reviewDeadlineAt).getTime() <= Date.now();
                   const canRequest =
                     !accepted && !limitReached && !deadlineClosed;
+                  const isHighlighted = highlightedFileId === file.id;
 
                   return (
                     <div
                       key={file.id}
-                      className="rounded-xl border border-white/10 bg-white/[0.02] p-4"
+                      ref={isHighlighted ? assignHighlightedFileRef : null}
+                      data-highlighted={isHighlighted ? "true" : "false"}
+                      data-testid={`delivery-file-card-${file.id}`}
+                      className={[
+                        "rounded-xl border bg-white/[0.02] p-4 transition-colors",
+                        isHighlighted
+                          ? "border-sky-300/70 bg-sky-400/[0.08] shadow-[0_0_0_1px_rgba(125,211,252,0.35)]"
+                          : "border-white/10",
+                      ].join(" ")}
                     >
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div className="flex min-w-0 items-start gap-3">
                           <Icon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0">
+                            {isHighlighted ? (
+                              <span className="mb-2 inline-flex items-center rounded-full border border-sky-300/30 bg-sky-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
+                                Selected file
+                              </span>
+                            ) : null}
                             <p className="truncate font-medium text-zinc-100">
                               {getFileName(file)}
                             </p>
@@ -284,6 +331,11 @@ export default function FileList({ bookings }) {
                                 </span>
                               )}
                             </div>
+                            {isHighlighted ? (
+                              <p className="mt-2 text-xs text-sky-200">
+                                Opened from a shared dashboard link.
+                              </p>
+                            ) : null}
                           </div>
                         </div>
 
