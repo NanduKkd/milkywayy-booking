@@ -14,10 +14,10 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
-| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 3 | 8 | 19-29 h |
+| M4 - GPT resource API and OpenAPI schema | `IN_PROGRESS` | 4 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **24** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **25** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -533,11 +533,17 @@ Acceptance criteria:
 
 ### API-004 - Implement booking read endpoints
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 4-6 h
 - Depends on: API-001, API-002
-- Evidence: —
+- Evidence:
+  - `GET /api/gpt/v1/bookings` added in `src/app/api/gpt/v1/bookings/route.js`, requiring `customer:read`, applying authenticated-customer ownership filters before optional booking-code/date/status filters, and returning stable descending cursor pagination with bounded DTOs only.
+  - `GET /api/gpt/v1/bookings/{bookingCode}` added in `src/app/api/gpt/v1/bookings/[bookingCode]/route.js`, resolving only customer-owned bookings by public booking code and returning safe `404` responses for malformed, missing, or other-customer records.
+  - Legacy public booking-code fallback for older rows without a persisted `bookingCode` added in `src/lib/helpers/invoice-format.js`, so GPT detail/list lookups stay consistent with the public identifiers serialized elsewhere.
+  - Focused verification passed:
+    - `npx jest --runTestsByPath 'src/app/api/gpt/v1/bookings/__tests__/route.test.js' 'src/app/api/gpt/v1/bookings/[bookingCode]/__tests__/route.test.js'`
+    - `npx biome check 'src/app/api/gpt/v1/bookings/route.js' 'src/app/api/gpt/v1/bookings/[bookingCode]/route.js' 'src/app/api/gpt/v1/bookings/__tests__/route.test.js' 'src/app/api/gpt/v1/bookings/[bookingCode]/__tests__/route.test.js' 'src/lib/helpers/invoice-format.js'`
 
 Acceptance criteria:
 

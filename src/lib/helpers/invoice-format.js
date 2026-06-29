@@ -13,6 +13,25 @@ export function buildBookingReferenceFromId(id) {
   return `${BOOKING_NUMBER_PREFIX}-${numericId + BOOKING_NUMBER_OFFSET}`;
 }
 
+export function parseBookingReferenceToId(bookingCode) {
+  const normalized = String(bookingCode || "").trim();
+
+  if (!new RegExp(`^${BOOKING_NUMBER_PREFIX}-\\d{4,}$`, "u").test(normalized)) {
+    return null;
+  }
+
+  const numericCode = Number(
+    normalized.slice(`${BOOKING_NUMBER_PREFIX}-`.length),
+  );
+
+  if (!Number.isInteger(numericCode)) {
+    return null;
+  }
+
+  const bookingId = numericCode - BOOKING_NUMBER_OFFSET;
+  return bookingId > 0 ? bookingId : null;
+}
+
 export function buildInvoiceNumber(dateLike, sequence) {
   const date = normalizeDate(dateLike);
   const numericSequence = Number(sequence);
