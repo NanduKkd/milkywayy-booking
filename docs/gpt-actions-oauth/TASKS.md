@@ -13,11 +13,11 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `IN_PROGRESS` | 4 | 5 | 10-14 h |
-| M3 - Authorization and token service | `NOT_STARTED` | 0 | 8 | 22-30 h |
+| M3 - Authorization and token service | `IN_PROGRESS` | 1 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `NOT_STARTED` | 0 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `NOT_STARTED` | 0 | 7 | 16-24 h |
 | M6 - Deployment and ChatGPT UAT | `NOT_STARTED` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **12** | **43** | **87-128 h** |
+| **Total** | `IN_PROGRESS` | **13** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -299,11 +299,16 @@ Acceptance criteria:
 
 ### FLOW-001 - Implement authorization-request validator
 
-- Status: `NOT_STARTED`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Codex`
 - Estimate: 3-4 h
 - Depends on: AUTH-005, DB-002
-- Evidence: —
+- Evidence:
+  - Reusable authorization-request validation added in `src/lib/oauth/authorizationRequest.js`, including exact redirect-URI matching, duplicate critical-parameter rejection, client enablement checks, and server/client scope allowlists.
+  - Focused invalid-request coverage added in `src/lib/oauth/__tests__/authorizationRequest.test.js` for valid requests plus missing state, duplicated parameters, unknown/disabled clients, exact callback mismatches, embedded-host attacks, unsupported response types, and invalid scopes.
+  - Focused verification passed:
+    - `npx jest src/lib/oauth/__tests__/authorizationRequest.test.js --runInBand`
+    - `npx biome check src/lib/oauth/authorizationRequest.js src/lib/oauth/__tests__/authorizationRequest.test.js`
 
 Acceptance criteria:
 
@@ -752,3 +757,4 @@ Add task IDs before starting any deferred item.
 |---|---|---|
 | 2026-06-29 | Initial implementation plan created. | Codex |
 | 2026-06-29 | Completed `DB-004` token hashing and random-secret utilities. | Codex |
+| 2026-06-29 | Completed `FLOW-001` authorization-request validator. | Codex |
