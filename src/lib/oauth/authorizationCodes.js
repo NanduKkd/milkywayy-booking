@@ -183,97 +183,116 @@ export async function consumeAuthorizationCode({
   now = new Date(),
   redirectUri,
 }) {
+  return sequelize.transaction(async (transaction) =>
+    consumeAuthorizationCodeInTransaction({
+      authorizationCode,
+      clientId,
+      correlationId,
+      now,
+      redirectUri,
+      transaction,
+    }),
+  );
+}
+
+export async function consumeAuthorizationCodeInTransaction({
+  authorizationCode,
+  clientId,
+  correlationId = randomUUID(),
+  now = new Date(),
+  redirectUri,
+  transaction,
+}) {
+  if (!transaction) {
+    throw new TypeError("A Sequelize transaction is required.");
+  }
+
   const consumedAt = normalizeDate(now);
   const codeHash = hashOAuthSecret(String(authorizationCode ?? ""));
+  const authorizationCodeRecord = await models.OAuthAuthorizationCode.findOne({
+    where: {
+      codeHash,
+    },
+    lock: transaction.LOCK.UPDATE,
+    transaction,
+  });
 
-  return sequelize.transaction(async (transaction) => {
-    const authorizationCodeRecord = await models.OAuthAuthorizationCode.findOne(
-      {
-        where: {
-          codeHash,
-        },
-        lock: transaction.LOCK.UPDATE,
-        transaction,
-      },
-    );
-
-    if (!authorizationCodeRecord) {
-      return rejectAuthorizationCode({
-        clientId,
-        correlationId,
-        now: consumedAt,
-        reasonCode: "code_not_found",
-        transaction,
-      });
-    }
-
-    if (authorizationCodeRecord.clientId !== clientId) {
-      return rejectAuthorizationCode({
-        authorizationCodeRecord,
-        correlationId,
-        now: consumedAt,
-        reasonCode: "client_mismatch",
-        transaction,
-      });
-    }
-
-    if (authorizationCodeRecord.redirectUri !== String(redirectUri)) {
-      return rejectAuthorizationCode({
-        authorizationCodeRecord,
-        correlationId,
-        now: consumedAt,
-        reasonCode: "redirect_uri_mismatch",
-        transaction,
-      });
-    }
-
-    if (authorizationCodeRecord.expiresAt.getTime() <= consumedAt.getTime()) {
-      return rejectAuthorizationCode({
-        authorizationCodeRecord,
-        correlationId,
-        now: consumedAt,
-        reasonCode: "code_expired",
-        transaction,
-      });
-    }
-
-    if (authorizationCodeRecord.consumedAt) {
-      return rejectAuthorizationCode({
-        authorizationCodeRecord,
-        correlationId,
-        eventType: OAUTH_AUTHORIZATION_CODE_AUDIT_EVENTS.replayRejected,
-        now: consumedAt,
-        reasonCode: "code_replayed",
-        transaction,
-      });
-    }
-
-    await authorizationCodeRecord.update(
-      {
-        consumedAt,
-      },
-      { transaction },
-    );
-
-    await createAuthorizationCodeAuditEvent({
-      clientId: authorizationCodeRecord.clientId,
+  if (!authorizationCodeRecord) {
+    return rejectAuthorizationCode({
+      clientId,
       correlationId,
-      eventType: OAUTH_AUTHORIZATION_CODE_AUDIT_EVENTS.consumed,
-      metadata: {
-        scopeCount: Array.isArray(authorizationCodeRecord.scopes)
-          ? authorizationCodeRecord.scopes.length
-          : 0,
-      },
       now: consumedAt,
-      outcome: "success",
-      reasonCode: "authorization_code_consumed",
+      reasonCode: "code_not_found",
       transaction,
-      userId: authorizationCodeRecord.userId,
     });
+  }
 
-    return {
+  if (authorizationCodeRecord.clientId !== clientId) {
+    return rejectAuthorizationCode({
       authorizationCodeRecord,
       correlationId,
-    };
+      now: consumedAt,
+      reasonCode: "client_mismatch",
+      transaction,
+    });
+  }
+
+  if (authorizationCodeRecord.redirectUri !== String(redirectUri)) {
+    return rejectAuthorizationCode({
+      authorizationCodeRecord,
+      correlationId,
+      now: consumedAt,
+      reasonCode: "redirect_uri_mismatch",
+      transaction,
+    });
+  }
+
+  if (authorizationCodeRecord.expiresAt.getTime() <= consumedAt.getTime()) {
+    return rejectAuthorizationCode({
+      authorizationCodeRecord,
+      correlationId,
+      now: consumedAt,
+      reasonCode: "code_expired",
+      transaction,
+    });
+  }
+
+  if (authorizationCodeRecord.consumedAt) {
+    return rejectAuthorizationCode({
+      authorizationCodeRecord,
+      correlationId,
+      eventType: OAUTH_AUTHORIZATION_CODE_AUDIT_EVENTS.replayRejected,
+      now: consumedAt,
+      reasonCode: "code_replayed",
+      transaction,
+    });
+  }
+
+  await authorizationCodeRecord.update(
+    {
+      consumedAt,
+    },
+    { transaction },
+  );
+
+  await createAuthorizationCodeAuditEvent({
+    clientId: authorizationCodeRecord.clientId,
+    correlationId,
+    eventType: OAUTH_AUTHORIZATION_CODE_AUDIT_EVENTS.consumed,
+    metadata: {
+      scopeCount: Array.isArray(authorizationCodeRecord.scopes)
+        ? authorizationCodeRecord.scopes.length
+        : 0,
+    },
+    now: consumedAt,
+    outcome: "success",
+    reasonCode: "authorization_code_consumed",
+    transaction,
+    userId: authorizationCodeRecord.userId,
   });
+
+  return {
+    authorizationCodeRecord,
+    correlationId,
+  };
 }
