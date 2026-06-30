@@ -129,6 +129,43 @@ describe("whatsappInboundWebhook", () => {
     ).toBe("http://localhost:3000/api/webhooks/twilio/whatsapp");
   });
 
+  it("rejects a production webhook url that does not use https", () => {
+    expect(
+      getTwilioWebhookValidationUrl({
+        configuredUrl: "http://example.com/api/webhooks/twilio/whatsapp",
+        nodeEnv: "production",
+      }),
+    ).toBeNull();
+  });
+
+  it("rejects a configured webhook url with credentials or fragments", () => {
+    expect(
+      getTwilioWebhookValidationUrl({
+        configuredUrl:
+          "https://user:pass@example.com/api/webhooks/twilio/whatsapp",
+        nodeEnv: "production",
+      }),
+    ).toBeNull();
+
+    expect(
+      getTwilioWebhookValidationUrl({
+        configuredUrl:
+          "https://example.com/api/webhooks/twilio/whatsapp#fragment",
+        nodeEnv: "test",
+      }),
+    ).toBeNull();
+  });
+
+  it("uses a valid configured webhook url outside production", () => {
+    expect(
+      getTwilioWebhookValidationUrl({
+        configuredUrl: "http://localhost:3000/api/webhooks/twilio/whatsapp",
+        nodeEnv: "development",
+        requestUrl: "http://ignored.example.com",
+      }),
+    ).toBe("http://localhost:3000/api/webhooks/twilio/whatsapp");
+  });
+
   it("parses Twilio form payloads as decoded values", () => {
     expect(
       parseTwilioWebhookBody(

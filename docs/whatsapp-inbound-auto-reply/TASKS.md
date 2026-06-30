@@ -153,6 +153,8 @@ Acceptance criteria:
 - Depends on: TEST-001
 - Evidence:
   - Added shared environment documentation for `TWILIO_WHATSAPP_WEBHOOK_URL` in `docs/DEVELOPMENT.md` so the required production callback variable is tracked outside the feature folder without committing the live value.
+  - Added stricter configured callback URL validation in `src/lib/notifications/whatsappInboundWebhook.js` so production fails closed unless `TWILIO_WHATSAPP_WEBHOOK_URL` is a valid HTTPS URL without embedded credentials or fragments.
+  - Verified configured callback URL validation behavior with `npm test -- --runInBand src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
   - Production Twilio sender configuration and the exact callback URL entry in `docs/private/PRODUCTION-DEPLOYMENT.md` are still pending manual completion.
 
 Acceptance criteria:

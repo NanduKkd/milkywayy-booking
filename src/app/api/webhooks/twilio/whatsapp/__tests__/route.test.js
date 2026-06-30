@@ -130,6 +130,23 @@ describe("Twilio WhatsApp inbound webhook route", () => {
     );
   });
 
+  it("fails closed in production when the configured webhook url is invalid", async () => {
+    process.env.NODE_ENV = "production";
+    process.env.TWILIO_WHATSAPP_WEBHOOK_URL =
+      "http://example.com/api/webhooks/twilio/whatsapp#fragment";
+
+    const response = await POST(
+      createRequest({
+        body: "MessageSid=SM123&From=whatsapp%3A%2B15551234567&To=whatsapp%3A%2B971507263306",
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.text()).resolves.toBe(
+      "Webhook configuration missing.",
+    );
+  });
+
   it("fails closed when the Twilio auth token is missing", async () => {
     delete process.env.TWILIO_AUTH_TOKEN;
 

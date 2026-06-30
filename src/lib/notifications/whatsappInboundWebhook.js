@@ -4,6 +4,18 @@ const PRODUCTION_NODE_ENV = "production";
 
 const TWILIO_SIGNATURE_HEADER = "x-twilio-signature";
 
+function normalizeNodeEnv(nodeEnv) {
+  if (nodeEnv === PRODUCTION_NODE_ENV) {
+    return PRODUCTION_NODE_ENV;
+  }
+
+  if (nodeEnv === "test") {
+    return "test";
+  }
+
+  return "development";
+}
+
 function normalizeTwilioSignatureParamValue(value) {
   if (Array.isArray(value)) {
     return [...value]
@@ -101,16 +113,35 @@ function getTwilioWebhookValidationUrl({
   nodeEnv = process.env.NODE_ENV,
   requestUrl,
 }) {
+  const environment = normalizeNodeEnv(nodeEnv);
   const normalizedConfiguredUrl = String(configuredUrl ?? "").trim();
+
   if (normalizedConfiguredUrl) {
     try {
-      return new URL(normalizedConfiguredUrl).toString();
+      const parsedConfiguredUrl = new URL(normalizedConfiguredUrl);
+
+      if (
+        parsedConfiguredUrl.username ||
+        parsedConfiguredUrl.password ||
+        parsedConfiguredUrl.hash
+      ) {
+        return null;
+      }
+
+      if (
+        environment === PRODUCTION_NODE_ENV &&
+        parsedConfiguredUrl.protocol !== "https:"
+      ) {
+        return null;
+      }
+
+      return parsedConfiguredUrl.toString();
     } catch {
       return null;
     }
   }
 
-  if (nodeEnv === PRODUCTION_NODE_ENV) {
+  if (environment === PRODUCTION_NODE_ENV) {
     return null;
   }
 

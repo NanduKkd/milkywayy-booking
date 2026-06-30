@@ -1,6 +1,6 @@
 # WhatsApp inbound auto-reply operations
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 - Release status: `NOT_STARTED`
 
 ## Configuration
@@ -19,6 +19,7 @@ The existing outbound WhatsApp variables remain unchanged. Do not place real tok
 - Configure the WhatsApp sender's inbound message webhook to use `POST`.
 - Point it to the deployed `/api/webhooks/twilio/whatsapp` path.
 - Ensure `TWILIO_WHATSAPP_WEBHOOK_URL` exactly matches the complete URL configured in Twilio, including scheme, host, path, port when non-default, and query string when present.
+- In production, `TWILIO_WHATSAPP_WEBHOOK_URL` must use `https` and must not include embedded credentials or a URL fragment.
 - Do not configure delivery-status callbacks to use the inbound message endpoint.
 
 ## Rollout
@@ -58,4 +59,3 @@ Monitor aggregate response status without logging customer content or full phone
 4. Re-enable only after signature validation and reply behavior pass manual verification.
 
 Removing the Twilio webhook is the preferred operational rollback because it stops the behavior without requiring an application rollback.
-
