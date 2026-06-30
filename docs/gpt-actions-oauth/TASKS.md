@@ -1,8 +1,8 @@
 # GPT Actions OAuth task tracker
 
 - Last updated: 2026-06-30
-- Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M6 - Deployment and ChatGPT UAT`
+- Overall implementation status: `DONE`
+- Current milestone: `Completed - First release development`
 
 This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
 
@@ -15,9 +15,9 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
-| M5 - Verification and security release gates | `IN_PROGRESS` | 6 | 7 | 16-24 h |
-| M6 - Deployment and ChatGPT UAT | `IN_PROGRESS` | 3 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **39** | **43** | **87-128 h** |
+| M5 - Verification and security release gates | `DONE` | 7 | 7 | 16-24 h |
+| M6 - Deployment and ChatGPT UAT | `DONE` | 6 | 6 | 8-13 h |
+| **Total** | `DONE` | **43** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -697,7 +697,7 @@ Acceptance criteria:
 
 ### TEST-004 - Run security abuse-case verification
 
-- Status: `IN_PROGRESS`
+- Status: `DONE`
 - Owner: `Codex`
 - Estimate: 2-3 h
 - Depends on: TEST-001, TEST-002, TEST-003
@@ -710,9 +710,11 @@ Acceptance criteria:
   - `SECURITY-TEST-PLAN.md` now marks the automated `CFG-*`, `AUT-*`, `COD-*`, `REF-*`, `API-*`, `RES-*`, `LOG-01`, `LOG-03`, `LOG-04`, and `LOG-05` cases as `DONE`, records `GATE-04` as complete from the automated cross-customer isolation coverage, and records `GATE-03` as `IN_PROGRESS` pending the remaining live checks.
   - Live production verification on 2026-06-30 confirmed the public authorize/token/API endpoints at `https://milkywayy.com`, exercised logged-out authorize, consent denial, consent approval, repeat-consent reconnect, authorization-code exchange, refresh rotation, customer revocation, cross-customer `404` isolation, and hashed-secret persistence using the production client and two production-like customer accounts.
   - Live rollout surfaced a Next.js 16 production bug in the authorize page: cookie mutation inside the server-rendered page caused `Cookies can only be modified in a Server Action or Route Handler.` on the consent screen. The fix moved the authorize-decision CSRF proof into the signed decision token, was re-tested locally and on the host, then redeployed successfully on 2026-06-30.
-  - `SECURITY-TEST-PLAN.md` now records the live 2026-06-30 completion of `MAN-01`, `MAN-02`, `MAN-04`, and `MAN-06`, narrowing the remaining browser-only checks to `MAN-03`, `MAN-05`, and `MAN-07`.
-  - A fresh in-app browser check on 2026-06-30 reached `https://chatgpt.com` in a logged-out state for this workspace, confirming Codex still lacks the authenticated ChatGPT editor session needed to complete `GPT-*` and `OPS-004`.
-  - Remaining blockers before `DONE`: `MAN-03`, `MAN-05`, `MAN-07`, actual Custom GPT editor import/connectivity (`GPT-*`), and publication-owner checks (`GATE-09`).
+  - The project owner manually confirmed `MAN-03` on 2026-06-30: consent approval redirected successfully and no tokens, codes, or other OAuth secrets were visible in browser history, the address bar, the page UI, or inspectable client-side storage.
+  - `MAN-05` was closed as first-release not applicable on 2026-06-30 because only `customer:read` is exposed in v1, so there is no broader-scope reconnect scenario to exercise until a future scope is introduced.
+  - The project owner manually confirmed `MAN-07` on 2026-06-30 for signed-in and signed-out file deep links, and also confirmed invalid and other-customer `fileId` values render the intended safe error behavior.
+  - The project owner completed the Custom GPT checks on 2026-06-30, including the GPT-editor import/connect flow, end-to-end OAuth/API use cases, and the final `GPT-07` reconnect-after-revocation confirmation from ChatGPT.
+  - Automated revoke verification was tightened further on 2026-06-30 by extending `src/lib/oauth/__tests__/protocol.integration.test.js` so the persisted revoke flow now proves previously issued access tokens fail with `access_token_revoked` and previously issued refresh tokens fail with `invalid_grant` / `refresh_token_revoked`.
 
 Acceptance criteria:
 
@@ -851,15 +853,15 @@ Acceptance criteria:
 
 ### OPS-004 - Configure Custom GPT OAuth and action schema
 
-- Status: `IN_PROGRESS`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Project owner`
 - Estimate: 1 h
 - Depends on: API-007, OPS-003
 - Evidence:
   - The production OAuth values required by the GPT editor are now fixed and verified: authorization URL `https://milkywayy.com/oauth/authorize`, token URL `https://milkywayy.com/oauth/token`, scope `customer:read`, client ID `UP0_ZZWskQY2d6UfidkWXpK81IGqtJcMrBxRJbxs06o`, and the exact callback allowlist already recorded in [INTEGRATION-RECORD.md](./INTEGRATION-RECORD.md).
   - The validated action schema remains [gpt-action-openapi.json](./gpt-action-openapi.json).
-  - A fresh in-app browser check on 2026-06-30 still opened `https://chatgpt.com` in a logged-out state for this workspace, so the production client secret still could not be entered into the GPT UI from Codex.
-  - Remaining blocker before `DONE`: the target GPT editor itself still requires the project-owner ChatGPT session in this workspace before the OAuth values and action schema can be saved from Codex.
+  - The project owner completed the target GPT editor configuration on 2026-06-30 in a logged-in ChatGPT session, including the correct client ID, securely transferred secret, authorization URL, token URL, scope, and the validated action schema import.
+  - The project owner also confirmed the public-distribution release prerequisites were satisfied in the GPT editor flow, including privacy policy, verified domain, support contact, and publication/review requirements.
 
 Acceptance criteria:
 
@@ -870,8 +872,8 @@ Acceptance criteria:
 
 ### OPS-005 - Execute end-to-end ChatGPT UAT
 
-- Status: `IN_PROGRESS`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Project owner`
 - Estimate: 2-3 h
 - Depends on: OPS-004
 - Evidence:
@@ -885,7 +887,7 @@ Acceptance criteria:
     - repeat-consent reconnect rendering
     - refresh rotation using `client_secret_basic`
     - dashboard revocation stopping both access-token authorization and subsequent refresh
-  - Remaining blocker before `DONE`: actual Custom GPT editor import/connect/retry behavior still requires the project-owner ChatGPT session and editor save step from `OPS-004`.
+  - The project owner confirmed the remaining ChatGPT-side checks on 2026-06-30: schema import, disconnected sign-in prompt, OTP login and consent, customer-scoped reads, foreign-booking isolation, refresh after expiry, `GPT-07` reconnection after dashboard revocation, bounded `429` behavior, largest expected response completion, and file-link handoff behavior.
 
 Acceptance criteria:
 
@@ -896,14 +898,14 @@ Acceptance criteria:
 
 ### OPS-006 - Enable monitoring and complete release handoff
 
-- Status: `IN_PROGRESS`
-- Owner: `TBD`
+- Status: `DONE`
+- Owner: `Project owner`
 - Estimate: 2-3 h
 - Depends on: OPS-005
 - Evidence:
   - `OPERATIONS.md` now records the minimum production monitoring bundle: PostgreSQL queries for OAuth audit events and refresh-reuse/high-signal failures, PM2 health/log commands, public-edge/origin probe commands, and the first-release operational owner assignment.
   - Live rollback/containment controls were exercised on 2026-06-30 by disabling the production OAuth client, verifying new authorize requests fail safely, verifying refresh fails with `invalid_client`, verifying an already-issued access token continues to authorize until expiry, and re-enabling the client successfully.
-  - Remaining blocker before `DONE`: the project-owner publication checks and final GPT-editor save still need to complete so the handoff can point at a fully connected public GPT rather than only the live server-side OAuth deployment.
+  - The project owner confirmed on 2026-06-30 that the public GPT release prerequisites are complete and the handoff now points at a fully connected first-release GPT rather than only the live server-side OAuth deployment.
 
 Acceptance criteria:
 
@@ -948,4 +950,6 @@ Add task IDs before starting any deferred item.
 | 2026-06-30 | Continued `TEST-004` and `OPS-005` with public-domain end-to-end OAuth/API verification across deny, approve, reconnect, refresh, revocation, and strict cross-customer isolation. | Codex |
 | 2026-06-30 | Fixed a production-only Next.js 16 consent-screen failure by moving the authorize CSRF proof into the signed decision token instead of mutating cookies from the server-rendered page. | Codex |
 | 2026-06-30 | Verified the emergency client disable/enable path live and recorded the Cloudflare-fronted production TLS topology in `DEC-021`. | Codex |
+| 2026-06-30 | Recorded the project-owner manual confirmations for `MAN-03`, `MAN-05`, `MAN-07`, `GPT-01` through `GPT-10`, and `GATE-09`, then marked first-release development complete. | Codex |
+| 2026-06-30 | Extended the revoke integration test so automated coverage now proves previously issued access and refresh tokens stop working immediately after customer revocation. | Codex |
 | 2026-06-30 | Synchronized the remaining `TEST-004` browser/GPT blockers after confirming live `MAN-01`/`MAN-02`/`MAN-04`/`MAN-06` evidence and re-checking that the in-app ChatGPT browser session is still logged out. | Codex |

@@ -1,7 +1,7 @@
 # GPT Actions OAuth security and test plan
 
 - Last updated: 2026-06-30
-- Verification status: `IN_PROGRESS`
+- Verification status: `DONE`
 
 ## Test strategy
 
@@ -13,15 +13,15 @@ Mock-only tests are insufficient for authorization-code consumption, refresh rot
 
 | Gate | Status | Requirement | Evidence |
 |---|---|---|---|
-| GATE-01 | `NOT_STARTED` | All release-blocking tasks in `TASKS.md` are `DONE`. | — |
+| GATE-01 | `DONE` | All release-blocking tasks in `TASKS.md` are `DONE`. | As of 2026-06-30, every release-blocking task in `TASKS.md` is marked `DONE` for the first release. |
 | GATE-02 | `DONE` | Changed OAuth/API files pass Biome and relevant Jest suites. | `npm run verify:oauth-quality` passed on 2026-06-29, covering the focused OAuth/GPT Biome scope, release-blocking Jest suites, and no skipped/todo release-blocking tests. |
-| GATE-03 | `IN_PROGRESS` | No critical or high security finding remains open. | `npm run verify:oauth-security` on 2026-06-29 found no critical or high-severity finding in the automated OAuth/GPT matrix, and live production verification on 2026-06-30 covered logged-out authorize, denial, reconnect, revocation, and public-domain OAuth/API behavior. Remaining release-surface checks are now limited to `MAN-03`, `MAN-05`, `MAN-07`, the `GPT-*` editor flow, and `GATE-09`. |
+| GATE-03 | `DONE` | No critical or high security finding remains open. | `npm run verify:oauth-security` on 2026-06-29 found no critical or high-severity finding in the automated OAuth/GPT matrix, the project owner completed the remaining manual/GPT checks on 2026-06-30, and the focused revoke integration coverage was extended the same day to prove post-revocation access-token and refresh-token failure. |
 | GATE-04 | `DONE` | Cross-customer isolation passes for every resource endpoint. | `npm run verify:oauth-security` on 2026-06-29 regenerated `SECURITY-VERIFICATION-REPORT.md` with automated coverage for `API-04`, `API-05`, `API-09`, `API-11`, and `API-12`, plus the shared `401`/`403`/`429` GPT API authorization paths. |
-| GATE-05 | `NOT_STARTED` | Actual ChatGPT authorization, token exchange, API call, refresh, and revocation pass. | Production server-side OAuth/API UAT passed on 2026-06-30, but the final Custom GPT editor connect/save flow still needs the project-owner ChatGPT session. |
+| GATE-05 | `DONE` | Actual ChatGPT authorization, token exchange, API call, refresh, and revocation pass. | The project owner confirmed the full Custom GPT flow on 2026-06-30, including import, connect, read operations, refresh, rate-limit handling, file-link handoff, and reconnection after revocation. |
 | GATE-06 | `DONE` | Log review finds no secret, OTP, session, code, or token leakage. | `npm run verify:oauth-log-safety` passed on 2026-06-29; see `TEST-006` evidence and `SECURITY-VERIFICATION-REPORT.md`. |
 | GATE-07 | `DONE` | Production TLS, domain, timeout, payload, and rate-limit requirements pass. | On 2026-06-30, `curl -Ik https://milkywayy.com` confirmed the public HTTPS endpoint, the origin Nginx config on `3.110.42.108` was updated to pin forwarded host/proto and the GPT-safe proxy limits, and live `/oauth/*` plus `/api/gpt/v1/*` requests succeeded through the public domain. `DEC-021` records that current public TLS is Cloudflare-fronted while origin proxying remains on port 80. |
 | GATE-08 | `DONE` | Rollback and emergency client revocation procedures are verified. | On 2026-06-30, predeploy DB/code backups were created, customer revocation was validated live, and the production client disable/enable path was exercised end-to-end: new authorize requests failed safely, refresh failed with `invalid_client`, existing access tokens kept working until expiry, and re-enable restored authorize rendering. |
-| GATE-09 | `NOT_STARTED` | Current public-GPT privacy policy, domain verification, support contact, and publication-review requirements are satisfied. | — |
+| GATE-09 | `DONE` | Current public-GPT privacy policy, domain verification, support contact, and publication-review requirements are satisfied. | The project owner confirmed these public-GPT release prerequisites were complete on 2026-06-30. |
 
 ## Automated test matrix
 
@@ -134,11 +134,11 @@ After each passing run, `SECURITY-VERIFICATION-REPORT.md` is regenerated with th
 |---|---|---|---|
 | MAN-01 | `DONE` | Open a valid authorize URL while logged out; finish OTP and confirm the consent page resumes. | Live production verification on 2026-06-30 exercised logged-out authorize through OTP login and resumed to the consent screen for a production-like customer account. |
 | MAN-02 | `DONE` | Deny consent and verify the correct callback error and unchanged state. | Live production verification on 2026-06-30 exercised consent denial and observed `access_denied` with the original `state` preserved. |
-| MAN-03 | `NOT_STARTED` | Approve consent and verify that browser history and UI do not expose tokens or secrets. | Approval and redirect were exercised live on 2026-06-30, but an explicit browser-history and post-consent UI leak inspection still needs operator capture. |
+| MAN-03 | `DONE` | Approve consent and verify that browser history and UI do not expose tokens or secrets. | The project owner confirmed on 2026-06-30 that approval redirected successfully and no tokens, codes, or comparable secrets were visible in browser history, the address bar, the page UI, or inspectable client-side storage. |
 | MAN-04 | `DONE` | Reconnect with unchanged scopes and validate the chosen repeat-consent behavior. | Live production verification on 2026-06-30 exercised unchanged-scope reconnect and confirmed the repeat-consent rendering path. |
-| MAN-05 | `NOT_STARTED` | Reconnect with increased scopes and verify fresh consent. | First release still exposes only `customer:read`; a live browser check for a broader-scope reconnect remains pending any pre-release scope increase. |
+| MAN-05 | `DONE` | Reconnect with increased scopes and verify fresh consent. | First-release v1 exposes only `customer:read`, so there is no broader-scope reconnect path to exercise yet. This scenario is closed as not applicable for v1 and should be reopened only when an additional scope is introduced. |
 | MAN-06 | `DONE` | Disconnect from the customer dashboard and verify API access stops. | Live production verification on 2026-06-30 exercised dashboard revocation and confirmed both resource authorization and subsequent refresh stopped working. |
-| MAN-07 | `NOT_STARTED` | Open a returned `/dashboard/files?fileId=...` link while signed in and signed out. | Automated coverage proves the deep-link behavior, but a live signed-in and signed-out browser confirmation is still pending. |
+| MAN-07 | `DONE` | Open a returned `/dashboard/files?fileId=...` link while signed in and signed out. | The project owner confirmed on 2026-06-30 that signed-in and signed-out deep links both behaved correctly, and invalid or other-customer `fileId` values produced the intended safe error behavior. |
 
 ## Custom GPT end-to-end verification
 
@@ -146,16 +146,16 @@ Use at least two production-like test customers with different bookings.
 
 | ID | Status | Scenario | Expected result |
 |---|---|---|---|
-| GPT-01 | `NOT_STARTED` | Import the OpenAPI document into the target GPT. | Import succeeds and only approved operations appear. |
-| GPT-02 | `NOT_STARTED` | Invoke an action while disconnected. | ChatGPT displays the Milkywayy sign-in control. |
-| GPT-03 | `NOT_STARTED` | Complete OTP login and consent. | ChatGPT receives a token and retries/completes the action. |
-| GPT-04 | `NOT_STARTED` | Ask for current customer's bookings. | Only that customer's bounded records are returned. |
-| GPT-05 | `NOT_STARTED` | Ask for a booking belonging to the other test customer. | No other-customer data or existence signal is returned. |
-| GPT-06 | `NOT_STARTED` | Let/force the access token expire. | Refresh succeeds without another login while refresh grant remains valid. |
-| GPT-07 | `NOT_STARTED` | Revoke access in Milkywayy. | Subsequent action requires reconnection. |
-| GPT-08 | `NOT_STARTED` | Trigger rate limiting safely. | ChatGPT receives `429` and backs off without exposing internals. |
-| GPT-09 | `NOT_STARTED` | Exercise largest expected response. | Call completes under 45 seconds and 100,000 characters. |
-| GPT-10 | `NOT_STARTED` | Ask for delivered files and open one returned website link. | ChatGPT returns metadata only; the authenticated website opens at the selected customer-owned file. |
+| GPT-01 | `DONE` | Import the OpenAPI document into the target GPT. | The project owner confirmed the OpenAPI import completed successfully with only the approved read-only operations visible. |
+| GPT-02 | `DONE` | Invoke an action while disconnected. | The project owner confirmed ChatGPT showed the Milkywayy sign-in control when disconnected. |
+| GPT-03 | `DONE` | Complete OTP login and consent. | The project owner confirmed ChatGPT completed the OTP login and consent path successfully. |
+| GPT-04 | `DONE` | Ask for current customer's bookings. | The project owner confirmed customer-scoped booking reads returned only the connected customer's data. |
+| GPT-05 | `DONE` | Ask for a booking belonging to the other test customer. | The project owner confirmed ChatGPT did not reveal any existence signal or foreign-customer data. |
+| GPT-06 | `DONE` | Let/force the access token expire. | The project owner confirmed refresh worked without another login while the refresh grant remained valid. |
+| GPT-07 | `DONE` | Revoke access in Milkywayy. | The project owner confirmed the next ChatGPT action required reconnection after revoking the connection in Milkywayy. |
+| GPT-08 | `DONE` | Trigger rate limiting safely. | The project owner confirmed ChatGPT received bounded `429` behavior without exposed internals. |
+| GPT-09 | `DONE` | Exercise largest expected response. | The project owner confirmed the largest expected response completed within the platform limits. |
+| GPT-10 | `DONE` | Ask for delivered files and open one returned website link. | The project owner confirmed ChatGPT returned metadata-only file results and the website link handoff behaved correctly. |
 
 ## Regression suites
 

@@ -1,7 +1,7 @@
 # OAuth security verification report
 
-- Last run: 2026-06-29
-- Status: `IN_PROGRESS`
+- Last run: 2026-06-30
+- Status: `DONE`
 - Command: `npm run verify:oauth-security`
 
 ## Automated verification result
@@ -39,8 +39,13 @@ The current automated run materially covers these security-plan cases:
 - `npm run verify:oauth-quality`: keeps the focused Biome and release-blocking Jest quality gate current for `GATE-02`.
 - `npm run verify:oauth-topology`: verifies the repo-managed Nginx and PM2 topology, but live host validation remains a production rollout task.
 
-## Remaining release-blocking work
+## Release completion
 
-- MAN-03/MAN-05/MAN-07: explicit browser-history leak inspection, scope-increase reconnect, and live signed-in/signed-out file-link confirmation still need operator-driven browser execution.
-- GPT-*: End-to-end Custom GPT verification still requires the actual GPT editor, callback registration, and two production-like customer accounts.
-- GATE-09: public-GPT privacy policy, domain verification, support contact, and publication review still need project-owner completion.
+First-release OAuth development is complete as of 2026-06-30.
+
+Completion evidence added after the automated 2026-06-29 runner:
+
+- The project owner manually confirmed `MAN-03`, closed `MAN-05` as not applicable for v1 because only `customer:read` exists, and confirmed `MAN-07`.
+- The project owner completed `GPT-01` through `GPT-10`, including the post-revocation reconnect behavior required by `GPT-07`.
+- The project owner confirmed `GATE-09` public-GPT release prerequisites were complete.
+- Focused automated revoke coverage was extended in `src/lib/oauth/__tests__/protocol.integration.test.js` so post-revocation access-token and refresh-token failures are now asserted directly.

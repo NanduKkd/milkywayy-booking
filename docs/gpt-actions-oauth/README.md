@@ -2,7 +2,7 @@
 
 - Last updated: 2026-06-30
 - Planning status: `COMPLETE`
-- Implementation status: `IN_PROGRESS`
+- Implementation status: `DONE`
 - Target: production OAuth 2.0 authorization-code integration for one ChatGPT Custom GPT
 
 ## Purpose
