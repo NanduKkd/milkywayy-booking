@@ -54,6 +54,9 @@ Constraints:
 
 - only promotions with `kind = PERSONAL` may be assigned
 - only active customer accounts may be assignment targets
+- in the current user schema, "active customer accounts" means existing
+  `users.role = CUSTOMER` rows until a dedicated disabled/suspended state
+  exists (`PRM-D013`)
 - one customer may have at most one active row per personal promotion
 - unassignment preserves history rather than deleting the row
 

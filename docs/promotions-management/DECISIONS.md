@@ -18,6 +18,7 @@
 | PRM-D010 | Promotions, assignments, redemptions, and audit events are modeled as separate first-class tables. | Usage enforcement, customer targeting, mutation history, and staged migration become brittle if stored in one JSON blob or overloaded legacy rows. |
 | PRM-D011 | Transactions store an immutable `promotion_snapshot` in addition to foreign keys. | Invoices, support review, and rollback comparisons must remain reproducible even if a promotion is later edited or deactivated. |
 | PRM-D012 | Promotion mutation history is append-only with before/after state capture. | Admin pricing changes require operator accountability without rewriting historical audit evidence. |
+| PRM-D013 | Until customer lifecycle includes a dedicated disabled/suspended state, personal-promotion assignment targets are filtered to existing `CUSTOMER` users only. | The current user schema has no separate active-account flag; role-based filtering blocks staff exposure now without delaying PRM-202. |
 
 ## Deferred scope
 

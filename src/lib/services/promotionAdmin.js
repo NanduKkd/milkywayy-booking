@@ -1,4 +1,4 @@
-import { Op, col, fn, where as sequelizeWhere } from "sequelize";
+import { col, fn, Op, where as sequelizeWhere } from "sequelize";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
@@ -19,6 +19,7 @@ const TRIGGER_TYPES = new Set([
   "ANY_PAID_BOOKING",
   "DATE_RANGE",
 ]);
+const DEFAULT_ASSIGNABLE_CUSTOMER_LIMIT = 8;
 
 export const PROMOTION_ADMIN_AUTHORIZATION_MODE = "SUPERADMIN_COMPAT";
 
@@ -150,19 +151,23 @@ function normalizePromotionCode(value) {
 }
 
 function normalizePromotionKind(value) {
-  const normalized = normalizeRequiredString(value, "Promotion kind").toUpperCase();
+  const normalized = normalizeRequiredString(
+    value,
+    "Promotion kind",
+  ).toUpperCase();
 
   if (!PROMOTION_KINDS.has(normalized)) {
-    throw new Error(
-      "Promotion kind must be GENERIC, PERSONAL, or AUTOMATIC",
-    );
+    throw new Error("Promotion kind must be GENERIC, PERSONAL, or AUTOMATIC");
   }
 
   return normalized;
 }
 
 function normalizeBenefitType(value) {
-  const normalized = normalizeRequiredString(value, "Benefit type").toUpperCase();
+  const normalized = normalizeRequiredString(
+    value,
+    "Benefit type",
+  ).toUpperCase();
 
   if (!BENEFIT_TYPES.has(normalized)) {
     throw new Error("Benefit type must be FIXED or PERCENTAGE");
@@ -187,7 +192,10 @@ function normalizeTriggerType(value) {
 }
 
 function normalizeStatus(value, { allowDeactivated = true } = {}) {
-  const normalized = normalizeRequiredString(value, "Promotion status").toUpperCase();
+  const normalized = normalizeRequiredString(
+    value,
+    "Promotion status",
+  ).toUpperCase();
 
   if (!PROMOTION_STATUSES.has(normalized)) {
     throw new Error(
@@ -314,7 +322,9 @@ function normalizePromotionPayload(input, { existingPromotion = null } = {}) {
   }
 
   if ((kind === "GENERIC" || kind === "PERSONAL") && triggerType !== "NONE") {
-    throw new Error("Generic and personal promotions must use trigger type NONE");
+    throw new Error(
+      "Generic and personal promotions must use trigger type NONE",
+    );
   }
 
   if (kind === "AUTOMATIC" && triggerType === "NONE") {
@@ -367,6 +377,23 @@ function buildPromotionSnapshot(promotion) {
       ? promotion.get({ plain: true })
       : promotion;
 
+  const assignments = Array.isArray(plain.assignments)
+    ? plain.assignments
+        .map((assignment) => buildPromotionAssignmentSnapshot(assignment))
+        .filter(Boolean)
+        .sort((left, right) => {
+          const assignedAtDelta =
+            new Date(right.assignedAt || 0).getTime() -
+            new Date(left.assignedAt || 0).getTime();
+
+          if (assignedAtDelta !== 0) {
+            return assignedAtDelta;
+          }
+
+          return Number(right.id || 0) - Number(left.id || 0);
+        })
+    : [];
+
   return {
     id: plain.id ?? null,
     kind: plain.kind,
@@ -396,12 +423,77 @@ function buildPromotionSnapshot(promotion) {
       plain.createdByUserId == null ? null : Number(plain.createdByUserId),
     updatedByUserId:
       plain.updatedByUserId == null ? null : Number(plain.updatedByUserId),
-    createdAt: plain.createdAt
-      ? new Date(plain.createdAt).toISOString()
+    createdAt: plain.createdAt ? new Date(plain.createdAt).toISOString() : null,
+    updatedAt: plain.updatedAt ? new Date(plain.updatedAt).toISOString() : null,
+    assignments,
+  };
+}
+
+function buildCustomerSnapshot(user) {
+  if (!user) {
+    return null;
+  }
+
+  const plain =
+    typeof user.get === "function" ? user.get({ plain: true }) : user;
+
+  if (plain.role && plain.role !== USER_ROLES.CUSTOMER) {
+    return null;
+  }
+
+  const displayName =
+    plain.companyName ||
+    plain.fullName ||
+    plain.email ||
+    plain.phone ||
+    `Customer #${plain.id}`;
+
+  return {
+    id: plain.id == null ? null : Number(plain.id),
+    accountType: plain.accountType || "INDIVIDUAL",
+    companyName: plain.companyName || null,
+    displayName,
+    email: plain.email || null,
+    fullName: plain.fullName || null,
+    phone: plain.phone || null,
+  };
+}
+
+function buildPromotionAssignmentSnapshot(assignment) {
+  if (!assignment) {
+    return null;
+  }
+
+  const plain =
+    typeof assignment.get === "function"
+      ? assignment.get({ plain: true })
+      : assignment;
+  const user = buildCustomerSnapshot(plain.user);
+
+  if (!user) {
+    return null;
+  }
+
+  return {
+    id: plain.id == null ? null : Number(plain.id),
+    promotionId: plain.promotionId == null ? null : Number(plain.promotionId),
+    userId: plain.userId == null ? null : Number(plain.userId),
+    assignedAt: plain.assignedAt
+      ? new Date(plain.assignedAt).toISOString()
       : null,
-    updatedAt: plain.updatedAt
-      ? new Date(plain.updatedAt).toISOString()
+    unassignedAt: plain.unassignedAt
+      ? new Date(plain.unassignedAt).toISOString()
       : null,
+    assignedByUserId:
+      plain.assignedByUserId == null ? null : Number(plain.assignedByUserId),
+    unassignedByUserId:
+      plain.unassignedByUserId == null
+        ? null
+        : Number(plain.unassignedByUserId),
+    createdAt: plain.createdAt ? new Date(plain.createdAt).toISOString() : null,
+    updatedAt: plain.updatedAt ? new Date(plain.updatedAt).toISOString() : null,
+    notes: plain.notes || null,
+    user,
   };
 }
 
@@ -411,66 +503,51 @@ function mergePromotionInput(existingPromotion, input) {
   return {
     kind: input.kind ?? existing.kind,
     code:
-      Object.prototype.hasOwnProperty.call(input, "code") || input.kind === "GENERIC"
+      Object.hasOwn(input, "code") || input.kind === "GENERIC"
         ? input.code
         : existing.code,
     name: input.name ?? existing.name,
-    adminDescription:
-      Object.prototype.hasOwnProperty.call(input, "adminDescription")
-        ? input.adminDescription
-        : existing.adminDescription,
-    customerMessage:
-      Object.prototype.hasOwnProperty.call(input, "customerMessage")
-        ? input.customerMessage
-        : existing.customerMessage,
+    adminDescription: Object.hasOwn(input, "adminDescription")
+      ? input.adminDescription
+      : existing.adminDescription,
+    customerMessage: Object.hasOwn(input, "customerMessage")
+      ? input.customerMessage
+      : existing.customerMessage,
     benefitType: input.benefitType ?? existing.benefitType,
     benefitValue: input.benefitValue ?? existing.benefitValue,
-    benefitCap:
-      Object.prototype.hasOwnProperty.call(input, "benefitCap")
-        ? input.benefitCap
-        : existing.benefitCap,
-    minimumSpend:
-      Object.prototype.hasOwnProperty.call(input, "minimumSpend")
-        ? input.minimumSpend
-        : existing.minimumSpend,
-    startsAt:
-      Object.prototype.hasOwnProperty.call(input, "startsAt")
-        ? input.startsAt
-        : existing.startsAt,
-    endsAt:
-      Object.prototype.hasOwnProperty.call(input, "endsAt")
-        ? input.endsAt
-        : existing.endsAt,
+    benefitCap: Object.hasOwn(input, "benefitCap")
+      ? input.benefitCap
+      : existing.benefitCap,
+    minimumSpend: Object.hasOwn(input, "minimumSpend")
+      ? input.minimumSpend
+      : existing.minimumSpend,
+    startsAt: Object.hasOwn(input, "startsAt")
+      ? input.startsAt
+      : existing.startsAt,
+    endsAt: Object.hasOwn(input, "endsAt") ? input.endsAt : existing.endsAt,
     status: existing.status,
-    systemFlag:
-      Object.prototype.hasOwnProperty.call(input, "systemFlag")
-        ? input.systemFlag
-        : existing.systemFlag,
-    priority:
-      Object.prototype.hasOwnProperty.call(input, "priority")
-        ? input.priority
-        : existing.priority,
-    perUserLimit:
-      Object.prototype.hasOwnProperty.call(input, "perUserLimit")
-        ? input.perUserLimit
-        : existing.perUserLimit,
-    totalLimit:
-      Object.prototype.hasOwnProperty.call(input, "totalLimit")
-        ? input.totalLimit
-        : existing.totalLimit,
+    systemFlag: Object.hasOwn(input, "systemFlag")
+      ? input.systemFlag
+      : existing.systemFlag,
+    priority: Object.hasOwn(input, "priority")
+      ? input.priority
+      : existing.priority,
+    perUserLimit: Object.hasOwn(input, "perUserLimit")
+      ? input.perUserLimit
+      : existing.perUserLimit,
+    totalLimit: Object.hasOwn(input, "totalLimit")
+      ? input.totalLimit
+      : existing.totalLimit,
     triggerType: input.triggerType ?? existing.triggerType,
-    triggerConfig:
-      Object.prototype.hasOwnProperty.call(input, "triggerConfig")
-        ? input.triggerConfig
-        : existing.triggerConfig,
-    legacySourceType:
-      Object.prototype.hasOwnProperty.call(input, "legacySourceType")
-        ? input.legacySourceType
-        : existing.legacySourceType,
-    legacySourceId:
-      Object.prototype.hasOwnProperty.call(input, "legacySourceId")
-        ? input.legacySourceId
-        : existing.legacySourceId,
+    triggerConfig: Object.hasOwn(input, "triggerConfig")
+      ? input.triggerConfig
+      : existing.triggerConfig,
+    legacySourceType: Object.hasOwn(input, "legacySourceType")
+      ? input.legacySourceType
+      : existing.legacySourceType,
+    legacySourceId: Object.hasOwn(input, "legacySourceId")
+      ? input.legacySourceId
+      : existing.legacySourceId,
   };
 }
 
@@ -523,6 +600,7 @@ async function findPromotionForUpdate(promotionId, transaction) {
 
 async function createPromotionAuditEvent({
   promotionId,
+  promotionAssignmentId = null,
   actorUserId,
   action,
   beforeState,
@@ -534,6 +612,7 @@ async function createPromotionAuditEvent({
   await models.PromotionAuditEvent.create(
     {
       promotionId,
+      promotionAssignmentId,
       actorUserId,
       action,
       beforeState,
@@ -550,6 +629,47 @@ async function createPromotionAuditEvent({
 
 function serializePromotionList(promotions) {
   return promotions.map((promotion) => buildPromotionSnapshot(promotion));
+}
+
+function buildPromotionAdminInclude() {
+  return [
+    {
+      model: models.PromotionAssignment,
+      as: "assignments",
+      required: false,
+      where: {
+        unassignedAt: null,
+      },
+      include: [
+        {
+          model: models.User,
+          as: "user",
+          required: false,
+          attributes: [
+            "id",
+            "fullName",
+            "companyName",
+            "email",
+            "phone",
+            "accountType",
+            "role",
+          ],
+        },
+      ],
+    },
+  ];
+}
+
+async function findPromotionForAdminView(promotionId, transaction) {
+  const normalizedPromotionId = normalizeRequiredId(
+    promotionId,
+    "Promotion ID",
+  );
+
+  return models.Promotion.findByPk(normalizedPromotionId, {
+    include: buildPromotionAdminInclude(),
+    transaction,
+  });
 }
 
 export async function listPromotions({
@@ -572,6 +692,7 @@ export async function listPromotions({
 
   const promotions = await models.Promotion.findAll({
     where,
+    include: buildPromotionAdminInclude(),
     order: [
       ["kind", "ASC"],
       ["priority", "DESC"],
@@ -582,6 +703,66 @@ export async function listPromotions({
   });
 
   return serializePromotionList(promotions);
+}
+
+export async function searchAssignableCustomers({
+  actorUser,
+  query,
+  limit = DEFAULT_ASSIGNABLE_CUSTOMER_LIMIT,
+  transaction = null,
+} = {}) {
+  assertAuthorizedPromotionActor(actorUser);
+
+  const normalizedQuery = String(query ?? "").trim();
+
+  if (normalizedQuery.length < 2) {
+    return [];
+  }
+
+  const normalizedLimit = Math.min(
+    normalizeOptionalPositiveInteger(limit, "Customer search limit") ||
+      DEFAULT_ASSIGNABLE_CUSTOMER_LIMIT,
+    20,
+  );
+  const likeQuery = `%${normalizedQuery}%`;
+  const searchConditions = [
+    { fullName: { [Op.iLike]: likeQuery } },
+    { companyName: { [Op.iLike]: likeQuery } },
+    { email: { [Op.iLike]: likeQuery } },
+    { phone: { [Op.iLike]: likeQuery } },
+  ];
+  const numericQuery = Number(normalizedQuery);
+
+  if (Number.isInteger(numericQuery) && numericQuery > 0) {
+    searchConditions.unshift({ id: numericQuery });
+  }
+
+  const customers = await models.User.findAll({
+    attributes: [
+      "id",
+      "fullName",
+      "companyName",
+      "email",
+      "phone",
+      "accountType",
+      "role",
+      "updatedAt",
+    ],
+    where: {
+      role: USER_ROLES.CUSTOMER,
+      [Op.or]: searchConditions,
+    },
+    order: [
+      ["updatedAt", "DESC"],
+      ["id", "DESC"],
+    ],
+    limit: normalizedLimit,
+    transaction,
+  });
+
+  return customers
+    .map((customer) => buildCustomerSnapshot(customer))
+    .filter(Boolean);
 }
 
 export async function createPromotion({
@@ -642,14 +823,17 @@ export async function updatePromotion({
 }) {
   const actor = assertAuthorizedPromotionActor(actorUser);
 
-  if (input && Object.prototype.hasOwnProperty.call(input, "status")) {
+  if (input && Object.hasOwn(input, "status")) {
     throw new Error(
       "Promotion status must be changed through activate, pause, or deactivate actions",
     );
   }
 
   return runInTransaction(transaction, async (activeTransaction) => {
-    const promotion = await findPromotionForUpdate(promotionId, activeTransaction);
+    const promotion = await findPromotionForUpdate(
+      promotionId,
+      activeTransaction,
+    );
 
     if (!promotion) {
       throw new Error("Promotion not found");
@@ -710,7 +894,10 @@ async function transitionPromotionStatus({
   const normalizedTargetStatus = normalizeStatus(targetStatus);
 
   return runInTransaction(transaction, async (activeTransaction) => {
-    const promotion = await findPromotionForUpdate(promotionId, activeTransaction);
+    const promotion = await findPromotionForUpdate(
+      promotionId,
+      activeTransaction,
+    );
 
     if (!promotion) {
       throw new Error("Promotion not found");
@@ -727,10 +914,7 @@ async function transitionPromotionStatus({
       throw new Error("Deactivated promotions cannot change status");
     }
 
-    if (
-      normalizedTargetStatus === "ACTIVE" &&
-      promotion.kind === "GENERIC"
-    ) {
+    if (normalizedTargetStatus === "ACTIVE" && promotion.kind === "GENERIC") {
       await assertNoActiveGenericCodeConflict({
         code: promotion.code,
         excludePromotionId: promotion.id,
@@ -809,6 +993,94 @@ export async function deactivatePromotion({
     action: "DEACTIVATED",
     reason,
     transaction,
+  });
+}
+
+export async function assignPromotionCustomer({
+  actorUser,
+  promotionId,
+  userId,
+  notes = null,
+  reason = null,
+  transaction = null,
+}) {
+  const actor = assertAuthorizedPromotionActor(actorUser);
+  const normalizedUserId = normalizeRequiredId(userId, "Customer user ID");
+  const normalizedNotes = normalizeOptionalText(notes);
+
+  return runInTransaction(transaction, async (activeTransaction) => {
+    const promotion = await findPromotionForUpdate(
+      promotionId,
+      activeTransaction,
+    );
+
+    if (!promotion) {
+      throw new Error("Promotion not found");
+    }
+
+    if (promotion.kind !== "PERSONAL") {
+      throw new Error("Only personal promotions may be assigned to customers");
+    }
+
+    const customer = await models.User.findOne({
+      where: {
+        id: normalizedUserId,
+        role: USER_ROLES.CUSTOMER,
+      },
+      transaction: activeTransaction,
+      lock: activeTransaction.LOCK.UPDATE,
+    });
+
+    if (!customer) {
+      throw new Error("Customer account not found");
+    }
+
+    const existingAssignment = await models.PromotionAssignment.findOne({
+      where: {
+        promotionId: promotion.id,
+        userId: normalizedUserId,
+        unassignedAt: null,
+      },
+      transaction: activeTransaction,
+      lock: activeTransaction.LOCK.UPDATE,
+    });
+
+    if (!existingAssignment) {
+      const assignment = await models.PromotionAssignment.create(
+        {
+          promotionId: promotion.id,
+          userId: normalizedUserId,
+          assignedAt: new Date(),
+          assignedByUserId: actor.id,
+          notes: normalizedNotes,
+        },
+        { transaction: activeTransaction },
+      );
+
+      await createPromotionAuditEvent({
+        promotionId: promotion.id,
+        promotionAssignmentId: assignment.id,
+        actorUserId: actor.id,
+        action: "ASSIGNED",
+        beforeState: null,
+        afterState: buildPromotionAssignmentSnapshot({
+          ...assignment.get({ plain: true }),
+          user: customer,
+        }),
+        reason,
+        metadata: {
+          customerUserId: normalizedUserId,
+        },
+        transaction: activeTransaction,
+      });
+    }
+
+    const refreshedPromotion = await findPromotionForAdminView(
+      promotion.id,
+      activeTransaction,
+    );
+
+    return buildPromotionSnapshot(refreshedPromotion);
   });
 }
 

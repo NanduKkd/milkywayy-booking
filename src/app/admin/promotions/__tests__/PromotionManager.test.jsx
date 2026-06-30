@@ -1,11 +1,14 @@
 import {
   activateAdminPromotion,
+  assignAdminPromotionCustomer,
   createAdminPromotion,
   deactivateAdminPromotion,
   pauseAdminPromotion,
+  searchPromotionAssignableCustomers,
   updateAdminPromotion,
 } from "@/lib/actions/promotions";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -16,9 +19,11 @@ import PromotionManager from "../PromotionManager";
 
 jest.mock("@/lib/actions/promotions", () => ({
   activateAdminPromotion: jest.fn(),
+  assignAdminPromotionCustomer: jest.fn(),
   createAdminPromotion: jest.fn(),
   deactivateAdminPromotion: jest.fn(),
   pauseAdminPromotion: jest.fn(),
+  searchPromotionAssignableCustomers: jest.fn(),
   updateAdminPromotion: jest.fn(),
 }));
 
@@ -43,6 +48,28 @@ const mockPromotions = [
     triggerType: "NONE",
     triggerConfig: {},
     createdAt: "2026-07-01T10:00:00.000Z",
+  },
+  {
+    id: 151,
+    kind: "PERSONAL",
+    code: null,
+    name: "VIP repeat customer",
+    adminDescription: "Private client offer",
+    customerMessage: "Applied automatically for your account",
+    benefitType: "PERCENTAGE",
+    benefitValue: 18,
+    benefitCap: 180,
+    minimumSpend: 600,
+    startsAt: null,
+    endsAt: null,
+    status: "ACTIVE",
+    priority: 3,
+    perUserLimit: 1,
+    totalLimit: null,
+    triggerType: "NONE",
+    triggerConfig: {},
+    assignments: [],
+    createdAt: "2026-07-01T09:00:00.000Z",
   },
   {
     id: 202,
@@ -71,6 +98,10 @@ describe("PromotionManager", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     window.confirm = jest.fn(() => true);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("renders promotions across the three tabs", async () => {
@@ -233,5 +264,92 @@ describe("PromotionManager", () => {
       expect(window.confirm).toHaveBeenCalled();
       expect(deactivateAdminPromotion).toHaveBeenCalledWith(101);
     });
+  });
+
+  it("searches and assigns a customer to a personal promotion", async () => {
+    jest.useFakeTimers();
+
+    searchPromotionAssignableCustomers.mockResolvedValue({
+      success: true,
+      data: [
+        {
+          id: 801,
+          displayName: "Noura Buyer",
+          fullName: "Noura Buyer",
+          companyName: null,
+          email: "noura@example.com",
+          phone: "+971500111222",
+          accountType: "INDIVIDUAL",
+        },
+      ],
+    });
+    assignAdminPromotionCustomer.mockResolvedValue({
+      success: true,
+      data: {
+        ...mockPromotions[1],
+        assignments: [
+          {
+            id: 901,
+            promotionId: 151,
+            userId: 801,
+            assignedAt: "2026-07-01T12:30:00.000Z",
+            unassignedAt: null,
+            assignedByUserId: 11,
+            unassignedByUserId: null,
+            createdAt: "2026-07-01T12:30:00.000Z",
+            updatedAt: "2026-07-01T12:30:00.000Z",
+            notes: null,
+            user: {
+              id: 801,
+              displayName: "Noura Buyer",
+              fullName: "Noura Buyer",
+              companyName: null,
+              email: "noura@example.com",
+              phone: "+971500111222",
+              accountType: "INDIVIDUAL",
+            },
+          },
+        ],
+      },
+    });
+
+    render(<PromotionManager initialPromotions={mockPromotions} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    expect(await screen.findByText("VIP repeat customer")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    fireEvent.change(screen.getByLabelText(/Search customers/i), {
+      target: { value: "Noura" },
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => {
+      expect(searchPromotionAssignableCustomers).toHaveBeenCalledWith("Noura");
+    });
+
+    expect(await screen.findByText(/noura@example.com/i)).toBeInTheDocument();
+
+    const resultCard = screen
+      .getByText(/noura@example.com/i)
+      .closest("div.rounded-xl");
+
+    expect(resultCard).not.toBeNull();
+    fireEvent.click(within(resultCard).getByRole("button", { name: "Assign" }));
+
+    await waitFor(() => {
+      expect(assignAdminPromotionCustomer).toHaveBeenCalledWith(151, 801);
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText("No customers assigned yet."),
+      ).not.toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText("Noura Buyer").length).toBeGreaterThan(0);
   });
 });

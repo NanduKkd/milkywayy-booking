@@ -6,10 +6,12 @@ import models from "@/lib/db/models";
 import { auth } from "@/lib/helpers/auth";
 import {
   activatePromotion,
+  assignPromotionCustomer,
   createPromotion,
   deactivatePromotion,
   listPromotions,
   pausePromotion,
+  searchAssignableCustomers,
   updatePromotion,
 } from "@/lib/services/promotionAdmin";
 import { actionWrapper } from "./utils";
@@ -95,4 +97,29 @@ const deactivateAdminPromotionHandler = async (promotionId) => {
 };
 export const deactivateAdminPromotion = actionWrapper(
   deactivateAdminPromotionHandler,
+);
+
+const searchPromotionAssignableCustomersHandler = async (query) => {
+  const actorUser = await requirePromotionAdminActor();
+  const customers = await searchAssignableCustomers({ actorUser, query });
+
+  return customers;
+};
+export const searchPromotionAssignableCustomers = actionWrapper(
+  searchPromotionAssignableCustomersHandler,
+);
+
+const assignAdminPromotionCustomerHandler = async (promotionId, userId) => {
+  const actorUser = await requirePromotionAdminActor();
+  const promotion = await assignPromotionCustomer({
+    actorUser,
+    promotionId,
+    userId,
+  });
+
+  revalidatePromotionAdminPaths();
+  return promotion;
+};
+export const assignAdminPromotionCustomer = actionWrapper(
+  assignAdminPromotionCustomerHandler,
 );

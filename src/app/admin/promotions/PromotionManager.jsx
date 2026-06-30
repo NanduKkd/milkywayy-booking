@@ -6,9 +6,11 @@ import {
   CirclePlay,
   Pencil,
   Plus,
+  Search,
   Sparkles,
   Tag,
   Trash2,
+  UserPlus,
   UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -49,9 +51,11 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   activateAdminPromotion,
+  assignAdminPromotionCustomer,
   createAdminPromotion,
   deactivateAdminPromotion,
   pauseAdminPromotion,
+  searchPromotionAssignableCustomers,
   updateAdminPromotion,
 } from "@/lib/actions/promotions";
 import { cn } from "@/lib/utils";
@@ -72,11 +76,11 @@ const TAB_CONFIG = [
     label: "Personal Auto-Apply",
     shortLabel: "Personal",
     description:
-      "Customer-specific offers that will be assigned in the next task.",
+      "Customer-specific offers assigned directly to eligible customer accounts.",
     icon: UserRound,
     emptyTitle: "No personal promotions yet",
     emptyCopy:
-      "Create the offer definitions now; customer assignment search lands in PRM-202.",
+      "Create the offer and attach it to active customer accounts from one place.",
   },
   {
     value: "AUTOMATIC",
@@ -315,11 +319,27 @@ function formatStatusLabel(status) {
     .replace(/^\w/, (value) => value.toUpperCase());
 }
 
+function formatCustomerDisplayName(customer) {
+  return (
+    customer?.displayName ||
+    customer?.companyName ||
+    customer?.fullName ||
+    customer?.email ||
+    customer?.phone ||
+    "Unnamed customer"
+  );
+}
+
+function formatCustomerSecondaryLine(customer) {
+  return [customer?.email, customer?.phone].filter(Boolean).join(" • ");
+}
+
 function PromotionTable({
   promotions,
   onCreate,
   onEdit,
   onActivate,
+  onAssignCustomer,
   onPause,
   onDeactivate,
   pendingKey,
@@ -394,6 +414,25 @@ function PromotionTable({
                             Customer: {promotion.customerMessage}
                           </p>
                         ) : null}
+                        {promotion.kind === "PERSONAL" ? (
+                          promotion.assignments?.length ? (
+                            <div className="flex flex-wrap gap-2">
+                              {promotion.assignments.map((assignment) => (
+                                <Badge
+                                  key={assignment.id}
+                                  variant="outline"
+                                  className="border-sky-500/20 bg-sky-500/10 text-sky-100"
+                                >
+                                  {formatCustomerDisplayName(assignment.user)}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              No customers assigned yet.
+                            </p>
+                          )
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell className="align-top">
@@ -444,6 +483,18 @@ function PromotionTable({
                     </TableCell>
                     <TableCell className="align-top">
                       <div className="flex flex-wrap justify-end gap-2">
+                        {promotion.kind === "PERSONAL" ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onAssignCustomer(promotion)}
+                            disabled={isBusy}
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Assign
+                          </Button>
+                        ) : null}
                         <Button
                           type="button"
                           size="sm"
@@ -517,6 +568,13 @@ export default function PromotionManager({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState("create");
   const [formData, setFormData] = useState(createEmptyForm("GENERIC"));
+  const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
+  const [assignmentPromotion, setAssignmentPromotion] = useState(null);
+  const [assignmentQuery, setAssignmentQuery] = useState("");
+  const [assignmentResults, setAssignmentResults] = useState([]);
+  const [assignmentMessage, setAssignmentMessage] = useState(null);
+  const [assignmentSearchPending, setAssignmentSearchPending] = useState(false);
+  const [assignmentPendingUserId, setAssignmentPendingUserId] = useState(null);
   const [errorMessage, setErrorMessage] = useState(loadError);
   const [pendingKey, setPendingKey] = useState(null);
 
@@ -527,6 +585,62 @@ export default function PromotionManager({
   useEffect(() => {
     setErrorMessage(loadError);
   }, [loadError]);
+
+  useEffect(() => {
+    if (!assignmentDialogOpen || !assignmentPromotion) {
+      return undefined;
+    }
+
+    const normalizedQuery = assignmentQuery.trim();
+
+    if (normalizedQuery.length < 2) {
+      setAssignmentResults([]);
+      setAssignmentSearchPending(false);
+      setAssignmentMessage(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setAssignmentSearchPending(true);
+      setAssignmentMessage(null);
+
+      const result = await searchPromotionAssignableCustomers(normalizedQuery);
+
+      if (cancelled) {
+        return;
+      }
+
+      setAssignmentSearchPending(false);
+
+      if (!result.success) {
+        setAssignmentResults([]);
+        setAssignmentMessage(result.message);
+        return;
+      }
+
+      const assignedUserIds = new Set(
+        (assignmentPromotion.assignments || []).map((assignment) =>
+          Number(assignment.userId),
+        ),
+      );
+      const nextResults = (result.data || []).filter(
+        (customer) => !assignedUserIds.has(Number(customer.id)),
+      );
+
+      setAssignmentResults(nextResults);
+      setAssignmentMessage(
+        nextResults.length === 0
+          ? "No active customers match that search."
+          : null,
+      );
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [assignmentDialogOpen, assignmentPromotion, assignmentQuery]);
 
   const countsByKind = TAB_CONFIG.reduce((accumulator, tab) => {
     accumulator[tab.value] = promotions.filter(
@@ -560,6 +674,15 @@ export default function PromotionManager({
     setFormData(toFormState(promotion));
     setActiveTab(promotion.kind);
     setDialogOpen(true);
+  };
+
+  const openAssignmentDialog = (promotion) => {
+    setErrorMessage(null);
+    setAssignmentPromotion(promotion);
+    setAssignmentDialogOpen(true);
+    setAssignmentQuery("");
+    setAssignmentResults([]);
+    setAssignmentMessage(null);
   };
 
   const handleSubmit = async () => {
@@ -608,6 +731,35 @@ export default function PromotionManager({
     }
 
     await handleStatusChange(promotion, deactivateAdminPromotion);
+  };
+
+  const handleAssignCustomer = async (customer) => {
+    if (!assignmentPromotion) {
+      return;
+    }
+
+    setAssignmentPendingUserId(customer.id);
+    setAssignmentMessage(null);
+
+    const result = await assignAdminPromotionCustomer(
+      assignmentPromotion.id,
+      customer.id,
+    );
+
+    setAssignmentPendingUserId(null);
+
+    if (!result.success) {
+      setAssignmentMessage(result.message);
+      return;
+    }
+
+    upsertPromotion(result.data);
+    setAssignmentPromotion(result.data);
+    setAssignmentQuery("");
+    setAssignmentResults([]);
+    setAssignmentMessage(
+      `${formatCustomerDisplayName(customer)} assigned successfully.`,
+    );
   };
 
   const activeTabConfig =
@@ -727,9 +879,9 @@ export default function PromotionManager({
               {activeTabConfig.value === "PERSONAL" ? (
                 <Card className="border-sky-500/20 bg-sky-500/10">
                   <CardContent className="px-5 py-4 text-sm text-sky-100">
-                    Personal promotion creation is available now. Customer
-                    assignment search and active-customer filtering land in
-                    `PRM-202`.
+                    Personal promotion assignment now filters to customer
+                    accounts only, so staff users never appear in search or
+                    assignment results.
                   </CardContent>
                 </Card>
               ) : null}
@@ -740,6 +892,7 @@ export default function PromotionManager({
                 )}
                 onCreate={() => openCreateDialog(activeTabConfig.value)}
                 onEdit={openEditDialog}
+                onAssignCustomer={openAssignmentDialog}
                 onActivate={(promotion) =>
                   handleStatusChange(promotion, activateAdminPromotion)
                 }
@@ -1141,6 +1294,153 @@ export default function PromotionManager({
                 {formMode === "create" ? "Create promotion" : "Save changes"}
               </Button>
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={assignmentDialogOpen}
+        onOpenChange={(open) => {
+          setAssignmentDialogOpen(open);
+
+          if (!open) {
+            setAssignmentPromotion(null);
+            setAssignmentQuery("");
+            setAssignmentResults([]);
+            setAssignmentMessage(null);
+            setAssignmentPendingUserId(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Assign customer</DialogTitle>
+            <DialogDescription>
+              Search active customer accounts and attach them to{" "}
+              {assignmentPromotion?.name || "this personal promotion"}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="promotion-customer-search">
+                  Search customers
+                </Label>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="promotion-customer-search"
+                    value={assignmentQuery}
+                    onChange={(event) => setAssignmentQuery(event.target.value)}
+                    className="pl-9"
+                    placeholder="Name, company, email, phone, or customer ID"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Search only returns customer accounts. Staff users are never
+                  shown here.
+                </p>
+              </div>
+
+              {assignmentMessage ? (
+                <Card className="border-white/10 bg-white/[0.03]">
+                  <CardContent className="px-4 py-3 text-sm text-muted-foreground">
+                    {assignmentMessage}
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">
+                  Assigned customers
+                </p>
+                {assignmentPromotion?.assignments?.length ? (
+                  <div className="space-y-2">
+                    {assignmentPromotion.assignments.map((assignment) => (
+                      <div
+                        key={assignment.id}
+                        className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                      >
+                        <p className="text-sm font-medium text-foreground">
+                          {formatCustomerDisplayName(assignment.user)}
+                        </p>
+                        {formatCustomerSecondaryLine(assignment.user) ? (
+                          <p className="text-xs text-muted-foreground">
+                            {formatCustomerSecondaryLine(assignment.user)}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Card className="border-dashed border-white/10 bg-card/50">
+                    <CardContent className="px-4 py-6 text-sm text-muted-foreground">
+                      No customers assigned yet.
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">
+                Search results
+              </p>
+              {assignmentQuery.trim().length < 2 ? (
+                <Card className="border-dashed border-white/10 bg-card/50">
+                  <CardContent className="px-4 py-6 text-sm text-muted-foreground">
+                    Type at least two characters to search customers.
+                  </CardContent>
+                </Card>
+              ) : assignmentSearchPending ? (
+                <Card className="border-white/10 bg-white/[0.03]">
+                  <CardContent className="px-4 py-6 text-sm text-muted-foreground">
+                    Searching customer accounts...
+                  </CardContent>
+                </Card>
+              ) : assignmentResults.length ? (
+                <div className="space-y-2">
+                  {assignmentResults.map((customer) => (
+                    <div
+                      key={customer.id}
+                      className="flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 md:flex-row md:items-center md:justify-between"
+                    >
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {formatCustomerDisplayName(customer)}
+                        </p>
+                        {formatCustomerSecondaryLine(customer) ? (
+                          <p className="text-xs text-muted-foreground">
+                            {formatCustomerSecondaryLine(customer)}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => handleAssignCustomer(customer)}
+                        disabled={assignmentPendingUserId === customer.id}
+                      >
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Assign
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setAssignmentDialogOpen(false)}
+              disabled={assignmentPendingUserId != null}
+            >
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
