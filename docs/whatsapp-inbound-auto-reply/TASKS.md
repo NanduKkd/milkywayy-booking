@@ -1,7 +1,7 @@
 # WhatsApp inbound auto-reply task tracker
 
 - Last updated: 2026-07-01
-- Overall implementation status: `IN_PROGRESS`
+- Overall implementation status: `BLOCKED`
 - Current milestone: `M3 - Verification and rollout`
 
 This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
@@ -13,7 +13,7 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `DONE` | 3 | 3 | 1-2 h |
 | M1 - Shared contact configuration | `DONE` | 1 | 1 | 1 h |
 | M2 - Signed webhook and auto-reply | `DONE` | 2 | 2 | 2-3 h |
-| M3 - Verification and rollout | `IN_PROGRESS` | 1 | 3 | 1-2 h |
+| M3 - Verification and rollout | `BLOCKED` | 1 | 3 | 1-2 h |
 
 ## M0 - Scope and decisions
 
@@ -147,7 +147,7 @@ Acceptance criteria:
 
 ### OPS-001 - Configure the Twilio inbound webhook
 
-- Status: `IN_PROGRESS`
+- Status: `BLOCKED`
 - Owner: `Project owner`
 - Estimate: 30 min
 - Depends on: TEST-001
@@ -156,6 +156,7 @@ Acceptance criteria:
   - Added stricter configured callback URL validation in `src/lib/notifications/whatsappInboundWebhook.js` so production fails closed unless `TWILIO_WHATSAPP_WEBHOOK_URL` is a valid HTTPS URL without embedded credentials or fragments.
   - Verified configured callback URL validation behavior with `npm test -- --runInBand src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
   - Production Twilio sender configuration and the exact callback URL entry in `docs/private/PRODUCTION-DEPLOYMENT.md` are still pending manual completion.
+  - Blocked pending manual access to the live Twilio sender configuration and the local-only production deployment runbook.
 
 Acceptance criteria:
 
@@ -165,11 +166,12 @@ Acceptance criteria:
 
 ### VERIFY-001 - Complete release verification
 
-- Status: `NOT_STARTED`
+- Status: `BLOCKED`
 - Owner: `Project owner`
 - Estimate: 30 min
 - Depends on: OPS-001
-- Evidence: Pending.
+- Evidence:
+  - Blocked pending OPS-001 completion because real inbound-message verification requires the live Twilio webhook to be attached and a production-reachable callback URL to be configured.
 
 Acceptance criteria:
 

@@ -1,7 +1,7 @@
 # WhatsApp inbound auto-reply operations
 
 - Last updated: 2026-07-01
-- Release status: `NOT_STARTED`
+- Release status: `BLOCKED`
 
 ## Configuration
 

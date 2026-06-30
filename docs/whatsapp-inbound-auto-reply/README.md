@@ -2,7 +2,7 @@
 
 - Last updated: 2026-07-01
 - Planning status: `DONE`
-- Implementation status: `IN_PROGRESS`
+- Implementation status: `BLOCKED`
 - Target: Automatically direct inbound WhatsApp senders to the public contact phone number.
 
 ## Purpose
