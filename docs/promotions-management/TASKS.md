@@ -2,15 +2,15 @@
 
 - Last updated: 2026-07-01
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M1 - Persistence and evaluation engine`
+- Current milestone: `M2 - Admin UI and checkout integration`
 
 ## Progress summary
 
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
 | M0 - Contract and migration mapping | `DONE` | 3 | 3 | 2-3 days |
-| M1 - Persistence and evaluation engine | `IN_PROGRESS` | 4 | 5 | 5-7 days |
-| M2 - Admin UI and checkout integration | `NOT_STARTED` | 0 | 5 | 6-9 days |
+| M1 - Persistence and evaluation engine | `DONE` | 5 | 5 | 5-7 days |
+| M2 - Admin UI and checkout integration | `IN_PROGRESS` | 1 | 5 | 6-9 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-6 days |
 
 ## M0 - Contract and migration mapping
@@ -35,7 +35,7 @@
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| PRM-201 | Build three-tab Promotions admin page | `NOT_STARTED` | Engineering | PRM-105 | List, create, activate/pause, edit, and delete/deactivate flows match target design | Pending |
+| PRM-201 | Build three-tab Promotions admin page | `DONE` | Engineering | PRM-105 | List, create, activate/pause, edit, and delete/deactivate flows match target design | Added `/admin/promotions` with three-tab management for generic, personal, and automatic promotions, server actions backed by `promotionAdmin`, and discoverability updates in the admin dashboard/sidebar while keeping legacy Discounts/Coupons routes available for parity work. Verification on 2026-07-01: `npm test -- src/app/admin/promotions/__tests__/PromotionManager.test.jsx` passed. `npx biome check src/app/admin/promotions/PromotionManager.jsx src/app/admin/promotions/page.jsx src/app/admin/promotions/__tests__/PromotionManager.test.jsx src/lib/actions/promotions.js src/components/admin/AdminSidebarNav.js src/app/admin/page.jsx` passed. |
 | PRM-202 | Add customer assignment search | `NOT_STARTED` | Engineering | PRM-105, customer API | Personal promotions can only target active customers and expose no staff accounts | Pending |
 | PRM-203 | Integrate promotion evaluation into pricing and checkout | `NOT_STARTED` | Engineering | PRM-103, PRM-104 | Customer totals show one selected promotion and separate wallet credit | Pending |
 | PRM-204 | Persist applied promotion on transaction and invoice | `NOT_STARTED` | Engineering | PRM-203 | Payment, transaction, booking summary, and invoice agree on identifiers and amounts | Pending |

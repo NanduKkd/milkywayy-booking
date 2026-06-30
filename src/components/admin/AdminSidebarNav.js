@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import {
   BadgePercent,
   CalendarClock,
@@ -10,9 +8,12 @@ import {
   Home,
   Images,
   Receipt,
+  Sparkles,
   Tags,
   Users,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const ADMIN_NAV_ITEMS = [
@@ -20,6 +21,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/bookings", label: "Bookings", icon: CalendarClock },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/invoices", label: "Invoices", icon: Receipt },
+  { href: "/admin/promotions", label: "Promotions", icon: Sparkles },
   { href: "/admin/discounts", label: "Discounts", icon: BadgePercent },
   { href: "/admin/coupons", label: "Coupons", icon: Tags },
   { href: "/admin/timeslots", label: "Time Slots", icon: CalendarClock },
@@ -32,7 +34,9 @@ export default function AdminSidebarNav({ mobile = false }) {
   const pathname = usePathname();
 
   return (
-    <nav className={cn("space-y-1", mobile && "flex gap-2 overflow-x-auto pb-2")}>
+    <nav
+      className={cn("space-y-1", mobile && "flex gap-2 overflow-x-auto pb-2")}
+    >
       {ADMIN_NAV_ITEMS.map((item) => {
         const Icon = item.icon;
         const active =
