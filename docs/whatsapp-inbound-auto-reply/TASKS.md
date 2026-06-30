@@ -1,0 +1,173 @@
+# WhatsApp inbound auto-reply task tracker
+
+- Last updated: 2026-06-30
+- Overall implementation status: `NOT_STARTED`
+- Current milestone: `M1 - Shared contact configuration`
+
+This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
+
+## Progress summary
+
+| Milestone | Status | Done | Total | Estimate |
+|---|---|---:|---:|---:|
+| M0 - Scope and decisions | `DONE` | 3 | 3 | 1-2 h |
+| M1 - Shared contact configuration | `NOT_STARTED` | 0 | 1 | 1 h |
+| M2 - Signed webhook and auto-reply | `NOT_STARTED` | 0 | 2 | 2-3 h |
+| M3 - Verification and rollout | `NOT_STARTED` | 0 | 3 | 1-2 h |
+
+## M0 - Scope and decisions
+
+### PLAN-001 - Define the feature contract
+
+- Status: `DONE`
+- Owner: `Codex`
+- Estimate: 30 min
+- Depends on: None
+- Evidence:
+  - Scope, non-goals, estimates, and completion criteria are documented in `README.md`.
+  - Request flow and boundaries are documented in `ARCHITECTURE.md`.
+
+Acceptance criteria:
+
+- The first-release behavior and exclusions are explicit.
+- Completion requires implementation, verification, and operational readiness rather than code alone.
+
+### PLAN-002 - Record security and operational decisions
+
+- Status: `DONE`
+- Owner: `Codex`
+- Estimate: 30 min
+- Depends on: PLAN-001
+- Evidence:
+  - Initial decisions and tradeoffs are recorded in `DECISIONS.md`.
+  - Release, rollback, and security gates are documented in `OPERATIONS.md` and `SECURITY-TEST-PLAN.md`.
+
+Acceptance criteria:
+
+- The design rejects unsigned webhook requests.
+- Tracked documentation does not contain live hostnames, credentials, or one-off production commands.
+
+### COPY-001 - Approve customer-facing response
+
+- Status: `DONE`
+- Owner: `Project owner`
+- Estimate: 15 min
+- Depends on: PLAN-001
+- Evidence:
+  - Approved wording is documented in `README.md` and `DECISIONS.md`.
+  - Project owner approval was received on 2026-06-30 in the delivery thread.
+
+Acceptance criteria:
+
+- The message clearly states that the inbox is not monitored.
+- The message includes the landing-page phone number.
+- The message does not make an absolute or unverifiable privacy claim.
+
+## M1 - Shared contact configuration
+
+### CONFIG-001 - Centralize the public contact number
+
+- Status: `NOT_STARTED`
+- Owner: `Codex`
+- Estimate: 1 h
+- Depends on: COPY-001
+- Evidence: Pending.
+
+Acceptance criteria:
+
+- One shared module defines the public E.164 number, display number, telephone link, and WhatsApp link.
+- The landing-page contact section consumes the shared configuration without changing its visible number.
+- The auto-reply body consumes the same display number.
+- Existing contact-form routing can retain an environment-specific destination when operationally required.
+
+## M2 - Signed webhook and auto-reply
+
+### WEBHOOK-001 - Add Twilio signature verification
+
+- Status: `NOT_STARTED`
+- Owner: `Codex`
+- Estimate: 1-2 h
+- Depends on: PLAN-002
+- Evidence: Pending.
+
+Acceptance criteria:
+
+- The endpoint validates `X-Twilio-Signature` with the existing Twilio auth token.
+- Production validation uses an explicitly configured public webhook URL.
+- Missing configuration fails closed.
+- Invalid requests do not return a message instruction.
+- Logs do not contain message bodies, credentials, signatures, or full phone numbers.
+
+### WEBHOOK-002 - Return the inbound WhatsApp auto-reply
+
+- Status: `NOT_STARTED`
+- Owner: `Codex`
+- Estimate: 1 h
+- Depends on: CONFIG-001, WEBHOOK-001
+- Evidence: Pending.
+
+Acceptance criteria:
+
+- A valid inbound WhatsApp message receives TwiML containing the approved copy.
+- Non-message callbacks do not trigger the customer response.
+- XML-special characters are escaped safely.
+- The endpoint does not persist or forward inbound message content.
+
+## M3 - Verification and rollout
+
+### TEST-001 - Add focused automated coverage
+
+- Status: `NOT_STARTED`
+- Owner: `Codex`
+- Estimate: 1 h
+- Depends on: CONFIG-001, WEBHOOK-001, WEBHOOK-002
+- Evidence: Pending.
+
+Acceptance criteria:
+
+- Tests cover valid signatures, invalid signatures, missing configuration, non-message payloads, approved reply content, and XML escaping.
+- Focused Jest and Biome checks pass and their commands are recorded as evidence.
+
+### OPS-001 - Configure the Twilio inbound webhook
+
+- Status: `NOT_STARTED`
+- Owner: `Project owner`
+- Estimate: 30 min
+- Depends on: TEST-001
+- Evidence: Pending production configuration and manual validation.
+
+Acceptance criteria:
+
+- The Twilio WhatsApp sender is configured to send inbound message webhooks to the production endpoint using `POST`.
+- The application has the exact public callback URL available for signature verification.
+- Exact live values remain in `docs/private/PRODUCTION-DEPLOYMENT.md`, not tracked documentation.
+
+### VERIFY-001 - Complete release verification
+
+- Status: `NOT_STARTED`
+- Owner: `Project owner`
+- Estimate: 30 min
+- Depends on: OPS-001
+- Evidence: Pending.
+
+Acceptance criteria:
+
+- A real inbound WhatsApp message receives exactly one approved response.
+- An invalid-signature request receives no message response.
+- Existing outbound WhatsApp notifications still send normally.
+- Monitoring and rollback checks in `OPERATIONS.md` are completed.
+
+## Deferred work
+
+### FOLLOWUP-001 - Add reply throttling or conversation state
+
+- Status: `DEFERRED`
+- Owner: `Unassigned`
+- Estimate: 2-4 h
+- Depends on: VERIFY-001
+- Evidence:
+  - Deferred from the first release in `DECISIONS.md`.
+
+Acceptance criteria:
+
+- A future decision defines the response window, durable storage, cleanup, and retry semantics before implementation.
