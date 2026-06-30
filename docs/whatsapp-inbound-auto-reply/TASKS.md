@@ -147,11 +147,13 @@ Acceptance criteria:
 
 ### OPS-001 - Configure the Twilio inbound webhook
 
-- Status: `NOT_STARTED`
+- Status: `IN_PROGRESS`
 - Owner: `Project owner`
 - Estimate: 30 min
 - Depends on: TEST-001
-- Evidence: Pending production configuration and manual validation.
+- Evidence:
+  - Added shared environment documentation for `TWILIO_WHATSAPP_WEBHOOK_URL` in `docs/DEVELOPMENT.md` so the required production callback variable is tracked outside the feature folder without committing the live value.
+  - Production Twilio sender configuration and the exact callback URL entry in `docs/private/PRODUCTION-DEPLOYMENT.md` are still pending manual completion.
 
 Acceptance criteria:
 

@@ -1,6 +1,6 @@
 # Development Guide
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 
 ## Prerequisites
 
@@ -96,6 +96,9 @@ live configuration.
 - `TWILIO_VERIFY_SERVICE_SID`, `TWILIO_OTP_CHANNEL`: Twilio Verify OTP mode.
 - `TWILIO_WHATSAPP_FROM`, `TWILIO_MESSAGING_SERVICE_SID`: WhatsApp sender
   configuration.
+- `TWILIO_WHATSAPP_WEBHOOK_URL`: exact public inbound WhatsApp webhook URL used
+  for Twilio signature validation. Required in production for the inbound
+  auto-reply endpoint.
 - `CONTACT_WHATSAPP_TO`: destination for public contact requests.
 - `WHATSAPP_BOOKING_PAGE_URL`, `WHATSAPP_MANAGE_BOOKING_URL`,
   `WHATSAPP_DASHBOARD_FILES_URL`: links included in notification messages.
