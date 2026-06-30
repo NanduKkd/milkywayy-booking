@@ -1,6 +1,6 @@
 # GPT Actions OAuth decision log
 
-Last updated: 2026-06-29
+Last updated: 2026-07-01
 
 ## Status values
 
@@ -273,6 +273,22 @@ Last updated: 2026-06-29
 - Consequence:
   - `INTEGRATION-RECORD.md`, `OAUTH_CALLBACK_URIS`, and the OAuth client `redirect_uris` column must stay synchronized for every active GPT callback pair.
   - Removing the legacy GPT callback pair is a separate controlled change that should happen only after the older GPT is retired.
+
+### DEC-023 - Keep the customer connections page direct-path only until release approval
+
+- Status: `ACCEPTED`
+- Date: `2026-07-01`
+- Owner: `Project owner`
+- Needed by: `OPS-007`
+- Decision:
+  - Keep `/dashboard/connections` implemented and accessible for signed-in customers who enter the path directly.
+  - Remove the `Connections` tab from the visible dashboard navigation for now.
+  - Restore the visible tab only in a later controlled release once the customer-facing rollout is explicitly approved.
+- Reason: The OAuth revoke surface should remain available for controlled use, but it is not yet ready to be promoted as a standard dashboard tab.
+- Consequence:
+  - The dashboard layout must not render a `Connections` tab while this decision remains active.
+  - Feature docs and operator guidance must describe the page as supported but intentionally undiscoverable from the default dashboard tabs.
+  - Re-enabling the tab later requires an explicit tracked change, not an ad hoc UI edit.
 
 ## Decision change template
 

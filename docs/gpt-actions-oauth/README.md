@@ -1,6 +1,6 @@
 # GPT Actions OAuth delivery plan
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 - Planning status: `COMPLETE`
 - Implementation status: `DONE`
 - Target: production OAuth 2.0 authorization-code integration for one ChatGPT Custom GPT
@@ -56,7 +56,7 @@ The first production release includes:
 - Required and round-tripped `state` parameter.
 - Short-lived, single-use authorization codes.
 - Opaque access tokens and rotating refresh tokens stored only as hashes.
-- Explicit customer consent and a dashboard disconnection control.
+- Explicit customer consent and a dashboard disconnection control at `/dashboard/connections`, kept off the visible dashboard tabs until release-ready.
 - Read-only, customer-scoped REST endpoints protected by the combined `customer:read` scope.
 - Delivery-file metadata with authenticated `/dashboard/files?fileId=...` links that scroll to the selected file; no binary or direct storage delivery through GPT Actions.
 - An OpenAPI action schema and Custom GPT configuration instructions.
@@ -94,7 +94,7 @@ The release is complete only when:
 
 - Every release-blocking task in `TASKS.md` is `DONE`.
 - Every release gate in `SECURITY-TEST-PLAN.md` passes.
-- A customer can connect from ChatGPT, list only their own records, refresh an expired access token, and disconnect access.
+- A customer can connect from ChatGPT, list only their own records, refresh an expired access token, and disconnect access from the direct `/dashboard/connections` page.
 - Expired, replayed, revoked, wrong-client, wrong-redirect, and insufficient-scope requests fail safely.
 - No authorization code, access token, refresh token, OTP, client secret, or session JWT appears in application logs.
 - Production rollback and token-revocation procedures have been tested.

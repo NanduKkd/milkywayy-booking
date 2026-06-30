@@ -1,15 +1,21 @@
 # Admin access control and Settings delivery plan
 
-- Last updated: 2026-06-30
-- Planning status: `IN_PROGRESS`
-- Implementation status: `NOT_STARTED`
-- Target: deliver secure staff administration, editable section permissions, invitations, and consistent server-side enforcement.
+- Last updated: 2026-07-01
+- Planning status: `DEFERRED`
+- Implementation status: `DEFERRED`
+- Target: deferred for a later release; secure staff administration, editable section permissions, invitations, and consistent server-side enforcement remain the intended scope when work resumes.
 
 ## Purpose
 
 Create the complete Settings feature and replace the current inconsistent
 “non-customer is admin” behavior with explicit staff roles and permissions.
 Staff accounts move out of Users and are managed only in Settings.
+
+## Current status
+
+This feature is on hold and has been deferred to a later release.
+No implementation work should start against this folder until the feature is
+reactivated and the task tracker is updated.
 
 ## Document index
 

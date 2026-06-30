@@ -1,6 +1,6 @@
 # GPT Actions OAuth target architecture
 
-- Last updated: 2026-06-29
+- Last updated: 2026-07-01
 - Architecture status: `ACCEPTED`
 
 ## Context
@@ -75,7 +75,7 @@ It must not expose Sequelize model instances, password/OTP fields, internal role
 | `GET /oauth/authorize` | Validate request, require login/consent, issue code, and redirect. | Existing Milkywayy customer session |
 | `POST /oauth/token` | Exchange a code or rotating refresh token. | OAuth client ID and secret |
 | `POST /oauth/revoke` | Revoke a token or refresh-token family. | Client authentication or signed-in customer |
-| `GET /dashboard/connections` | List and disconnect customer-authorized clients. | Existing Milkywayy customer session |
+| `GET /dashboard/connections` | List and disconnect customer-authorized clients. The route remains direct-path only and is intentionally omitted from visible dashboard tabs until the release is ready. | Existing Milkywayy customer session |
 
 The token endpoint must accept `application/x-www-form-urlencoded`. The registered ChatGPT client explicitly permits both `client_secret_post` and `client_secret_basic`. Requests with missing, duplicated, conflicting, or malformed credentials are rejected, and both permitted methods are tested during integration.
 

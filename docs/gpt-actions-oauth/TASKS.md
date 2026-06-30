@@ -1,6 +1,6 @@
 # GPT Actions OAuth task tracker
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 - Overall implementation status: `DONE`
 - Current milestone: `Completed - First release development`
 
@@ -16,8 +16,8 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `DONE` | 7 | 7 | 16-24 h |
-| M6 - Deployment and ChatGPT UAT | `DONE` | 6 | 6 | 8-13 h |
-| **Total** | `DONE` | **43** | **43** | **87-128 h** |
+| M6 - Deployment and ChatGPT UAT | `DONE` | 7 | 7 | 8-13 h |
+| **Total** | `DONE` | **44** | **44** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -913,6 +913,25 @@ Acceptance criteria:
 - Runbooks cover client disablement, customer revocation, suspected token theft, secret rotation, and rollback.
 - Documentation status is updated to `DONE` with deployment and test evidence.
 
+### OPS-007 - Hide the customer Connections tab pending broader release
+
+- Status: `DONE`
+- Owner: `Codex`
+- Estimate: 0.5 h
+- Depends on: OPS-006
+- Evidence:
+  - Removed the visible `Connections` dashboard tab from `src/app/dashboard/layout.js` while keeping `/dashboard/connections` routable for direct-path access by signed-in customers.
+  - Updated [README.md](./README.md), [ARCHITECTURE.md](./ARCHITECTURE.md), [DECISIONS.md](./DECISIONS.md), and [OPERATIONS.md](./OPERATIONS.md) to record that the revoke page is intentionally undiscoverable from the default dashboard tabs until a later controlled release restores it.
+  - Focused verification passed:
+    - `npx jest src/app/dashboard/connections/__tests__/page.test.jsx --runInBand`
+    - `npx biome check src/app/dashboard/layout.js docs/gpt-actions-oauth/README.md docs/gpt-actions-oauth/ARCHITECTURE.md docs/gpt-actions-oauth/DECISIONS.md docs/gpt-actions-oauth/OPERATIONS.md docs/gpt-actions-oauth/TASKS.md`
+
+Acceptance criteria:
+
+- The dashboard navigation no longer renders a visible `Connections` tab.
+- Signed-in customers can still access `/dashboard/connections` by entering the path directly.
+- The feature docs explicitly describe the page as temporarily hidden and note that the tab should be restored only through a later tracked release change.
+
 ## Deferred backlog
 
 Add task IDs before starting any deferred item.
@@ -922,6 +941,7 @@ Add task IDs before starting any deferred item.
 | Booking creation or cancellation | Read-only release is stable and product approves consequential actions. |
 | Payment initiation | Dedicated payment threat model and confirmation workflow exist. |
 | Multiple GPTs or third-party clients | A second client is approved. |
+| Restore the visible `Connections` dashboard tab | Product approves broader customer-facing release of the revoke UI. |
 | PKCE | A future public client or documented ChatGPT support requires it. |
 | OpenID Connect | A relying party needs federated identity rather than API access. |
 | Dynamic client registration | A developer-platform product is funded. |
@@ -952,3 +972,4 @@ Add task IDs before starting any deferred item.
 | 2026-06-30 | Recorded the project-owner manual confirmations for `MAN-03`, `MAN-05`, `MAN-07`, `GPT-01` through `GPT-10`, and `GATE-09`, then marked first-release development complete. | Codex |
 | 2026-06-30 | Extended the revoke integration test so automated coverage now proves previously issued access and refresh tokens stop working immediately after customer revocation. | Codex |
 | 2026-06-30 | Synchronized the remaining `TEST-004` browser/GPT blockers after confirming live `MAN-01`/`MAN-02`/`MAN-04`/`MAN-06` evidence and re-checking that the in-app ChatGPT browser session is still logged out. | Codex |
+| 2026-07-01 | Completed `OPS-007` by hiding the visible dashboard `Connections` tab while keeping `/dashboard/connections` available by direct path and documenting the temporary release hold. | Codex |

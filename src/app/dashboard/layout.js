@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Folder, Link2, Receipt } from "lucide-react";
+import { Calendar, Folder, Receipt } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -29,6 +29,8 @@ export default function DashboardLayout({ children }) {
   );
   const isDashboardRoot = isDashboardRootPath(pathname);
 
+  // Connections stays accessible at /dashboard/connections but is not listed
+  // in the dashboard tabs until the OAuth release is ready for broader rollout.
   const tabs = [
     {
       key: "/dashboard/bookings",
@@ -55,17 +57,11 @@ export default function DashboardLayout({ children }) {
       icon: <Receipt size={16} />,
       href: "/dashboard/invoices",
     },
-    {
-      key: "/dashboard/connections",
-      title: "Connections",
-      icon: <Link2 size={16} />,
-      href: "/dashboard/connections",
-    },
   ];
 
   // Find the active tab based on the current path
-  const currentTab =
-    tabs.find((tab) => pathname.startsWith(tab.key))?.key || tabs[0].key;
+  const matchedTab = tabs.find((tab) => pathname.startsWith(tab.key))?.key;
+  const currentTab = matchedTab || (isDashboardRoot ? tabs[0].key : undefined);
 
   useEffect(() => {
     if (isAuthenticated || isDashboardRoot) {
@@ -91,7 +87,7 @@ export default function DashboardLayout({ children }) {
                 </p>
 
                 <Tabs value={currentTab} className="mb-8 w-full">
-                  <TabsList className="grid h-auto w-full grid-cols-4 rounded-xl border border-border bg-secondary p-1 text-sm">
+                  <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl border border-border bg-secondary p-1 text-sm">
                     {tabs.map((item) => (
                       <TabsTrigger
                         key={item.key}

@@ -1,6 +1,6 @@
 # GPT Actions OAuth operations runbook
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 - Scope: `OPS-001` and `OPS-002` production OAuth preparation and topology controls
 
 This runbook covers the repo-controlled part of production preparation. It does not store production secrets in the repository and it does not replace the manual GPT-editor and deployment-secret steps owned by the project operator.
@@ -94,6 +94,11 @@ Important limitation:
 
 - disabling the client blocks new authorization, exchange, and refresh requests immediately
 - already-issued access tokens can remain usable until their 15-minute expiry unless the affected customer connection is explicitly revoked
+
+Customer-facing note:
+
+- the revoke UI currently remains available only at the direct `/dashboard/connections` path for signed-in customers
+- the dashboard does not currently expose a visible `Connections` tab, by design, until the release is approved for broader customer discovery
 
 Use disablement for incident containment, then follow the customer revocation and deployment rollback procedures tracked in `OPS-003` through `OPS-006`.
 
