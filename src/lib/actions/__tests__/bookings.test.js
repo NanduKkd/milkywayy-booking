@@ -15,6 +15,11 @@ import User from '@/lib/db/models/user';
 import { auth } from '@/lib/helpers/auth';
 import { getPricingConfig } from '@/lib/helpers/pricing';
 import { getDiscounts } from '@/lib/actions/discounts';
+import {
+  applyPromotionForCheckoutTransaction,
+  releasePromotionForCheckoutTransaction,
+  reservePromotionForCheckoutTransaction,
+} from '@/lib/services/promotionCheckout';
 import Stripe from 'stripe';
 
 // Mock dependencies that cause side effects or DB connections
@@ -73,6 +78,13 @@ jest.mock('@/lib/actions/discounts', () => ({
   getDiscounts: jest.fn(),
 }));
 
+jest.mock('@/lib/services/promotionCheckout', () => ({
+  PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS: 24 * 60 * 60 * 1000,
+  applyPromotionForCheckoutTransaction: jest.fn(),
+  releasePromotionForCheckoutTransaction: jest.fn(),
+  reservePromotionForCheckoutTransaction: jest.fn(),
+}));
+
 jest.mock('stripe', () => {
   const create = jest.fn();
   const mockStripe = jest.fn(() => ({
@@ -126,6 +138,9 @@ describe('Booking Actions', () => {
     getPricingConfig.mockResolvedValue(mockPricingConfig);
     getDiscounts.mockResolvedValue({ success: true, data: [] });
     User.findByPk.mockResolvedValue({ id: mockUserId, email: 'test@example.com' });
+    applyPromotionForCheckoutTransaction.mockResolvedValue(null);
+    releasePromotionForCheckoutTransaction.mockResolvedValue(null);
+    reservePromotionForCheckoutTransaction.mockResolvedValue(null);
     
     // Mock Booking.findAll to return empty for availability check
     Booking.findAll.mockResolvedValue([]); 
@@ -319,6 +334,105 @@ describe('Booking Actions', () => {
         couponDeduction: 55,
       }));
     });
+
+    it('reserves a selected promotion against the pending checkout transaction', async () => {
+      const mockBookingIds = [1];
+      const mockBookings = [
+        { id: 1, userId: mockUserId, total: 900, date: mockFutureDate, slot: 1, duration: 1 },
+      ];
+
+      Booking.findAll.mockImplementation(({ where }) => {
+        if (where.id) return Promise.resolve(mockBookings);
+        return Promise.resolve([]);
+      });
+      Booking.count.mockResolvedValue(0);
+      Transaction.create.mockResolvedValue({
+        id: 'txn-4',
+        update: jest.fn(),
+      });
+      Booking.update.mockResolvedValue([1]);
+      Stripe.mockCreateSession.mockResolvedValue({
+        id: 'sess-4',
+        url: 'http://stripe.com/checkout-4',
+      });
+
+      const result = await createTransactionAndPaymentIntent(mockBookingIds, '', {
+        eligibleSubtotal: 900,
+        selectedPromotion: {
+          promotionId: 7,
+          benefitAmount: 100,
+          triggerSnapshot: {
+            triggerType: 'NONE',
+            triggerConfig: {},
+          },
+        },
+      });
+
+      expect(result.success).toBe(true);
+      expect(reservePromotionForCheckoutTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionId: 'txn-4',
+          userId: mockUserId,
+          bookingIds: mockBookingIds,
+          eligibleSubtotal: 900,
+          selectedPromotion: {
+            promotionId: 7,
+            benefitAmount: 100,
+            triggerSnapshot: {
+              triggerType: 'NONE',
+              triggerConfig: {},
+            },
+          },
+          reservationExpiresAt: expect.any(Date),
+        }),
+      );
+    });
+
+    it('cleans up the pending checkout when promotion reservation fails', async () => {
+      const mockBookingIds = [1];
+      const mockBookings = [
+        { id: 1, userId: mockUserId, total: 900, date: mockFutureDate, slot: 1, duration: 1 },
+      ];
+
+      Booking.findAll.mockImplementation(({ where }) => {
+        if (where.id) return Promise.resolve(mockBookings);
+        return Promise.resolve([]);
+      });
+      Booking.count.mockResolvedValue(0);
+      Transaction.create.mockResolvedValue({
+        id: 'txn-5',
+        update: jest.fn(),
+      });
+      Booking.update.mockResolvedValue([1]);
+      reservePromotionForCheckoutTransaction.mockRejectedValue(
+        new Error('Promotion total usage limit reached'),
+      );
+
+      const result = await createTransactionAndPaymentIntent(mockBookingIds, '', {
+        eligibleSubtotal: 900,
+        selectedPromotion: {
+          promotionId: 7,
+          benefitAmount: 100,
+        },
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Promotion total usage limit reached');
+      expect(Transaction.update).toHaveBeenCalledWith(
+        { status: 'failed' },
+        { where: { id: 'txn-5', status: 'pending' } },
+      );
+      expect(Booking.update).toHaveBeenCalledWith(
+        { cancelledAt: null, status: 'DRAFT' },
+        {
+          where: {
+            transactionId: 'txn-5',
+            status: 'DRAFT',
+          },
+        },
+      );
+      expect(Stripe.mockCreateSession).not.toHaveBeenCalled();
+    });
   });
 
   describe('cancelBookingBySessionId', () => {
@@ -335,6 +449,10 @@ describe('Booking Actions', () => {
 
       expect(result.success).toBe(true);
       expect(transaction.update).toHaveBeenCalledWith({ status: 'failed' });
+      expect(releasePromotionForCheckoutTransaction).toHaveBeenCalledWith({
+        transactionId: 'txn-3',
+        reason: 'checkout_cancelled',
+      });
       expect(Booking.update).toHaveBeenCalledWith(
         { cancelledAt: null, status: 'DRAFT' },
         {

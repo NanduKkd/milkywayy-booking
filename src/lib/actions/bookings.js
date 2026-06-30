@@ -44,6 +44,12 @@ import {
   finishBookingDeliveryState,
   requestFileRevisionState,
 } from "@/lib/services/fileDelivery";
+import {
+  PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS,
+  applyPromotionForCheckoutTransaction,
+  releasePromotionForCheckoutTransaction,
+  reservePromotionForCheckoutTransaction,
+} from "@/lib/services/promotionCheckout";
 import { USER_ROLES } from "../config/app.config";
 
 let stripe;
@@ -1288,8 +1294,8 @@ export const createBookings = saveDrafts;
 
 const createTransactionAndPaymentIntentHandler = async (
   bookingIds,
-
   couponCode,
+  promotionContext = null,
 ) => {
   console.log("[PAYMENT] createTransactionAndPaymentIntent start", {
     bookingIds,
@@ -1348,6 +1354,9 @@ const createTransactionAndPaymentIntentHandler = async (
   const totalAmount = bookings.reduce(
     (sum, b) => Number(sum) + Number(b.total),
     0,
+  );
+  const reservationExpiresAt = new Date(
+    Date.now() + PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS,
   );
 
   // 1. Apply Automatic Discounts
@@ -1490,43 +1499,89 @@ const createTransactionAndPaymentIntentHandler = async (
     { where: { id: bookingIds } },
   );
 
-  // Create Stripe Checkout Session
-  const user = await User.findByPk(userId);
-  const stripeSession = await stripe.checkout.sessions.create({
-    payment_method_types: ["card"],
-    customer_email: user?.email || undefined,
-    line_items: [
-      {
-        price_data: {
-          currency: "aed",
-          product_data: {
-            name: "Property Shoot Booking",
-            description: `Booking for ${bookings.length} propert${bookings.length > 1 ? "ies" : "y"}`,
+  try {
+    if (promotionContext?.selectedPromotion) {
+      await reservePromotionForCheckoutTransaction({
+        transactionId: transaction.id,
+        userId,
+        bookingIds,
+        eligibleSubtotal:
+          promotionContext.eligibleSubtotal == null
+            ? totalAmount
+            : promotionContext.eligibleSubtotal,
+        selectedPromotion: promotionContext.selectedPromotion,
+        reservationExpiresAt,
+      });
+    }
+
+    const user = await User.findByPk(userId);
+    const stripeSession = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      customer_email: user?.email || undefined,
+      line_items: [
+        {
+          price_data: {
+            currency: "aed",
+            product_data: {
+              name: "Property Shoot Booking",
+              description: `Booking for ${bookings.length} propert${bookings.length > 1 ? "ies" : "y"}`,
+            },
+            unit_amount: Math.round(finalAmount * 100), // Stripe expects cents
           },
-          unit_amount: Math.round(finalAmount * 100), // Stripe expects cents
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      mode: "payment",
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/cancel?session_id={CHECKOUT_SESSION_ID}`,
+      metadata: {
+        transactionId: transaction.id,
+        userId: userId,
       },
-    ],
-    mode: "payment",
-    success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/cancel?session_id={CHECKOUT_SESSION_ID}`,
-    metadata: {
+      expires_at: Math.floor(reservationExpiresAt.getTime() / 1000),
+    });
+
+    // Update Transaction with Session ID (temporarily in stripePaymentIntentId or just rely on webhook)
+    // We will store session ID for now to reference it if needed before webhook fires
+    await transaction.update({ stripePaymentIntentId: stripeSession.id });
+    console.log("[PAYMENT] Stripe checkout session created", {
+      userId,
       transactionId: transaction.id,
-      userId: userId,
-    },
-  });
+      stripeSessionId: stripeSession.id,
+    });
 
-  // Update Transaction with Session ID (temporarily in stripePaymentIntentId or just rely on webhook)
-  // We will store session ID for now to reference it if needed before webhook fires
-  await transaction.update({ stripePaymentIntentId: stripeSession.id });
-  console.log("[PAYMENT] Stripe checkout session created", {
-    userId,
-    transactionId: transaction.id,
-    stripeSessionId: stripeSession.id,
-  });
+    return { url: stripeSession.url };
+  } catch (error) {
+    await Transaction.update(
+      { status: "failed" },
+      { where: { id: transaction.id, status: "pending" } },
+    );
+    await Booking.update(
+      { cancelledAt: null, status: "DRAFT" },
+      {
+        where: {
+          transactionId: transaction.id,
+          status: "DRAFT",
+        },
+      },
+    );
 
-  return { url: stripeSession.url };
+    if (promotionContext?.selectedPromotion) {
+      try {
+        await releasePromotionForCheckoutTransaction({
+          transactionId: transaction.id,
+          reason: "checkout_session_create_failed",
+        });
+      } catch (releaseError) {
+        console.error("Failed to release promotion after Stripe error", {
+          transactionId: transaction.id,
+          error: releaseError?.message || String(releaseError),
+        });
+      }
+    }
+
+    throw error;
+  }
 };
 export const createTransactionAndPaymentIntent = actionWrapper(
   createTransactionAndPaymentIntentHandler,
@@ -1711,6 +1766,9 @@ const verifyStripeSessionHandler = async (sessionId) => {
         paidAt: new Date(),
       });
     }
+    await applyPromotionForCheckoutTransaction({
+      transactionId: transaction.id,
+    });
 
     // Always ensure bookings move out of DRAFT for paid sessions.
     await Booking.update(
@@ -1871,6 +1929,11 @@ const cancelBookingBySessionIdHandler = async (sessionId) => {
     if (transaction.status !== "failed") {
       await transaction.update({ status: "failed" });
     }
+
+    await releasePromotionForCheckoutTransaction({
+      transactionId: transaction.id,
+      reason: "checkout_cancelled",
+    });
 
     await Booking.update(
       { cancelledAt: null, status: "DRAFT" },

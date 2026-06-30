@@ -9,7 +9,7 @@
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
 | M0 - Contract and migration mapping | `DONE` | 3 | 3 | 2-3 days |
-| M1 - Persistence and evaluation engine | `IN_PROGRESS` | 3 | 5 | 5-7 days |
+| M1 - Persistence and evaluation engine | `IN_PROGRESS` | 4 | 5 | 5-7 days |
 | M2 - Admin UI and checkout integration | `NOT_STARTED` | 0 | 5 | 6-9 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-6 days |
 
@@ -28,7 +28,7 @@
 | PRM-101 | Add promotion schema and staged migrations | `DONE` | Engineering | PRM-003 | Existing transaction references remain valid and migration is reversible before cleanup | Added `20260701010000-create-promotions-core-schema.js` plus Sequelize models for promotions, assignments, redemptions, audit events, and transaction compatibility fields without removing legacy coupon or transaction references. Verification on 2026-07-01: `npm test -- src/lib/db/migrations/__tests__/20260701010000-create-promotions-core-schema.test.js` passed. |
 | PRM-102 | Add promotion redemption tracking | `DONE` | Engineering | PRM-101 | Per-user and total usage are durable and concurrency safe | Added `src/lib/services/promotionRedemptions.js` to reserve, apply, release, expire, and count active promotion redemptions with promotion-row locking for limit checks. Verification on 2026-07-01: `npm test -- src/lib/services/__tests__/promotionRedemptions.test.js` passed. |
 | PRM-103 | Implement pure eligibility and ranking engine | `DONE` | Engineering | PRM-001, PRM-101 | Candidate eligibility and best-benefit selection are deterministic and testable | Added `src/lib/services/promotionEngine.js` with pure benefit calculation, eligibility checks, Dubai business-date handling, and precedence selection across automatic, personal, and generic promotions. Verification on 2026-07-01: `npm test -- src/lib/services/__tests__/promotionEngine.test.js --runInBand` passed. |
-| PRM-104 | Integrate transactional reservation/finalization | `NOT_STARTED` | Engineering | PRM-102, PRM-103 | Concurrent checkout cannot exceed limits; failed/expired payments release reservations correctly | Pending |
+| PRM-104 | Integrate transactional reservation/finalization | `DONE` | Engineering | PRM-102, PRM-103 | Concurrent checkout cannot exceed limits; failed/expired payments release reservations correctly | Added `src/lib/services/promotionCheckout.js` to attach reserved promotions and immutable snapshots to pending transactions, apply redemptions on paid checkout finalization, and release/expire reservations on failed or expired sessions. Wired the lifecycle into `bookings.js`, the Stripe webhook, and admin pending-session reconciliation. Verification on 2026-07-01: `npm test -- src/lib/services/__tests__/promotionCheckout.test.js`, `npm test -- src/lib/actions/__tests__/bookings.test.js`, `npm test -- src/app/api/admin/bookings/__tests__/route.test.js`, and `npm test -- src/app/api/webhooks/stripe/__tests__/route.test.js` passed. |
 | PRM-105 | Add authorized promotion CRUD services | `NOT_STARTED` | Engineering | PRM-101, permission service | Generic, personal, and automatic rules validate and audit every mutation | Pending |
 
 ## M2 - Admin UI and checkout integration

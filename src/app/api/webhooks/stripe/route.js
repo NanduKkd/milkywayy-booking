@@ -6,6 +6,7 @@ import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import { ensureTransactionInvoiceUrl } from "@/lib/helpers/invoice";
+import { applyPromotionForCheckoutTransaction } from "@/lib/services/promotionCheckout";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -80,6 +81,9 @@ async function handleCheckoutSessionCompleted(session) {
       paidAt: new Date(),
     });
   }
+  await applyPromotionForCheckoutTransaction({
+    transactionId: transaction.id,
+  });
   console.log("[WEBHOOK] Transaction state", {
     transactionId,
     wasAlreadySuccess,

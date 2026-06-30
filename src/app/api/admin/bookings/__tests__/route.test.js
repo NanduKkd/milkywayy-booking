@@ -24,6 +24,10 @@ jest.mock("@/lib/db/relations", () => ({}));
 jest.mock("@/lib/helpers/auth", () => ({
   auth: jest.fn(),
 }));
+jest.mock("@/lib/services/promotionCheckout", () => ({
+  applyPromotionForCheckoutTransaction: jest.fn(),
+  expirePromotionForCheckoutTransaction: jest.fn(),
+}));
 
 describe("Admin Bookings API Route", () => {
   beforeEach(() => {

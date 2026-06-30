@@ -9,6 +9,10 @@ import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import { auth } from "@/lib/helpers/auth";
 import { DELIVERY_FILE_INCLUDE } from "@/lib/services/fileDelivery";
+import {
+  applyPromotionForCheckoutTransaction,
+  expirePromotionForCheckoutTransaction,
+} from "@/lib/services/promotionCheckout";
 import "@/lib/db/relations";
 
 const getStripeClient = () => {
@@ -37,24 +41,48 @@ const reconcilePendingTransactions = async () => {
         const session = await stripe.checkout.sessions.retrieve(
           transaction.stripePaymentIntentId,
         );
-        if (session?.payment_status !== "paid") return;
+        if (session?.payment_status === "paid") {
+          await transaction.update({
+            status: "success",
+            stripePaymentIntentId:
+              session.payment_intent || transaction.stripePaymentIntentId,
+            paidAt: transaction.paidAt || new Date(),
+          });
+          await applyPromotionForCheckoutTransaction({
+            transactionId: transaction.id,
+          });
 
-        await transaction.update({
-          status: "success",
-          stripePaymentIntentId:
-            session.payment_intent || transaction.stripePaymentIntentId,
-          paidAt: transaction.paidAt || new Date(),
-        });
-
-        await Booking.update(
-          { status: "CONFIRMED" },
-          {
-            where: {
-              transactionId: transaction.id,
-              status: { [Op.in]: ["DRAFT"] },
+          await Booking.update(
+            { status: "CONFIRMED" },
+            {
+              where: {
+                transactionId: transaction.id,
+                status: { [Op.in]: ["DRAFT"] },
+              },
             },
-          },
-        );
+          );
+          return;
+        }
+
+        const sessionExpired =
+          Number(session?.expires_at || 0) > 0 &&
+          Number(session.expires_at) * 1000 <= Date.now();
+
+        if (sessionExpired) {
+          await transaction.update({ status: "failed" });
+          await expirePromotionForCheckoutTransaction({
+            transactionId: transaction.id,
+          });
+          await Booking.update(
+            { cancelledAt: null, status: "DRAFT" },
+            {
+              where: {
+                transactionId: transaction.id,
+                status: { [Op.in]: ["DRAFT", "CANCELLED"] },
+              },
+            },
+          );
+        }
       } catch (error) {
         console.error("Pending transaction reconciliation failed", {
           transactionId: transaction.id,
