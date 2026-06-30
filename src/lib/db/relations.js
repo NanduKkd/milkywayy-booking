@@ -6,6 +6,14 @@ models.Transaction.belongsTo(models.Coupon, {
   foreignKey: "couponId",
   as: "coupon",
 });
+models.Transaction.belongsTo(models.Promotion, {
+  foreignKey: "promotionId",
+  as: "promotion",
+});
+models.Transaction.belongsTo(models.PromotionRedemption, {
+  foreignKey: "promotionRedemptionId",
+  as: "promotionRedemption",
+});
 
 models.WalletTransaction.belongsTo(models.User, {
   foreignKey: "userId",
@@ -16,6 +24,10 @@ models.Booking.belongsTo(models.User, { foreignKey: "userId", as: "user" });
 models.Booking.belongsTo(models.Transaction, {
   foreignKey: "transactionId",
   as: "transaction",
+});
+models.Booking.hasMany(models.PromotionRedemption, {
+  foreignKey: "bookingId",
+  as: "promotionRedemptions",
 });
 models.Booking.hasMany(models.BookingRevision, {
   foreignKey: "bookingId",
@@ -69,6 +81,82 @@ models.BookingFileRevision.belongsTo(models.BookingDeliveryFileVersion, {
 models.BookingRevision.belongsTo(models.Booking, {
   foreignKey: "bookingId",
   as: "booking",
+});
+
+models.Promotion.belongsTo(models.User, {
+  foreignKey: "createdByUserId",
+  as: "createdByUser",
+});
+models.Promotion.belongsTo(models.User, {
+  foreignKey: "updatedByUserId",
+  as: "updatedByUser",
+});
+models.Promotion.hasMany(models.PromotionAssignment, {
+  foreignKey: "promotionId",
+  as: "assignments",
+});
+models.Promotion.hasMany(models.PromotionRedemption, {
+  foreignKey: "promotionId",
+  as: "redemptions",
+});
+models.Promotion.hasMany(models.PromotionAuditEvent, {
+  foreignKey: "promotionId",
+  as: "auditEvents",
+});
+models.Promotion.hasMany(models.Transaction, {
+  foreignKey: "promotionId",
+  as: "transactions",
+});
+
+models.PromotionAssignment.belongsTo(models.Promotion, {
+  foreignKey: "promotionId",
+  as: "promotion",
+});
+models.PromotionAssignment.belongsTo(models.User, {
+  foreignKey: "userId",
+  as: "user",
+});
+models.PromotionAssignment.belongsTo(models.User, {
+  foreignKey: "assignedByUserId",
+  as: "assignedByUser",
+});
+models.PromotionAssignment.belongsTo(models.User, {
+  foreignKey: "unassignedByUserId",
+  as: "unassignedByUser",
+});
+models.PromotionAssignment.hasMany(models.PromotionAuditEvent, {
+  foreignKey: "promotionAssignmentId",
+  as: "auditEvents",
+});
+
+models.PromotionRedemption.belongsTo(models.Promotion, {
+  foreignKey: "promotionId",
+  as: "promotion",
+});
+models.PromotionRedemption.belongsTo(models.User, {
+  foreignKey: "userId",
+  as: "user",
+});
+models.PromotionRedemption.belongsTo(models.Transaction, {
+  foreignKey: "transactionId",
+  as: "transaction",
+});
+models.PromotionRedemption.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
+});
+
+models.PromotionAuditEvent.belongsTo(models.Promotion, {
+  foreignKey: "promotionId",
+  as: "promotion",
+});
+models.PromotionAuditEvent.belongsTo(models.PromotionAssignment, {
+  foreignKey: "promotionAssignmentId",
+  as: "promotionAssignment",
+});
+models.PromotionAuditEvent.belongsTo(models.User, {
+  foreignKey: "actorUserId",
+  as: "actorUser",
 });
 
 models.OAuthAuthorizationCode.belongsTo(models.OAuthClient, {
@@ -134,6 +222,34 @@ models.User.hasMany(models.WalletTransaction, {
   as: "walletTransactions",
 });
 models.User.hasMany(models.Booking, { foreignKey: "userId", as: "bookings" });
+models.User.hasMany(models.Promotion, {
+  foreignKey: "createdByUserId",
+  as: "createdPromotions",
+});
+models.User.hasMany(models.Promotion, {
+  foreignKey: "updatedByUserId",
+  as: "updatedPromotions",
+});
+models.User.hasMany(models.PromotionAssignment, {
+  foreignKey: "userId",
+  as: "promotionAssignments",
+});
+models.User.hasMany(models.PromotionAssignment, {
+  foreignKey: "assignedByUserId",
+  as: "assignedPromotionAssignments",
+});
+models.User.hasMany(models.PromotionAssignment, {
+  foreignKey: "unassignedByUserId",
+  as: "unassignedPromotionAssignments",
+});
+models.User.hasMany(models.PromotionRedemption, {
+  foreignKey: "userId",
+  as: "promotionRedemptions",
+});
+models.User.hasMany(models.PromotionAuditEvent, {
+  foreignKey: "actorUserId",
+  as: "promotionAuditEvents",
+});
 models.User.hasMany(models.OAuthAuthorizationCode, {
   foreignKey: "userId",
   as: "oauthAuthorizationCodes",
@@ -180,6 +296,10 @@ models.OAuthClient.hasMany(models.OAuthAuditEvent, {
 models.Transaction.hasMany(models.Booking, {
   foreignKey: "transactionId",
   as: "bookings",
+});
+models.Transaction.hasMany(models.PromotionRedemption, {
+  foreignKey: "transactionId",
+  as: "promotionRedemptions",
 });
 
 // Coupon has many transactions

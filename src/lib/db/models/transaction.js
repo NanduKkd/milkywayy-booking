@@ -1,7 +1,5 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../db.js";
-import Coupon from "./coupon.js";
-import User from "./user.js";
 
 const Transaction = sequelize.define(
   "Transaction",
@@ -61,6 +59,29 @@ const Transaction = sequelize.define(
       allowNull: false,
       defaultValue: 0,
       field: "bulk_deduction",
+    },
+    promotionId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "promotion_id",
+      references: {
+        model: "promotions",
+        key: "id",
+      },
+    },
+    promotionRedemptionId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "promotion_redemption_id",
+      references: {
+        model: "promotion_redemptions",
+        key: "id",
+      },
+    },
+    promotionSnapshot: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      field: "promotion_snapshot",
     },
     paidAt: {
       type: DataTypes.DATE,

@@ -15,6 +15,10 @@ import OAuthConsent from "./oauthconsent.js";
 import OAuthRateLimit from "./oauthratelimit.js";
 import OAuthRefreshToken from "./oauthrefreshtoken.js";
 import OurWork from "./ourwork.js";
+import Promotion from "./promotion.js";
+import PromotionAssignment from "./promotionassignment.js";
+import PromotionAuditEvent from "./promotionauditevent.js";
+import PromotionRedemption from "./promotionredemption.js";
 import Review from "./review.js";
 import Transaction from "./transaction.js";
 import User from "./user.js";
@@ -32,6 +36,10 @@ const models = {
   Coupon,
   WalletTransaction,
   DynamicConfig,
+  Promotion,
+  PromotionAssignment,
+  PromotionRedemption,
+  PromotionAuditEvent,
   OAuthClient,
   OAuthAuthorizationCode,
   OAuthAccessToken,
@@ -55,6 +63,10 @@ export {
   Coupon,
   WalletTransaction,
   DynamicConfig,
+  Promotion,
+  PromotionAssignment,
+  PromotionRedemption,
+  PromotionAuditEvent,
   OAuthClient,
   OAuthAuthorizationCode,
   OAuthAccessToken,
