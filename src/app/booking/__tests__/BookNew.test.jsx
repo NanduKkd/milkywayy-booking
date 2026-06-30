@@ -17,23 +17,53 @@ jest.mock("../../../lib/actions/bookings", () => ({
     Promise.resolve({ success: true, data: { url: "http://test.com" } }),
   ),
   getDrafts: jest.fn(() => Promise.resolve({ success: true, data: [] })),
-  saveDrafts: jest.fn(() => Promise.resolve({ success: true })),
-}));
+  previewPromotionPricing: jest.fn((amount, code = "") => {
+    const subtotal = Number(amount || 0);
+    const normalizedCode = String(code || "")
+      .trim()
+      .toUpperCase();
+    let selectedPromotion = null;
+    let codeValidation = null;
 
-jest.mock("../../../lib/actions/coupons", () => ({
-  validateCoupon: jest.fn(() =>
-    Promise.resolve({ success: true, data: { valid: true, discount: 50 } }),
-  ),
-  getLaunchPromoStatus: jest.fn((amount) =>
-    Promise.resolve({
+    if (normalizedCode === "SAVE10") {
+      selectedPromotion = {
+        promotionId: 9,
+        code: "SAVE10",
+        name: "SAVE10",
+        kind: "GENERIC",
+        benefitAmount: 50,
+      };
+      codeValidation = {
+        status: "APPLIED",
+        message: "SAVE10 applied successfully",
+      };
+    } else if (subtotal >= 1000) {
+      selectedPromotion = {
+        promotionId: 2,
+        name: "First-Shoot Launch Credit",
+        kind: "AUTOMATIC",
+        benefitAmount: 500,
+      };
+    } else if (subtotal >= 449) {
+      selectedPromotion = {
+        promotionId: 1,
+        name: "First-Shoot Launch Credit",
+        kind: "AUTOMATIC",
+        benefitAmount: 250,
+      };
+    }
+
+    return Promise.resolve({
       success: true,
       data: {
-        active: true,
-        eligible: Number(amount || 0) >= 449,
-        discount: Number(amount || 0) >= 1000 ? 500 : 250,
+        eligibleSubtotal: subtotal,
+        enteredCode: normalizedCode,
+        selectedPromotion,
+        codeValidation,
       },
-    }),
-  ),
+    });
+  }),
+  saveDrafts: jest.fn(() => Promise.resolve({ success: true })),
 }));
 
 jest.mock("sonner", () => ({
@@ -441,17 +471,25 @@ describe("BookNew", () => {
       ).toBeInTheDocument();
     });
 
+    fireEvent.change(screen.getByTestId("type-0"), {
+      target: { value: "Apartment" },
+    });
+    fireEvent.change(screen.getByTestId("size-0"), {
+      target: { value: "2 Bed" },
+    });
+    fireEvent.click(screen.getByTestId("add-service-0"));
+
     fireEvent.change(screen.getByPlaceholderText(/Enter promo code/i), {
       target: { value: "SAVE10" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Apply/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Coupon (SAVE10)")).toBeInTheDocument();
+      expect(screen.getByText("Promo Code (SAVE10)")).toBeInTheDocument();
     });
   });
 
-  it("auto-applies AED 250 launch credit at subtotal 450 without a nudge", async () => {
+  it("auto-applies AED 250 launch credit at subtotal 450", async () => {
     const { useAuth } = require("../../../lib/contexts/auth");
     useAuth.mockReturnValue({
       authState: { isAuthenticated: false },
@@ -463,10 +501,6 @@ describe("BookNew", () => {
         <BookNew
           pricingsPromise={createPricingPromise(450)}
           discountsPromise={mockDiscountsPromise}
-          launchPromoAvailability={{
-            code: "LAUNCH500",
-            uiText: "Up to AED 500 off on your first booking.",
-          }}
         />
       </Suspense>,
     );
@@ -489,18 +523,14 @@ describe("BookNew", () => {
     expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
       "AED 200",
     );
-    expect(
-      screen.queryByText(/unlock AED 500 off instead of AED 250/i),
-    ).not.toBeInTheDocument();
   });
 
-  it("auto-applies AED 250 launch credit at subtotal 700 without a nudge", async () => {
+  it("auto-applies AED 250 launch credit at subtotal 700", async () => {
     render(
       <Suspense fallback={<div>Loading...</div>}>
         <BookNew
           pricingsPromise={createPricingPromise(700)}
           discountsPromise={mockDiscountsPromise}
-          launchPromoAvailability={{ code: "LAUNCH500" }}
         />
       </Suspense>,
     );
@@ -520,18 +550,14 @@ describe("BookNew", () => {
     expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
       "AED 450",
     );
-    expect(
-      screen.queryByText(/unlock AED 500 off instead of AED 250/i),
-    ).not.toBeInTheDocument();
   });
 
-  it("shows the nudge when subtotal is between AED 751 and AED 999", async () => {
+  it("keeps a single selected promotion at subtotal 820", async () => {
     render(
       <Suspense fallback={<div>Loading...</div>}>
         <BookNew
           pricingsPromise={createPricingPromise(820)}
           discountsPromise={mockDiscountsPromise}
-          launchPromoAvailability={{ code: "LAUNCH500" }}
         />
       </Suspense>,
     );
@@ -552,17 +578,16 @@ describe("BookNew", () => {
       "AED 570",
     );
     expect(
-      screen.getByText(/Add just AED 180 more to unlock AED 500 off/),
-    ).toBeInTheDocument();
+      screen.queryByText(/unlock AED 500 off instead of AED 250/i),
+    ).not.toBeInTheDocument();
   });
 
-  it("auto-applies AED 500 launch credit at subtotal 1050 without a nudge", async () => {
+  it("auto-applies AED 500 launch credit at subtotal 1050", async () => {
     render(
       <Suspense fallback={<div>Loading...</div>}>
         <BookNew
           pricingsPromise={createPricingPromise(1050)}
           discountsPromise={mockDiscountsPromise}
-          launchPromoAvailability={{ code: "LAUNCH500" }}
         />
       </Suspense>,
     );
@@ -589,9 +614,6 @@ describe("BookNew", () => {
     expect(screen.getByTestId("mobile-booking-footer")).toHaveTextContent(
       "First-Shoot Launch Credit",
     );
-    expect(
-      screen.queryByText(/unlock AED 500 off instead of AED 250/i),
-    ).not.toBeInTheDocument();
   });
 
   it("blocks payment below the AED 449 minimum order amount", async () => {
@@ -600,7 +622,6 @@ describe("BookNew", () => {
         <BookNew
           pricingsPromise={createPricingPromise(400)}
           discountsPromise={mockDiscountsPromise}
-          launchPromoAvailability={{ code: "LAUNCH500" }}
         />
       </Suspense>,
     );

@@ -10,12 +10,10 @@ import {
   sendRescheduleConfirmation,
 } from "@/lib/actions/notifications";
 import { actionWrapper } from "@/lib/actions/utils";
-import { getLaunchPromoDiscount, LAUNCH_PROMO_CODE } from "@/lib/config/promo";
 import { sequelize as db } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingRevision from "@/lib/db/models/bookingrevision";
-import Coupon from "@/lib/db/models/coupon";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
@@ -35,6 +33,7 @@ import {
   formatBookingReference,
 } from "@/lib/helpers/invoice-format";
 import { getPricingConfig } from "@/lib/helpers/pricing";
+import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
 import {
   completeDeliveredBookingState,
   updateBookingWorkflowState,
@@ -45,11 +44,15 @@ import {
   requestFileRevisionState,
 } from "@/lib/services/fileDelivery";
 import {
-  PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS,
   applyPromotionForCheckoutTransaction,
+  PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS,
   releasePromotionForCheckoutTransaction,
   reservePromotionForCheckoutTransaction,
 } from "@/lib/services/promotionCheckout";
+import {
+  evaluateCheckoutPromotionPricing,
+  isPromotionCodeValidationSuccessful,
+} from "@/lib/services/promotionPricing";
 import { USER_ROLES } from "../config/app.config";
 
 let stripe;
@@ -91,7 +94,6 @@ const START_TIME_TO_PERIOD = {
   "16:00": "evening", // legacy
 };
 
-const PERIOD_ORDER = ["morning", "afternoon", "evening"];
 const RESCHEDULE_CUTOFF_HOURS = 6;
 const PARTIAL_REFUND_CUTOFF_HOURS = 3;
 const PARTIAL_REFUND_PERCENT = 50;
@@ -661,7 +663,7 @@ const isSlotBlocked = (booking) => {
     }
 
     // If no transaction, check 15 min rule
-    const diff = new Date() - new Date(booking.createdAt);
+    const diff = Date.now() - new Date(booking.createdAt);
     const minutes = diff / 1000 / 60;
     return minutes < 15;
   }
@@ -785,7 +787,6 @@ export const getAvailabilityForRange = actionWrapper(
 );
 
 const checkAvailability = async (properties, excludeBookingIds = []) => {
-  const pricingConfig = await getPricingConfig();
   const configEntry = await DynamicConfig.findOne({
     where: { key: "timeSlots" },
     attributes: ["value"],
@@ -1292,6 +1293,22 @@ export const saveDrafts = actionWrapper(saveDraftsHandler);
 
 export const createBookings = saveDrafts;
 
+const previewPromotionPricingHandler = async (
+  eligibleSubtotal,
+  enteredCode,
+) => {
+  const session = await auth();
+
+  return evaluateCheckoutPromotionPricing({
+    userId: session?.id || null,
+    eligibleSubtotal,
+    enteredCode,
+  });
+};
+export const previewPromotionPricing = actionWrapper(
+  previewPromotionPricingHandler,
+);
+
 const createTransactionAndPaymentIntentHandler = async (
   bookingIds,
   couponCode,
@@ -1299,7 +1316,7 @@ const createTransactionAndPaymentIntentHandler = async (
 ) => {
   console.log("[PAYMENT] createTransactionAndPaymentIntent start", {
     bookingIds,
-    hasCoupon: Boolean(couponCode),
+    hasPromotionCode: Boolean(couponCode),
   });
   const session = await auth();
 
@@ -1359,135 +1376,55 @@ const createTransactionAndPaymentIntentHandler = async (
     Date.now() + PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS,
   );
 
-  // 1. Apply Automatic Discounts
-  const discountsRes = await getDiscounts();
-  const discounts = discountsRes.success ? discountsRes.data : [];
-  let currentAmount = totalAmount;
-  let directDiscount = 0;
-  let walletCredits = 0;
-  let walletExpiryDate = null;
-  const appliedDiscounts = [];
-
-  discounts.forEach((d) => {
-    if (!d.isActive) return;
-    if (totalAmount < d.minAmount) return;
-
-    const val = Math.min((currentAmount * d.percentage) / 100, d.maxDiscount);
-
-    if (d.type === "direct") {
-      directDiscount += val;
-      currentAmount -= val;
-    } else if (d.type === "wallet") {
-      walletCredits += val;
-      if (d.expiryDays > 0) {
-        const expiry = new Date();
-        expiry.setDate(expiry.getDate() + d.expiryDays);
-        // If multiple wallet credits, take the earliest expiry? Or latest?
-        // Or just store the logic. For simplicity, let's take the latest expiry if multiple exist, or just the one.
-        // Let's assume one main wallet credit rule usually.
-        if (!walletExpiryDate || expiry > walletExpiryDate) {
-          walletExpiryDate = expiry;
-        }
-      }
-    }
-    appliedDiscounts.push({ ...d, value: val });
-  });
-
-  // 2. Apply automatic first-shoot launch credit
-  let finalAmount = currentAmount;
-  let couponId = null;
-  let couponDeduction = 0;
-  let launchPromoDeduction = 0;
-  let appliedCouponCode = null;
-  const normalizedCouponCode = String(couponCode || "")
+  const normalizedPromotionCode = String(
+    couponCode || promotionContext?.enteredCode || "",
+  )
     .trim()
     .toUpperCase();
-
-  const launchPromoConfig = await Coupon.findOne({
-    where: { code: LAUNCH_PROMO_CODE },
+  const promotionPricing = await evaluateCheckoutPromotionPricing({
+    userId,
+    eligibleSubtotal: totalAmount,
+    enteredCode: normalizedPromotionCode,
   });
-  const isLaunchPromoActive = !launchPromoConfig || launchPromoConfig.isActive;
 
-  if (isLaunchPromoActive) {
-    const successfulLaunchPromoBookings = await Booking.count({
-      where: {
-        userId,
-      },
-      include: [
-        {
-          model: Transaction,
-          as: "transaction",
-          required: true,
-          where: { status: "success" },
-        },
-      ],
-    });
-
-    if (successfulLaunchPromoBookings === 0) {
-      launchPromoDeduction = Math.min(
-        getLaunchPromoDiscount(totalAmount),
-        finalAmount,
-      );
-      finalAmount = Math.max(0, finalAmount - launchPromoDeduction);
-    }
+  if (
+    normalizedPromotionCode &&
+    !isPromotionCodeValidationSuccessful(promotionPricing.codeValidation)
+  ) {
+    throw new Error(
+      promotionPricing.codeValidation?.message || "Invalid promo code",
+    );
   }
 
-  if (normalizedCouponCode) {
-    if (normalizedCouponCode === LAUNCH_PROMO_CODE) {
-      throw new Error(
-        "Launch credit is applied automatically for eligible first shoots",
-      );
-    } else {
-      const coupon = await Coupon.findOne({
-        where: { code: normalizedCouponCode },
-      });
-
-      if (!coupon) {
-        throw new Error("Invalid coupon code");
-      }
-
-      if (!coupon.isActive) {
-        throw new Error("Coupon is inactive or expired");
-      }
-
-      if (finalAmount < Number(coupon.minimumAmount)) {
-        throw new Error(
-          `Minimum spend of AED ${coupon.minimumAmount} required`,
-        );
-      }
-
-      couponDeduction = Math.min(
-        (finalAmount * Number(coupon.percentDiscount)) / 100,
-        Number(coupon.maxDiscount),
-      );
-      finalAmount = Math.max(0, finalAmount - couponDeduction);
-      couponId = coupon.id;
-      appliedCouponCode = coupon.code;
-    }
-  }
+  // Wallet-credit rewards stay separate from promotion selection.
+  const discountsRes = await getDiscounts();
+  const discounts = discountsRes.success ? discountsRes.data : [];
+  const walletPreview = calculateWalletCreditPreview(discounts, totalAmount);
+  const promotionDeduction = Number(
+    promotionPricing.selectedPromotion?.benefitAmount || 0,
+  );
+  const finalAmount = Math.max(0, totalAmount - promotionDeduction);
 
   // Create Transaction
   const transaction = await Transaction.create({
     userId: userId,
     amount: finalAmount, // Store the final amount to be paid
     status: "pending",
-    couponId: couponId,
-    couponDeduction: couponDeduction,
-    bulkDeduction: directDiscount + launchPromoDeduction,
+    couponId: null,
+    couponDeduction: 0,
+    bulkDeduction: 0,
     metadata: {
-      appliedDiscounts,
-      creditExpiresAt: walletExpiryDate,
-      appliedCouponCode,
-      appliedLaunchPromoDeduction: launchPromoDeduction,
+      appliedDiscounts: walletPreview.appliedDiscounts,
+      creditExpiresAt: walletPreview.creditExpiresAt,
       bookingIds,
     },
   });
 
-  if (walletCredits > 0) {
+  if (walletPreview.amount > 0) {
     await WalletTransaction.create({
       userId: userId,
-      amount: walletCredits,
-      creditExpiresAt: walletExpiryDate,
+      amount: walletPreview.amount,
+      creditExpiresAt: walletPreview.creditExpiresAt,
       status: "pending",
       transactionId: transaction.id,
     });
@@ -1500,16 +1437,13 @@ const createTransactionAndPaymentIntentHandler = async (
   );
 
   try {
-    if (promotionContext?.selectedPromotion) {
+    if (promotionPricing.selectedPromotion) {
       await reservePromotionForCheckoutTransaction({
         transactionId: transaction.id,
         userId,
         bookingIds,
-        eligibleSubtotal:
-          promotionContext.eligibleSubtotal == null
-            ? totalAmount
-            : promotionContext.eligibleSubtotal,
-        selectedPromotion: promotionContext.selectedPromotion,
+        eligibleSubtotal: totalAmount,
+        selectedPromotion: promotionPricing.selectedPromotion,
         reservationExpiresAt,
       });
     }
@@ -1566,7 +1500,7 @@ const createTransactionAndPaymentIntentHandler = async (
       },
     );
 
-    if (promotionContext?.selectedPromotion) {
+    if (promotionPricing.selectedPromotion) {
       try {
         await releasePromotionForCheckoutTransaction({
           transactionId: transaction.id,
@@ -1961,7 +1895,7 @@ const cancelBookingBySessionIdHandler = async (sessionId) => {
   if (!transaction) {
     // Fallback: retrieve from Stripe to find transaction ID in metadata
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session && session.metadata?.transactionId) {
+    if (session?.metadata?.transactionId) {
       const tId = session.metadata.transactionId;
       const t = await Transaction.findByPk(tId);
       if (t) {

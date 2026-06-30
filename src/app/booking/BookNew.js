@@ -9,26 +9,22 @@ import {
   createBookings,
   createTransactionAndPaymentIntent,
   getDrafts,
+  previewPromotionPricing,
   saveDrafts,
 } from "@/lib/actions/bookings";
-import { getLaunchPromoStatus, validateCoupon } from "@/lib/actions/coupons";
 import {
   SERVICES,
   PRICING_CONFIG as STATIC_PRICING_CONFIG,
   VIDEOGRAPHY_SUB_SERVICES,
 } from "@/lib/config/pricing";
-import {
-  getLaunchPromoDiscount,
-  getLaunchPromoNudgeAmount,
-  LAUNCH_PROMO_LABEL,
-  MINIMUM_ORDER_AMOUNT,
-} from "@/lib/config/promo";
+import { MINIMUM_ORDER_AMOUNT } from "@/lib/config/promo";
 import { useAuth } from "@/lib/contexts/auth";
 import {
   calculateBookingDuration,
   getBookingArrivalWindowFromDetails,
   getBookingStartTime,
 } from "@/lib/helpers/bookingUtils";
+import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
 import { bookingSchema } from "@/lib/schema/booking.schema";
 // Modular Components
 import { PropertyCard } from "./components/PropertyCard";
@@ -83,25 +79,41 @@ const createEmptyProperty = () => ({
   contactEmail: "",
 });
 
-export default function BookNew({
-  pricingsPromise,
-  discountsPromise,
-  launchPromoAvailability = null,
-}) {
+const EMPTY_PROMOTION_PREVIEW = {
+  selectedPromotion: null,
+  codeValidation: null,
+  enteredCode: "",
+};
+
+const SUCCESSFUL_CODE_VALIDATION_STATUSES = new Set(["APPLIED", "SUPERSEDED"]);
+
+const formatPromotionSummaryLabel = (promotion) => {
+  if (!promotion) return "";
+  if (promotion.code) {
+    return `Promo Code (${promotion.code})`;
+  }
+  return promotion.name || "Promotion";
+};
+
+const formatPromotionBadgeLabel = (promotion) =>
+  promotion?.name || promotion?.code || "Promotion";
+
+export default function BookNew({ pricingsPromise, discountsPromise }) {
   const pricingsRes = use(pricingsPromise);
-  use(discountsPromise);
+  const discountsRes = use(discountsPromise);
 
   const pricings = pricingsRes?.success ? pricingsRes.data : null;
+  const discounts = discountsRes?.success ? discountsRes.data : [];
 
   const PRICING_CONFIG = pricings || STATIC_PRICING_CONFIG;
   const [openPropertyIndex, setOpenPropertyIndex] = useState(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
-  const [isLaunchPromoEligible, setIsLaunchPromoEligible] = useState(false);
   const [couponInputValue, setCouponInputValue] = useState("");
-  const [selectedCouponCode, setSelectedCouponCode] = useState("");
-  const [selectedCouponDiscount, setSelectedCouponDiscount] = useState(0);
-  const [couponMessage, setCouponMessage] = useState("");
-  const [couponError, setCouponError] = useState("");
+  const [appliedPromotionCode, setAppliedPromotionCode] = useState("");
+  const [promotionPreview, setPromotionPreview] = useState(
+    EMPTY_PROMOTION_PREVIEW,
+  );
+  const [promotionPreviewError, setPromotionPreviewError] = useState("");
   const { authState, login } = useAuth();
 
   const {
@@ -564,6 +576,22 @@ export default function BookNew({
 
     setIsProcessingPayment(true);
     try {
+      if (
+        appliedPromotionCode &&
+        !SUCCESSFUL_CODE_VALIDATION_STATUSES.has(
+          promotionPreview.codeValidation?.status,
+        )
+      ) {
+        throw new Error(
+          promotionPreview.codeValidation?.message ||
+            "Unable to apply promo code",
+        );
+      }
+
+      if (promotionPreviewError) {
+        throw new Error(promotionPreviewError);
+      }
+
       // Create bookings first
       const res = await createBookings(data.properties);
 
@@ -574,7 +602,7 @@ export default function BookNew({
 
       const paymentRes = await createTransactionAndPaymentIntent(
         newBookingIds,
-        selectedCouponCode,
+        appliedPromotionCode,
       );
       if (!paymentRes.success) throw new Error(paymentRes.message);
 
@@ -599,118 +627,90 @@ export default function BookNew({
   };
 
   const totalAmount = calculateTotal();
+  const selectedPromotion = promotionPreview.selectedPromotion;
+  const selectedPromotionDiscount = Number(
+    selectedPromotion?.benefitAmount || 0,
+  );
+  const walletCreditPreview = calculateWalletCreditPreview(
+    discounts,
+    totalAmount,
+  );
   const minimumOrderError =
     totalAmount > 0 && totalAmount < MINIMUM_ORDER_AMOUNT
       ? `Minimum order value is AED ${MINIMUM_ORDER_AMOUNT}`
       : "";
-  const baseLaunchPromoDiscount = getLaunchPromoDiscount(totalAmount);
-  const launchPromoDiscount =
-    launchPromoAvailability && isLaunchPromoEligible
-      ? Math.min(baseLaunchPromoDiscount, totalAmount)
-      : 0;
-  const launchPromoNudgeAmount =
-    launchPromoDiscount > 0 ? getLaunchPromoNudgeAmount(totalAmount) : 0;
-  const activeCouponDiscount = selectedCouponCode ? selectedCouponDiscount : 0;
-  const payableAmount = Math.max(
-    0,
-    totalAmount - activeCouponDiscount - launchPromoDiscount,
-  );
+  const payableAmount = Math.max(0, totalAmount - selectedPromotionDiscount);
   const appliedDiscount = totalAmount - payableAmount;
-  const appliedOfferName = [
-    launchPromoDiscount > 0 ? LAUNCH_PROMO_LABEL : "",
-    activeCouponDiscount > 0 ? selectedCouponCode : "",
-  ]
-    .filter(Boolean)
-    .join(" + ");
+  const appliedOfferName = selectedPromotion
+    ? formatPromotionBadgeLabel(selectedPromotion)
+    : "";
+  const codeValidation = promotionPreview.codeValidation;
+  const previewAuthState = authState?.isAuthenticated
+    ? "authenticated"
+    : "guest";
+  const couponMessage =
+    promotionPreviewError ||
+    !SUCCESSFUL_CODE_VALIDATION_STATUSES.has(codeValidation?.status)
+      ? ""
+      : codeValidation.message;
+  const couponError = promotionPreviewError
+    ? promotionPreviewError
+    : SUCCESSFUL_CODE_VALIDATION_STATUSES.has(codeValidation?.status)
+      ? ""
+      : codeValidation?.message || "";
 
-  const applyCouponSelection = async (couponCode) => {
-    setCouponError("");
-    setCouponMessage("");
-
-    const normalizedCode = String(couponCode || "")
+  const applyPromotionSelection = (promotionCode) => {
+    const normalizedCode = String(promotionCode || "")
       .trim()
       .toUpperCase();
 
     if (!normalizedCode) {
-      setSelectedCouponCode("");
-      setSelectedCouponDiscount(0);
+      setAppliedPromotionCode("");
+      setPromotionPreviewError("");
       return;
     }
 
-    const res = await validateCoupon(normalizedCode, totalAmount);
-    const couponResult = res?.success ? res.data : null;
-
-    if (!couponResult?.valid) {
-      setSelectedCouponCode("");
-      setSelectedCouponDiscount(0);
-      setCouponError(couponResult?.message || "Unable to apply coupon");
-      return;
-    }
-
-    setSelectedCouponCode(normalizedCode);
     setCouponInputValue(normalizedCode);
-    setSelectedCouponDiscount(Number(couponResult.discount || 0));
-    setCouponMessage(
-      couponResult.coupon?.uiText || `${normalizedCode} applied successfully`,
-    );
+    setAppliedPromotionCode(normalizedCode);
   };
 
   useEffect(() => {
-    if (!selectedCouponCode) return;
-
     let isCancelled = false;
 
-    const revalidateSelectedCoupon = async () => {
-      const res = await validateCoupon(selectedCouponCode, totalAmount);
-      const couponResult = res?.success ? res.data : null;
-
-      if (isCancelled) return;
-
-      if (!couponResult?.valid) {
-        setSelectedCouponCode("");
-        setSelectedCouponDiscount(0);
-        setCouponError(couponResult?.message || "Unable to apply coupon");
+    const loadPromotionPreview = async () => {
+      if (totalAmount <= 0) {
+        setPromotionPreview(EMPTY_PROMOTION_PREVIEW);
+        setPromotionPreviewError(
+          previewAuthState === "authenticated" ? "" : "",
+        );
         return;
       }
 
-      setCouponError("");
-      setSelectedCouponDiscount(Number(couponResult.discount || 0));
-      setCouponMessage(
-        couponResult.coupon?.uiText ||
-          `${selectedCouponCode} applied successfully`,
+      const res = await previewPromotionPricing(
+        totalAmount,
+        appliedPromotionCode,
       );
-    };
 
-    revalidateSelectedCoupon();
+      if (isCancelled) return;
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedCouponCode, totalAmount]);
-
-  useEffect(() => {
-    if (!launchPromoAvailability) {
-      setIsLaunchPromoEligible(false);
-      return;
-    }
-
-    let isCancelled = false;
-
-    const validateLaunchPromo = async () => {
-      const res = await getLaunchPromoStatus(totalAmount);
-      const launchPromoResult = res?.success ? res.data : null;
-
-      if (!isCancelled) {
-        setIsLaunchPromoEligible(Boolean(launchPromoResult?.eligible));
+      if (!res?.success) {
+        setPromotionPreview(EMPTY_PROMOTION_PREVIEW);
+        setPromotionPreviewError(
+          res?.message || "Unable to load promotion pricing",
+        );
+        return;
       }
+
+      setPromotionPreview(res.data || EMPTY_PROMOTION_PREVIEW);
+      setPromotionPreviewError("");
     };
 
-    validateLaunchPromo();
+    loadPromotionPreview();
 
     return () => {
       isCancelled = true;
     };
-  }, [launchPromoAvailability, totalAmount]);
+  }, [totalAmount, appliedPromotionCode, previewAuthState]);
 
   const summaryItems = properties
     .map((property, index) => ({
@@ -848,32 +848,28 @@ export default function BookNew({
                     </p>
                   </div>
 
-                  {launchPromoDiscount > 0 && (
+                  {selectedPromotionDiscount > 0 && (
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-muted-foreground text-sm">
-                        {LAUNCH_PROMO_LABEL}
+                        {formatPromotionSummaryLabel(selectedPromotion)}
                       </p>
                       <p className="text-sm md:text-sm font-semibold text-emerald-300">
-                        - AED {launchPromoDiscount.toLocaleString()}
+                        - AED {selectedPromotionDiscount.toLocaleString()}
                       </p>
                     </div>
                   )}
 
-                  {launchPromoNudgeAmount > 0 && (
-                    <p className="text-2xs leading-4 text-emerald-300">
-                      Add just AED {launchPromoNudgeAmount.toLocaleString()}{" "}
-                      more to unlock AED 500 off{" "}
-                      <span className="inline-block">instead of AED 250!</span>
-                    </p>
-                  )}
-
-                  {selectedCouponCode && selectedCouponDiscount > 0 && (
-                    <div className="flex items-center -mx-3 justify-between gap-3 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2 text-sm">
-                      <p className="text-muted-foreground">
-                        Coupon ({selectedCouponCode})
-                      </p>
-                      <p className="font-semibold text-emerald-300">
-                        - AED {selectedCouponDiscount.toLocaleString()}
+                  {walletCreditPreview.amount > 0 && (
+                    <div className="rounded-lg border border-sky-400/15 bg-sky-400/5 px-3 py-2 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sky-100">Wallet credit earned</p>
+                        <p className="font-semibold text-sky-300">
+                          AED {walletCreditPreview.amount.toLocaleString()}
+                        </p>
+                      </div>
+                      <p className="mt-1 text-2xs leading-4 text-sky-200/80">
+                        Activates after project completion and does not reduce
+                        today&apos;s payment total.
                       </p>
                     </div>
                   )}
@@ -903,18 +899,16 @@ export default function BookNew({
                       placeholder="Enter promo code"
                       className="h-9 flex-1 rounded-lg border border-white/8 bg-white/[0.02] px-3 text-xs text-foreground placeholder:text-muted-foreground outline-none"
                     />
-                    {selectedCouponCode
+                    {appliedPromotionCode
                       ? <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           className="h-9 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-white/5"
                           onClick={() => {
-                            setSelectedCouponCode("");
-                            setSelectedCouponDiscount(0);
+                            setAppliedPromotionCode("");
                             setCouponInputValue("");
-                            setCouponMessage("");
-                            setCouponError("");
+                            setPromotionPreviewError("");
                           }}
                         >
                           Remove
@@ -923,7 +917,9 @@ export default function BookNew({
                           type="button"
                           size="sm"
                           className="h-9 px-3 text-xs"
-                          onClick={() => applyCouponSelection(couponInputValue)}
+                          onClick={() =>
+                            applyPromotionSelection(couponInputValue)
+                          }
                         >
                           Apply
                         </Button>}
