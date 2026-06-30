@@ -1,6 +1,6 @@
 # Promotions management decisions
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 
 ## Accepted decisions
 
@@ -15,6 +15,9 @@
 | PRM-D007 | Usage limits use durable redemption reservations. | Counting completed rows without reservation is unsafe under concurrent checkout. |
 | PRM-D008 | Used or system promotions are deactivated, not physically deleted. | Historical transaction and invoice explanations must remain reproducible. |
 | PRM-D009 | Dubai business dates control date-range rules. | Promotion eligibility must match the operating market's day boundaries. |
+| PRM-D010 | Promotions, assignments, redemptions, and audit events are modeled as separate first-class tables. | Usage enforcement, customer targeting, mutation history, and staged migration become brittle if stored in one JSON blob or overloaded legacy rows. |
+| PRM-D011 | Transactions store an immutable `promotion_snapshot` in addition to foreign keys. | Invoices, support review, and rollback comparisons must remain reproducible even if a promotion is later edited or deactivated. |
+| PRM-D012 | Promotion mutation history is append-only with before/after state capture. | Admin pricing changes require operator accountability without rewriting historical audit evidence. |
 
 ## Deferred scope
 

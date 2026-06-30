@@ -2,13 +2,13 @@
 
 - Last updated: 2026-07-01
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M0 - Promotion contract and migration mapping`
+- Current milestone: `M1 - Persistence and evaluation engine`
 
 ## Progress summary
 
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
-| M0 - Contract and migration mapping | `IN_PROGRESS` | 2 | 3 | 2-3 days |
+| M0 - Contract and migration mapping | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Persistence and evaluation engine | `NOT_STARTED` | 0 | 5 | 5-7 days |
 | M2 - Admin UI and checkout integration | `NOT_STARTED` | 0 | 5 | 6-9 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-6 days |
@@ -19,7 +19,7 @@
 |---|---|---|---|---|---|---|
 | PRM-001 | Approve precedence and no-stacking rules | `DONE` | Product / Engineering | None | Personal, automatic, generic, and wallet interactions match DECISIONS.md | `DECISIONS.md` accepted `PRM-D001` to `PRM-D004`, `PRM-D006`, and `PRM-D009`; `LEGACY-INVENTORY.md` records the intentional legacy stacking behavior that will be replaced at cutover. |
 | PRM-002 | Inventory existing coupon, launch-credit, discount, and wallet behavior | `DONE` | Engineering | PRM-001 | Every persisted/configured behavior has a keep, migrate, or explicitly deferred disposition | Added `LEGACY-INVENTORY.md` with code-backed dispositions for generic coupons, launch credit, direct discounts, wallet-credit rules, transaction snapshots, invoice output, and admin routes. Focused verification on 2026-07-01: `bookings.test.js`, `invoice.test.js`, and `bookingWorkflow.test.js` passed; `coupons.test.js` failed on the known `LAUNCH500` manual-redemption mismatch tracked by `PRM-304`. |
-| PRM-003 | Approve promotion and redemption data model | `NOT_STARTED` | Engineering | PRM-002 | Generic, personal, automatic, fixed, percentage, usage, assignment, and audit requirements are represented | Pending |
+| PRM-003 | Approve promotion and redemption data model | `DONE` | Engineering | PRM-002 | Generic, personal, automatic, fixed, percentage, usage, assignment, and audit requirements are represented | Updated `ARCHITECTURE.md` with the approved `promotions`, `promotion_assignments`, `promotion_redemptions`, `promotion_audit_events`, and transaction snapshot contract. Accepted `PRM-D010` to `PRM-D012` in `DECISIONS.md` to lock first-class tables, immutable transaction snapshots, and append-only audit history for the upcoming schema work. |
 
 ## M1 - Persistence and evaluation engine
 
