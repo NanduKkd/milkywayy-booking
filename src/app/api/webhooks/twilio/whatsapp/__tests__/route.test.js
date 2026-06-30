@@ -131,6 +131,38 @@ describe("Twilio WhatsApp inbound webhook route", () => {
     );
   });
 
+  it("returns the approved TwiML reply for a valid inbound WhatsApp message", async () => {
+    const url = "https://example.com/api/webhooks/twilio/whatsapp";
+    const params = {
+      Body: "Hello there",
+      From: "whatsapp:+15551234567",
+      MessageSid: "SM123",
+      To: "whatsapp:+971507263306",
+    };
+    const body = new URLSearchParams(params).toString();
+    const signature = signTwilioRequest({
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      params,
+      url,
+    });
+
+    const response = await POST(
+      createRequest({
+        body,
+        signature,
+        url,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(
+      "application/xml; charset=utf-8",
+    );
+    await expect(response.text()).resolves.toBe(
+      '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Thanks for your message. Messages sent to this WhatsApp number are not monitored by our team. If you have any questions, please call +971 50 726 3306 or use the contact section on our website.</Message></Response>',
+    );
+  });
+
   it("rejects malformed content types before signature validation", async () => {
     const response = await POST(
       createRequest({

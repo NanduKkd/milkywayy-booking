@@ -1,6 +1,8 @@
 import { logSecurityError } from "@/lib/logging/security";
+import { buildWhatsAppInboundAutoReplyTwiml } from "@/lib/notifications/whatsappInboundAutoReply";
 import {
   getTwilioWebhookValidationUrl,
+  isInboundWhatsAppMessage,
   isTwilioWebhookSignatureValid,
   parseTwilioWebhookBody,
   TWILIO_SIGNATURE_HEADER,
@@ -78,6 +80,10 @@ export async function POST(request) {
     ) {
       console.warn("[WHATSAPP_WEBHOOK] Rejected invalid Twilio signature");
       return buildTextResponse("Signature validation failed.", 403);
+    }
+
+    if (isInboundWhatsAppMessage(params)) {
+      return buildXmlResponse(buildWhatsAppInboundAutoReplyTwiml());
     }
 
     return buildXmlResponse(EMPTY_TWIML_RESPONSE);

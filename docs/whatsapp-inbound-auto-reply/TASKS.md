@@ -2,7 +2,7 @@
 
 - Last updated: 2026-07-01
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M2 - Signed webhook and auto-reply`
+- Current milestone: `M3 - Verification and rollout`
 
 This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
 
@@ -12,7 +12,7 @@ This is the authoritative progress tracker. Status values and update rules are d
 |---|---|---:|---:|---:|
 | M0 - Scope and decisions | `DONE` | 3 | 3 | 1-2 h |
 | M1 - Shared contact configuration | `DONE` | 1 | 1 | 1 h |
-| M2 - Signed webhook and auto-reply | `IN_PROGRESS` | 1 | 2 | 2-3 h |
+| M2 - Signed webhook and auto-reply | `DONE` | 2 | 2 | 2-3 h |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 3 | 1-2 h |
 
 ## M0 - Scope and decisions
@@ -110,11 +110,15 @@ Acceptance criteria:
 
 ### WEBHOOK-002 - Return the inbound WhatsApp auto-reply
 
-- Status: `NOT_STARTED`
+- Status: `DONE`
 - Owner: `Codex`
 - Estimate: 1 h
 - Depends on: CONFIG-001, WEBHOOK-001
-- Evidence: Pending.
+- Evidence:
+  - Valid inbound WhatsApp callbacks now return the approved TwiML message from `src/app/api/webhooks/twilio/whatsapp/route.js`.
+  - XML-safe TwiML generation now lives in `src/lib/notifications/whatsappInboundAutoReply.js`.
+  - Verified inbound reply behavior and XML escaping with `npm test -- --runInBand src/lib/notifications/__tests__/whatsappInboundAutoReply.test.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
+  - Verified formatting and lint expectations with `npx biome check src/lib/notifications/whatsappInboundAutoReply.js src/lib/notifications/__tests__/whatsappInboundAutoReply.test.js src/app/api/webhooks/twilio/whatsapp/route.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
 
 Acceptance criteria:
 
