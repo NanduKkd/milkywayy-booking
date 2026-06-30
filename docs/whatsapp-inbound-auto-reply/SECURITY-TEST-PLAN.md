@@ -1,7 +1,7 @@
 # WhatsApp inbound auto-reply security and test plan
 
-- Last updated: 2026-06-30
-- Verification status: `NOT_STARTED`
+- Last updated: 2026-07-01
+- Verification status: `BLOCKED`
 
 ## Security objectives
 
@@ -70,9 +70,14 @@
 - Manual Twilio validation is recorded under `VERIFY-001`.
 - Rollback access and procedure are confirmed.
 
+Automated gate status as of 2026-07-01:
+
+- The focused Jest command for the shared contact configuration and inbound webhook feature passed.
+- The focused Biome check for the touched landing-page, contact-route, and webhook files passed.
+- Remaining release gates are blocked only on live Twilio configuration access and manual end-to-end verification.
+
 ## Residual risks
 
 - Twilio may retry a webhook after a timeout, which can produce a duplicate response. The endpoint should respond quickly, but durable retry deduplication is outside the first-release scope.
 - Replying to every inbound message can create repetitive responses for customers who send several short messages. Sender-level throttling is deferred.
 - Twilio and infrastructure providers process webhook metadata even though the application does not persist inbound content.
-

@@ -152,6 +152,7 @@ Acceptance criteria:
 - Estimate: 30 min
 - Depends on: TEST-001
 - Evidence:
+  - Re-ran the focused feature checks on 2026-07-01 with `npm test -- --runInBand src/lib/config/__tests__/publicContact.test.js src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/lib/notifications/__tests__/whatsappInboundAutoReply.test.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js` and `npx biome check src/lib/config/publicContact.js src/lib/config/__tests__/publicContact.test.js src/lib/notifications/whatsappInboundWebhook.js src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/lib/notifications/whatsappInboundAutoReply.js src/lib/notifications/__tests__/whatsappInboundAutoReply.test.js src/app/api/webhooks/twilio/whatsapp/route.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js src/components/landing/ContactSection.js src/components/landing/FinalCTASection.js src/app/portfolio/page.js src/app/api/contact/route.js`.
   - Added shared environment documentation for `TWILIO_WHATSAPP_WEBHOOK_URL` in `docs/DEVELOPMENT.md` so the required production callback variable is tracked outside the feature folder without committing the live value.
   - Added stricter configured callback URL validation in `src/lib/notifications/whatsappInboundWebhook.js` so production fails closed unless `TWILIO_WHATSAPP_WEBHOOK_URL` is a valid HTTPS URL without embedded credentials or fragments.
   - Verified configured callback URL validation behavior with `npm test -- --runInBand src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
@@ -171,6 +172,7 @@ Acceptance criteria:
 - Estimate: 30 min
 - Depends on: OPS-001
 - Evidence:
+  - Confirmed on 2026-07-01 that no further repository-only implementation tasks remain for this feature; the remaining work is live Twilio configuration and manual end-to-end validation.
   - Blocked pending OPS-001 completion because real inbound-message verification requires the live Twilio webhook to be attached and a production-reachable callback URL to be configured.
 
 Acceptance criteria:
