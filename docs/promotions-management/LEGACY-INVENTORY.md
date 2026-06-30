@@ -1,0 +1,39 @@
+# Promotions legacy inventory and migration mapping
+
+- Last updated: 2026-07-01
+
+## Purpose
+
+This document records the current coupon, launch-credit, discount, wallet, and
+invoice behavior that promotions management must preserve, replace, or defer at
+cutover.
+
+## Legacy inventory
+
+| Legacy surface | Current source | Observed behavior | Persistence / config | Promotions disposition |
+|---|---|---|---|---|
+| Generic coupons | `src/lib/db/models/coupon.js`, `src/lib/actions/coupons.js` | Admin-managed code rows store `code`, `perUser`, `minimumAmount`, `percentDiscount`, `maxDiscount`, optional `uiText`, and activation windows. Checkout validates one entered code, applies a percentage discount capped by `maxDiscount`, and stores `couponId` plus `couponDeduction` on the transaction. | `coupons` table plus `transactions.coupon_id` and `transactions.coupon_deduction` | `MIGRATE` to `GENERIC` promotions. Preserve activation semantics, minimum spend, capped percentage benefit, admin messaging, and transaction/invoice explainability. |
+| System launch credit (`LAUNCH500`) | `src/lib/config/promo.js`, `src/lib/actions/coupons.js`, `src/lib/actions/bookings.js`, `src/app/booking/BookNew.js` | System-managed first-booking benefit auto-applies when active. It awards AED 250 for subtotals from AED 449 to AED 999.99 and AED 500 from AED 1000 upward. A persisted coupon row can only override UI text or deactivate it; customers cannot manually redeem the code. Eligibility uses successful paid booking count. The public booking UI nudges customers from AED 751 to AED 999 toward the AED 1000 tier. | Hard-coded promo constants with optional `coupons` row override and transaction metadata `appliedLaunchPromoDeduction` | `MIGRATE` to a system `AUTOMATIC` promotion with trigger config for first paid booking. Preserve tiers, auto-apply behavior, optional admin disable, and public messaging. Do not preserve manual code entry because the live action already rejects it. |
+| Automatic direct discounts | `src/lib/actions/discounts.js`, `src/app/admin/discounts/DiscountManager.jsx`, `src/lib/actions/bookings.js` | Admin-configured discounts are stored as an ordered JSON array. Active `direct` rules apply when `totalAmount >= minAmount`. Each rule computes `min(currentAmount * percentage / 100, maxDiscount)` and reduces `currentAmount` before the next rule, so overlapping rules stack sequentially rather than compare on the same subtotal. | `dynamic_configs.value` for key `discounts` | `MIGRATE_WITH_RULE_CHANGE` to `AUTOMATIC` promotions. Preserve rule metadata, active state, and threshold/cap semantics, but replace sequential stacking with the accepted single-best-promotion selector from `PRM-D001` to `PRM-D003`. |
+| Automatic wallet-credit rules | `src/lib/actions/discounts.js`, `src/app/admin/discounts/DiscountManager.jsx`, `src/lib/actions/bookings.js`, `src/lib/services/bookingWorkflow.js` | Admin-configured `wallet` rules use the same ordered JSON array. Matching rules accumulate wallet credits but do not reduce checkout totals. Checkout creates `wallet_transactions` rows in `pending` state, with the latest derived expiry date winning when multiple wallet rules contribute. Credits activate only after all bookings on the transaction reach `PROJECT_COMPLETED`. | `dynamic_configs.value` for key `discounts` plus `wallet_transactions` rows tied to `transaction_id` | `KEEP_SEPARATE` from promotion selection per `PRM-D004`. Preserve rule thresholds, expiries, and post-completion activation. Do not model wallet credit as a selected promotion or checkout deduction. |
+| Transaction discount snapshot | `src/lib/db/models/transaction.js`, `src/lib/actions/bookings.js` | Transactions persist final payable `amount`, `couponId`, `couponDeduction`, `bulkDeduction`, and metadata containing `appliedDiscounts`, `appliedCouponCode`, `appliedLaunchPromoDeduction`, and `bookingIds`. `walletDeduction` exists on the model but is not written anywhere in the live booking flow. | `transactions` table | `MIGRATE` by adding promotion reference and calculation snapshot while keeping legacy columns readable during compatibility rollout. Treat `walletDeduction` as legacy-unused and do not repurpose it without an explicit migration step. |
+| Invoice discount rendering | `src/lib/helpers/invoice.js` | Invoices render one bulk discount row and one coupon row. When `bulkDeduction` equals `appliedLaunchPromoDeduction`, the invoice labels the bulk row as `First-Shoot Launch Credit`; otherwise it uses the generic `Discount` label. Coupon rows use `metadata.appliedCouponCode` or the associated coupon code. Existing tests explicitly cover stacked launch-credit-plus-coupon output. | Derived from persisted transaction fields and metadata | `MIGRATE` by preserving customer-visible explanation rows, but update the renderer and fixtures once no-stacking cutover removes launch-credit-plus-coupon combinations. |
+| Legacy admin navigation | `src/components/admin/AdminSidebarNav.js`, `src/app/admin/coupons/page.jsx`, `src/app/admin/discounts/page.jsx` | Coupons and Discounts are separate admin routes today. Coupons support create, activation toggle, and hard delete. Discounts support ordered create/edit/toggle/delete for `direct` and `wallet` rules. | Route structure and server actions | `MIGRATE` to one Promotions page with parity for create/edit/activate/deactivate. Hard delete of used/system promotions is intentionally replaced by deactivation per `PRM-D008`. |
+
+## Explicit cutover differences
+
+- Legacy stacking is real today and is covered by tests:
+  - launch credit can stack with a generic coupon
+  - multiple direct discounts can compound in saved order
+- Promotions cutover intentionally removes that behavior in favor of one best
+  promotion plus separate wallet credit, as accepted in `DECISIONS.md`.
+- `src/lib/actions/__tests__/coupons.test.js` still expects `LAUNCH500` to be
+  manually valid, but the live action rejects manual entry and auto-applies the
+  launch credit instead. Keep that mismatch tracked under `PRM-304`.
+
+## Verification notes
+
+- Code review of the sources listed above completed on 2026-07-01.
+- Focused repository checks on 2026-07-01:
+  - `npx jest src/lib/actions/__tests__/bookings.test.js src/lib/helpers/__tests__/invoice.test.js src/lib/services/__tests__/bookingWorkflow.test.js src/lib/actions/__tests__/coupons.test.js --runInBand`
+  - Result: `bookings.test.js`, `invoice.test.js`, and `bookingWorkflow.test.js` passed; `coupons.test.js` failed because it still expects `LAUNCH500` to be manually redeemable.

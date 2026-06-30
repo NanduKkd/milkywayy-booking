@@ -1,14 +1,14 @@
 # Promotions management task tracker
 
-- Last updated: 2026-06-30
-- Overall implementation status: `NOT_STARTED`
+- Last updated: 2026-07-01
+- Overall implementation status: `IN_PROGRESS`
 - Current milestone: `M0 - Promotion contract and migration mapping`
 
 ## Progress summary
 
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
-| M0 - Contract and migration mapping | `IN_PROGRESS` | 0 | 3 | 2-3 days |
+| M0 - Contract and migration mapping | `IN_PROGRESS` | 2 | 3 | 2-3 days |
 | M1 - Persistence and evaluation engine | `NOT_STARTED` | 0 | 5 | 5-7 days |
 | M2 - Admin UI and checkout integration | `NOT_STARTED` | 0 | 5 | 6-9 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-6 days |
@@ -17,8 +17,8 @@
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| PRM-001 | Approve precedence and no-stacking rules | `IN_REVIEW` | Product / Engineering | None | Personal, automatic, generic, and wallet interactions match DECISIONS.md | Pending |
-| PRM-002 | Inventory existing coupon, launch-credit, discount, and wallet behavior | `NOT_STARTED` | Engineering | PRM-001 | Every persisted/configured behavior has a keep, migrate, or explicitly deferred disposition | Pending |
+| PRM-001 | Approve precedence and no-stacking rules | `DONE` | Product / Engineering | None | Personal, automatic, generic, and wallet interactions match DECISIONS.md | `DECISIONS.md` accepted `PRM-D001` to `PRM-D004`, `PRM-D006`, and `PRM-D009`; `LEGACY-INVENTORY.md` records the intentional legacy stacking behavior that will be replaced at cutover. |
+| PRM-002 | Inventory existing coupon, launch-credit, discount, and wallet behavior | `DONE` | Engineering | PRM-001 | Every persisted/configured behavior has a keep, migrate, or explicitly deferred disposition | Added `LEGACY-INVENTORY.md` with code-backed dispositions for generic coupons, launch credit, direct discounts, wallet-credit rules, transaction snapshots, invoice output, and admin routes. Focused verification on 2026-07-01: `bookings.test.js`, `invoice.test.js`, and `bookingWorkflow.test.js` passed; `coupons.test.js` failed on the known `LAUNCH500` manual-redemption mismatch tracked by `PRM-304`. |
 | PRM-003 | Approve promotion and redemption data model | `NOT_STARTED` | Engineering | PRM-002 | Generic, personal, automatic, fixed, percentage, usage, assignment, and audit requirements are represented | Pending |
 
 ## M1 - Persistence and evaluation engine

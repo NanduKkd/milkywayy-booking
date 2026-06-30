@@ -1,8 +1,8 @@
 # Promotions management delivery plan
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 - Planning status: `IN_PROGRESS`
-- Implementation status: `NOT_STARTED`
+- Implementation status: `IN_PROGRESS`
 - Target: consolidate generic coupons, personal customer promotions, and automatic rules without losing current discount or wallet behavior.
 
 ## Purpose
@@ -13,6 +13,7 @@ promotion-management surface and one deterministic eligibility engine.
 ## Document index
 
 - [TASKS.md](./TASKS.md): authoritative tracker.
+- [LEGACY-INVENTORY.md](./LEGACY-INVENTORY.md): current coupon, launch-credit, discount, wallet, and invoice behavior to preserve or intentionally replace.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): promotion model, evaluation, redemption, and migration.
 - [DECISIONS.md](./DECISIONS.md): precedence, stacking, and compatibility decisions.
 - [OPERATIONS.md](./OPERATIONS.md): migration, rollout, and rollback.

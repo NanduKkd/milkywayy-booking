@@ -1,11 +1,12 @@
 # Promotions management operations
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 
 ## Compatibility rollout
 
 1. Inventory and fixture current coupon, system launch-credit, dynamic discount,
-   wallet-credit, checkout, transaction, and invoice behavior.
+   wallet-credit, checkout, transaction, and invoice behavior. See
+   [LEGACY-INVENTORY.md](./LEGACY-INVENTORY.md).
 2. Add new promotion/redemption schema and transaction references.
 3. Backfill legacy data while old reads/writes remain authoritative.
 4. Run the new evaluator in shadow mode and record outcome differences without
