@@ -12,7 +12,7 @@ This is the authoritative progress tracker. Status values and update rules are d
 |---|---|---:|---:|---:|
 | M0 - Scope and decisions | `DONE` | 3 | 3 | 1-2 h |
 | M1 - Shared contact configuration | `DONE` | 1 | 1 | 1 h |
-| M2 - Signed webhook and auto-reply | `NOT_STARTED` | 0 | 2 | 2-3 h |
+| M2 - Signed webhook and auto-reply | `IN_PROGRESS` | 1 | 2 | 2-3 h |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 3 | 1-2 h |
 
 ## M0 - Scope and decisions
@@ -90,11 +90,15 @@ Acceptance criteria:
 
 ### WEBHOOK-001 - Add Twilio signature verification
 
-- Status: `NOT_STARTED`
+- Status: `DONE`
 - Owner: `Codex`
 - Estimate: 1-2 h
 - Depends on: PLAN-002
-- Evidence: Pending.
+- Evidence:
+  - Added signed inbound webhook route scaffolding at `src/app/api/webhooks/twilio/whatsapp/route.js`.
+  - Added local Twilio signature verification and callback URL resolution helpers at `src/lib/notifications/whatsappInboundWebhook.js`.
+  - Verified valid and invalid signature behavior, production fail-closed URL requirements, decoded form parsing, and callback classification with `npm test -- --runInBand src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
+  - Verified formatting and lint expectations with `npx biome check src/lib/notifications/whatsappInboundWebhook.js src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/app/api/webhooks/twilio/whatsapp/route.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
 
 Acceptance criteria:
 
