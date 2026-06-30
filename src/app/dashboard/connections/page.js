@@ -45,9 +45,9 @@ export default async function DashboardConnectionsPage({ searchParams }) {
               Connected apps
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground md:text-base">
-              Review the GPT clients currently authorized to read your approved
-              Milkywayy customer data. Revoking a connection immediately retires
-              its active access and refresh tokens.
+              Review the third-party apps currently authorized to read your
+              approved Milkywayy customer data. Revoking a connection
+              immediately retires its access.
             </p>
           </div>
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">

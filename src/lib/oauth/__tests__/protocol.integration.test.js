@@ -446,7 +446,7 @@ describe("oauth protocol postgres integration", () => {
       now: grantedAt,
       user,
     });
-    await exchangeAuthorizationCode({
+    const tokenResponse = await exchangeAuthorizationCode({
       client,
       correlationId: randomUUID(),
       now: new Date("2026-06-29T13:01:00.000Z"),
@@ -471,6 +471,26 @@ describe("oauth protocol postgres integration", () => {
     expect(consent.revokedAt).toEqual(revokedAt);
     expect(accessTokens[0].revokedAt).toEqual(revokedAt);
     expect(refreshTokens[0].revokedAt).toEqual(revokedAt);
+
+    await expect(
+      resolveOAuthAccessToken(tokenResponse.access_token, {
+        now: new Date("2026-06-29T13:11:00.000Z"),
+      }),
+    ).rejects.toMatchObject({
+      reasonCode: "access_token_revoked",
+    });
+
+    await expect(
+      exchangeRefreshToken({
+        client,
+        correlationId: randomUUID(),
+        now: new Date("2026-06-29T13:11:00.000Z"),
+        parameters: buildRefreshTokenRequest(tokenResponse.refresh_token),
+      }),
+    ).rejects.toMatchObject({
+      code: "invalid_grant",
+      reasonCode: "refresh_token_revoked",
+    });
   });
 
   it("blocks new authorization and token operations for disabled clients while active access tokens still expire normally", async () => {
