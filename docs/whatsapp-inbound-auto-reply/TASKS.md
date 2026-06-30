@@ -1,8 +1,8 @@
 # WhatsApp inbound auto-reply task tracker
 
-- Last updated: 2026-06-30
-- Overall implementation status: `NOT_STARTED`
-- Current milestone: `M1 - Shared contact configuration`
+- Last updated: 2026-07-01
+- Overall implementation status: `IN_PROGRESS`
+- Current milestone: `M2 - Signed webhook and auto-reply`
 
 This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
 
@@ -11,7 +11,7 @@ This is the authoritative progress tracker. Status values and update rules are d
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
 | M0 - Scope and decisions | `DONE` | 3 | 3 | 1-2 h |
-| M1 - Shared contact configuration | `NOT_STARTED` | 0 | 1 | 1 h |
+| M1 - Shared contact configuration | `DONE` | 1 | 1 | 1 h |
 | M2 - Signed webhook and auto-reply | `NOT_STARTED` | 0 | 2 | 2-3 h |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 3 | 1-2 h |
 
@@ -67,11 +67,17 @@ Acceptance criteria:
 
 ### CONFIG-001 - Centralize the public contact number
 
-- Status: `NOT_STARTED`
+- Status: `DONE`
 - Owner: `Codex`
 - Estimate: 1 h
 - Depends on: COPY-001
-- Evidence: Pending.
+- Evidence:
+  - Shared public contact configuration was added in `src/lib/config/publicContact.js`.
+  - The approved inbound auto-reply copy now reads the shared display number via `src/lib/notifications/whatsappInboundAutoReply.js`.
+  - Landing-page and related public WhatsApp/contact links now consume the shared configuration in `src/components/landing/ContactSection.js`, `src/components/landing/FinalCTASection.js`, and `src/app/portfolio/page.js`.
+  - The contact-form fallback destination now reuses the shared configuration in `src/app/api/contact/route.js` while preserving the `CONTACT_WHATSAPP_TO` override.
+  - Verified with `npm test -- --runInBand src/lib/config/__tests__/publicContact.test.js src/lib/notifications/__tests__/whatsappInboundAutoReply.test.js`.
+  - Verified with `npx biome check src/lib/config/publicContact.js src/lib/notifications/whatsappInboundAutoReply.js src/lib/config/__tests__/publicContact.test.js src/lib/notifications/__tests__/whatsappInboundAutoReply.test.js src/components/landing/ContactSection.js src/components/landing/FinalCTASection.js src/app/portfolio/page.js src/app/api/contact/route.js`.
 
 Acceptance criteria:
 

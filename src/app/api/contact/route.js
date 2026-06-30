@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { PUBLIC_CONTACT } from "@/lib/config/publicContact";
 import { sendWhatsAppMessage } from "@/lib/notifications/whatsapp";
 
-const CONTACT_WHATSAPP_TO = process.env.CONTACT_WHATSAPP_TO || "+971507263306";
+const CONTACT_WHATSAPP_TO =
+  process.env.CONTACT_WHATSAPP_TO || PUBLIC_CONTACT.phoneE164;
 
 const normalizeRequiredString = (value) => {
   const normalized = String(value ?? "").trim();

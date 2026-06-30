@@ -1,18 +1,12 @@
 "use client";
 
-import {
-  Instagram,
-  Linkedin,
-  Mail,
-  MessageCircle,
-  Phone,
-  Youtube,
-} from "lucide-react";
+import { Instagram, Linkedin, Mail, MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PUBLIC_CONTACT } from "@/lib/config/publicContact";
 
 const INITIAL_FORM_DATA = {
   name: "",
@@ -23,9 +17,16 @@ const INITIAL_FORM_DATA = {
 };
 
 const SOCIAL_LINKS = [
-  { icon: Instagram, href: "https://www.instagram.com/milkywayy_com/", label: "instagram" },
-  { icon: Linkedin, href: "https://www.linkedin.com/company/milkywayy-com/", label: "linkedin" },
-  // { icon: Youtube, href: "#", label: "youtube" },
+  {
+    icon: Instagram,
+    href: "https://www.instagram.com/milkywayy_com/",
+    label: "instagram",
+  },
+  {
+    icon: Linkedin,
+    href: "https://www.linkedin.com/company/milkywayy-com/",
+    label: "linkedin",
+  },
 ];
 
 const ContactSection = () => {
@@ -162,10 +163,10 @@ const ContactSection = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">Phone</p>
                   <a
-                    href="tel:+971507263306"
+                    href={PUBLIC_CONTACT.telLink}
                     className="font-medium hover:text-accent transition-colors"
                   >
-                    +971 50 726 3306
+                    {PUBLIC_CONTACT.phoneDisplay}
                   </a>
                 </div>
               </div>
@@ -179,7 +180,7 @@ const ContactSection = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">WhatsApp</p>
                   <a
-                    href="https://wa.me/971507263306"
+                    href={PUBLIC_CONTACT.whatsappLink}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-medium hover:text-accent transition-colors"

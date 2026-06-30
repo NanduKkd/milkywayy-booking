@@ -1,6 +1,7 @@
 import { MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { PUBLIC_CONTACT } from "@/lib/config/publicContact";
 
 const FinalCTASection = () => {
   return (
@@ -25,7 +26,7 @@ const FinalCTASection = () => {
               </Button>
             </Link>
             <a
-              href="https://wa.me/971507263306"
+              href={PUBLIC_CONTACT.whatsappLink}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -41,7 +42,9 @@ const FinalCTASection = () => {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Launch Offer: <span className="text-accent">AED 500 welcome credit</span> on your first property shoot.
+            Launch Offer:{" "}
+            <span className="text-accent">AED 500 welcome credit</span> on your
+            first property shoot.
           </p>
         </div>
       </div>

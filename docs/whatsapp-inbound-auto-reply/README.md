@@ -1,8 +1,8 @@
 # WhatsApp inbound auto-reply delivery plan
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 - Planning status: `DONE`
-- Implementation status: `NOT_STARTED`
+- Implementation status: `IN_PROGRESS`
 - Target: Automatically direct inbound WhatsApp senders to the public contact phone number.
 
 ## Purpose

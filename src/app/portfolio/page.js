@@ -10,6 +10,7 @@ import StarBackground from "@/components/StarBackground";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
+import { PUBLIC_CONTACT } from "@/lib/config/publicContact";
 import { isTouchDevice } from "@/lib/helpers/ui";
 
 const filters = [
@@ -181,7 +182,7 @@ export default function PortfolioPage() {
                 </Button>
               </Link>
               <a
-                href="https://wa.me/971507263306"
+                href={PUBLIC_CONTACT.whatsappLink}
                 target="_blank"
                 rel="noopener noreferrer"
               >
