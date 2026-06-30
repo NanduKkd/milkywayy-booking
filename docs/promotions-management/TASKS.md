@@ -1,0 +1,52 @@
+# Promotions management task tracker
+
+- Last updated: 2026-06-30
+- Overall implementation status: `NOT_STARTED`
+- Current milestone: `M0 - Promotion contract and migration mapping`
+
+## Progress summary
+
+| Milestone | Status | Done | Total | Estimate |
+|---|---|---:|---:|---:|
+| M0 - Contract and migration mapping | `IN_PROGRESS` | 0 | 3 | 2-3 days |
+| M1 - Persistence and evaluation engine | `NOT_STARTED` | 0 | 5 | 5-7 days |
+| M2 - Admin UI and checkout integration | `NOT_STARTED` | 0 | 5 | 6-9 days |
+| M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-6 days |
+
+## M0 - Contract and migration mapping
+
+| ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
+|---|---|---|---|---|---|---|
+| PRM-001 | Approve precedence and no-stacking rules | `IN_REVIEW` | Product / Engineering | None | Personal, automatic, generic, and wallet interactions match DECISIONS.md | Pending |
+| PRM-002 | Inventory existing coupon, launch-credit, discount, and wallet behavior | `NOT_STARTED` | Engineering | PRM-001 | Every persisted/configured behavior has a keep, migrate, or explicitly deferred disposition | Pending |
+| PRM-003 | Approve promotion and redemption data model | `NOT_STARTED` | Engineering | PRM-002 | Generic, personal, automatic, fixed, percentage, usage, assignment, and audit requirements are represented | Pending |
+
+## M1 - Persistence and evaluation engine
+
+| ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
+|---|---|---|---|---|---|---|
+| PRM-101 | Add promotion schema and staged migrations | `NOT_STARTED` | Engineering | PRM-003 | Existing transaction references remain valid and migration is reversible before cleanup | Pending |
+| PRM-102 | Add promotion redemption tracking | `NOT_STARTED` | Engineering | PRM-101 | Per-user and total usage are durable and concurrency safe | Pending |
+| PRM-103 | Implement pure eligibility and ranking engine | `NOT_STARTED` | Engineering | PRM-001, PRM-101 | Candidate eligibility and best-benefit selection are deterministic and testable | Pending |
+| PRM-104 | Integrate transactional reservation/finalization | `NOT_STARTED` | Engineering | PRM-102, PRM-103 | Concurrent checkout cannot exceed limits; failed/expired payments release reservations correctly | Pending |
+| PRM-105 | Add authorized promotion CRUD services | `NOT_STARTED` | Engineering | PRM-101, permission service | Generic, personal, and automatic rules validate and audit every mutation | Pending |
+
+## M2 - Admin UI and checkout integration
+
+| ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
+|---|---|---|---|---|---|---|
+| PRM-201 | Build three-tab Promotions admin page | `NOT_STARTED` | Engineering | PRM-105 | List, create, activate/pause, edit, and delete/deactivate flows match target design | Pending |
+| PRM-202 | Add customer assignment search | `NOT_STARTED` | Engineering | PRM-105, customer API | Personal promotions can only target active customers and expose no staff accounts | Pending |
+| PRM-203 | Integrate promotion evaluation into pricing and checkout | `NOT_STARTED` | Engineering | PRM-103, PRM-104 | Customer totals show one selected promotion and separate wallet credit | Pending |
+| PRM-204 | Persist applied promotion on transaction and invoice | `NOT_STARTED` | Engineering | PRM-203 | Payment, transaction, booking summary, and invoice agree on identifiers and amounts | Pending |
+| PRM-205 | Remove the separate Discounts navigation after parity | `NOT_STARTED` | Engineering | PRM-201 to PRM-204 | Old route is redirected or retained read-only during rollout; no capability disappears | Pending |
+
+## M3 - Verification and rollout
+
+| ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
+|---|---|---|---|---|---|---|
+| PRM-301 | Add eligibility and precedence matrix tests | `NOT_STARTED` | Engineering | M2 | Generic, personal, automatic, wallet, date, amount, customer, and tie cases pass | Pending |
+| PRM-302 | Add concurrency and payment lifecycle tests | `NOT_STARTED` | Engineering | PRM-104 | Limit races, retries, failed payments, expiration, and webhook replay are safe | Pending |
+| PRM-303 | Add migration parity verification | `NOT_STARTED` | Engineering | PRM-101 | Existing promotion outcomes match recorded pre-migration fixtures | Pending |
+| PRM-304 | Resolve the pre-existing coupon test mismatch | `NOT_STARTED` | Engineering | PRM-301 | Launch-credit tests and intended automatic behavior agree | Pending |
+| PRM-305 | Roll out in compatibility phases | `NOT_STARTED` | Engineering / Operations | PRM-301 to PRM-304 | Read/write cutover, monitoring, rollback, and old-path retirement evidence are recorded | Pending |
