@@ -260,7 +260,7 @@ Resource APIs use stable JSON errors with HTTP `401`, `403`, `404`, `409`, `422`
 
 - OAuth and resource API URLs use the same public domain.
 - The Next.js application runs under PM2 on the production server.
-- Nginx is the public reverse proxy and terminates HTTPS with TLS 1.2 or later on port 443.
+- Public HTTPS is currently terminated at the Cloudflare edge, while the origin Nginx reverse proxy on `3.110.42.108` listens on port `80` and forwards to the local PM2-managed Next.js process.
 - The application trusts forwarded protocol and host data only from the controlled Nginx proxy and uses the configured public base URL for OAuth redirects; arbitrary request headers never determine redirect origins.
 - Every action completes well below the 45-second platform timeout.
 - Responses are JSON text and remain below 100,000 characters through pagination and field selection.

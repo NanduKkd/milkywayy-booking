@@ -91,6 +91,7 @@ describe("authorization decision helpers", () => {
 
   it("issues and verifies signed authorization decision tokens", async () => {
     const token = await issueAuthorizationDecisionToken({
+      csrfToken: "csrf-token",
       interaction: baseInteraction,
       issuedAt: new Date("2026-06-29T00:00:00.000Z"),
       oauthClientId: 7,
@@ -102,6 +103,7 @@ describe("authorization decision helpers", () => {
         currentDate: new Date("2026-06-29T00:09:59.000Z"),
       }),
     ).resolves.toEqual({
+      csrfToken: "csrf-token",
       interaction: {
         ...baseInteraction,
         scopes: ["customer:read"],
@@ -113,6 +115,7 @@ describe("authorization decision helpers", () => {
 
   it("rejects expired or malformed authorization decision tokens", async () => {
     const token = await issueAuthorizationDecisionToken({
+      csrfToken: "csrf-token",
       interaction: baseInteraction,
       issuedAt: new Date("2026-06-29T00:00:00.000Z"),
       oauthClientId: 7,
@@ -129,6 +132,15 @@ describe("authorization decision helpers", () => {
     );
     await expect(
       issueAuthorizationDecisionToken({
+        csrfToken: "",
+        interaction: baseInteraction,
+        oauthClientId: "not-a-number",
+        userId: 42,
+      }),
+    ).rejects.toThrow("Authorization decision CSRF token is required.");
+    await expect(
+      issueAuthorizationDecisionToken({
+        csrfToken: "csrf-token",
         interaction: baseInteraction,
         oauthClientId: "not-a-number",
         userId: 42,

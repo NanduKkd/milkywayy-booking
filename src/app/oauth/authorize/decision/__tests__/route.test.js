@@ -1,14 +1,13 @@
 import { POST } from "../route";
 
 const mockAuth = jest.fn();
-const mockCookies = jest.fn();
 const mockFindOAuthClient = jest.fn();
 const mockRecordOAuthAuditEvent = jest.fn();
 const mockVerifyAuthorizationDecisionToken = jest.fn();
 const mockIssueAuthorizationCode = jest.fn();
 const mockGrantOAuthConsent = jest.fn();
-const mockRedirect = jest.fn((url) => ({
-  status: 307,
+const mockRedirect = jest.fn((url, init) => ({
+  status: typeof init === "number" ? init : (init?.status ?? 307),
   url: String(url),
 }));
 
@@ -30,10 +29,6 @@ jest.mock("next/server", () => ({
   NextResponse: {
     redirect: (...args) => mockRedirect(...args),
   },
-}));
-
-jest.mock("next/headers", () => ({
-  cookies: (...args) => mockCookies(...args),
 }));
 
 jest.mock("@/lib/helpers/auth", () => ({
@@ -104,24 +99,30 @@ function createRequest(formEntries) {
   };
 }
 
+function expectSeeOtherRedirect(response, url) {
+  expect(response.status).toBe(303);
+  expect(response.url).toBe(url);
+  const [redirectUrl, redirectStatus] = mockRedirect.mock.calls.at(-1);
+  expect(String(redirectUrl)).toBe(url);
+  expect(redirectStatus).toBe(303);
+}
+
 describe("oauth authorize decision route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRecordOAuthAuditEvent.mockResolvedValue(null);
     mockGrantOAuthConsent.mockResolvedValue({ id: 11 });
-    mockCookies.mockResolvedValue({
-      delete: jest.fn(),
-      get: jest.fn((name) =>
-        name === "oauth-authorize-csrf" ? { value: "csrf-token" } : undefined,
-      ),
-    });
     mockFindOAuthClient.mockResolvedValue({
       id: 7,
       isEnabled: true,
     });
     mockVerifyAuthorizationDecisionToken.mockResolvedValue({
+      csrfToken: "csrf-token",
       interaction: {
+        clientId: "client-123",
         redirectUri: "https://chatgpt.com/aip/oauth/callback-test",
+        responseType: "code",
+        scope: "customer:read",
         scopes: ["customer:read"],
         state: "opaque-state",
       },
@@ -141,7 +142,53 @@ describe("oauth authorize decision route", () => {
 
     expect(response.status).toBe(403);
     await expect(response.text()).resolves.toBe("Invalid CSRF token.");
-    expect(mockVerifyAuthorizationDecisionToken).not.toHaveBeenCalled();
+    expect(mockVerifyAuthorizationDecisionToken).toHaveBeenCalledWith(
+      "decision-token",
+    );
+  });
+
+  it.each([
+    [
+      "invalid decision tokens",
+      new Error("invalid token"),
+      "http://localhost:3000/oauth/authorize/error?error=invalid_resume",
+    ],
+    [
+      "expired decision tokens",
+      Object.assign(new Error("expired token"), { code: "ERR_JWT_EXPIRED" }),
+      "http://localhost:3000/oauth/authorize/error?error=interaction_expired",
+    ],
+  ])("redirects %s through a 303 response", async (_, error, expectedUrl) => {
+    mockVerifyAuthorizationDecisionToken.mockRejectedValueOnce(error);
+
+    const response = await POST(
+      createRequest([
+        ["intent", "approve"],
+        ["csrfToken", "csrf-token"],
+        ["decisionToken", "decision-token"],
+      ]),
+    );
+
+    expectSeeOtherRedirect(response, expectedUrl);
+    expect(mockAuth).not.toHaveBeenCalled();
+  });
+
+  it("redirects unauthenticated sessions back to the authorization request with 303", async () => {
+    mockAuth.mockResolvedValue(null);
+
+    const response = await POST(
+      createRequest([
+        ["intent", "approve"],
+        ["csrfToken", "csrf-token"],
+        ["decisionToken", "decision-token"],
+      ]),
+    );
+
+    expectSeeOtherRedirect(
+      response,
+      "http://localhost:3000/oauth/authorize?client_id=client-123&redirect_uri=https%3A%2F%2Fchatgpt.com%2Faip%2Foauth%2Fcallback-test&response_type=code&scope=customer%3Aread&state=opaque-state",
+    );
+    expect(mockFindOAuthClient).not.toHaveBeenCalled();
   });
 
   it("redirects denied authorization requests back to the callback with access_denied", async () => {
@@ -157,8 +204,8 @@ describe("oauth authorize decision route", () => {
       ]),
     );
 
-    expect(response.status).toBe(307);
-    expect(response.url).toBe(
+    expectSeeOtherRedirect(
+      response,
       "https://chatgpt.com/aip/oauth/callback-test?error=access_denied&state=opaque-state",
     );
     expect(mockIssueAuthorizationCode).not.toHaveBeenCalled();
@@ -192,7 +239,10 @@ describe("oauth authorize decision route", () => {
       ]),
     );
 
-    expect(response.status).toBe(307);
+    expectSeeOtherRedirect(
+      response,
+      "https://chatgpt.com/aip/oauth/callback-test?code=raw-code&state=opaque-state",
+    );
     expect(mockGrantOAuthConsent).toHaveBeenCalledWith({
       clientId: 7,
       scopes: ["customer:read"],
@@ -218,9 +268,6 @@ describe("oauth authorize decision route", () => {
         reasonCode: "authorization_approved",
         userId: 42,
       }),
-    );
-    expect(response.url).toBe(
-      "https://chatgpt.com/aip/oauth/callback-test?code=raw-code&state=opaque-state",
     );
   });
 });

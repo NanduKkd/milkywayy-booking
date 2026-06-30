@@ -60,10 +60,20 @@ describe("GPT Action OpenAPI schema", () => {
       expect(operation.summary.length).toBeLessThanOrEqual(120);
       expect(operation.description.length).toBeLessThanOrEqual(200);
       expect(pathName.startsWith("/api/gpt/v1/")).toBe(true);
+
+      for (const parameter of operation.parameters ?? []) {
+        expect(parameter).not.toHaveProperty("$ref");
+        expect(typeof parameter.name).toBe("string");
+        expect(parameter.name.length).toBeGreaterThan(0);
+        expect(["path", "query"]).toContain(parameter.in);
+      }
     }
 
     expect(operationIds.sort()).toEqual(expectedOperationIds);
     expect(new Set(operationIds).size).toBe(expectedOperationIds.length);
+    expect(JSON.stringify(document.paths)).not.toContain(
+      "#/components/parameters/",
+    );
 
     const flow =
       document.components.securitySchemes.OAuthAuthorizationCode.flows

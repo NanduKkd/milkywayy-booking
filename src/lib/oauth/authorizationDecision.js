@@ -34,12 +34,23 @@ function normalizeOAuthClientId(oauthClientId) {
   return normalizedOAuthClientId;
 }
 
+function normalizeCsrfToken(csrfToken) {
+  const normalizedCsrfToken = String(csrfToken ?? "").trim();
+
+  if (!normalizedCsrfToken) {
+    throw new Error("Authorization decision CSRF token is required.");
+  }
+
+  return normalizedCsrfToken;
+}
+
 function normalizeDecisionPayload(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     throw new Error("Authorization decision payload must be an object.");
   }
 
   return {
+    csrfToken: normalizeCsrfToken(payload.csrfToken),
     interaction: normalizeOAuthInteraction(payload.interaction),
     oauthClientId: normalizeOAuthClientId(payload.oauthClientId),
     userId: normalizeUserId(payload.userId),
@@ -47,12 +58,14 @@ function normalizeDecisionPayload(payload) {
 }
 
 export async function issueAuthorizationDecisionToken({
+  csrfToken,
   interaction,
   oauthClientId,
   userId,
   issuedAt = new Date(),
 } = {}) {
   const payload = normalizeDecisionPayload({
+    csrfToken,
     interaction,
     oauthClientId,
     userId,

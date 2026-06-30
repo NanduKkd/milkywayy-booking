@@ -23,6 +23,10 @@ function buildConnectionsUrl(request) {
   return new URL("/dashboard/connections?revoked=1", request.url);
 }
 
+function buildSeeOtherRedirect(url) {
+  return NextResponse.redirect(url, 303);
+}
+
 export async function POST(request) {
   const session = await auth();
 
@@ -66,5 +70,5 @@ export async function POST(request) {
     });
   }
 
-  return NextResponse.redirect(buildConnectionsUrl(request));
+  return buildSeeOtherRedirect(buildConnectionsUrl(request));
 }

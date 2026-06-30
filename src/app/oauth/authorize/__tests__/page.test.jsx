@@ -3,15 +3,10 @@ import OAuthAuthorizePage from "../page";
 
 const mockAuth = jest.fn();
 const mockRecordOAuthAuditEvent = jest.fn();
-const mockCookies = jest.fn();
 const mockValidateAuthorizationRequest = jest.fn();
 const mockIssueAuthorizationDecisionToken = jest.fn();
 const mockIssueAuthorizationResumeToken = jest.fn();
 const mockLoadActiveOAuthConsent = jest.fn();
-
-jest.mock("next/headers", () => ({
-  cookies: (...args) => mockCookies(...args),
-}));
 
 jest.mock("@/lib/helpers/auth", () => ({
   auth: (...args) => mockAuth(...args),
@@ -80,11 +75,6 @@ describe("OAuth authorize page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRecordOAuthAuditEvent.mockResolvedValue(null);
-    mockCookies.mockResolvedValue({
-      delete: jest.fn(),
-      get: jest.fn(),
-      set: jest.fn(),
-    });
     mockLoadActiveOAuthConsent.mockResolvedValue(null);
   });
 
@@ -133,12 +123,6 @@ describe("OAuth authorize page", () => {
   });
 
   it("renders the consent screen for authenticated customers", async () => {
-    const cookieStore = {
-      delete: jest.fn(),
-      get: jest.fn(),
-      set: jest.fn(),
-    };
-    mockCookies.mockResolvedValue(cookieStore);
     mockValidateAuthorizationRequest.mockResolvedValue({
       client: {
         id: 7,
@@ -177,13 +161,18 @@ describe("OAuth authorize page", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByDisplayValue("decision-token")).toBeInTheDocument();
-    expect(cookieStore.set).toHaveBeenCalledWith(
-      "oauth-authorize-csrf",
-      expect.any(String),
+    expect(mockIssueAuthorizationDecisionToken).toHaveBeenCalledWith(
       expect.objectContaining({
-        httpOnly: true,
-        path: "/oauth/authorize",
-        sameSite: "lax",
+        csrfToken: expect.any(String),
+        interaction: {
+          clientId: "client-123",
+          redirectUri: "https://chatgpt.com/aip/oauth/callback-test",
+          responseType: "code",
+          scope: "customer:read",
+          state: "opaque-state",
+        },
+        oauthClientId: 7,
+        userId: 42,
       }),
     );
   });

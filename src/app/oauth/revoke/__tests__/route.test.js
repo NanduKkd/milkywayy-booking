@@ -4,8 +4,8 @@ const mockAuth = jest.fn();
 const mockFindOAuthClient = jest.fn();
 const mockRecordOAuthAuditEvent = jest.fn();
 const mockRevokeOAuthConsent = jest.fn();
-const mockRedirect = jest.fn((url) => ({
-  status: 307,
+const mockRedirect = jest.fn((url, init) => ({
+  status: typeof init === "number" ? init : (init?.status ?? 307),
   url: String(url),
 }));
 
@@ -70,6 +70,14 @@ function createRequest(formEntries) {
     formData: async () => formData,
     url: "https://milkywayy.com/oauth/revoke",
   };
+}
+
+function expectSeeOtherRedirect(response, url) {
+  expect(response.status).toBe(303);
+  expect(response.url).toBe(url);
+  const [redirectUrl, redirectStatus] = mockRedirect.mock.calls.at(-1);
+  expect(String(redirectUrl)).toBe(url);
+  expect(redirectStatus).toBe(303);
 }
 
 describe("oauth revoke route", () => {
@@ -137,8 +145,8 @@ describe("oauth revoke route", () => {
         userId: 42,
       }),
     );
-    expect(response.status).toBe(307);
-    expect(response.url).toBe(
+    expectSeeOtherRedirect(
+      response,
       "https://milkywayy.com/dashboard/connections?revoked=1",
     );
   });

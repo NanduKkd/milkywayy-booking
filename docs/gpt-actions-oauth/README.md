@@ -1,6 +1,6 @@
 # GPT Actions OAuth delivery plan
 
-- Last updated: 2026-06-29
+- Last updated: 2026-06-30
 - Planning status: `COMPLETE`
 - Implementation status: `IN_PROGRESS`
 - Target: production OAuth 2.0 authorization-code integration for one ChatGPT Custom GPT
@@ -19,6 +19,7 @@ This is OAuth 2.0 API authorization. It is not an OpenID Connect implementation:
 - [ARCHITECTURE.md](./ARCHITECTURE.md): target flow, endpoints, persistence, scopes, and code boundaries.
 - [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md): security requirements, automated tests, manual verification, and release gates.
 - [DECISIONS.md](./DECISIONS.md): accepted decisions and questions that must be resolved during implementation.
+- [INTEGRATION-RECORD.md](./INTEGRATION-RECORD.md): the production Custom GPT record, including the active GPT ID, any temporarily retained compatibility callbacks, and the agreed Milkywayy OAuth endpoints.
 - [OPERATIONS.md](./OPERATIONS.md): production secret preparation, client provisioning, rotation, and emergency disablement steps.
 - [gpt-action-openapi.json](./gpt-action-openapi.json): validated GPT Action OpenAPI artifact for the approved read-only resource API.
 
@@ -105,7 +106,7 @@ The release is complete only when:
 - Existing business functions are mostly Next.js server actions. GPT Actions require explicitly designed REST endpoints with per-user ownership checks.
 - Current unrelated worktree changes touch the dashboard and proxy. They should be settled before OAuth implementation begins because the authorization login/resume flow will touch the same areas.
 - The existing repository-wide lint and test failures are baseline issues. They should be tracked separately, while all new or changed OAuth files must pass their relevant checks.
-- Production runs the Next.js process under PM2 behind an Nginx reverse proxy that terminates HTTPS. OAuth origin and forwarded-header handling must be configured for that topology.
+- Production runs the Next.js process under PM2 behind an Nginx reverse proxy. As verified on 2026-06-30, public HTTPS is currently Cloudflare-fronted while the origin host keeps Nginx on port `80` with controlled forwarded-host/proto handling toward the local Next.js process.
 
 ## OpenAI platform constraints used by this plan
 

@@ -1,8 +1,8 @@
 # GPT Actions OAuth task tracker
 
-- Last updated: 2026-06-29
+- Last updated: 2026-06-30
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M5 - Verification and security release gates`
+- Current milestone: `M6 - Deployment and ChatGPT UAT`
 
 This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
 
@@ -10,14 +10,14 @@ This is the authoritative progress tracker. Status values and update rules are d
 
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
-| M0 - Scope and decisions | `BLOCKED` | 3 | 4 | 4-6 h |
+| M0 - Scope and decisions | `DONE` | 4 | 4 | 4-6 h |
 | M1 - Authentication and configuration baseline | `DONE` | 5 | 5 | 8-12 h |
 | M2 - OAuth persistence | `DONE` | 5 | 5 | 10-14 h |
 | M3 - Authorization and token service | `DONE` | 8 | 8 | 22-30 h |
 | M4 - GPT resource API and OpenAPI schema | `DONE` | 8 | 8 | 19-29 h |
 | M5 - Verification and security release gates | `IN_PROGRESS` | 6 | 7 | 16-24 h |
-| M6 - Deployment and ChatGPT UAT | `IN_PROGRESS` | 0 | 6 | 8-13 h |
-| **Total** | `IN_PROGRESS` | **35** | **43** | **87-128 h** |
+| M6 - Deployment and ChatGPT UAT | `IN_PROGRESS` | 3 | 6 | 8-13 h |
+| **Total** | `IN_PROGRESS` | **39** | **43** | **87-128 h** |
 
 The task-level upper bound includes review and remediation contingency. The delivery target is 11-16 engineer-days when tasks proceed without major scope changes.
 
@@ -62,20 +62,20 @@ Acceptance criteria:
 
 ### OAUTH-003 - Create the Custom GPT integration record
 
-- Status: `BLOCKED`
+- Status: `DONE`
 - Owner: `Project owner`
 - Estimate: 1 h
 - Depends on: OAUTH-002
 - Evidence:
-  - Repository search confirmed the target GPT ID, owner/workspace, and exact callback URLs are not yet recorded in project-controlled documentation.
-  - `DECISIONS.md` already captures the required scope, distribution target, and callback exact-match policy, but not the GPT-editor-specific values needed to provision the client safely.
-  - Blocker: a project owner must supply the target GPT record and exact callback URLs from the GPT editor without committing the client secret.
+  - Added [INTEGRATION-RECORD.md](./INTEGRATION-RECORD.md) and later updated it on 2026-06-30 so it now records the active GPT ID `g-ee5af7c314d509d62dd77a325d900dc61acc399a`, the temporarily retained legacy GPT callback pair `g-6a42b42ce4788191b214fe0cee1aed9a`, the public-distribution target, the project-owner workspace assignment, the agreed `https://milkywayy.com` OAuth/action endpoints, the `customer:read` scope, and the no-client-secret storage rule.
+  - Added `DEC-020` to `DECISIONS.md`, recording the GPT-specific callback values and the release consequence if the GPT ID or callback form changes.
+  - Updated `OPERATIONS.md` so production provisioning now uses the exact GPT callback URLs instead of placeholders.
 
 Acceptance criteria:
 
 - The target GPT ID and owner/workspace are recorded securely.
 - Public GPT distribution is recorded for the target GPT.
-- Both callback URLs displayed or documented for the GPT are captured exactly.
+- All callback URLs displayed or documented for active GPTs are captured exactly.
 - Production authorization URL, token URL, API domain, and requested scopes are agreed.
 - Current privacy-policy, domain-verification, support-contact, and publication-review requirements shown by the GPT editor are assigned to the project owner.
 - No client secret is committed to the repository or written into task documentation.
@@ -331,7 +331,7 @@ Acceptance criteria:
 - Depends on: FLOW-001, AUTH-005
 - Evidence:
   - OAuth authorization UI added in `src/app/oauth/authorize/page.js` with a dedicated login gate in `src/app/oauth/authorize/AuthorizeLoginGate.jsx`, local error handling in `src/app/oauth/authorize/error/page.jsx`, and safe resume routing in `src/app/oauth/authorize/resume/route.js`.
-  - CSRF-protected approval and denial POST handling added in `src/app/oauth/authorize/decision/route.js` using signed decision state from `src/lib/oauth/authorizationDecision.js`, double-submit protection from `src/lib/oauth/authorizationCsrf.js`, and shared interaction normalization in `src/lib/oauth/interaction.js`.
+  - CSRF-protected approval and denial POST handling added in `src/app/oauth/authorize/decision/route.js` using signed decision state from `src/lib/oauth/authorizationDecision.js`, a one-time CSRF proof bound into the signed decision token via `src/lib/oauth/authorizationCsrf.js`, and shared interaction normalization in `src/lib/oauth/interaction.js`.
   - Human-readable scope rendering added in `src/lib/oauth/scopes.js`, and the existing resume helper now reuses the shared interaction normalization in `src/lib/oauth/authorizationResume.js`.
   - Focused verification passed:
     - `npx jest src/app/oauth/authorize/__tests__/page.test.jsx src/app/oauth/authorize/resume/__tests__/route.test.js src/app/oauth/authorize/decision/__tests__/route.test.js src/lib/oauth/__tests__/authorizationResume.test.js --runInBand`
@@ -708,7 +708,11 @@ Acceptance criteria:
   - Expanded automated abuse-case coverage for `RES-07` with JSON-serialization and dashboard-rendering tests that keep markup-like and control-character input bounded, valid, and text-escaped.
   - Executed the runner successfully on 2026-06-29; it passed 42 grouped OAuth/GPT security suite executions covering 221 executed tests across configuration, authorization flow, token exchange/refresh, resource authorization, rate limits, audit logging, cleanup, and PostgreSQL-backed protocol behavior.
   - `SECURITY-TEST-PLAN.md` now marks the automated `CFG-*`, `AUT-*`, `COD-*`, `REF-*`, `API-*`, `RES-*`, `LOG-01`, `LOG-03`, `LOG-04`, and `LOG-05` cases as `DONE`, records `GATE-04` as complete from the automated cross-customer isolation coverage, and records `GATE-03` as `IN_PROGRESS` pending the remaining live checks.
-  - Remaining blockers before `DONE`: manual browser checks (`MAN-*`), Custom GPT end-to-end checks (`GPT-*`), and live production TLS/topology/rollback verification.
+  - Live production verification on 2026-06-30 confirmed the public authorize/token/API endpoints at `https://milkywayy.com`, exercised logged-out authorize, consent denial, consent approval, repeat-consent reconnect, authorization-code exchange, refresh rotation, customer revocation, cross-customer `404` isolation, and hashed-secret persistence using the production client and two production-like customer accounts.
+  - Live rollout surfaced a Next.js 16 production bug in the authorize page: cookie mutation inside the server-rendered page caused `Cookies can only be modified in a Server Action or Route Handler.` on the consent screen. The fix moved the authorize-decision CSRF proof into the signed decision token, was re-tested locally and on the host, then redeployed successfully on 2026-06-30.
+  - `SECURITY-TEST-PLAN.md` now records the live 2026-06-30 completion of `MAN-01`, `MAN-02`, `MAN-04`, and `MAN-06`, narrowing the remaining browser-only checks to `MAN-03`, `MAN-05`, and `MAN-07`.
+  - A fresh in-app browser check on 2026-06-30 reached `https://chatgpt.com` in a logged-out state for this workspace, confirming Codex still lacks the authenticated ChatGPT editor session needed to complete `GPT-*` and `OPS-004`.
+  - Remaining blockers before `DONE`: `MAN-03`, `MAN-05`, `MAN-07`, actual Custom GPT editor import/connectivity (`GPT-*`), and publication-owner checks (`GATE-09`).
 
 Acceptance criteria:
 
@@ -778,7 +782,7 @@ Acceptance criteria:
 
 ### OPS-001 - Prepare production secrets and client configuration
 
-- Status: `IN_PROGRESS`
+- Status: `DONE`
 - Owner: `Codex`
 - Estimate: 1-2 h
 - Depends on: DB-003, AUTH-001
@@ -786,21 +790,23 @@ Acceptance criteria:
   - Production preparation runbook added in `OPERATIONS.md`, documenting the required OAuth/worker secrets, exact GPT callback capture, controlled client provisioning flow, secret rotation steps, and emergency client disablement notes.
   - Operator lifecycle script added in `scripts/manage-oauth-client.mjs` and exposed as `npm run oauth:manage-client`; it rotates an existing client secret once-per-run and enables or disables the registered OAuth client by `client_id`.
   - Client-management helpers added in `src/lib/oauth/clientProvisioning.js` with focused coverage in `src/lib/oauth/__tests__/clientProvisioning.test.js`.
+  - [INTEGRATION-RECORD.md](./INTEGRATION-RECORD.md) now captures the exact production GPT callback values and the agreed `https://milkywayy.com` OAuth/action endpoints needed for secret-manager setup and client provisioning.
   - Focused verification passed:
     - `npx jest src/lib/oauth/__tests__/clientProvisioning.test.js --runInBand`
     - `npx biome check src/lib/oauth/clientProvisioning.js src/lib/oauth/__tests__/clientProvisioning.test.js scripts/manage-oauth-client.mjs docs/gpt-actions-oauth/OPERATIONS.md docs/gpt-actions-oauth/README.md docs/gpt-actions-oauth/TASKS.md package.json`
-  - Remaining blocker before `DONE`: the actual production secret-manager entries, exact GPT-editor callback values, and live client provisioning still require deployment and project-owner access.
+  - Production `.env` on `ubuntu@3.110.42.108:/home/ubuntu/milkywayy-booking/.env` was updated on 2026-06-30 with `OAUTH_BASE_URL`, `OAUTH_ALLOWED_SCOPES`, the four exact active-plus-compatibility GPT callback URLs, accepted TTLs, and fresh server-only hash peppers after creating `.env.backup.oauth.*`.
+  - Live client provisioning succeeded on 2026-06-30 via `npm run oauth:provision-client -- --name "Milkywayy GPT" --redirect-uri ...`; the resulting production client ID is `UP0_ZZWskQY2d6UfidkWXpK81IGqtJcMrBxRJbxs06o`, the client is enabled, and PostgreSQL stores only the hashed client secret.
 
 Acceptance criteria:
 
 - Production secrets are generated and stored in the deployment secret mechanism.
-- Both exact ChatGPT callback URLs are registered.
+- Every exact ChatGPT callback URL currently in use is registered.
 - OAuth and API endpoints share the approved production domain.
 - Secret rotation and emergency client-disable procedures are documented.
 
 ### OPS-002 - Configure TLS, proxying, and rate-limit topology
 
-- Status: `IN_PROGRESS`
+- Status: `DONE`
 - Owner: `Codex`
 - Estimate: 1-2 h
 - Depends on: API-006
@@ -811,7 +817,9 @@ Acceptance criteria:
   - Focused verification passed:
     - `npm run verify:oauth-topology`
     - `npx biome check ecosystem.config.cjs scripts/verify-oauth-topology.mjs docs/gpt-actions-oauth/OPERATIONS.md docs/gpt-actions-oauth/TASKS.md`
-  - Remaining blocker before `DONE`: the committed topology template still needs to be installed on the production host and validated there with the live certificate, Nginx reload, and real public endpoint checks.
+  - Production origin Nginx on `3.110.42.108` was updated on 2026-06-30 to pin `X-Forwarded-Proto https`, preserve the controlled host headers, and enforce `client_max_body_size 256k`, `proxy_connect_timeout 5s`, `proxy_send_timeout 30s`, and `proxy_read_timeout 30s`; `sudo nginx -t` and `sudo systemctl reload nginx` both succeeded.
+  - Production PM2 was reloaded from `ecosystem.config.cjs` on 2026-06-30 and now runs `milkywayy-booking`, `milkywayy-booking-auto-complete`, and `milkywayy-booking-oauth-cleanup` together.
+  - Public TLS validation on 2026-06-30 confirmed `curl -Ik https://milkywayy.com` returns `HTTP/2 200` through the Cloudflare edge, while `DEC-021` records the current Cloudflare-fronted origin topology and the reason the host itself still listens on port `80` only.
 
 Acceptance criteria:
 
@@ -823,11 +831,16 @@ Acceptance criteria:
 
 ### OPS-003 - Deploy migrations and application safely
 
-- Status: `NOT_STARTED`
+- Status: `DONE`
 - Owner: `TBD`
 - Estimate: 1-2 h
 - Depends on: TEST-007, OPS-001, OPS-002
-- Evidence: —
+- Evidence:
+  - Database backup created on 2026-06-30 before any schema change: `/home/ubuntu/deploy-backups/milkywayy_pre_oauth_20260629_200313.dump`.
+  - Application code backup created on 2026-06-30 before deploy: `/home/ubuntu/deploy-backups/milkywayy-booking_pre_oauth_code_20260629_200517.tar.gz`.
+  - Production checkout on `3.110.42.108` was fast-forwarded from `1b484d1e0bf900ea4b1a6217f3142c8bbb449443` to `79c140be93703ee888619b6fd3b1d2711bdf97c5` using a local Git bundle and `git merge --ff-only FETCH_HEAD`.
+  - `npm ci`, `npx sequelize-cli db:migrate`, `npm run build`, and `pm2 reload ecosystem.config.cjs --update-env` all succeeded on 2026-06-30.
+  - Live rollout uncovered a production-only authorize-page failure caused by cookie mutation from a server-rendered page under Next.js 16; the fix was patched, re-tested, rebuilt, and reloaded on 2026-06-30 before final verification continued.
 
 Acceptance criteria:
 
@@ -838,11 +851,15 @@ Acceptance criteria:
 
 ### OPS-004 - Configure Custom GPT OAuth and action schema
 
-- Status: `NOT_STARTED`
+- Status: `IN_PROGRESS`
 - Owner: `TBD`
 - Estimate: 1 h
 - Depends on: API-007, OPS-003
-- Evidence: —
+- Evidence:
+  - The production OAuth values required by the GPT editor are now fixed and verified: authorization URL `https://milkywayy.com/oauth/authorize`, token URL `https://milkywayy.com/oauth/token`, scope `customer:read`, client ID `UP0_ZZWskQY2d6UfidkWXpK81IGqtJcMrBxRJbxs06o`, and the exact callback allowlist already recorded in [INTEGRATION-RECORD.md](./INTEGRATION-RECORD.md).
+  - The validated action schema remains [gpt-action-openapi.json](./gpt-action-openapi.json).
+  - A fresh in-app browser check on 2026-06-30 still opened `https://chatgpt.com` in a logged-out state for this workspace, so the production client secret still could not be entered into the GPT UI from Codex.
+  - Remaining blocker before `DONE`: the target GPT editor itself still requires the project-owner ChatGPT session in this workspace before the OAuth values and action schema can be saved from Codex.
 
 Acceptance criteria:
 
@@ -853,11 +870,22 @@ Acceptance criteria:
 
 ### OPS-005 - Execute end-to-end ChatGPT UAT
 
-- Status: `NOT_STARTED`
+- Status: `IN_PROGRESS`
 - Owner: `TBD`
 - Estimate: 2-3 h
 - Depends on: OPS-004
-- Evidence: —
+- Evidence:
+  - Public-domain end-to-end OAuth and GPT API verification ran successfully on 2026-06-30 against `https://milkywayy.com` using the production OAuth client and two production-like customer accounts. The live checks covered:
+    - logged-out authorize rendering
+    - consent denial with `access_denied` and preserved `state`
+    - consent approval and authorization-code redirect
+    - authorization-code exchange using `client_secret_post`
+    - `/api/gpt/v1/me`, `/bookings`, `/bookings/{bookingCode}`, `/invoices`, and `/files`
+    - strict cross-customer `404` behavior for foreign booking identifiers
+    - repeat-consent reconnect rendering
+    - refresh rotation using `client_secret_basic`
+    - dashboard revocation stopping both access-token authorization and subsequent refresh
+  - Remaining blocker before `DONE`: actual Custom GPT editor import/connect/retry behavior still requires the project-owner ChatGPT session and editor save step from `OPS-004`.
 
 Acceptance criteria:
 
@@ -868,11 +896,14 @@ Acceptance criteria:
 
 ### OPS-006 - Enable monitoring and complete release handoff
 
-- Status: `NOT_STARTED`
+- Status: `IN_PROGRESS`
 - Owner: `TBD`
 - Estimate: 2-3 h
 - Depends on: OPS-005
-- Evidence: —
+- Evidence:
+  - `OPERATIONS.md` now records the minimum production monitoring bundle: PostgreSQL queries for OAuth audit events and refresh-reuse/high-signal failures, PM2 health/log commands, public-edge/origin probe commands, and the first-release operational owner assignment.
+  - Live rollback/containment controls were exercised on 2026-06-30 by disabling the production OAuth client, verifying new authorize requests fail safely, verifying refresh fails with `invalid_client`, verifying an already-issued access token continues to authorize until expiry, and re-enabling the client successfully.
+  - Remaining blocker before `DONE`: the project-owner publication checks and final GPT-editor save still need to complete so the handoff can point at a fully connected public GPT rather than only the live server-side OAuth deployment.
 
 Acceptance criteria:
 
@@ -913,3 +944,8 @@ Add task IDs before starting any deferred item.
 | 2026-06-29 | Expanded `TEST-004` automated abuse-case coverage for disabled-client shutdown behavior and markup/control-character handling, then refreshed the generated security report counts. | Codex |
 | 2026-06-29 | Started `OPS-001` with a production OAuth operations runbook and managed client rotation/enablement tooling. | Codex |
 | 2026-06-29 | Started `OPS-002` with a committed Nginx topology template, PM2 cleanup-worker registration, and a repeatable topology verification runner. | Codex |
+| 2026-06-30 | Completed live production rollout work for `OPS-001` through `OPS-003`, including DB/code backups, secret configuration, production client provisioning, migrations, build, PM2 reload, and origin Nginx hardening. | Codex |
+| 2026-06-30 | Continued `TEST-004` and `OPS-005` with public-domain end-to-end OAuth/API verification across deny, approve, reconnect, refresh, revocation, and strict cross-customer isolation. | Codex |
+| 2026-06-30 | Fixed a production-only Next.js 16 consent-screen failure by moving the authorize CSRF proof into the signed decision token instead of mutating cookies from the server-rendered page. | Codex |
+| 2026-06-30 | Verified the emergency client disable/enable path live and recorded the Cloudflare-fronted production TLS topology in `DEC-021`. | Codex |
+| 2026-06-30 | Synchronized the remaining `TEST-004` browser/GPT blockers after confirming live `MAN-01`/`MAN-02`/`MAN-04`/`MAN-06` evidence and re-checking that the in-app ChatGPT browser session is still logged out. | Codex |

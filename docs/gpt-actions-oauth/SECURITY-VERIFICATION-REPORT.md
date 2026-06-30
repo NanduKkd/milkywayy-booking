@@ -41,6 +41,6 @@ The current automated run materially covers these security-plan cases:
 
 ## Remaining release-blocking work
 
-- MAN-*: Manual browser verification still requires operator-driven OTP, consent, denial, reconnect, and dashboard disconnect checks.
+- MAN-03/MAN-05/MAN-07: explicit browser-history leak inspection, scope-increase reconnect, and live signed-in/signed-out file-link confirmation still need operator-driven browser execution.
 - GPT-*: End-to-end Custom GPT verification still requires the actual GPT editor, callback registration, and two production-like customer accounts.
-- GATE-07/GATE-08: Live production TLS, topology, rollback rehearsal, and emergency disablement still need host-level execution beyond the repo-managed templates.
+- GATE-09: public-GPT privacy policy, domain verification, support contact, and publication review still need project-owner completion.

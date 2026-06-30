@@ -30,8 +30,12 @@ export function readAuthorizationCsrfCookie(cookieStore) {
   );
 }
 
-export function verifyAuthorizationCsrfToken({ cookieToken, formToken } = {}) {
-  const normalizedCookieToken = normalizeToken(cookieToken);
+export function verifyAuthorizationCsrfToken({
+  cookieToken,
+  expectedToken,
+  formToken,
+} = {}) {
+  const normalizedCookieToken = normalizeToken(expectedToken ?? cookieToken);
   const normalizedFormToken = normalizeToken(formToken);
 
   if (!normalizedCookieToken || !normalizedFormToken) {

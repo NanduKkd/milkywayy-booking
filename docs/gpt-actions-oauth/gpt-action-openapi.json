@@ -83,25 +83,73 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/Limit"
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
           },
           {
-            "$ref": "#/components/parameters/Cursor"
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque pagination cursor returned by a prior list response.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           {
-            "$ref": "#/components/parameters/BookingCodeFilter"
+            "name": "bookingCode",
+            "in": "query",
+            "description": "Filter by one public booking code.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/BookingCode"
+            }
           },
           {
-            "$ref": "#/components/parameters/ScheduledFrom"
+            "name": "scheduledFrom",
+            "in": "query",
+            "description": "Filter for bookings scheduled on or after this date.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           },
           {
-            "$ref": "#/components/parameters/ScheduledTo"
+            "name": "scheduledTo",
+            "in": "query",
+            "description": "Filter for bookings scheduled on or before this date.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           },
           {
-            "$ref": "#/components/parameters/BookingStatusFilter"
+            "name": "status",
+            "in": "query",
+            "description": "Filter by booking lifecycle status.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/BookingStatus"
+            }
           },
           {
-            "$ref": "#/components/parameters/BookingWorkflowStatusFilter"
+            "name": "workflowStatus",
+            "in": "query",
+            "description": "Filter by booking delivery workflow stage.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/BookingWorkflowStatus"
+            }
           }
         ],
         "responses": {
@@ -149,7 +197,13 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/BookingCodePath"
+            "name": "bookingCode",
+            "in": "path",
+            "description": "Public booking code.",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/BookingCode"
+            }
           }
         ],
         "responses": {
@@ -197,22 +251,64 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/Limit"
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
           },
           {
-            "$ref": "#/components/parameters/Cursor"
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque pagination cursor returned by a prior list response.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           {
-            "$ref": "#/components/parameters/InvoiceNumberFilter"
+            "name": "invoiceNumber",
+            "in": "query",
+            "description": "Filter by one public invoice number.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/InvoiceNumber"
+            }
           },
           {
-            "$ref": "#/components/parameters/PaidFrom"
+            "name": "paidFrom",
+            "in": "query",
+            "description": "Filter for invoices paid on or after this date.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           },
           {
-            "$ref": "#/components/parameters/PaidTo"
+            "name": "paidTo",
+            "in": "query",
+            "description": "Filter for invoices paid on or before this date.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           },
           {
-            "$ref": "#/components/parameters/InvoiceStatusFilter"
+            "name": "status",
+            "in": "query",
+            "description": "Filter by invoice payment status.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/InvoiceStatus"
+            }
           }
         ],
         "responses": {
@@ -260,28 +356,83 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/Limit"
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of items to return.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20
+            }
           },
           {
-            "$ref": "#/components/parameters/Cursor"
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque pagination cursor returned by a prior list response.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
           },
           {
-            "$ref": "#/components/parameters/BookingCodeFilter"
+            "name": "bookingCode",
+            "in": "query",
+            "description": "Filter by one public booking code.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/BookingCode"
+            }
           },
           {
-            "$ref": "#/components/parameters/FileIdFilter"
+            "name": "fileId",
+            "in": "query",
+            "description": "Filter by one customer-visible delivery file ID.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
           },
           {
-            "$ref": "#/components/parameters/FileStatusFilter"
+            "name": "status",
+            "in": "query",
+            "description": "Filter by customer-visible delivery file status.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/FileStatus"
+            }
           },
           {
-            "$ref": "#/components/parameters/FileTypeFilter"
+            "name": "type",
+            "in": "query",
+            "description": "Filter by delivery file type.",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/FileType"
+            }
           },
           {
-            "$ref": "#/components/parameters/UploadedFrom"
+            "name": "uploadedFrom",
+            "in": "query",
+            "description": "Filter for files uploaded on or after this date.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           },
           {
-            "$ref": "#/components/parameters/UploadedTo"
+            "name": "uploadedTo",
+            "in": "query",
+            "description": "Filter for files uploaded on or before this date.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
           }
         ],
         "responses": {

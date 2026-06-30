@@ -1,6 +1,6 @@
 # GPT Actions OAuth security and test plan
 
-- Last updated: 2026-06-29
+- Last updated: 2026-06-30
 - Verification status: `IN_PROGRESS`
 
 ## Test strategy
@@ -15,12 +15,12 @@ Mock-only tests are insufficient for authorization-code consumption, refresh rot
 |---|---|---|---|
 | GATE-01 | `NOT_STARTED` | All release-blocking tasks in `TASKS.md` are `DONE`. | — |
 | GATE-02 | `DONE` | Changed OAuth/API files pass Biome and relevant Jest suites. | `npm run verify:oauth-quality` passed on 2026-06-29, covering the focused OAuth/GPT Biome scope, release-blocking Jest suites, and no skipped/todo release-blocking tests. |
-| GATE-03 | `IN_PROGRESS` | No critical or high security finding remains open. | `npm run verify:oauth-security` on 2026-06-29 found no critical or high-severity finding in the automated OAuth/GPT matrix; manual browser, Custom GPT, and live production checks still need to confirm the remaining release surface. |
+| GATE-03 | `IN_PROGRESS` | No critical or high security finding remains open. | `npm run verify:oauth-security` on 2026-06-29 found no critical or high-severity finding in the automated OAuth/GPT matrix, and live production verification on 2026-06-30 covered logged-out authorize, denial, reconnect, revocation, and public-domain OAuth/API behavior. Remaining release-surface checks are now limited to `MAN-03`, `MAN-05`, `MAN-07`, the `GPT-*` editor flow, and `GATE-09`. |
 | GATE-04 | `DONE` | Cross-customer isolation passes for every resource endpoint. | `npm run verify:oauth-security` on 2026-06-29 regenerated `SECURITY-VERIFICATION-REPORT.md` with automated coverage for `API-04`, `API-05`, `API-09`, `API-11`, and `API-12`, plus the shared `401`/`403`/`429` GPT API authorization paths. |
-| GATE-05 | `NOT_STARTED` | Actual ChatGPT authorization, token exchange, API call, refresh, and revocation pass. | — |
+| GATE-05 | `NOT_STARTED` | Actual ChatGPT authorization, token exchange, API call, refresh, and revocation pass. | Production server-side OAuth/API UAT passed on 2026-06-30, but the final Custom GPT editor connect/save flow still needs the project-owner ChatGPT session. |
 | GATE-06 | `DONE` | Log review finds no secret, OTP, session, code, or token leakage. | `npm run verify:oauth-log-safety` passed on 2026-06-29; see `TEST-006` evidence and `SECURITY-VERIFICATION-REPORT.md`. |
-| GATE-07 | `NOT_STARTED` | Production TLS, domain, timeout, payload, and rate-limit requirements pass. | — |
-| GATE-08 | `NOT_STARTED` | Rollback and emergency client revocation procedures are verified. | — |
+| GATE-07 | `DONE` | Production TLS, domain, timeout, payload, and rate-limit requirements pass. | On 2026-06-30, `curl -Ik https://milkywayy.com` confirmed the public HTTPS endpoint, the origin Nginx config on `3.110.42.108` was updated to pin forwarded host/proto and the GPT-safe proxy limits, and live `/oauth/*` plus `/api/gpt/v1/*` requests succeeded through the public domain. `DEC-021` records that current public TLS is Cloudflare-fronted while origin proxying remains on port 80. |
+| GATE-08 | `DONE` | Rollback and emergency client revocation procedures are verified. | On 2026-06-30, predeploy DB/code backups were created, customer revocation was validated live, and the production client disable/enable path was exercised end-to-end: new authorize requests failed safely, refresh failed with `invalid_client`, existing access tokens kept working until expiry, and re-enable restored authorize rendering. |
 | GATE-09 | `NOT_STARTED` | Current public-GPT privacy policy, domain verification, support contact, and publication-review requirements are satisfied. | — |
 
 ## Automated test matrix
@@ -132,13 +132,13 @@ After each passing run, `SECURITY-VERIFICATION-REPORT.md` is regenerated with th
 
 | ID | Status | Procedure | Evidence |
 |---|---|---|---|
-| MAN-01 | `NOT_STARTED` | Open a valid authorize URL while logged out; finish OTP and confirm the consent page resumes. | — |
-| MAN-02 | `NOT_STARTED` | Deny consent and verify the correct callback error and unchanged state. | — |
-| MAN-03 | `NOT_STARTED` | Approve consent and verify that browser history and UI do not expose tokens or secrets. | — |
-| MAN-04 | `NOT_STARTED` | Reconnect with unchanged scopes and validate the chosen repeat-consent behavior. | — |
-| MAN-05 | `NOT_STARTED` | Reconnect with increased scopes and verify fresh consent. | — |
-| MAN-06 | `NOT_STARTED` | Disconnect from the customer dashboard and verify API access stops. | — |
-| MAN-07 | `NOT_STARTED` | Open a returned `/dashboard/files?fileId=...` link while signed in and signed out. | Login preserves the target; the page scrolls to and identifies only the owned file card. |
+| MAN-01 | `DONE` | Open a valid authorize URL while logged out; finish OTP and confirm the consent page resumes. | Live production verification on 2026-06-30 exercised logged-out authorize through OTP login and resumed to the consent screen for a production-like customer account. |
+| MAN-02 | `DONE` | Deny consent and verify the correct callback error and unchanged state. | Live production verification on 2026-06-30 exercised consent denial and observed `access_denied` with the original `state` preserved. |
+| MAN-03 | `NOT_STARTED` | Approve consent and verify that browser history and UI do not expose tokens or secrets. | Approval and redirect were exercised live on 2026-06-30, but an explicit browser-history and post-consent UI leak inspection still needs operator capture. |
+| MAN-04 | `DONE` | Reconnect with unchanged scopes and validate the chosen repeat-consent behavior. | Live production verification on 2026-06-30 exercised unchanged-scope reconnect and confirmed the repeat-consent rendering path. |
+| MAN-05 | `NOT_STARTED` | Reconnect with increased scopes and verify fresh consent. | First release still exposes only `customer:read`; a live browser check for a broader-scope reconnect remains pending any pre-release scope increase. |
+| MAN-06 | `DONE` | Disconnect from the customer dashboard and verify API access stops. | Live production verification on 2026-06-30 exercised dashboard revocation and confirmed both resource authorization and subsequent refresh stopped working. |
+| MAN-07 | `NOT_STARTED` | Open a returned `/dashboard/files?fileId=...` link while signed in and signed out. | Automated coverage proves the deep-link behavior, but a live signed-in and signed-out browser confirmation is still pending. |
 
 ## Custom GPT end-to-end verification
 

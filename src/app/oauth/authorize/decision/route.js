@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { oauthConfig } from "@/lib/config/oauth";
 import models from "@/lib/db/models";
@@ -11,11 +10,7 @@ import {
   recordOAuthAuditEvent,
 } from "@/lib/oauth/audit";
 import { issueAuthorizationCode } from "@/lib/oauth/authorizationCodes";
-import {
-  clearAuthorizationCsrfCookie,
-  readAuthorizationCsrfCookie,
-  verifyAuthorizationCsrfToken,
-} from "@/lib/oauth/authorizationCsrf";
+import { verifyAuthorizationCsrfToken } from "@/lib/oauth/authorizationCsrf";
 import {
   buildOAuthCallbackRedirect,
   verifyAuthorizationDecisionToken,
@@ -40,25 +35,15 @@ function buildErrorResponse(message, status) {
   });
 }
 
+function buildSeeOtherRedirect(url) {
+  return NextResponse.redirect(url, 303);
+}
+
 export async function POST(request) {
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "").trim();
   const csrfToken = String(formData.get("csrfToken") ?? "").trim();
   const decisionToken = String(formData.get("decisionToken") ?? "").trim();
-  const cookieStore = await cookies();
-  const cookieToken = readAuthorizationCsrfCookie(cookieStore);
-
-  clearAuthorizationCsrfCookie(cookieStore);
-
-  if (
-    !verifyAuthorizationCsrfToken({
-      cookieToken,
-      formToken: csrfToken,
-    })
-  ) {
-    return buildErrorResponse("Invalid CSRF token.", 403);
-  }
-
   let decision;
 
   try {
@@ -69,15 +54,24 @@ export async function POST(request) {
         ? OAUTH_AUTHORIZE_ERROR_CODES.interactionExpired
         : OAUTH_AUTHORIZE_ERROR_CODES.invalidResume;
 
-    return NextResponse.redirect(
+    return buildSeeOtherRedirect(
       buildLocalUrl(buildAuthorizationErrorPath(errorCode)),
     );
+  }
+
+  if (
+    !verifyAuthorizationCsrfToken({
+      expectedToken: decision.csrfToken,
+      formToken: csrfToken,
+    })
+  ) {
+    return buildErrorResponse("Invalid CSRF token.", 403);
   }
 
   const session = await auth();
 
   if (!session) {
-    return NextResponse.redirect(
+    return buildSeeOtherRedirect(
       buildLocalUrl(buildAuthorizationRequestPath(decision.interaction)),
     );
   }
@@ -110,7 +104,7 @@ export async function POST(request) {
       userId: Number(session.id),
     });
 
-    return NextResponse.redirect(
+    return buildSeeOtherRedirect(
       buildOAuthCallbackRedirect(decision.interaction, {
         error: "access_denied",
         state: decision.interaction.state,
@@ -152,7 +146,7 @@ export async function POST(request) {
     userId: Number(session.id),
   });
 
-  return NextResponse.redirect(
+  return buildSeeOtherRedirect(
     buildOAuthCallbackRedirect(decision.interaction, {
       code: authorizationCode,
       state: decision.interaction.state,

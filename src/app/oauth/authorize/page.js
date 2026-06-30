@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import { ShieldCheck } from "lucide-react";
-import { cookies } from "next/headers";
 import AuthorizeLoginGate from "@/app/oauth/authorize/AuthorizeLoginGate";
 import { Button } from "@/components/ui/button";
 import { USER_ROLES } from "@/lib/config/app.config";
@@ -11,11 +10,7 @@ import {
   OAUTH_AUDIT_PERSISTENCE,
   recordOAuthAuditEvent,
 } from "@/lib/oauth/audit";
-import {
-  clearAuthorizationCsrfCookie,
-  issueAuthorizationCsrfToken,
-  setAuthorizationCsrfCookie,
-} from "@/lib/oauth/authorizationCsrf";
+import { issueAuthorizationCsrfToken } from "@/lib/oauth/authorizationCsrf";
 import { issueAuthorizationDecisionToken } from "@/lib/oauth/authorizationDecision";
 import { validateAuthorizationRequest } from "@/lib/oauth/authorizationRequest";
 import {
@@ -160,16 +155,13 @@ export default async function OAuthAuthorizePage({ searchParams }) {
     );
   }
 
-  const cookieStore = await cookies();
-  clearAuthorizationCsrfCookie(cookieStore);
-
+  const csrfToken = issueAuthorizationCsrfToken();
   const decisionToken = await issueAuthorizationDecisionToken({
+    csrfToken,
     interaction,
     oauthClientId: request.client.id,
     userId: session.id,
   });
-  const csrfToken = issueAuthorizationCsrfToken();
-  setAuthorizationCsrfCookie(cookieStore, csrfToken);
 
   const activeConsent = await loadActiveOAuthConsent({
     clientId: request.client.id,

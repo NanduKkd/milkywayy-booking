@@ -219,6 +219,61 @@ Last updated: 2026-06-29
 - Reason: The current repository workflow is operating with one implementation author, but the release still needs a concrete, reviewable quality gate rather than leaving the exception implicit.
 - Consequence: `npm run verify:oauth-quality` becomes required evidence for `TEST-007`, and any production go/no-go decision must acknowledge that the independent-review criterion was not met because staffing did not permit it.
 
+### DEC-020 - Record the production Custom GPT integration values
+
+- Status: `ACCEPTED`
+- Date: 2026-06-29
+- Owner: `Project owner`
+- Needed by: `OAUTH-003`, `OPS-001`, `OPS-004`
+- Decision:
+  - The target GPT ID is `g-6a42b42ce4788191b214fe0cee1aed9a`.
+  - The exact callback URLs are:
+    - `https://chat.openai.com/aip/g-6a42b42ce4788191b214fe0cee1aed9a/oauth/callback`
+    - `https://chatgpt.com/aip/g-6a42b42ce4788191b214fe0cee1aed9a/oauth/callback`
+  - The production OAuth and action domain is `https://milkywayy.com`.
+  - The production authorization URL is `https://milkywayy.com/oauth/authorize`.
+  - The production token URL is `https://milkywayy.com/oauth/token`.
+  - The requested scope remains `customer:read`.
+  - The target remains a publicly shared/published GPT owned by the project owner in the Milkywayy production ChatGPT workspace.
+- Reason: The implementation and provisioning runbooks already depended on a concrete GPT record, but the repo still lacked the GPT-specific ID and exact callback values needed for safe client registration.
+- Consequence: Any future GPT duplication, GPT ID change, or callback-format change requires updating `INTEGRATION-RECORD.md`, the deployment secret allowlist, and the registered OAuth client before release.
+
+### DEC-021 - Record the current Cloudflare-fronted production TLS topology
+
+- Status: `ACCEPTED`
+- Date: 2026-06-30
+- Owner: `Project owner`
+- Needed by: `OPS-002`, `GATE-07`
+- Decision:
+  - Public HTTPS for `https://milkywayy.com` is currently terminated at the Cloudflare edge.
+  - The origin host `3.110.42.108` currently runs Nginx as an HTTP reverse proxy on port `80` only, forwarding to the PM2-managed Next.js process on `127.0.0.1:3000`.
+  - The origin Nginx configuration must pin `X-Forwarded-Proto` to `https`, forward the controlled host values, and keep the GPT-safe proxy timeout/body limits even while the public TLS certificate is edge-managed.
+- Reason: The committed repo topology assumed direct Nginx TLS termination on the host, but the live production deployment verified on 2026-06-30 is Cloudflare-fronted and does not currently have an origin certificate installed on the EC2 host.
+- Consequence:
+  - Public GPT/OAuth requirements are satisfied by the edge-managed HTTPS endpoint, not by direct host-port `443` on the origin.
+  - Do not add an origin `80 -> 443` redirect or enable host-local TLS without first confirming Cloudflare SSL mode and provisioning a valid origin certificate, or production can loop or break.
+  - Operations and release evidence must distinguish public-edge TLS checks from origin-proxy checks.
+
+### DEC-022 - Track the active and compatibility GPT callback allowlist
+
+- Status: `ACCEPTED`
+- Date: `2026-06-30`
+- Owner: `Project owner`
+- Needed by: `OAUTH-003`, `OPS-001`, `OPS-004`
+- Decision:
+  - The active production GPT ID is `g-ee5af7c314d509d62dd77a325d900dc61acc399a`.
+  - The production callback allowlist also temporarily retains the legacy GPT ID `g-6a42b42ce4788191b214fe0cee1aed9a`.
+  - The exact registered callback URLs are:
+    - `https://chat.openai.com/aip/g-ee5af7c314d509d62dd77a325d900dc61acc399a/oauth/callback`
+    - `https://chatgpt.com/aip/g-ee5af7c314d509d62dd77a325d900dc61acc399a/oauth/callback`
+    - `https://chat.openai.com/aip/g-6a42b42ce4788191b214fe0cee1aed9a/oauth/callback`
+    - `https://chatgpt.com/aip/g-6a42b42ce4788191b214fe0cee1aed9a/oauth/callback`
+  - The shared production OAuth client ID remains `UP0_ZZWskQY2d6UfidkWXpK81IGqtJcMrBxRJbxs06o`.
+- Reason: On 2026-06-30, a live production authorization request arrived from the new GPT ID and failed with `redirect_uri must exactly match a registered callback` because the production allowlist and client record still only contained the older GPT callback pair.
+- Consequence:
+  - `INTEGRATION-RECORD.md`, `OAUTH_CALLBACK_URIS`, and the OAuth client `redirect_uris` column must stay synchronized for every active GPT callback pair.
+  - Removing the legacy GPT callback pair is a separate controlled change that should happen only after the older GPT is retired.
+
 ## Decision change template
 
 Copy this section for a new decision:

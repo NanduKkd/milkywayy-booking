@@ -1,6 +1,6 @@
 # GPT Actions OAuth operations runbook
 
-- Last updated: 2026-06-29
+- Last updated: 2026-06-30
 - Scope: `OPS-001` and `OPS-002` production OAuth preparation and topology controls
 
 This runbook covers the repo-controlled part of production preparation. It does not store production secrets in the repository and it does not replace the manual GPT-editor and deployment-secret steps owned by the project operator.
@@ -13,7 +13,7 @@ Set these in the production secret mechanism before enabling the OAuth endpoints
 |---|---|
 | `OAUTH_BASE_URL` | Public HTTPS origin used for OAuth redirects and token URLs. Must match the production API domain. |
 | `OAUTH_ALLOWED_SCOPES` | Current production scope list. First release: `customer:read`. |
-| `OAUTH_CALLBACK_URIS` | Exact GPT callback allowlist from the GPT editor. Record both callback URLs exactly, comma-separated or newline-separated. |
+| `OAUTH_CALLBACK_URIS` | Exact GPT callback allowlist from the GPT editor. Record every active callback URL exactly, comma-separated or newline-separated. |
 | `OAUTH_INTERACTION_TTL_SECONDS` | Authorization interaction lifetime. Accepted value: `600`. |
 | `OAUTH_CODE_TTL_SECONDS` | Authorization-code lifetime. Accepted value: `120`. |
 | `OAUTH_ACCESS_TOKEN_TTL_SECONDS` | Access-token lifetime. Accepted value: `900`. |
@@ -34,10 +34,10 @@ Do not set any OAuth secret through `NEXT_PUBLIC_*` variables.
 
 Before provisioning the production client:
 
-1. Open the target Custom GPT's OAuth configuration in the GPT editor.
-2. Copy both displayed callback URLs exactly as shown.
-3. Store them in the deployment secret mechanism as `OAUTH_CALLBACK_URIS`.
-4. Use the same exact values when provisioning the OAuth client record.
+1. Confirm the active and compatibility callback records in [INTEGRATION-RECORD.md](./INTEGRATION-RECORD.md).
+2. Open each active GPT in the editor and verify the displayed callback URLs still match that record exactly.
+3. Store every active callback URL in the deployment secret mechanism as `OAUTH_CALLBACK_URIS`.
+4. Use the same exact values when provisioning or updating the OAuth client record.
 
 The allowlist is exact-match only. Any path, query, case, encoding, subdomain, or trailing-slash difference must be rejected.
 
@@ -47,8 +47,10 @@ After the production secrets are present and the exact callback URLs are known, 
 
 ```bash
 npm run oauth:provision-client -- --name "Milkywayy GPT" \
-  --redirect-uri "https://chatgpt.com/aip/oauth/callback/REPLACE_FROM_GPT_EDITOR" \
-  --redirect-uri "https://chat.openai.com/aip/oauth/callback/REPLACE_FROM_GPT_EDITOR"
+  --redirect-uri "https://chat.openai.com/aip/g-ee5af7c314d509d62dd77a325d900dc61acc399a/oauth/callback" \
+  --redirect-uri "https://chatgpt.com/aip/g-ee5af7c314d509d62dd77a325d900dc61acc399a/oauth/callback" \
+  --redirect-uri "https://chat.openai.com/aip/g-6a42b42ce4788191b214fe0cee1aed9a/oauth/callback" \
+  --redirect-uri "https://chatgpt.com/aip/g-6a42b42ce4788191b214fe0cee1aed9a/oauth/callback"
 ```
 
 Expected result:
@@ -97,14 +99,20 @@ Use disablement for incident containment, then follow the customer revocation an
 
 ## TLS, proxy, and PM2 topology
 
-Install the repo-managed Nginx template from `deploy/nginx/milkywayy-booking.conf` on the production host, then adapt only the certificate paths and any operator-owned server-name aliases if needed.
+Install the repo-managed Nginx template from `deploy/nginx/milkywayy-booking.conf` on the production host when the origin host is terminating TLS itself.
+
+Current production note recorded on 2026-06-30:
+
+- Public HTTPS for `https://milkywayy.com` is currently terminated at Cloudflare.
+- The origin host `3.110.42.108` currently runs Nginx on port `80` only and forwards to `http://127.0.0.1:3000`.
+- The live origin config was updated to keep the required forwarded-host/proto handling and GPT-safe proxy limits even without host-local TLS.
+- Do not add an origin `80 -> 443` redirect or host-local TLS until a valid origin certificate exists and Cloudflare SSL mode is confirmed compatible.
 
 Required topology:
 
-- Nginx terminates HTTPS on port 443 with `TLSv1.2` or `TLSv1.3`.
-- Port 80 redirects to the equivalent HTTPS URL.
-- Nginx reverse-proxies to the local PM2-managed Next.js process at `http://127.0.0.1:3000`.
-- Nginx forwards `Host` and `X-Forwarded-Host` from the controlled proxy value and pins `X-Forwarded-Proto` to `https`.
+- Public endpoints present TLS 1.2+ on port 443.
+- The origin Nginx reverse-proxies to the local PM2-managed Next.js process at `http://127.0.0.1:3000`.
+- The origin Nginx forwards `Host` and `X-Forwarded-Host` from the controlled proxy value and pins `X-Forwarded-Proto` to `https`.
 - Proxy body and timeout limits remain bounded for GPT Actions: `client_max_body_size 256k`, `proxy_connect_timeout 5s`, `proxy_send_timeout 30s`, and `proxy_read_timeout 30s`.
 
 The repo-managed PM2 process file now includes all production processes:
@@ -137,3 +145,49 @@ npm run verify:oauth-topology
 ```
 
 This checks the repo-managed PM2 topology, confirms the OAuth cleanup worker is registered, validates the committed Nginx TLS/proxy template, and ensures the runbook still documents the PostgreSQL-backed rate-limit topology.
+
+## Monitoring and operational queries
+
+Use these queries/commands as the minimum release handoff bundle until a separate dashboarding system is attached:
+
+- OAuth client and token events from PostgreSQL:
+
+```sql
+SELECT event_type, outcome, reason_code, count(*) AS event_count
+FROM oauth_audit_events
+WHERE created_at >= now() - interval '24 hours'
+GROUP BY event_type, outcome, reason_code
+ORDER BY event_count DESC, event_type, outcome;
+```
+
+- Refresh-token reuse and other high-signal failures:
+
+```sql
+SELECT created_at, event_type, reason_code, metadata
+FROM oauth_audit_events
+WHERE created_at >= now() - interval '24 hours'
+  AND (
+    event_type IN ('oauth.refresh.reuse_detected', 'oauth.consent.revoked')
+    OR outcome = 'failure'
+  )
+ORDER BY created_at DESC
+LIMIT 100;
+```
+
+- PM2 process and restart health:
+
+```bash
+pm2 ls
+pm2 logs milkywayy-booking --lines 100 --nostream
+pm2 logs milkywayy-booking-oauth-cleanup --lines 100 --nostream
+```
+
+- Public edge and origin proxy checks:
+
+```bash
+curl -Ik https://milkywayy.com
+curl -I http://127.0.0.1:3000/oauth/authorize
+sudo nginx -t
+```
+
+Operational owner for the first release: `Project owner`.
