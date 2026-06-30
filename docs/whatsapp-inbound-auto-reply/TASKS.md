@@ -13,7 +13,7 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `DONE` | 3 | 3 | 1-2 h |
 | M1 - Shared contact configuration | `DONE` | 1 | 1 | 1 h |
 | M2 - Signed webhook and auto-reply | `DONE` | 2 | 2 | 2-3 h |
-| M3 - Verification and rollout | `BLOCKED` | 1 | 3 | 1-2 h |
+| M3 - Verification and rollout | `BLOCKED` | 2 | 4 | 1-2 h |
 
 ## M0 - Scope and decisions
 
@@ -144,6 +144,25 @@ Acceptance criteria:
 
 - Tests cover valid signatures, invalid signatures, missing configuration, non-message payloads, approved reply content, and XML escaping.
 - Focused Jest and Biome checks pass and their commands are recorded as evidence.
+
+### TEST-002 - Add public contact regression coverage
+
+- Status: `DONE`
+- Owner: `Codex`
+- Estimate: 30 min
+- Depends on: CONFIG-001
+- Evidence:
+  - Added landing-page contact section coverage in `src/components/landing/__tests__/ContactSection.test.js` to verify the public phone and WhatsApp links still consume `PUBLIC_CONTACT`.
+  - Expanded `src/app/portfolio/__tests__/page.test.js` so the portfolio CTA still points at the shared public WhatsApp link.
+  - Added contact-route coverage in `src/app/api/contact/__tests__/route.test.js` to verify the handler falls back to the shared public E.164 number while preserving the `CONTACT_WHATSAPP_TO` override.
+  - Verified with `npm test -- --runInBand src/lib/config/__tests__/publicContact.test.js src/components/landing/__tests__/ContactSection.test.js src/app/portfolio/__tests__/page.test.js src/app/api/contact/__tests__/route.test.js src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/lib/notifications/__tests__/whatsappInboundAutoReply.test.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
+  - Verified with `npx biome check src/lib/config/publicContact.js src/components/landing/ContactSection.js src/components/landing/__tests__/ContactSection.test.js src/app/portfolio/page.js src/app/portfolio/__tests__/page.test.js src/app/api/contact/route.js src/app/api/contact/__tests__/route.test.js src/lib/notifications/whatsappInboundWebhook.js src/lib/notifications/__tests__/whatsappInboundWebhook.test.js src/lib/notifications/whatsappInboundAutoReply.js src/lib/notifications/__tests__/whatsappInboundAutoReply.test.js src/app/api/webhooks/twilio/whatsapp/route.js src/app/api/webhooks/twilio/whatsapp/__tests__/route.test.js`.
+
+Acceptance criteria:
+
+- Automated tests verify the landing-page phone and WhatsApp links still use the shared public contact configuration.
+- Automated tests verify the portfolio CTA still links to the shared public WhatsApp destination.
+- Automated tests verify the contact-route fallback still uses the shared public E.164 number unless `CONTACT_WHATSAPP_TO` overrides it.
 
 ### OPS-001 - Configure the Twilio inbound webhook
 

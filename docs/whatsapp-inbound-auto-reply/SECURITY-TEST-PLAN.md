@@ -73,6 +73,7 @@
 Automated gate status as of 2026-07-01:
 
 - The focused Jest command for the shared contact configuration and inbound webhook feature passed.
+- Regression coverage now includes the landing-page contact links, portfolio WhatsApp CTA, and public contact-route fallback/override behavior.
 - The focused Biome check for the touched landing-page, contact-route, and webhook files passed.
 - Remaining release gates are blocked only on live Twilio configuration access and manual end-to-end verification.
 
