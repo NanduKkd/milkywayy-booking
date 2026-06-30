@@ -84,9 +84,54 @@ describe("Twilio WhatsApp inbound webhook route", () => {
     await expect(response.text()).resolves.toBe("Signature validation failed.");
   });
 
+  it("rejects a request when the provided signature does not match the payload", async () => {
+    const url = "https://example.com/api/webhooks/twilio/whatsapp";
+    const signedParams = {
+      Body: "Original body",
+      From: "whatsapp:+15551234567",
+      MessageSid: "SM123",
+      To: "whatsapp:+971507263306",
+    };
+    const actualParams = {
+      ...signedParams,
+      Body: "Tampered body",
+    };
+    const signature = signTwilioRequest({
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      params: signedParams,
+      url,
+    });
+
+    const response = await POST(
+      createRequest({
+        body: new URLSearchParams(actualParams).toString(),
+        signature,
+        url,
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.text()).resolves.toBe("Signature validation failed.");
+  });
+
   it("fails closed in production when the exact webhook url is not configured", async () => {
     process.env.NODE_ENV = "production";
     delete process.env.TWILIO_WHATSAPP_WEBHOOK_URL;
+
+    const response = await POST(
+      createRequest({
+        body: "MessageSid=SM123&From=whatsapp%3A%2B15551234567&To=whatsapp%3A%2B971507263306",
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.text()).resolves.toBe(
+      "Webhook configuration missing.",
+    );
+  });
+
+  it("fails closed when the Twilio auth token is missing", async () => {
+    delete process.env.TWILIO_AUTH_TOKEN;
 
     const response = await POST(
       createRequest({
@@ -161,6 +206,18 @@ describe("Twilio WhatsApp inbound webhook route", () => {
     await expect(response.text()).resolves.toBe(
       '<?xml version="1.0" encoding="UTF-8"?><Response><Message>Thanks for your message. Messages sent to this WhatsApp number are not monitored by our team. If you have any questions, please call +971 50 726 3306 or use the contact section on our website.</Message></Response>',
     );
+  });
+
+  it("rejects an empty form payload before signature validation", async () => {
+    const response = await POST(
+      createRequest({
+        body: "",
+        signature: "invalid-signature",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Webhook payload missing.");
   });
 
   it("rejects malformed content types before signature validation", async () => {
