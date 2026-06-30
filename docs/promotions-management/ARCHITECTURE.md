@@ -178,8 +178,9 @@ executed as arbitrary expressions.
 
 Permission-checked services expose list/create/update/activate/pause/deactivate
 for each promotion kind, assignment lookup, usage totals, and audit history.
-Deletion of used/system promotions becomes deactivation rather than physical
-deletion.
+Until `admin-access-control` resumes, the compatibility authorization mode is
+`SUPERADMIN`-only rather than the deferred role-permission matrix. Deletion of
+used/system promotions becomes deactivation rather than physical deletion.
 
 ## Approval outcome for PRM-003
 

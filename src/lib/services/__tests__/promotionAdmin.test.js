@@ -1,0 +1,391 @@
+import { sequelize } from "@/lib/db/db";
+import models from "@/lib/db/models";
+import {
+  PROMOTION_ADMIN_AUTHORIZATION_MODE,
+  activatePromotion,
+  createPromotion,
+  deactivatePromotion,
+  listPromotions,
+  pausePromotion,
+  updatePromotion,
+} from "../promotionAdmin";
+
+const mockTransaction = {
+  LOCK: {
+    UPDATE: "UPDATE",
+  },
+};
+
+const superadminActor = { id: 11, role: "SUPERADMIN" };
+const customerActor = { id: 21, role: "CUSTOMER" };
+
+function buildPromotionRecord(overrides = {}) {
+  const state = {
+    id: 7,
+    kind: "GENERIC",
+    code: "SAVE20",
+    name: "Save 20",
+    adminDescription: null,
+    customerMessage: null,
+    benefitType: "PERCENTAGE",
+    benefitValue: "20.00",
+    benefitCap: "200.00",
+    minimumSpend: "500.00",
+    startsAt: null,
+    endsAt: null,
+    status: "DRAFT",
+    systemFlag: false,
+    priority: 0,
+    perUserLimit: 1,
+    totalLimit: 50,
+    triggerType: "NONE",
+    triggerConfig: {},
+    legacySourceType: null,
+    legacySourceId: null,
+    createdByUserId: 5,
+    updatedByUserId: 5,
+    createdAt: new Date("2026-07-01T10:00:00.000Z"),
+    updatedAt: new Date("2026-07-01T10:00:00.000Z"),
+    ...overrides,
+  };
+
+  return {
+    ...state,
+    get: jest.fn(({ plain } = {}) => (plain ? { ...state } : { ...state })),
+    update: jest.fn(async (values) => {
+      Object.assign(state, values, {
+        updatedAt: new Date("2026-07-01T12:00:00.000Z"),
+      });
+      return {
+        ...state,
+        get: jest.fn(({ plain } = {}) => (plain ? { ...state } : { ...state })),
+      };
+    }),
+  };
+}
+
+jest.mock("@/lib/db/db", () => ({
+  sequelize: {
+    transaction: jest.fn((callback) => callback(mockTransaction)),
+  },
+}));
+
+jest.mock("@/lib/db/models", () => ({
+  __esModule: true,
+  default: {
+    Promotion: {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findByPk: jest.fn(),
+      findOne: jest.fn(),
+    },
+    PromotionAuditEvent: {
+      create: jest.fn(),
+    },
+  },
+}));
+
+describe("promotionAdmin service", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("lists promotions for an authorized actor with stable ordering", async () => {
+    models.Promotion.findAll.mockResolvedValue([
+      buildPromotionRecord({ id: 10, kind: "AUTOMATIC", triggerType: "ANY_PAID_BOOKING", code: null, benefitCap: null }),
+      buildPromotionRecord({ id: 9 }),
+    ]);
+
+    const result = await listPromotions({ actorUser: superadminActor });
+
+    expect(models.Promotion.findAll).toHaveBeenCalledWith({
+      where: {},
+      order: [
+        ["kind", "ASC"],
+        ["priority", "DESC"],
+        ["createdAt", "DESC"],
+        ["id", "DESC"],
+      ],
+      transaction: null,
+    });
+    expect(result).toHaveLength(2);
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        id: 10,
+        kind: "AUTOMATIC",
+      }),
+    );
+  });
+
+  it("rejects unauthorized promotion admins", async () => {
+    await expect(
+      createPromotion({
+        actorUser: customerActor,
+        input: {
+          kind: "GENERIC",
+          code: "save20",
+          name: "Save 20",
+          benefitType: "PERCENTAGE",
+          benefitValue: 20,
+          benefitCap: 200,
+          minimumSpend: 500,
+          triggerType: "NONE",
+        },
+      }),
+    ).rejects.toThrow("Unauthorized: Promotion admin access required");
+  });
+
+  it("creates and audits an active generic promotion with normalized values", async () => {
+    const createdPromotion = buildPromotionRecord({
+      id: 88,
+      status: "ACTIVE",
+      code: "SAVE20",
+      createdByUserId: 11,
+      updatedByUserId: 11,
+    });
+
+    models.Promotion.findOne.mockResolvedValue(null);
+    models.Promotion.create.mockResolvedValue(createdPromotion);
+
+    const result = await createPromotion({
+      actorUser: superadminActor,
+      reason: "launch coupon",
+      input: {
+        kind: "GENERIC",
+        code: " save20 ",
+        name: "Save 20",
+        adminDescription: "Summer launch code",
+        customerMessage: "Use at checkout",
+        benefitType: "PERCENTAGE",
+        benefitValue: "20",
+        benefitCap: "200",
+        minimumSpend: "500",
+        status: "ACTIVE",
+        priority: 2,
+        perUserLimit: 1,
+        totalLimit: 50,
+        triggerType: "NONE",
+      },
+    });
+
+    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+    expect(models.Promotion.findOne).toHaveBeenCalledTimes(1);
+    expect(models.Promotion.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "GENERIC",
+        code: "SAVE20",
+        benefitType: "PERCENTAGE",
+        benefitValue: 20,
+        benefitCap: 200,
+        minimumSpend: 500,
+        status: "ACTIVE",
+        createdByUserId: 11,
+        updatedByUserId: 11,
+      }),
+      { transaction: mockTransaction },
+    );
+    expect(models.PromotionAuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promotionId: 88,
+        actorUserId: 11,
+        action: "CREATED",
+        reason: "launch coupon",
+        beforeState: null,
+        afterState: expect.objectContaining({
+          id: 88,
+          code: "SAVE20",
+          status: "ACTIVE",
+        }),
+        metadata: expect.objectContaining({
+          authorizationMode: PROMOTION_ADMIN_AUTHORIZATION_MODE,
+        }),
+      }),
+      { transaction: mockTransaction },
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 88,
+        code: "SAVE20",
+        status: "ACTIVE",
+      }),
+    );
+  });
+
+  it("validates automatic date-range promotions before create", async () => {
+    await expect(
+      createPromotion({
+        actorUser: superadminActor,
+        input: {
+          kind: "AUTOMATIC",
+          name: "Bad date range",
+          benefitType: "FIXED",
+          benefitValue: 100,
+          triggerType: "DATE_RANGE",
+          triggerConfig: {
+            startDate: "2026/07/05",
+            endDate: "2026-07-04",
+          },
+        },
+      }),
+    ).rejects.toThrow("Date-range start date must use YYYY-MM-DD");
+  });
+
+  it("updates a promotion, keeps status immutable, and records an UPDATED audit event", async () => {
+    const promotion = buildPromotionRecord({
+      id: 19,
+      status: "ACTIVE",
+      name: "Old promo",
+    });
+
+    models.Promotion.findByPk.mockResolvedValue(promotion);
+    models.Promotion.findOne.mockResolvedValue(null);
+
+    const result = await updatePromotion({
+      actorUser: superadminActor,
+      promotionId: 19,
+      reason: "raise cap",
+      input: {
+        name: "Updated promo",
+        benefitCap: 250,
+        priority: 3,
+      },
+    });
+
+    expect(models.Promotion.findByPk).toHaveBeenCalledWith(19, {
+      transaction: mockTransaction,
+      lock: mockTransaction.LOCK.UPDATE,
+    });
+    expect(promotion.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Updated promo",
+        benefitCap: 250,
+        priority: 3,
+        status: "ACTIVE",
+        updatedByUserId: 11,
+      }),
+      { transaction: mockTransaction },
+    );
+    expect(models.PromotionAuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promotionId: 19,
+        actorUserId: 11,
+        action: "UPDATED",
+        reason: "raise cap",
+        beforeState: expect.objectContaining({
+          name: "Old promo",
+        }),
+        afterState: expect.objectContaining({
+          name: "Updated promo",
+          benefitCap: 250,
+        }),
+      }),
+      { transaction: mockTransaction },
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 19,
+        name: "Updated promo",
+        benefitCap: 250,
+      }),
+    );
+  });
+
+  it("activates a promotion and records an ACTIVATED audit event", async () => {
+    const promotion = buildPromotionRecord({
+      id: 30,
+      status: "PAUSED",
+    });
+
+    models.Promotion.findByPk.mockResolvedValue(promotion);
+    models.Promotion.findOne.mockResolvedValue(null);
+
+    const result = await activatePromotion({
+      actorUser: superadminActor,
+      promotionId: 30,
+      reason: "ready for launch",
+    });
+
+    expect(promotion.update).toHaveBeenCalledWith(
+      {
+        status: "ACTIVE",
+        updatedByUserId: 11,
+      },
+      { transaction: mockTransaction },
+    );
+    expect(models.PromotionAuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "ACTIVATED",
+        reason: "ready for launch",
+        beforeState: expect.objectContaining({
+          status: "PAUSED",
+        }),
+        afterState: expect.objectContaining({
+          status: "ACTIVE",
+        }),
+      }),
+      { transaction: mockTransaction },
+    );
+    expect(result.status).toBe("ACTIVE");
+  });
+
+  it("pauses and deactivates a promotion with distinct audit events", async () => {
+    const activePromotion = buildPromotionRecord({
+      id: 41,
+      status: "ACTIVE",
+    });
+    const pausedPromotion = buildPromotionRecord({
+      id: 42,
+      status: "PAUSED",
+    });
+
+    models.Promotion.findByPk
+      .mockResolvedValueOnce(activePromotion)
+      .mockResolvedValueOnce(pausedPromotion);
+
+    const paused = await pausePromotion({
+      actorUser: superadminActor,
+      promotionId: 41,
+      reason: "temporary stop",
+    });
+    const deactivated = await deactivatePromotion({
+      actorUser: superadminActor,
+      promotionId: 42,
+      reason: "retired",
+    });
+
+    expect(paused.status).toBe("PAUSED");
+    expect(deactivated.status).toBe("DEACTIVATED");
+    expect(models.PromotionAuditEvent.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        action: "PAUSED",
+        reason: "temporary stop",
+      }),
+      { transaction: mockTransaction },
+    );
+    expect(models.PromotionAuditEvent.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        action: "DEACTIVATED",
+        reason: "retired",
+      }),
+      { transaction: mockTransaction },
+    );
+  });
+
+  it("blocks status changes away from DEACTIVATED", async () => {
+    models.Promotion.findByPk.mockResolvedValue(
+      buildPromotionRecord({
+        id: 55,
+        status: "DEACTIVATED",
+      }),
+    );
+
+    await expect(
+      activatePromotion({
+        actorUser: superadminActor,
+        promotionId: 55,
+      }),
+    ).rejects.toThrow("Deactivated promotions cannot change status");
+  });
+});
