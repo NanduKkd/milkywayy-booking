@@ -101,19 +101,15 @@ Use disablement for incident containment, then follow the customer revocation an
 
 Install the repo-managed Nginx template from `deploy/nginx/milkywayy-booking.conf` on the production host when the origin host is terminating TLS itself.
 
-Current production note recorded on 2026-06-30:
-
-- Public HTTPS for `https://milkywayy.com` is currently terminated at Cloudflare.
-- The origin host `3.110.42.108` currently runs Nginx on port `80` only and forwards to `http://127.0.0.1:3000`.
-- The live origin config was updated to keep the required forwarded-host/proto handling and GPT-safe proxy limits even without host-local TLS.
-- Do not add an origin `80 -> 443` redirect or host-local TLS until a valid origin certificate exists and Cloudflare SSL mode is confirmed compatible.
+Exact current production deployment details are maintained in the local-only operator runbook at `docs/private/PRODUCTION-DEPLOYMENT.md`.
 
 Required topology:
 
 - Public endpoints present TLS 1.2+ on port 443.
-- The origin Nginx reverse-proxies to the local PM2-managed Next.js process at `http://127.0.0.1:3000`.
+- The origin reverse proxy forwards to the PM2-managed Next.js process on the local application interface documented in the local operator runbook.
 - The origin Nginx forwards `Host` and `X-Forwarded-Host` from the controlled proxy value and pins `X-Forwarded-Proto` to `https`.
 - Proxy body and timeout limits remain bounded for GPT Actions: `client_max_body_size 256k`, `proxy_connect_timeout 5s`, `proxy_send_timeout 30s`, and `proxy_read_timeout 30s`.
+- Do not change origin redirect or host-local TLS behavior without checking `docs/private/PRODUCTION-DEPLOYMENT.md` and validating the active edge/origin SSL mode first.
 
 The repo-managed PM2 process file now includes all production processes:
 
@@ -128,7 +124,7 @@ pm2 start ecosystem.config.cjs
 pm2 save
 ```
 
-The cleanup and booking workers target `http://127.0.0.1:3000` through `INTERNAL_APP_URL` and require `CRON_SECRET`.
+The cleanup and booking workers target the local application URL documented in `docs/private/PRODUCTION-DEPLOYMENT.md` through `INTERNAL_APP_URL` and require `CRON_SECRET`.
 
 ## Rate-limit topology
 
@@ -186,7 +182,7 @@ pm2 logs milkywayy-booking-oauth-cleanup --lines 100 --nostream
 
 ```bash
 curl -Ik https://milkywayy.com
-curl -I http://127.0.0.1:3000/oauth/authorize
+curl -I "$INTERNAL_APP_URL/oauth/authorize"
 sudo nginx -t
 ```
 

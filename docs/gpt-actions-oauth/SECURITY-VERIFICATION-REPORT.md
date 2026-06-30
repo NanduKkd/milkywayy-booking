@@ -37,7 +37,7 @@ The current automated run materially covers these security-plan cases:
 
 - `npm run verify:oauth-log-safety`: keeps the separate log and secret-leak review current for `LOG-02`.
 - `npm run verify:oauth-quality`: keeps the focused Biome and release-blocking Jest quality gate current for `GATE-02`.
-- `npm run verify:oauth-topology`: verifies the repo-managed Nginx and PM2 topology, but live host validation remains a production rollout task.
+- `npm run verify:oauth-topology`: verifies the repo-managed Nginx and PM2 topology, but exact live host validation remains a production rollout task documented in `docs/private/PRODUCTION-DEPLOYMENT.md`.
 
 ## Release completion
 

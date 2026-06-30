@@ -1,65 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Milkywayy Booking
 
-## Getting Started
+Milkywayy Booking is a Next.js application for booking and delivering real
+estate media services. It includes a public website, customer booking and
+account flows, an operations/admin portal, delivery-file review workflows, and
+a read-only GPT Actions integration.
 
-First, run the development server:
+The application uses the Next.js App Router and React, Sequelize with
+PostgreSQL, Stripe, AWS S3, Twilio/WhatsApp, Tailwind CSS, Jest, and Biome.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Documentation index
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Document | Use it for |
+|---|---|
+| [Project overview](./docs/PROJECT-OVERVIEW.md) | Product areas, architecture, integrations, domain model, and code map. |
+| [Development guide](./docs/DEVELOPMENT.md) | Local setup, configuration, database commands, tests, and documentation maintenance. |
+| [Project status](./docs/PROJECT-STATUS.md) | Current implementation coverage, repository health, and known failing checks. |
+| [Feature delivery playbook](./docs/FEATURE-DELIVERY-PLAYBOOK.md) | Required planning, tracking, evidence, and documentation workflow for feature-sized work. |
+| [GPT Actions OAuth](./docs/gpt-actions-oauth/README.md) | Feature contract and index for the OAuth and GPT resource API documentation. |
+| [Agent instructions](./AGENTS.md) | Repository-local rules for Codex and other coding agents. |
+| [Private production runbook](./docs/private/PRODUCTION-DEPLOYMENT.md) | Local-only live deployment instructions. This file is intentionally ignored by Git. |
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Sources of truth
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `docs/PROJECT-STATUS.md` describes the current state of the repository.
+- For a feature, its `README.md` defines the delivery contract and its
+  `TASKS.md` is the authoritative progress tracker.
+- `docs/FEATURE-DELIVERY-PLAYBOOK.md` defines how feature documentation must be
+  created and kept in sync with implementation.
+- `docs/private/PRODUCTION-DEPLOYMENT.md` contains exact live deployment
+  details. Do not copy its hostnames, paths, credentials, or operator commands
+  into tracked documentation.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
-## Booking workflow deployment
-
-Run database migrations before restarting production. The June 8 migration
-normalizes every physical delivery URL into a per-file review record and keeps
-the legacy booking columns for rollback:
-
-```bash
-npx sequelize-cli db:migrate
-```
-
-After migration:
-
-- Existing delivered files start with a fresh `0/2` revision allowance.
-- Files already under review inherit their existing review deadline.
-- Legacy files staged in Editing remain private until an admin clicks
-  **Publish Staged Files**.
-- Completed booking files are backfilled as accepted.
-
-Set `CRON_SECRET` in the PM2 environment, then start both the web app and the
-Dubai-midnight auto-completion worker:
-
-```bash
-pm2 start ecosystem.config.cjs
-pm2 save
-```
-
-Override `INTERNAL_APP_URL` if the Next.js server is not available at
-`http://127.0.0.1:3000`.
+Start with the [development guide](./docs/DEVELOPMENT.md) to run the application
+locally.

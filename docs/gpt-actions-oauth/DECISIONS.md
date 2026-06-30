@@ -245,13 +245,13 @@ Last updated: 2026-06-29
 - Owner: `Project owner`
 - Needed by: `OPS-002`, `GATE-07`
 - Decision:
-  - Public HTTPS for `https://milkywayy.com` is currently terminated at the Cloudflare edge.
-  - The origin host `3.110.42.108` currently runs Nginx as an HTTP reverse proxy on port `80` only, forwarding to the PM2-managed Next.js process on `127.0.0.1:3000`.
-  - The origin Nginx configuration must pin `X-Forwarded-Proto` to `https`, forward the controlled host values, and keep the GPT-safe proxy timeout/body limits even while the public TLS certificate is edge-managed.
-- Reason: The committed repo topology assumed direct Nginx TLS termination on the host, but the live production deployment verified on 2026-06-30 is Cloudflare-fronted and does not currently have an origin certificate installed on the EC2 host.
+  - Public HTTPS for `https://milkywayy.com` is currently edge-terminated before requests reach the origin reverse proxy.
+  - The origin reverse proxy forwards to the PM2-managed Next.js process using controlled forwarded-host and forwarded-proto handling.
+  - Exact live deployment details are maintained only in the local operator runbook at `docs/private/PRODUCTION-DEPLOYMENT.md`.
+- Reason: The repo needs the topology constraints and safety rules, but exact host-level deployment details should not be stored in tracked documentation.
 - Consequence:
-  - Public GPT/OAuth requirements are satisfied by the edge-managed HTTPS endpoint, not by direct host-port `443` on the origin.
-  - Do not add an origin `80 -> 443` redirect or enable host-local TLS without first confirming Cloudflare SSL mode and provisioning a valid origin certificate, or production can loop or break.
+  - Public GPT/OAuth requirements are satisfied at the public HTTPS endpoint, not by assuming a specific origin TLS layout from the repo alone.
+  - Do not change origin redirect or host-local TLS behavior without checking the local deployment runbook and validating the active edge/origin SSL mode first.
   - Operations and release evidence must distinguish public-edge TLS checks from origin-proxy checks.
 
 ### DEC-022 - Track the active and compatibility GPT callback allowlist

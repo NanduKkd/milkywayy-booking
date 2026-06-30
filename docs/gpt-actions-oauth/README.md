@@ -106,7 +106,7 @@ The release is complete only when:
 - Existing business functions are mostly Next.js server actions. GPT Actions require explicitly designed REST endpoints with per-user ownership checks.
 - Current unrelated worktree changes touch the dashboard and proxy. They should be settled before OAuth implementation begins because the authorization login/resume flow will touch the same areas.
 - The existing repository-wide lint and test failures are baseline issues. They should be tracked separately, while all new or changed OAuth files must pass their relevant checks.
-- Production runs the Next.js process under PM2 behind an Nginx reverse proxy. As verified on 2026-06-30, public HTTPS is currently Cloudflare-fronted while the origin host keeps Nginx on port `80` with controlled forwarded-host/proto handling toward the local Next.js process.
+- Production runs the Next.js process under PM2 behind a controlled reverse-proxy chain. Exact live deployment details are maintained in the local-only operator runbook at `docs/private/PRODUCTION-DEPLOYMENT.md`.
 
 ## OpenAI platform constraints used by this plan
 

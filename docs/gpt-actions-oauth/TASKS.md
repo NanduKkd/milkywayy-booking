@@ -796,7 +796,7 @@ Acceptance criteria:
   - Focused verification passed:
     - `npx jest src/lib/oauth/__tests__/clientProvisioning.test.js --runInBand`
     - `npx biome check src/lib/oauth/clientProvisioning.js src/lib/oauth/__tests__/clientProvisioning.test.js scripts/manage-oauth-client.mjs docs/gpt-actions-oauth/OPERATIONS.md docs/gpt-actions-oauth/README.md docs/gpt-actions-oauth/TASKS.md package.json`
-  - Production `.env` on `ubuntu@3.110.42.108:/home/ubuntu/milkywayy-booking/.env` was updated on 2026-06-30 with `OAUTH_BASE_URL`, `OAUTH_ALLOWED_SCOPES`, the four exact active-plus-compatibility GPT callback URLs, accepted TTLs, and fresh server-only hash peppers after creating `.env.backup.oauth.*`.
+  - Production secret configuration was updated on 2026-06-30 with `OAUTH_BASE_URL`, `OAUTH_ALLOWED_SCOPES`, the exact active-plus-compatibility GPT callback URLs, accepted TTLs, and fresh server-only hash peppers. Exact host paths and backup filenames are maintained in `docs/private/PRODUCTION-DEPLOYMENT.md`.
   - Live client provisioning succeeded on 2026-06-30 via `npm run oauth:provision-client -- --name "Milkywayy GPT" --redirect-uri ...`; the resulting production client ID is `UP0_ZZWskQY2d6UfidkWXpK81IGqtJcMrBxRJbxs06o`, the client is enabled, and PostgreSQL stores only the hashed client secret.
 
 Acceptance criteria:
@@ -819,9 +819,9 @@ Acceptance criteria:
   - Focused verification passed:
     - `npm run verify:oauth-topology`
     - `npx biome check ecosystem.config.cjs scripts/verify-oauth-topology.mjs docs/gpt-actions-oauth/OPERATIONS.md docs/gpt-actions-oauth/TASKS.md`
-  - Production origin Nginx on `3.110.42.108` was updated on 2026-06-30 to pin `X-Forwarded-Proto https`, preserve the controlled host headers, and enforce `client_max_body_size 256k`, `proxy_connect_timeout 5s`, `proxy_send_timeout 30s`, and `proxy_read_timeout 30s`; `sudo nginx -t` and `sudo systemctl reload nginx` both succeeded.
+  - The production origin proxy was updated on 2026-06-30 to preserve the controlled host headers, pin forwarded protocol handling, and enforce the required GPT-safe body and timeout limits; exact host-level details are maintained in `docs/private/PRODUCTION-DEPLOYMENT.md`.
   - Production PM2 was reloaded from `ecosystem.config.cjs` on 2026-06-30 and now runs `milkywayy-booking`, `milkywayy-booking-auto-complete`, and `milkywayy-booking-oauth-cleanup` together.
-  - Public TLS validation on 2026-06-30 confirmed `curl -Ik https://milkywayy.com` returns `HTTP/2 200` through the Cloudflare edge, while `DEC-021` records the current Cloudflare-fronted origin topology and the reason the host itself still listens on port `80` only.
+  - Public TLS validation on 2026-06-30 confirmed `curl -Ik https://milkywayy.com` succeeds at the public edge, while `DEC-021` records the tracked production topology constraints and `docs/private/PRODUCTION-DEPLOYMENT.md` holds the exact live layout.
 
 Acceptance criteria:
 
@@ -838,9 +838,8 @@ Acceptance criteria:
 - Estimate: 1-2 h
 - Depends on: TEST-007, OPS-001, OPS-002
 - Evidence:
-  - Database backup created on 2026-06-30 before any schema change: `/home/ubuntu/deploy-backups/milkywayy_pre_oauth_20260629_200313.dump`.
-  - Application code backup created on 2026-06-30 before deploy: `/home/ubuntu/deploy-backups/milkywayy-booking_pre_oauth_code_20260629_200517.tar.gz`.
-  - Production checkout on `3.110.42.108` was fast-forwarded from `1b484d1e0bf900ea4b1a6217f3142c8bbb449443` to `79c140be93703ee888619b6fd3b1d2711bdf97c5` using a local Git bundle and `git merge --ff-only FETCH_HEAD`.
+  - Database and application backups were created before deploy on 2026-06-30; exact backup paths and operator notes are maintained in `docs/private/PRODUCTION-DEPLOYMENT.md`.
+  - Production checkout was fast-forwarded to the release revision on 2026-06-30 using the operator-controlled deployment flow documented in `docs/private/PRODUCTION-DEPLOYMENT.md`.
   - `npm ci`, `npx sequelize-cli db:migrate`, `npm run build`, and `pm2 reload ecosystem.config.cjs --update-env` all succeeded on 2026-06-30.
   - Live rollout uncovered a production-only authorize-page failure caused by cookie mutation from a server-rendered page under Next.js 16; the fix was patched, re-tested, rebuilt, and reloaded on 2026-06-30 before final verification continued.
 
