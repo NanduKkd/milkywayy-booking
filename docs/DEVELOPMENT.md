@@ -153,6 +153,7 @@ configuration.
 | `npm run test:ci` | Run Jest with CI settings and coverage. |
 | `npm run lint` | Run Biome checks without rewriting files. |
 | `npm run format` | Rewrite supported files with Biome formatting. |
+| `npm run verify:whatsapp-inbound-config` | Check the Twilio inbound auto-reply environment values before attaching the live webhook. |
 | `npx sequelize-cli db:migrate` | Apply pending database migrations. |
 
 OAuth provisioning, verification, and cleanup commands are listed in

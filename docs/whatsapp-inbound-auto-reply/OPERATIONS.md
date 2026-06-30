@@ -14,6 +14,8 @@ The implementation is expected to use these server-side values:
 
 The existing outbound WhatsApp variables remain unchanged. Do not place real tokens, callback hostnames, or environment-specific commands in this tracked document. Record exact live values and operator-specific procedures in `docs/private/PRODUCTION-DEPLOYMENT.md`.
 
+Use `npm run verify:whatsapp-inbound-config` as a sanitized preflight before attaching the live webhook. It checks that `TWILIO_AUTH_TOKEN` is present and that `TWILIO_WHATSAPP_WEBHOOK_URL` is an absolute URL targeting `/api/webhooks/twilio/whatsapp` without printing secrets.
+
 ## Twilio configuration
 
 - Configure the WhatsApp sender's inbound message webhook to use `POST`.
@@ -24,13 +26,14 @@ The existing outbound WhatsApp variables remain unchanged. Do not place real tok
 
 ## Rollout
 
-1. Deploy the code with the auth token and exact public webhook URL configured.
-2. Confirm the endpoint rejects an unsigned test request.
-3. Configure the Twilio inbound webhook.
-4. Send one WhatsApp message from a non-business test number.
-5. Confirm exactly one approved response arrives and includes the website's displayed phone number.
-6. Send an existing outbound notification and confirm its behavior is unchanged.
-7. Record validation evidence in `TASKS.md`.
+1. Run `npm run verify:whatsapp-inbound-config` with the rollout environment values loaded.
+2. Deploy the code with the auth token and exact public webhook URL configured.
+3. Confirm the endpoint rejects an unsigned test request.
+4. Configure the Twilio inbound webhook.
+5. Send one WhatsApp message from a non-business test number.
+6. Confirm exactly one approved response arrives and includes the website's displayed phone number.
+7. Send an existing outbound notification and confirm its behavior is unchanged.
+8. Record validation evidence in `TASKS.md`.
 
 ## Monitoring
 

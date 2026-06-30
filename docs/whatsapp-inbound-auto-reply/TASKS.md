@@ -13,7 +13,7 @@ This is the authoritative progress tracker. Status values and update rules are d
 | M0 - Scope and decisions | `DONE` | 3 | 3 | 1-2 h |
 | M1 - Shared contact configuration | `DONE` | 1 | 1 | 1 h |
 | M2 - Signed webhook and auto-reply | `DONE` | 2 | 2 | 2-3 h |
-| M3 - Verification and rollout | `BLOCKED` | 2 | 4 | 1-2 h |
+| M3 - Verification and rollout | `BLOCKED` | 3 | 5 | 1-2 h |
 
 ## M0 - Scope and decisions
 
@@ -184,12 +184,33 @@ Acceptance criteria:
 - The application has the exact public callback URL available for signature verification.
 - Exact live values remain in `docs/private/PRODUCTION-DEPLOYMENT.md`, not tracked documentation.
 
+### OPS-002 - Add a local inbound webhook configuration preflight
+
+- Status: `DONE`
+- Owner: `Codex`
+- Estimate: 30 min
+- Depends on: TEST-001
+- Evidence:
+  - Added `scripts/verify-whatsapp-inbound-config.mjs` to check that `TWILIO_AUTH_TOKEN` is present and that `TWILIO_WHATSAPP_WEBHOOK_URL` is an absolute inbound-webhook URL with the expected path and production-safe scheme rules.
+  - Added `npm run verify:whatsapp-inbound-config` in `package.json` so the preflight is discoverable during rollout.
+  - Added process-level coverage for the verifier in `scripts/__tests__/verify-whatsapp-inbound-config.test.js`.
+  - Documented the preflight command in `docs/DEVELOPMENT.md` and `docs/whatsapp-inbound-auto-reply/OPERATIONS.md`.
+  - Verified with `npm test -- --runInBand scripts/__tests__/verify-whatsapp-inbound-config.test.js`.
+  - Verified with `NODE_ENV=production TWILIO_AUTH_TOKEN=test-auth-token TWILIO_WHATSAPP_WEBHOOK_URL=https://example.com/api/webhooks/twilio/whatsapp npm run verify:whatsapp-inbound-config`.
+  - Verified with `npx biome check scripts/verify-whatsapp-inbound-config.mjs scripts/__tests__/verify-whatsapp-inbound-config.test.js package.json docs/DEVELOPMENT.md docs/whatsapp-inbound-auto-reply/OPERATIONS.md docs/whatsapp-inbound-auto-reply/TASKS.md`.
+
+Acceptance criteria:
+
+- Operators can run one repository command to confirm the required inbound webhook environment values are present before changing the live Twilio sender configuration.
+- The preflight rejects missing auth tokens, missing webhook URLs, malformed URLs, wrong webhook paths, and non-HTTPS production callback URLs.
+- The command does not print secrets.
+
 ### VERIFY-001 - Complete release verification
 
 - Status: `BLOCKED`
 - Owner: `Project owner`
 - Estimate: 30 min
-- Depends on: OPS-001
+- Depends on: OPS-001, OPS-002
 - Evidence:
   - Confirmed on 2026-07-01 that no further repository-only implementation tasks remain for this feature; the remaining work is live Twilio configuration and manual end-to-end validation.
   - Blocked pending OPS-001 completion because real inbound-message verification requires the live Twilio webhook to be attached and a production-reachable callback URL to be configured.
