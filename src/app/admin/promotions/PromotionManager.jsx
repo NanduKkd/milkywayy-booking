@@ -778,8 +778,8 @@ export default function PromotionManager({
             </h1>
             <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
               Manage generic codes, personal offers, and automatic rules in one
-              deterministic admin surface while legacy Discounts and Coupons
-              stay available during parity work.
+              deterministic admin surface. The legacy Coupons route remains
+              available while code migration finishes.
             </p>
           </div>
         </div>

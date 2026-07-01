@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  BadgePercent,
   CalendarClock,
   FileText,
   FolderKanban,
@@ -22,7 +21,6 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/invoices", label: "Invoices", icon: Receipt },
   { href: "/admin/promotions", label: "Promotions", icon: Sparkles },
-  { href: "/admin/discounts", label: "Discounts", icon: BadgePercent },
   { href: "/admin/coupons", label: "Coupons", icon: Tags },
   { href: "/admin/timeslots", label: "Time Slots", icon: CalendarClock },
   { href: "/admin/prices", label: "Pricing", icon: FileText },

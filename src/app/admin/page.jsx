@@ -27,11 +27,6 @@ export default function AdminDashboard() {
       description: "Manage generic, personal, and automatic promotions.",
     },
     {
-      href: "/admin/discounts",
-      title: "Discounts",
-      description: "Manage discounts and offers.",
-    },
-    {
       href: "/admin/timeslots",
       title: "Time Slots",
       description: "Manage booking time slots and availability.",

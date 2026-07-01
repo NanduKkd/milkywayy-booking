@@ -1,0 +1,32 @@
+import { render, screen } from "../../../test-utils";
+import AdminSidebarNav from "../AdminSidebarNav";
+
+const mockUsePathname = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    refresh: jest.fn(),
+  }),
+  usePathname: () => mockUsePathname(),
+}));
+
+describe("AdminSidebarNav", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUsePathname.mockReturnValue("/admin/promotions");
+  });
+
+  it("shows Promotions in primary navigation and removes Discounts", () => {
+    render(<AdminSidebarNav />);
+
+    expect(screen.getByRole("link", { name: /Promotions/i })).toHaveAttribute(
+      "href",
+      "/admin/promotions",
+    );
+    expect(
+      screen.queryByRole("link", { name: /Discounts/i }),
+    ).not.toBeInTheDocument();
+  });
+});
