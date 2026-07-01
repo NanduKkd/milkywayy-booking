@@ -97,8 +97,8 @@ function createExpense(id, fields) {
     amount: Number(fields.amount),
     category: fields.category,
     categoryLabel:
-      expenseCategories.find((category) => category.key === fields.category)?.label ||
-      fields.category,
+      expenseCategories.find((category) => category.key === fields.category)
+        ?.label || fields.category,
     createdAt: fields.createdAt || "2026-06-20T09:00:00.000Z",
     description: fields.description || null,
     expenseDate: fields.expenseDate,
@@ -121,7 +121,10 @@ function setupFetch({
 
     if (requestUrl.includes("/api/admin/analytics/reports?")) {
       if (!reportOk) {
-        return createJsonResponse({ error: reportError }, { ok: false, status: 500 });
+        return createJsonResponse(
+          { error: reportError },
+          { ok: false, status: 500 },
+        );
       }
 
       return createJsonResponse(reportPayloadOverride);
@@ -143,7 +146,8 @@ function setupFetch({
 
     if (requestUrl === "/api/admin/expenses" && method === "POST") {
       const body = JSON.parse(options.body);
-      const nextId = Math.max(0, ...mutableExpenseItems.map((item) => item.id)) + 1;
+      const nextId =
+        Math.max(0, ...mutableExpenseItems.map((item) => item.id)) + 1;
       const createdExpense = createExpense(nextId, body);
 
       mutableExpenseItems = [createdExpense, ...mutableExpenseItems];
@@ -167,9 +171,13 @@ function setupFetch({
     if (requestUrl.startsWith("/api/admin/expenses/") && method === "DELETE") {
       const body = JSON.parse(options.body);
       const expenseId = Number(requestUrl.split("/").pop());
-      const deletedExpense = mutableExpenseItems.find((item) => item.id === expenseId);
+      const deletedExpense = mutableExpenseItems.find(
+        (item) => item.id === expenseId,
+      );
 
-      mutableExpenseItems = mutableExpenseItems.filter((item) => item.id !== expenseId);
+      mutableExpenseItems = mutableExpenseItems.filter(
+        (item) => item.id !== expenseId,
+      );
 
       return createJsonResponse({
         ...deletedExpense,
@@ -207,8 +215,12 @@ describe("FinancialReportsPage", () => {
 
     render(<FinancialReportsPage />);
 
-    expect(screen.getByLabelText("Loading financial reports")).toBeInTheDocument();
-    expect(screen.getByLabelText("Loading expense tracker")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Loading financial reports"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Loading expense tracker"),
+    ).toBeInTheDocument();
 
     expect(await screen.findByText("Weekly Net Revenue")).toBeInTheDocument();
     expect(await screen.findByText("Expense Tracker")).toBeInTheDocument();
@@ -217,6 +229,14 @@ describe("FinancialReportsPage", () => {
     expect(screen.getByText("Campaign shoot boost")).toBeInTheDocument();
     expect(screen.getAllByText("Marketing").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Jun 2026").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "Export CSV" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/api/admin/analytics/reports/export?"),
+    );
+    expect(screen.getByRole("link", { name: "Export CSV" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("format=csv"),
+    );
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
@@ -270,7 +290,9 @@ describe("FinancialReportsPage", () => {
     });
     expect(await screen.findByText("Printer paper")).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole("button", { name: "Edit expense 9" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Edit expense 9" }),
+    );
     fireEvent.change(screen.getByLabelText("Expense amount"), {
       target: { value: "300.00" },
     });
@@ -284,7 +306,9 @@ describe("FinancialReportsPage", () => {
         screen.queryByRole("dialog", { name: "Edit expense" }),
       ).not.toBeInTheDocument();
     });
-    expect(await screen.findByText("Printer paper restock")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Printer paper restock"),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete expense 9" }));
 
@@ -299,7 +323,9 @@ describe("FinancialReportsPage", () => {
       expect(
         screen.queryByRole("dialog", { name: "Delete expense" }),
       ).not.toBeInTheDocument();
-      expect(screen.queryByText("Printer paper restock")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Printer paper restock"),
+      ).not.toBeInTheDocument();
     });
     expect(screen.getByText("Campaign shoot boost")).toBeInTheDocument();
   });
@@ -364,7 +390,9 @@ describe("FinancialReportsPage", () => {
     expect(
       await screen.findByText("Financial report unavailable"),
     ).toBeInTheDocument();
-    expect(screen.getByText("Failed to load financial reports")).toBeInTheDocument();
+    expect(
+      screen.getByText("Failed to load financial reports"),
+    ).toBeInTheDocument();
     expect(await screen.findByText("Expense Tracker")).toBeInTheDocument();
     expect(screen.getByText("Campaign shoot boost")).toBeInTheDocument();
   });

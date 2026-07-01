@@ -1,31 +1,12 @@
 import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
-import models from "@/lib/db/models";
 import "@/lib/db/relations";
 import { auth } from "@/lib/helpers/auth";
-import { getPricingConfig } from "@/lib/helpers/pricing";
-import { buildFinancialReports } from "@/lib/services/financialAggregation";
-
-function buildFinancialReportFilterInput(requestUrl) {
-  const url = new URL(requestUrl);
-
-  return {
-    comparisonMode: url.searchParams.get("comparisonMode") || undefined,
-    groupBy: url.searchParams.get("groupBy") || undefined,
-    rangeEnd: url.searchParams.get("rangeEnd") || undefined,
-    rangeStart: url.searchParams.get("rangeStart") || undefined,
-    timezone: url.searchParams.get("timezone") || undefined,
-  };
-}
-
-function isFinancialReportValidationError(error) {
-  const message = error?.message || "";
-
-  return (
-    message.startsWith("Financial aggregation") ||
-    message.startsWith("Financial report")
-  );
-}
+import {
+  buildFinancialReportFilterInput,
+  isFinancialReportValidationError,
+  loadFinancialReportData,
+} from "./_lib/reportData";
 
 export async function GET(request) {
   try {
@@ -40,37 +21,7 @@ export async function GET(request) {
     }
 
     const filters = buildFinancialReportFilterInput(request.url);
-    const [pricingConfig, bookings, transactions, expenses] = await Promise.all(
-      [
-        getPricingConfig(),
-        models.Booking.findAll({
-          include: [
-            {
-              model: models.User,
-              as: "user",
-              attributes: ["id", "fullName", "email", "phone"],
-              required: false,
-            },
-          ],
-          order: [["createdAt", "DESC"]],
-        }),
-        models.Transaction.findAll({
-          where: { status: "success" },
-          order: [["paidAt", "DESC"]],
-        }),
-        models.Expense.findAll({
-          order: [["expenseDate", "DESC"]],
-        }),
-      ],
-    );
-
-    const result = buildFinancialReports({
-      bookings,
-      expenses,
-      filters,
-      pricingConfig,
-      transactions,
-    });
+    const result = await loadFinancialReportData(filters);
 
     return NextResponse.json(result);
   } catch (error) {

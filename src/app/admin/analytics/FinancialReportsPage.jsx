@@ -1,6 +1,12 @@
 "use client";
 
-import { AlertCircle, BarChart3, RefreshCcw, TrendingUp } from "lucide-react";
+import {
+  AlertCircle,
+  BarChart3,
+  Download,
+  RefreshCcw,
+  TrendingUp,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -94,14 +100,24 @@ function hasReportActivity(report) {
   );
 }
 
-function buildQuery(monthValue) {
-  const params = new URLSearchParams({
+function buildReportParams(monthValue) {
+  return new URLSearchParams({
     groupBy: "week",
     timezone: REPORT_TIMEZONE,
     ...getMonthRange(monthValue),
   });
+}
 
-  return `/api/admin/analytics/reports?${params.toString()}`;
+function buildQuery(monthValue) {
+  return `/api/admin/analytics/reports?${buildReportParams(monthValue).toString()}`;
+}
+
+function buildExportHref(monthValue) {
+  const params = buildReportParams(monthValue);
+
+  params.set("format", "csv");
+
+  return `/api/admin/analytics/reports/export?${params.toString()}`;
 }
 
 function TrendChart({ buckets = [], title, valueKey = "netRevenue" }) {
@@ -170,14 +186,14 @@ function KpiCard({ label, value, comparison, isCount = false }) {
 
 function LoadingState() {
   return (
-    <div
+    <section
       aria-label="Loading financial reports"
       className="space-y-6 animate-pulse"
     >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, index) => (
+        {["kpi-1", "kpi-2", "kpi-3", "kpi-4"].map((key) => (
           <div
-            key={index}
+            key={key}
             className="h-32 rounded-2xl border border-white/10 bg-white/[0.04]"
           />
         ))}
@@ -186,7 +202,7 @@ function LoadingState() {
         <div className="h-80 rounded-2xl border border-white/10 bg-white/[0.04]" />
         <div className="h-80 rounded-2xl border border-white/10 bg-white/[0.04]" />
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -198,6 +214,8 @@ export default function FinancialReportsPage() {
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
+    void reloadToken;
+
     const controller = new AbortController();
 
     async function loadReport() {
@@ -236,6 +254,7 @@ export default function FinancialReportsPage() {
   }, [monthValue, reloadToken]);
 
   const empty = !loading && !error && !hasReportActivity(report);
+  const exportHref = buildExportHref(monthValue);
   const selectedMonthLabel = formatMonthLabel(monthValue);
   const { rangeEnd, rangeStart } = getMonthRange(monthValue);
 
@@ -250,7 +269,10 @@ export default function FinancialReportsPage() {
             >
               Live finance data
             </Badge>
-            <Badge variant="outline" className="border-white/10 text-muted-foreground">
+            <Badge
+              variant="outline"
+              className="border-white/10 text-muted-foreground"
+            >
               {REPORT_TIMEZONE}
             </Badge>
           </div>
@@ -269,16 +291,26 @@ export default function FinancialReportsPage() {
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="flex flex-col gap-2 text-sm text-muted-foreground">
+          <label
+            className="flex flex-col gap-2 text-sm text-muted-foreground"
+            htmlFor="financial-report-month"
+          >
             Report month
             <Input
               aria-label="Report month"
               className="w-full min-w-48 rounded-xl border-white/10 bg-card/70 sm:w-52"
+              id="financial-report-month"
               onChange={(event) => setMonthValue(event.target.value)}
               type="month"
               value={monthValue}
             />
           </label>
+          <Button asChild className="rounded-xl" variant="outline">
+            <a aria-label="Export CSV" download href={exportHref}>
+              <Download className="h-4 w-4" />
+              Export CSV
+            </a>
+          </Button>
           <Button
             className="rounded-xl"
             onClick={() => setReloadToken((value) => value + 1)}
@@ -298,14 +330,19 @@ export default function FinancialReportsPage() {
           <CardHeader>
             <div className="flex items-center gap-2 text-red-200">
               <AlertCircle className="h-5 w-5" />
-              <CardTitle className="text-xl">Financial report unavailable</CardTitle>
+              <CardTitle className="text-xl">
+                Financial report unavailable
+              </CardTitle>
             </div>
             <CardDescription className="text-red-100/80">
               {error}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setReloadToken((value) => value + 1)} type="button">
+            <Button
+              onClick={() => setReloadToken((value) => value + 1)}
+              type="button"
+            >
               Retry
             </Button>
           </CardContent>
@@ -315,7 +352,9 @@ export default function FinancialReportsPage() {
       {!loading && !error && empty ? (
         <Card className="rounded-2xl border-dashed border-white/15 bg-card/60">
           <CardHeader>
-            <CardTitle className="text-xl">No financial activity in this range</CardTitle>
+            <CardTitle className="text-xl">
+              No financial activity in this range
+            </CardTitle>
             <CardDescription>
               Live reporting returned no payments, refunds, expenses, or tracked
               bookings for {selectedMonthLabel}.
@@ -429,11 +468,15 @@ export default function FinancialReportsPage() {
                   <TableBody>
                     {(report.monthlyComparison || []).map((row) => (
                       <TableRow key={row.monthStartBusinessDate}>
-                        <TableCell className="font-medium">{row.monthLabel}</TableCell>
+                        <TableCell className="font-medium">
+                          {row.monthLabel}
+                        </TableCell>
                         <TableCell>{formatCurrency(row.netRevenue)}</TableCell>
                         <TableCell>{formatCurrency(row.expenses)}</TableCell>
                         <TableCell>{formatCurrency(row.netProfit)}</TableCell>
-                        <TableCell>{formatCount(row.completedBookings)}</TableCell>
+                        <TableCell>
+                          {formatCount(row.completedBookings)}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -450,12 +493,14 @@ export default function FinancialReportsPage() {
               </CardHeader>
               <CardContent>
                 <TrendChart
-                  buckets={report.sixMonthTrend?.buckets?.map((bucket, index) => ({
-                    ...bucket,
-                    monthLabel:
-                      report.monthlyComparison?.[index]?.monthLabel ||
-                      bucket.bucketStartBusinessDate,
-                  }))}
+                  buckets={report.sixMonthTrend?.buckets?.map(
+                    (bucket, index) => ({
+                      ...bucket,
+                      monthLabel:
+                        report.monthlyComparison?.[index]?.monthLabel ||
+                        bucket.bucketStartBusinessDate,
+                    }),
+                  )}
                   title="Month-over-month net revenue"
                 />
               </CardContent>
@@ -476,7 +521,9 @@ export default function FinancialReportsPage() {
                     key={bucket.key}
                     className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
                   >
-                    <span className="text-sm text-muted-foreground">{bucket.label}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {bucket.label}
+                    </span>
                     <span className="text-sm font-medium">
                       {formatCount(bucket.count)}
                     </span>
@@ -515,7 +562,6 @@ export default function FinancialReportsPage() {
               </CardContent>
             </Card>
           </div>
-
         </>
       ) : null}
 
