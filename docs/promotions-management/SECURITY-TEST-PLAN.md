@@ -1,7 +1,7 @@
 # Promotions management security test plan
 
 - Last updated: 2026-07-01
-- Release gate status: `IN_PROGRESS`
+- Release gate status: `DONE`
 
 ## Automated gates
 
@@ -28,6 +28,7 @@
 - Verify pause/deactivation affects new checkout only and preserves historical invoices.
 - Verify system promotions cannot be physically deleted through direct requests.
 - Verify usage counters and reservations under two simultaneous checkout attempts.
+- Verify legacy Discounts and Coupons admin routes no longer provide an alternate write path.
 
 ## Release blockers
 

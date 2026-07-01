@@ -32,11 +32,6 @@ export default function AdminDashboard() {
       description: "Manage booking time slots and availability.",
     },
     {
-      href: "/admin/coupons",
-      title: "Coupons",
-      description: "Manage coupons and promo codes.",
-    },
-    {
       href: "/admin/prices",
       title: "Pricing",
       description: "Manage service pricing configuration.",

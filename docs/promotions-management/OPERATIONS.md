@@ -33,12 +33,26 @@ Monitor evaluator differences, rejected codes, redemption reservations,
 reservation expiry, usage-limit conflicts, checkout total changes, webhook
 finalization failures, and customer support reports.
 
+## Current cutover state
+
+- Checkout pricing, reservation, transaction snapshotting, and invoice
+  rendering now read from the promotions engine.
+- Legacy Discounts and Coupons admin routes redirect to
+  `/admin/promotions` for operator traffic.
+- Legacy coupon mutation actions are blocked server-side so generic-code
+  writes only happen through Promotions.
+- Legacy coupon validation reads remain available for compatibility until
+  destructive cleanup is scheduled.
+
 ## Rollback
 
 - Disable new evaluation and return reads to legacy behavior while dual data remains.
 - Release outstanding reservations safely without deleting applied history.
 - Keep new transaction references and backfilled rows during application rollback.
 - Do not re-enable old writes after cleanup unless compatibility is verified.
+- If rollback is required before destructive cleanup, keep `/admin/promotions`
+  as the only write surface and use transaction snapshots plus parity fixtures
+  to verify any temporary legacy read restoration.
 
 Exact production flags, provider configuration, and operator commands belong in
 the ignored private production document.

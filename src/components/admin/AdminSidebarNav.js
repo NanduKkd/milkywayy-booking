@@ -8,7 +8,6 @@ import {
   Images,
   Receipt,
   Sparkles,
-  Tags,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -21,7 +20,6 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/invoices", label: "Invoices", icon: Receipt },
   { href: "/admin/promotions", label: "Promotions", icon: Sparkles },
-  { href: "/admin/coupons", label: "Coupons", icon: Tags },
   { href: "/admin/timeslots", label: "Time Slots", icon: CalendarClock },
   { href: "/admin/prices", label: "Pricing", icon: FileText },
   { href: "/admin/portfolio", label: "Portfolio", icon: Images },

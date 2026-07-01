@@ -18,7 +18,7 @@ describe("AdminSidebarNav", () => {
     mockUsePathname.mockReturnValue("/admin/promotions");
   });
 
-  it("shows Promotions in primary navigation and removes Discounts", () => {
+  it("shows Promotions in primary navigation and removes Discounts and Coupons", () => {
     render(<AdminSidebarNav />);
 
     expect(screen.getByRole("link", { name: /Promotions/i })).toHaveAttribute(
@@ -27,6 +27,9 @@ describe("AdminSidebarNav", () => {
     );
     expect(
       screen.queryByRole("link", { name: /Discounts/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Coupons/i }),
     ).not.toBeInTheDocument();
   });
 });

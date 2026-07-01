@@ -1,7 +1,13 @@
 import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import { auth } from "@/lib/helpers/auth";
-import { getLaunchPromoStatus, validateCoupon } from "../coupons";
+import {
+  createCoupon,
+  deleteCoupon,
+  getLaunchPromoStatus,
+  toggleCouponStatus,
+  validateCoupon,
+} from "../coupons";
 
 jest.unmock("../coupons");
 jest.unmock("@/lib/actions/utils");
@@ -25,10 +31,17 @@ jest.mock("@/lib/helpers/auth", () => ({
 }));
 
 describe("Coupon Actions", () => {
+  let consoleErrorSpy;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     auth.mockResolvedValue({ id: "user-123" });
     Booking.count.mockResolvedValue(0);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
   });
 
   it("rejects manual launch promo entry because it auto-applies instead", async () => {
@@ -86,6 +99,36 @@ describe("Coupon Actions", () => {
       active: true,
       eligible: false,
       discount: 0,
+    });
+  });
+
+  it("rejects legacy coupon admin writes after promotions cutover", async () => {
+    await expect(
+      createCoupon({
+        code: "WELCOME",
+        minimumAmount: 300,
+        percentDiscount: 15,
+        maxDiscount: 150,
+      }),
+    ).resolves.toEqual({
+      success: false,
+      message:
+        "Legacy coupon admin is retired. Manage generic codes in /admin/promotions.",
+      data: null,
+    });
+
+    await expect(toggleCouponStatus(1, false)).resolves.toEqual({
+      success: false,
+      message:
+        "Legacy coupon admin is retired. Manage generic codes in /admin/promotions.",
+      data: null,
+    });
+
+    await expect(deleteCoupon(1)).resolves.toEqual({
+      success: false,
+      message:
+        "Legacy coupon admin is retired. Manage generic codes in /admin/promotions.",
+      data: null,
     });
   });
 });

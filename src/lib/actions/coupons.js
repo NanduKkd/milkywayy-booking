@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { actionWrapper } from "@/lib/actions/utils";
 import {
   getLaunchPromoDiscount,
@@ -12,6 +11,9 @@ import Booking from "@/lib/db/models/booking";
 import Coupon from "@/lib/db/models/coupon";
 import Transaction from "@/lib/db/models/transaction";
 import { auth } from "@/lib/helpers/auth";
+
+const LEGACY_COUPON_ADMIN_RETIRED_MESSAGE =
+  "Legacy coupon admin is retired. Manage generic codes in /admin/promotions.";
 
 const buildLaunchPromoCoupon = () => ({
   id: `system-${LAUNCH_PROMO_CODE}`,
@@ -48,8 +50,7 @@ const getPublicLaunchPromoHandler = async () => {
     minimumAmount: LAUNCH_PROMO_MIN_AMOUNT,
     maxDiscount: LAUNCH_PROMO_DISCOUNT,
     uiText:
-      launchPromo.uiText?.trim() ||
-      "Up to AED 500 off on your first booking.",
+      launchPromo.uiText?.trim() || "Up to AED 500 off on your first booking.",
   };
 };
 export const getPublicLaunchPromo = actionWrapper(getPublicLaunchPromoHandler);
@@ -110,68 +111,18 @@ const getCouponsHandler = async () => {
 };
 export const getCoupons = actionWrapper(getCouponsHandler);
 
-const createCouponHandler = async (data) => {
-  const normalizedCode = String(data.code || "")
-    .trim()
-    .toUpperCase();
-
-  // Basic validation
-  if (
-    !normalizedCode ||
-    !data.minimumAmount ||
-    !data.percentDiscount ||
-    !data.maxDiscount
-  ) {
-    throw new Error("Missing required fields");
-  }
-
-  if (normalizedCode === LAUNCH_PROMO_CODE) {
-    throw new Error("This promo code is system-managed and already available");
-  }
-
-  await Coupon.create({
-    code: normalizedCode,
-    perUser: data.perUser || 1,
-    minimumAmount: data.minimumAmount,
-    percentDiscount: data.percentDiscount,
-    maxDiscount: data.maxDiscount,
-    uiText: data.uiText?.trim() || null,
-    activatedAt: data.isActive ? new Date() : null,
-  });
-
-  revalidatePath("/admin/coupons");
-  return { success: true };
+const createCouponHandler = async () => {
+  throw new Error(LEGACY_COUPON_ADMIN_RETIRED_MESSAGE);
 };
 export const createCoupon = actionWrapper(createCouponHandler);
 
-const toggleCouponStatusHandler = async (id, isActive) => {
-  const coupon = await Coupon.findByPk(id);
-  if (!coupon) throw new Error("Coupon not found");
-
-  if (isActive) {
-    // Activate
-    await coupon.update({
-      activatedAt: new Date(),
-      deactivatedAt: null,
-    });
-  } else {
-    // Deactivate
-    await coupon.update({
-      deactivatedAt: new Date(),
-    });
-  }
-
-  revalidatePath("/admin/coupons");
-  return { success: true };
+const toggleCouponStatusHandler = async () => {
+  throw new Error(LEGACY_COUPON_ADMIN_RETIRED_MESSAGE);
 };
 export const toggleCouponStatus = actionWrapper(toggleCouponStatusHandler);
 
-const deleteCouponHandler = async (id) => {
-  const coupon = await Coupon.findByPk(id);
-  if (!coupon) throw new Error("Coupon not found");
-  await coupon.destroy();
-  revalidatePath("/admin/coupons");
-  return { success: true };
+const deleteCouponHandler = async () => {
+  throw new Error(LEGACY_COUPON_ADMIN_RETIRED_MESSAGE);
 };
 export const deleteCoupon = actionWrapper(deleteCouponHandler);
 
