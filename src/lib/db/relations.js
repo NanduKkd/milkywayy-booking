@@ -83,6 +83,19 @@ models.BookingRevision.belongsTo(models.Booking, {
   as: "booking",
 });
 
+models.Expense.belongsTo(models.User, {
+  foreignKey: "createdByUserId",
+  as: "createdByUser",
+});
+models.Expense.belongsTo(models.User, {
+  foreignKey: "updatedByUserId",
+  as: "updatedByUser",
+});
+models.Expense.belongsTo(models.User, {
+  foreignKey: "deletedByUserId",
+  as: "deletedByUser",
+});
+
 models.Promotion.belongsTo(models.User, {
   foreignKey: "createdByUserId",
   as: "createdByUser",
@@ -222,6 +235,18 @@ models.User.hasMany(models.WalletTransaction, {
   as: "walletTransactions",
 });
 models.User.hasMany(models.Booking, { foreignKey: "userId", as: "bookings" });
+models.User.hasMany(models.Expense, {
+  foreignKey: "createdByUserId",
+  as: "createdExpenses",
+});
+models.User.hasMany(models.Expense, {
+  foreignKey: "updatedByUserId",
+  as: "updatedExpenses",
+});
+models.User.hasMany(models.Expense, {
+  foreignKey: "deletedByUserId",
+  as: "deletedExpenses",
+});
 models.User.hasMany(models.Promotion, {
   foreignKey: "createdByUserId",
   as: "createdPromotions",
