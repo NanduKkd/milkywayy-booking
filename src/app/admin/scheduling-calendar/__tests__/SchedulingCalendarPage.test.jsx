@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@/test-utils";
+import { fireEvent, render, screen, waitFor, within } from "@/test-utils";
 import SchedulingCalendarPage from "../SchedulingCalendarPage";
 
 const julyPayload = {
@@ -8,9 +8,9 @@ const julyPayload = {
     dayCount: 31,
   },
   summary: {
-    totalBookings: 1,
+    totalBookings: 2,
     totalEvents: 2,
-    totalActiveEvents: 1,
+    totalActiveEvents: 2,
     totalCapacityConsumingEvents: 1,
     totalFullyBlockedDays: 1,
     totalPartiallyBlockedDays: 1,
@@ -100,6 +100,39 @@ const julyPayload = {
         arrivalWindow: "16:30 - 17:00",
       },
     },
+    {
+      id: 20,
+      bookingCode: "MWB-1020",
+      date: "2026-07-20",
+      status: "DRAFT",
+      amount: 950,
+      paymentStatus: null,
+      customer: {
+        id: 8,
+        fullName: "Noah Navigator",
+        email: "noah@example.com",
+        phone: "+971511111111",
+      },
+      property: {
+        type: "Apartment",
+        size: "2BR",
+        community: "Dubai Marina",
+        label: "Apartment - 2BR",
+      },
+      service: {
+        services: ["Photography"],
+        videographySelections: [],
+        label: "Photography",
+      },
+      slot: {
+        startTime: "09:00",
+        durationHours: 1,
+        startPeriod: "morning",
+        blockedPeriods: ["morning"],
+        label: "Morning",
+        arrivalWindow: "08:30 - 09:00",
+      },
+    },
   ],
   events: [
     {
@@ -115,6 +148,26 @@ const julyPayload = {
       reservedCapacityUnits: 2.5,
       propertySummary: {
         label: "Palm Jumeirah penthouse",
+      },
+      contactSummary: null,
+      createdByUser: null,
+      updatedByUser: null,
+      cancelledAt: null,
+      cancellationReason: null,
+    },
+    {
+      id: 6,
+      title: "Team briefing",
+      description: "Prep before the shoot",
+      date: "2026-07-22",
+      status: "ACTIVE",
+      period: "morning",
+      startTime: "10:00",
+      endTime: "11:00",
+      consumesCapacity: false,
+      reservedCapacityUnits: 0,
+      propertySummary: {
+        label: "Office",
       },
       contactSummary: null,
       createdByUser: null,
@@ -213,8 +266,8 @@ describe("SchedulingCalendarPage", () => {
       }),
     );
 
-    expect(await screen.findByText("MWB-1015")).toBeInTheDocument();
-    expect(screen.getByText("Ava Agent")).toBeInTheDocument();
+    expect(await screen.findAllByText("MWB-1015")).toHaveLength(2);
+    expect(screen.getAllByText("Ava Agent")).toHaveLength(2);
     expect(
       screen.getByText("Photography, Videography (Daylight + Night)"),
     ).toBeInTheDocument();
@@ -225,7 +278,7 @@ describe("SchedulingCalendarPage", () => {
       }),
     );
 
-    expect(await screen.findByText("Owner hold")).toBeInTheDocument();
+    expect(await screen.findAllByText("Owner hold")).toHaveLength(2);
     expect(screen.getByText("Waiting for confirmation")).toBeInTheDocument();
     expect(screen.getByText(/Reserves 2.5 capacity/i)).toBeInTheDocument();
   });
@@ -251,5 +304,94 @@ describe("SchedulingCalendarPage", () => {
         }),
       );
     });
+  });
+
+  it("keeps the upcoming schedule table bounded to the selected range and filters row types", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Upcoming schedule/i }),
+    ).toBeInTheDocument();
+
+    const upcomingTable = screen.getByRole("table", {
+      name: /Upcoming schedule/i,
+    });
+
+    await waitFor(() => {
+      expect(within(upcomingTable).getByText("MWB-1020")).toBeInTheDocument();
+    });
+
+    expect(
+      within(upcomingTable).getByText("Team briefing"),
+    ).toBeInTheDocument();
+    expect(
+      within(upcomingTable).queryByText("MWB-1015"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(upcomingTable).queryByText("Owner hold"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Events \(1\)/i }));
+
+    expect(
+      within(upcomingTable).queryByText("MWB-1020"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(upcomingTable).getByText("Team briefing"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /All \(2\)/i }));
+    fireEvent.click(
+      within(upcomingTable).getAllByRole("button", { name: /View day/i })[1],
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: /Wednesday, July 22, 2026/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Prep before the shoot")).toBeInTheDocument();
+  });
+
+  it("bounds selected-day navigation to the loaded month range", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Scheduling Calendar/i }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", {
+        name: /Friday, July 3, 2026\..*1 booking/i,
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Wednesday, July 1, 2026/i,
+      }),
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: /Wednesday, July 1, 2026/i,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Previous date/i }),
+    ).toBeDisabled();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Thursday, July 30, 2026/i,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Next date/i }));
+
+    expect(
+      await screen.findByRole("heading", {
+        name: /Friday, July 31, 2026/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Next date/i })).toBeDisabled();
   });
 });

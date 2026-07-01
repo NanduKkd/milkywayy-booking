@@ -15,11 +15,24 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 const DUBAI_TIMEZONE = "Asia/Dubai";
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const PERIOD_ORDER = ["morning", "afternoon", "evening"];
+const UPCOMING_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "bookings", label: "Bookings" },
+  { value: "events", label: "Events" },
+];
 
 function getDatePartsInTimeZone(date, timeZone) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -229,12 +242,112 @@ function formatWeekdayLabel(dateKey) {
   }).format(buildUtcDate(year, month, day));
 }
 
+function getEntrySortTime(entry) {
+  if (entry.kind === "booking") {
+    return entry.booking.slot?.startTime || "99:99";
+  }
+
+  if (entry.event.startTime) {
+    return entry.event.startTime;
+  }
+
+  if (entry.event.period) {
+    const periodIndex = PERIOD_ORDER.indexOf(entry.event.period);
+    return `${String(periodIndex === -1 ? 9 : periodIndex).padStart(2, "0")}:00`;
+  }
+
+  return "99:99";
+}
+
+function formatUpcomingEntrySchedule(entry) {
+  if (entry.kind === "booking") {
+    const label = entry.booking.slot?.label || "Unscheduled";
+    const startTime = entry.booking.slot?.startTime;
+
+    return startTime ? `${label} • ${startTime}` : label;
+  }
+
+  const periodLabel = entry.event.period
+    ? labelizePeriod(entry.event.period)
+    : "Custom";
+  const parts = [periodLabel];
+
+  if (entry.event.startTime) {
+    parts.push(entry.event.startTime);
+  }
+
+  if (entry.event.endTime) {
+    parts.push(`to ${entry.event.endTime}`);
+  }
+
+  return parts.join(" • ").replace(" • to ", " to ");
+}
+
+function buildUpcomingScheduleEntries({
+  bookings,
+  events,
+  startDate,
+  endDate,
+}) {
+  if (!startDate || !endDate) {
+    return [];
+  }
+
+  const entries = [];
+
+  bookings.forEach((booking) => {
+    if (booking.date < startDate || booking.date > endDate) {
+      return;
+    }
+
+    entries.push({
+      id: `booking-${booking.id}`,
+      kind: "booking",
+      date: booking.date,
+      booking,
+    });
+  });
+
+  events.forEach((event) => {
+    if (event.date < startDate || event.date > endDate) {
+      return;
+    }
+
+    entries.push({
+      id: `event-${event.id}`,
+      kind: "event",
+      date: event.date,
+      event,
+    });
+  });
+
+  return entries.sort((left, right) => {
+    if (left.date !== right.date) {
+      return left.date.localeCompare(right.date);
+    }
+
+    const timeComparison = getEntrySortTime(left).localeCompare(
+      getEntrySortTime(right),
+    );
+    if (timeComparison !== 0) {
+      return timeComparison;
+    }
+
+    if (left.kind !== right.kind) {
+      return left.kind.localeCompare(right.kind);
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+}
+
 export default function SchedulingCalendarPage() {
   const todayDateKey = useMemo(() => getTodayDateKeyInDubai(), []);
   const [monthKey, setMonthKey] = useState(
     getMonthKeyFromDateKey(todayDateKey),
   );
   const [selectedDateKey, setSelectedDateKey] = useState(todayDateKey);
+  const [upcomingFilter, setUpcomingFilter] = useState("all");
   const [calendarData, setCalendarData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -345,6 +458,45 @@ export default function SchedulingCalendarPage() {
   const selectedBookings = bookingsByDate.get(selectedDateKey) || [];
   const selectedEvents = eventsByDate.get(selectedDateKey) || [];
   const selectedBadges = buildSelectedDaySummary(selectedDay);
+  const selectedDateIndex = days.findIndex(
+    (day) => day.date === selectedDateKey,
+  );
+  const previousDateKey =
+    selectedDateIndex > 0 ? days[selectedDateIndex - 1]?.date || null : null;
+  const nextDateKey =
+    selectedDateIndex >= 0 && selectedDateIndex < days.length - 1
+      ? days[selectedDateIndex + 1]?.date || null
+      : null;
+  const upcomingEntries = useMemo(
+    () =>
+      buildUpcomingScheduleEntries({
+        bookings,
+        events,
+        startDate: selectedDateKey,
+        endDate: calendarData?.range?.endDate || selectedDateKey,
+      }),
+    [bookings, calendarData?.range?.endDate, events, selectedDateKey],
+  );
+  const filteredUpcomingEntries = useMemo(() => {
+    if (upcomingFilter === "bookings") {
+      return upcomingEntries.filter((entry) => entry.kind === "booking");
+    }
+
+    if (upcomingFilter === "events") {
+      return upcomingEntries.filter((entry) => entry.kind === "event");
+    }
+
+    return upcomingEntries;
+  }, [upcomingEntries, upcomingFilter]);
+  const upcomingCounts = useMemo(
+    () => ({
+      all: upcomingEntries.length,
+      bookings: upcomingEntries.filter((entry) => entry.kind === "booking")
+        .length,
+      events: upcomingEntries.filter((entry) => entry.kind === "event").length,
+    }),
+    [upcomingEntries],
+  );
 
   return (
     <div className="space-y-6">
@@ -622,237 +774,449 @@ export default function SchedulingCalendarPage() {
           </CardContent>
         </Card>
 
-        <Card className="rounded-3xl border-white/10 bg-card/80">
-          <CardHeader className="space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle className="text-2xl">
-                  {selectedDateKey
-                    ? formatDateLabel(selectedDateKey)
-                    : "Select a date"}
-                </CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Selected-day schedule, block state, and live entries.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {selectedBadges.map((badge) => (
-                <Badge
-                  key={badge.label}
-                  variant={badge.variant}
-                  className="rounded-full"
-                >
-                  {badge.label}
-                </Badge>
-              ))}
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-5">
-            <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <ShieldAlert className="h-4 w-4 text-amber-300" />
-                Availability summary
-              </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="space-y-6">
+          <Card className="rounded-3xl border-white/10 bg-card/80">
+            <CardHeader className="space-y-3">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    Block status
-                  </p>
-                  <p className="mt-1 text-sm">
-                    {selectedDay?.block?.fullDayBlocked
-                      ? "Full day blocked"
-                      : formatBlockedPeriods(
-                          selectedDay?.block?.blockedPeriods || [],
-                        )}
+                  <CardTitle className="text-2xl">
+                    {selectedDateKey
+                      ? formatDateLabel(selectedDateKey)
+                      : "Select a date"}
+                  </CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Selected-day schedule, block state, and live entries.
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    Entries
-                  </p>
-                  <p className="mt-1 text-sm">
-                    {selectedBookings.length} booking
-                    {selectedBookings.length === 1 ? "" : "s"},{" "}
-                    {selectedEvents.length} event
-                    {selectedEvents.length === 1 ? "" : "s"}
-                  </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Previous date"
+                    disabled={!previousDateKey}
+                    onClick={() =>
+                      previousDateKey && setSelectedDateKey(previousDateKey)
+                    }
+                  >
+                    <ChevronLeft />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (dayMap.has(todayDateKey)) {
+                        setSelectedDateKey(todayDateKey);
+                      }
+                    }}
+                    disabled={
+                      !dayMap.has(todayDateKey) ||
+                      selectedDateKey === todayDateKey
+                    }
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Next date"
+                    disabled={!nextDateKey}
+                    onClick={() =>
+                      nextDateKey && setSelectedDateKey(nextDateKey)
+                    }
+                  >
+                    <ChevronRight />
+                  </Button>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">Bookings</h2>
-                <Badge variant="secondary" className="rounded-full">
-                  {selectedBookings.length}
-                </Badge>
+              <div className="flex flex-wrap gap-2">
+                {selectedBadges.map((badge) => (
+                  <Badge
+                    key={badge.label}
+                    variant={badge.variant}
+                    className="rounded-full"
+                  >
+                    {badge.label}
+                  </Badge>
+                ))}
               </div>
-              {selectedBookings.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
-                  No bookings scheduled for this date.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {selectedBookings.map((booking) => (
-                    <div
-                      key={booking.id}
-                      className="rounded-2xl border border-white/10 bg-background/40 p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-base font-semibold">
-                            {booking.bookingCode}
-                          </p>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {booking.customer?.fullName || "Unnamed customer"}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge
-                            variant={getBookingStatusVariant(booking.status)}
-                          >
-                            {booking.status}
-                          </Badge>
-                          {booking.paymentStatus ? (
-                            <Badge variant="outline">
-                              {booking.paymentStatus}
-                            </Badge>
-                          ) : null}
-                        </div>
-                      </div>
+            </CardHeader>
 
-                      <Separator className="my-4 bg-white/10" />
-
-                      <div className="grid gap-3 text-sm sm:grid-cols-2">
-                        <div className="space-y-1">
-                          <p className="font-medium">Schedule</p>
-                          <p className="text-muted-foreground">
-                            {booking.slot?.label || "Unscheduled"}
-                            {booking.slot?.startTime
-                              ? ` • ${booking.slot.startTime}`
-                              : ""}
-                          </p>
-                          {booking.slot?.arrivalWindow ? (
-                            <p className="text-muted-foreground">
-                              Arrival: {booking.slot.arrivalWindow}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-medium">Commercials</p>
-                          <p className="text-muted-foreground">
-                            {formatMoney(booking.amount)}
-                          </p>
-                          <p className="text-muted-foreground">
-                            {booking.service?.label ||
-                              "Service details pending"}
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-medium">Property</p>
-                          <p className="text-muted-foreground">
-                            {booking.property?.label || "Property"}
-                          </p>
-                          {booking.property?.community ? (
-                            <p className="text-muted-foreground">
-                              {booking.property.community}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="space-y-1">
-                          <p className="font-medium">Blocked periods</p>
-                          <p className="text-muted-foreground">
-                            {formatBlockedPeriods(
-                              booking.slot?.blockedPeriods || [],
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+            <CardContent className="space-y-5">
+              <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <ShieldAlert className="h-4 w-4 text-amber-300" />
+                  Availability summary
                 </div>
-              )}
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold">Calendar events</h2>
-                <Badge variant="outline" className="rounded-full">
-                  {selectedEvents.length}
-                </Badge>
-              </div>
-              {selectedEvents.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
-                  No calendar-only events scheduled for this date.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {selectedEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className="rounded-2xl border border-white/10 bg-background/40 p-4"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-base font-semibold">
-                            {event.title}
-                          </p>
-                          {event.description ? (
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {event.description}
-                            </p>
-                          ) : null}
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant={getEventStatusVariant(event.status)}>
-                            {event.status}
-                          </Badge>
-                          {event.consumesCapacity ? (
-                            <Badge variant="outline">
-                              Reserves {event.reservedCapacityUnits} capacity
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">No capacity hold</Badge>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Block status
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {selectedDay?.block?.fullDayBlocked
+                        ? "Full day blocked"
+                        : formatBlockedPeriods(
+                            selectedDay?.block?.blockedPeriods || [],
                           )}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                      Entries
+                    </p>
+                    <p className="mt-1 text-sm">
+                      {selectedBookings.length} booking
+                      {selectedBookings.length === 1 ? "" : "s"},{" "}
+                      {selectedEvents.length} event
+                      {selectedEvents.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold">Bookings</h2>
+                  <Badge variant="secondary" className="rounded-full">
+                    {selectedBookings.length}
+                  </Badge>
+                </div>
+                {selectedBookings.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
+                    No bookings scheduled for this date.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedBookings.map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="rounded-2xl border border-white/10 bg-background/40 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-semibold">
+                              {booking.bookingCode}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {booking.customer?.fullName || "Unnamed customer"}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge
+                              variant={getBookingStatusVariant(booking.status)}
+                            >
+                              {booking.status}
+                            </Badge>
+                            {booking.paymentStatus ? (
+                              <Badge variant="outline">
+                                {booking.paymentStatus}
+                              </Badge>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <Separator className="my-4 bg-white/10" />
+
+                        <div className="grid gap-3 text-sm sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <p className="font-medium">Schedule</p>
+                            <p className="text-muted-foreground">
+                              {booking.slot?.label || "Unscheduled"}
+                              {booking.slot?.startTime
+                                ? ` • ${booking.slot.startTime}`
+                                : ""}
+                            </p>
+                            {booking.slot?.arrivalWindow ? (
+                              <p className="text-muted-foreground">
+                                Arrival: {booking.slot.arrivalWindow}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="font-medium">Commercials</p>
+                            <p className="text-muted-foreground">
+                              {formatMoney(booking.amount)}
+                            </p>
+                            <p className="text-muted-foreground">
+                              {booking.service?.label ||
+                                "Service details pending"}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="font-medium">Property</p>
+                            <p className="text-muted-foreground">
+                              {booking.property?.label || "Property"}
+                            </p>
+                            {booking.property?.community ? (
+                              <p className="text-muted-foreground">
+                                {booking.property.community}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="font-medium">Blocked periods</p>
+                            <p className="text-muted-foreground">
+                              {formatBlockedPeriods(
+                                booking.slot?.blockedPeriods || [],
+                              )}
+                            </p>
+                          </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                      <Separator className="my-4 bg-white/10" />
-
-                      <div className="grid gap-3 text-sm sm:grid-cols-2">
-                        <div className="space-y-1">
-                          <p className="flex items-center gap-2 font-medium">
-                            <Clock3 className="h-4 w-4 text-muted-foreground" />
-                            Schedule
-                          </p>
-                          <p className="text-muted-foreground">
-                            {event.period
-                              ? labelizePeriod(event.period)
-                              : "Custom"}
-                            {event.startTime ? ` • ${event.startTime}` : ""}
-                            {event.endTime ? ` to ${event.endTime}` : ""}
-                          </p>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-lg font-semibold">Calendar events</h2>
+                  <Badge variant="outline" className="rounded-full">
+                    {selectedEvents.length}
+                  </Badge>
+                </div>
+                {selectedEvents.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
+                    No calendar-only events scheduled for this date.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="rounded-2xl border border-white/10 bg-background/40 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-semibold">
+                              {event.title}
+                            </p>
+                            {event.description ? (
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {event.description}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge
+                              variant={getEventStatusVariant(event.status)}
+                            >
+                              {event.status}
+                            </Badge>
+                            {event.consumesCapacity ? (
+                              <Badge variant="outline">
+                                Reserves {event.reservedCapacityUnits} capacity
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">No capacity hold</Badge>
+                            )}
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <p className="flex items-center gap-2 font-medium">
-                            <MapPinned className="h-4 w-4 text-muted-foreground" />
-                            Property
-                          </p>
-                          <p className="text-muted-foreground">
-                            {event.propertySummary?.label || "Not specified"}
-                          </p>
+
+                        <Separator className="my-4 bg-white/10" />
+
+                        <div className="grid gap-3 text-sm sm:grid-cols-2">
+                          <div className="space-y-1">
+                            <p className="flex items-center gap-2 font-medium">
+                              <Clock3 className="h-4 w-4 text-muted-foreground" />
+                              Schedule
+                            </p>
+                            <p className="text-muted-foreground">
+                              {event.period
+                                ? labelizePeriod(event.period)
+                                : "Custom"}
+                              {event.startTime ? ` • ${event.startTime}` : ""}
+                              {event.endTime ? ` to ${event.endTime}` : ""}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="flex items-center gap-2 font-medium">
+                              <MapPinned className="h-4 w-4 text-muted-foreground" />
+                              Property
+                            </p>
+                            <p className="text-muted-foreground">
+                              {event.propertySummary?.label || "Not specified"}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-3xl border-white/10 bg-card/80">
+            <CardHeader className="space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="text-2xl">Upcoming schedule</CardTitle>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Entries from{" "}
+                    {formatDateLabel(selectedDateKey, {
+                      month: "short",
+                      day: "numeric",
+                    })}{" "}
+                    through{" "}
+                    {formatDateLabel(calendarData?.range?.endDate, {
+                      month: "short",
+                      day: "numeric",
+                    })}
+                    .
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {UPCOMING_FILTERS.map((filter) => (
+                    <Button
+                      key={filter.value}
+                      type="button"
+                      variant={
+                        upcomingFilter === filter.value
+                          ? "secondary"
+                          : "outline"
+                      }
+                      className="rounded-full"
+                      onClick={() => setUpcomingFilter(filter.value)}
+                    >
+                      {filter.label} ({upcomingCounts[filter.value] || 0})
+                    </Button>
                   ))}
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-hidden rounded-2xl border border-white/10">
+                <Table aria-label="Upcoming schedule">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Entry</TableHead>
+                      <TableHead>Schedule</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">View</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUpcomingEntries.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="py-8 text-center text-muted-foreground"
+                        >
+                          No upcoming entries in the current calendar range.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredUpcomingEntries.map((entry) => {
+                        const isSelected = entry.date === selectedDateKey;
+
+                        return (
+                          <TableRow
+                            key={entry.id}
+                            className={cn(
+                              "cursor-pointer",
+                              isSelected && "bg-primary/5",
+                            )}
+                            onClick={() => setSelectedDateKey(entry.date)}
+                          >
+                            <TableCell className="font-medium">
+                              <div>
+                                {formatDateLabel(entry.date, {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatWeekdayLabel(entry.date)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {entry.kind === "booking" ? (
+                                <div className="space-y-1">
+                                  <p className="font-medium">
+                                    {entry.booking.bookingCode}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {entry.booking.customer?.fullName ||
+                                      "Unnamed customer"}
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  <p className="font-medium">
+                                    {entry.event.title}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {entry.event.propertySummary?.label ||
+                                      entry.event.description ||
+                                      "Calendar event"}
+                                  </p>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {formatUpcomingEntrySchedule(entry)}
+                            </TableCell>
+                            <TableCell>
+                              {entry.kind === "booking" ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <Badge
+                                    variant={getBookingStatusVariant(
+                                      entry.booking.status,
+                                    )}
+                                  >
+                                    {entry.booking.status}
+                                  </Badge>
+                                  {entry.booking.paymentStatus ? (
+                                    <Badge variant="outline">
+                                      {entry.booking.paymentStatus}
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <div className="flex flex-wrap gap-2">
+                                  <Badge
+                                    variant={getEventStatusVariant(
+                                      entry.event.status,
+                                    )}
+                                  >
+                                    {entry.event.status}
+                                  </Badge>
+                                  <Badge variant="outline">
+                                    {entry.event.consumesCapacity
+                                      ? `Reserves ${entry.event.reservedCapacityUnits}`
+                                      : "No capacity hold"}
+                                  </Badge>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setSelectedDateKey(entry.date);
+                                }}
+                              >
+                                View day
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

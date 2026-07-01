@@ -10,7 +10,7 @@
 |---|---|---:|---:|---:|
 | M0 - Scheduling contract | `IN_PROGRESS` | 0 | 2 | 1-2 days |
 | M1 - Data and shared availability | `DONE` | 4 | 4 | 3-4 days |
-| M2 - Calendar and entry flows | `IN_PROGRESS` | 1 | 5 | 5-7 days |
+| M2 - Calendar and entry flows | `IN_PROGRESS` | 2 | 5 | 5-7 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 4 | 3-4 days |
 
 ## M0 - Scheduling contract
@@ -34,7 +34,7 @@
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
 | CAL-201 | Build month calendar, legend, navigation, and selected-day panel | `DONE` | Engineering | CAL-102 | Live bookings, events, and blocks render with accessible status distinctions | `src/app/admin/scheduling-calendar/page.jsx`, `src/app/admin/scheduling-calendar/SchedulingCalendarPage.jsx`, `src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx`, `src/components/admin/AdminSidebarNav.js`, `src/app/admin/page.jsx`, `npm test -- --runInBand src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx src/components/admin/__tests__/AdminSidebarNav.test.jsx src/app/admin/__tests__/page.test.jsx`, `npx biome check src/app/admin/scheduling-calendar/page.jsx src/app/admin/scheduling-calendar/SchedulingCalendarPage.jsx src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx src/components/admin/AdminSidebarNav.js src/components/admin/__tests__/AdminSidebarNav.test.jsx src/app/admin/page.jsx src/app/admin/__tests__/page.test.jsx` |
-| CAL-202 | Build upcoming schedule table and date navigation | `NOT_STARTED` | Engineering | CAL-102 | Filtering and row navigation remain bounded to the selected range | Pending |
+| CAL-202 | Build upcoming schedule table and date navigation | `DONE` | Engineering | CAL-102 | Filtering and row navigation remain bounded to the selected range | `src/app/admin/scheduling-calendar/SchedulingCalendarPage.jsx`, `src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx`, `npm test -- --runInBand src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx`, `npx biome check src/app/admin/scheduling-calendar/SchedulingCalendarPage.jsx src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx` |
 | CAL-203 | Integrate full-day and period blocking | `NOT_STARTED` | Engineering | CAL-103, permission service | Blocks reuse existing overrides and warn when bookings/events already exist | Pending |
 | CAL-204 | Implement calendar-only event CRUD | `NOT_STARTED` | Engineering | CAL-101, CAL-104 | Authorized admins can create, edit, cancel, and restore capacity correctly | Pending |
 | CAL-205 | Implement full admin-booking creation | `NOT_STARTED` | Engineering | CAL-104, existing booking services | Admin-created bookings use the normal pricing/workflow model with explicit payment state and no forced Stripe checkout | Pending |
