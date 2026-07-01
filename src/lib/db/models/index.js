@@ -8,6 +8,7 @@ import BookingRevision from "./bookingrevision.js";
 import Coupon from "./coupon.js";
 import DynamicConfig from "./dynamicconfig.js";
 import Expense from "./expense.js";
+import ExpenseAuditEvent from "./expenseauditevent.js";
 import OAuthAccessToken from "./oauthaccesstoken.js";
 import OAuthAuditEvent from "./oauthauditevent.js";
 import OAuthAuthorizationCode from "./oauthauthorizationcode.js";
@@ -38,6 +39,7 @@ const models = {
   WalletTransaction,
   DynamicConfig,
   Expense,
+  ExpenseAuditEvent,
   Promotion,
   PromotionAssignment,
   PromotionRedemption,
@@ -66,6 +68,7 @@ export {
   WalletTransaction,
   DynamicConfig,
   Expense,
+  ExpenseAuditEvent,
   Promotion,
   PromotionAssignment,
   PromotionRedemption,

@@ -17,6 +17,8 @@
 | FIN-D009 | Prototype figures and comparison claims are never shipped as defaults. | Every figure must derive from live records and expose a truthful empty state. |
 | FIN-D010 | Refunds are recognized in the Dubai business period containing the refund occurrence timestamp, not the original payment period. | First-release reporting is cash-based. The drill-down still retains the original `paidAt` so operators can reconcile the refund to its source payment. |
 | FIN-D011 | Dashboard, Reports, drill-downs, and exports share one canonical validated filter contract. | Matching figures require shared date normalization, optional-filter semantics, and bounded input validation across every surface. |
+| FIN-D012 | Expense CRUD uses `SUPERADMIN` compatibility authorization until the deferred permission service resumes. | The finance task cannot block on `admin-access-control`, but server-side authorization still needs an explicit deny-by-default boundary. |
+| FIN-D013 | Expense mutations write first-class audit rows with before/after snapshots. | Soft deletion alone does not provide a durable mutation trail for financial changes. |
 
 ## Deferred scope
 

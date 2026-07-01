@@ -95,6 +95,18 @@ models.Expense.belongsTo(models.User, {
   foreignKey: "deletedByUserId",
   as: "deletedByUser",
 });
+models.Expense.hasMany(models.ExpenseAuditEvent, {
+  foreignKey: "expenseId",
+  as: "auditEvents",
+});
+models.ExpenseAuditEvent.belongsTo(models.Expense, {
+  foreignKey: "expenseId",
+  as: "expense",
+});
+models.ExpenseAuditEvent.belongsTo(models.User, {
+  foreignKey: "actorUserId",
+  as: "actorUser",
+});
 
 models.Promotion.belongsTo(models.User, {
   foreignKey: "createdByUserId",
@@ -246,6 +258,10 @@ models.User.hasMany(models.Expense, {
 models.User.hasMany(models.Expense, {
   foreignKey: "deletedByUserId",
   as: "deletedExpenses",
+});
+models.User.hasMany(models.ExpenseAuditEvent, {
+  foreignKey: "actorUserId",
+  as: "expenseAuditEvents",
 });
 models.User.hasMany(models.Promotion, {
   foreignKey: "createdByUserId",

@@ -55,6 +55,8 @@ The first-release Expense record contains:
 - soft-delete actor, reason, and timestamp.
 
 The UI calls deletion, but storage retains an audit-safe soft-deleted record.
+Each create, update, and delete mutation also writes an expense audit event with
+actor, before/after state, reason, and compatibility authorization metadata.
 
 ## APIs
 
@@ -69,6 +71,9 @@ The UI calls deletion, but storage retains an audit-safe soft-deleted record.
 
 Date ranges have maximum sizes. Drill-down rows are paginated. Queries use
 database aggregation and indexes instead of loading all records into Node.js.
+Until `admin-access-control` resumes, expense CRUD uses the compatibility
+authorization mode `SUPERADMIN`-only rather than the deferred role-permission
+matrix.
 
 ## Exports
 
