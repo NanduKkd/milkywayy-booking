@@ -530,6 +530,67 @@ describe("Booking Actions", () => {
       expect(Stripe.mockCreateSession).not.toHaveBeenCalled();
     });
 
+    it("releases reserved promotions when Stripe session creation fails", async () => {
+      const mockBookingIds = [1];
+      const mockBookings = [
+        {
+          id: 1,
+          userId: mockUserId,
+          total: 900,
+          date: mockFutureDate,
+          slot: 1,
+          duration: 1,
+        },
+      ];
+
+      Booking.findAll.mockImplementation(({ where }) => {
+        if (where.id) return Promise.resolve(mockBookings);
+        return Promise.resolve([]);
+      });
+      evaluateCheckoutPromotionPricing.mockResolvedValueOnce({
+        eligibleSubtotal: 900,
+        selectedPromotion: {
+          promotionId: 7,
+          benefitAmount: 100,
+          triggerSnapshot: {
+            triggerType: "NONE",
+            triggerConfig: {},
+          },
+        },
+        codeValidation: {
+          status: "APPLIED",
+          message: "SAVE10 applied successfully",
+        },
+      });
+      Transaction.create.mockResolvedValue({
+        id: "txn-6",
+        update: jest.fn(),
+      });
+      Booking.update.mockResolvedValue([1]);
+      reservePromotionForCheckoutTransaction.mockResolvedValue({
+        id: 3001,
+      });
+      Stripe.mockCreateSession.mockRejectedValue(
+        new Error("Stripe unavailable"),
+      );
+
+      const result = await createTransactionAndPaymentIntent(
+        mockBookingIds,
+        "SAVE10",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe("Stripe unavailable");
+      expect(Transaction.update).toHaveBeenCalledWith(
+        { status: "failed" },
+        { where: { id: "txn-6", status: "pending" } },
+      );
+      expect(releasePromotionForCheckoutTransaction).toHaveBeenCalledWith({
+        transactionId: "txn-6",
+        reason: "checkout_session_create_failed",
+      });
+    });
+
     it("rejects invalid promo codes before creating a transaction", async () => {
       const mockBookingIds = [1];
       const mockBookings = [

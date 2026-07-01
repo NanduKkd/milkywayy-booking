@@ -153,6 +153,35 @@ describe("promotionRedemptions service", () => {
     expect(models.PromotionRedemption.create).not.toHaveBeenCalled();
   });
 
+  it("rejects duplicate active reservations for the same transaction", async () => {
+    models.Promotion.findByPk.mockResolvedValue({
+      id: 7,
+      status: "ACTIVE",
+      totalLimit: null,
+      perUserLimit: null,
+      triggerType: "NONE",
+      triggerConfig: {},
+    });
+    models.PromotionRedemption.findOne.mockResolvedValue({
+      id: 77,
+      state: "RESERVED",
+    });
+
+    await expect(
+      reservePromotionRedemption({
+        promotionId: 7,
+        userId: 12,
+        transactionId: 33,
+        eligibleSubtotal: 500,
+        benefitAmount: 50,
+        benefitTypeSnapshot: "FIXED",
+      }),
+    ).rejects.toThrow("Transaction already has an active promotion redemption");
+
+    expect(models.PromotionRedemption.count).not.toHaveBeenCalled();
+    expect(models.PromotionRedemption.create).not.toHaveBeenCalled();
+  });
+
   it("rejects reservations once the per-user limit is exhausted", async () => {
     models.Promotion.findByPk.mockResolvedValue({
       id: 3,

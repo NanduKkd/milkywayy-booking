@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { sendBookingConfirmation } from "@/lib/actions/notifications";
 import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
@@ -47,7 +48,9 @@ jest.mock("@/lib/db/models/user", () => ({
 }));
 
 jest.mock("@/lib/helpers/invoice", () => ({
-  ensureTransactionInvoiceUrl: jest.fn().mockResolvedValue("https://example.com/invoice.pdf"),
+  ensureTransactionInvoiceUrl: jest
+    .fn()
+    .mockResolvedValue("https://example.com/invoice.pdf"),
 }));
 
 jest.mock("@/lib/services/promotionCheckout", () => ({
@@ -111,5 +114,55 @@ describe("Stripe webhook route", () => {
       { status: "CONFIRMED" },
       { where: { transactionId: 55 } },
     );
+  });
+
+  it("keeps duplicate checkout completion webhooks idempotent after success", async () => {
+    const Stripe = require("stripe");
+    const transaction = {
+      id: 55,
+      userId: 7,
+      status: "success",
+      invoiceUrl: "https://example.com/invoice.pdf",
+      metadata: {
+        bookingConfirmationSentAt: "2026-07-01T10:15:00.000Z",
+      },
+      update: jest.fn(),
+    };
+
+    Stripe.mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      id: "evt_456",
+      data: {
+        object: {
+          id: "cs_123",
+          payment_status: "paid",
+          payment_intent: "pi_123",
+          metadata: {
+            transactionId: "55",
+          },
+        },
+      },
+    });
+    Transaction.findByPk.mockResolvedValue(transaction);
+
+    const response = await POST({
+      text: jest.fn().mockResolvedValue("payload"),
+    });
+    const payload = await response.json();
+
+    expect(payload).toEqual({ received: true });
+    expect(transaction.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "success",
+      }),
+    );
+    expect(applyPromotionForCheckoutTransaction).toHaveBeenCalledWith({
+      transactionId: 55,
+    });
+    expect(Booking.update).toHaveBeenCalledWith(
+      { status: "CONFIRMED" },
+      { where: { transactionId: 55 } },
+    );
+    expect(sendBookingConfirmation).not.toHaveBeenCalled();
   });
 });

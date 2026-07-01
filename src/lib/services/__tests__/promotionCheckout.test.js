@@ -1,17 +1,17 @@
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
 import {
-  applyPromotionRedemption,
-  expirePromotionRedemption,
-  releasePromotionRedemption,
-  reservePromotionRedemption,
-} from "../promotionRedemptions";
-import {
   applyPromotionForCheckoutTransaction,
   expirePromotionForCheckoutTransaction,
   releasePromotionForCheckoutTransaction,
   reservePromotionForCheckoutTransaction,
 } from "../promotionCheckout";
+import {
+  applyPromotionRedemption,
+  expirePromotionRedemption,
+  releasePromotionRedemption,
+  reservePromotionRedemption,
+} from "../promotionRedemptions";
 
 const mockTransaction = {
   LOCK: {
@@ -171,6 +171,37 @@ describe("promotionCheckout service", () => {
     expect(reservePromotionRedemption).not.toHaveBeenCalled();
   });
 
+  it("returns the existing checkout reservation when a retry sees an attached redemption", async () => {
+    models.Transaction.findByPk.mockResolvedValue({
+      id: 91,
+      promotionRedemptionId: 3001,
+      promotionSnapshot: {
+        id: 7,
+        benefitAmount: 237.5,
+      },
+    });
+
+    const result = await reservePromotionForCheckoutTransaction({
+      transactionId: 91,
+      userId: 12,
+      eligibleSubtotal: 950,
+      selectedPromotion: {
+        promotionId: 7,
+        benefitAmount: "237.50",
+      },
+    });
+
+    expect(models.Promotion.findByPk).not.toHaveBeenCalled();
+    expect(reservePromotionRedemption).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      promotionRedemptionId: 3001,
+      promotionSnapshot: {
+        id: 7,
+        benefitAmount: 237.5,
+      },
+    });
+  });
+
   it("applies the reserved redemption attached to a paid transaction", async () => {
     const checkoutTransaction = {
       id: 91,
@@ -199,6 +230,24 @@ describe("promotionCheckout service", () => {
       id: 3001,
       state: "APPLIED",
     });
+  });
+
+  it("returns the existing applied redemption on duplicate payment finalization", async () => {
+    const checkoutTransaction = {
+      id: 91,
+      promotionRedemptionId: 3001,
+    };
+    const redemption = { id: 3001, state: "APPLIED" };
+
+    models.Transaction.findByPk.mockResolvedValue(checkoutTransaction);
+    models.PromotionRedemption.findByPk.mockResolvedValue(redemption);
+
+    const result = await applyPromotionForCheckoutTransaction({
+      transactionId: 91,
+    });
+
+    expect(applyPromotionRedemption).not.toHaveBeenCalled();
+    expect(result).toBe(redemption);
   });
 
   it("releases a reserved redemption when checkout fails", async () => {
@@ -234,6 +283,25 @@ describe("promotionCheckout service", () => {
     });
   });
 
+  it("returns the existing released redemption when checkout failure cleanup is retried", async () => {
+    const checkoutTransaction = {
+      id: 91,
+      promotionRedemptionId: 3001,
+    };
+    const redemption = { id: 3001, state: "RELEASED" };
+
+    models.Transaction.findByPk.mockResolvedValue(checkoutTransaction);
+    models.PromotionRedemption.findByPk.mockResolvedValue(redemption);
+
+    const result = await releasePromotionForCheckoutTransaction({
+      transactionId: 91,
+      reason: "checkout_cancelled",
+    });
+
+    expect(releasePromotionRedemption).not.toHaveBeenCalled();
+    expect(result).toBe(redemption);
+  });
+
   it("expires a reserved redemption when the checkout window closes", async () => {
     const checkoutTransaction = {
       id: 91,
@@ -263,5 +331,23 @@ describe("promotionCheckout service", () => {
       id: 3001,
       state: "EXPIRED",
     });
+  });
+
+  it("returns the existing expired redemption when session expiry cleanup is retried", async () => {
+    const checkoutTransaction = {
+      id: 91,
+      promotionRedemptionId: 3001,
+    };
+    const redemption = { id: 3001, state: "EXPIRED" };
+
+    models.Transaction.findByPk.mockResolvedValue(checkoutTransaction);
+    models.PromotionRedemption.findByPk.mockResolvedValue(redemption);
+
+    const result = await expirePromotionForCheckoutTransaction({
+      transactionId: 91,
+    });
+
+    expect(expirePromotionRedemption).not.toHaveBeenCalled();
+    expect(result).toBe(redemption);
   });
 });
