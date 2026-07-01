@@ -2,7 +2,7 @@
 
 - Last updated: 2026-07-01
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M2 - Reports and exports`
+- Current milestone: `M3 - Verification and rollout`
 
 ## Progress summary
 
@@ -10,7 +10,7 @@
 |---|---|---:|---:|---:|
 | M0 - Metric and report contract | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Expense and analytics foundation | `DONE` | 5 | 5 | 4-6 days |
-| M2 - Reports and exports | `IN_PROGRESS` | 5 | 6 | 7-10 days |
+| M2 - Reports and exports | `DONE` | 6 | 6 | 7-10 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-5 days |
 
 ## M0 - Metric and report contract
@@ -40,7 +40,7 @@
 | FIN-203 | Implement CSV export | `DONE` | Engineering | FIN-003, FIN-103 | Export uses authorized server data and reconciles to screen totals | Added shared report-data loading in `src/app/api/admin/analytics/reports/_lib/reportData.js`, shipped `GET /api/admin/analytics/reports/export?format=csv` backed by `src/lib/services/financialReportExport.js`, and added the Financial Reports export trigger in `src/app/admin/analytics/FinancialReportsPage.jsx`. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialReportExport.test.js src/app/api/admin/analytics/reports/export/__tests__/route.test.js src/app/api/admin/analytics/reports/__tests__/route.test.js src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx --runInBand`. |
 | FIN-204 | Implement Excel export | `DONE` | Engineering | FIN-003, FIN-103 | Workbook has stable columns, types, filters, totals, and safe cell values | Added shared XLSX workbook generation in `src/lib/services/financialReportExport.js`, extended `GET /api/admin/analytics/reports/export?format=xlsx`, and exposed an Excel export action from `src/app/admin/analytics/FinancialReportsPage.jsx`. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialReportExport.test.js src/app/api/admin/analytics/reports/export/__tests__/route.test.js src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx --runInBand`. |
 | FIN-205 | Implement PDF report export | `DONE` | Engineering | FIN-003, FIN-103 | PDF is readable, dated, filter-labelled, and reconciles to screen totals | Added shared Puppeteer-backed PDF generation in `src/lib/services/financialReportExport.js`, extended `GET /api/admin/analytics/reports/export?format=pdf`, and exposed a PDF export action from `src/app/admin/analytics/FinancialReportsPage.jsx`. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialReportExport.test.js src/app/api/admin/analytics/reports/export/__tests__/route.test.js src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx --runInBand`. |
-| FIN-206 | Implement Dashboard drill-downs and export control | `NOT_STARTED` | Engineering | FIN-104, FIN-105 | KPI drill-down and Dashboard export respect the active date range | Pending |
+| FIN-206 | Implement Dashboard drill-downs and export control | `DONE` | Engineering | FIN-104, FIN-105 | KPI drill-down and Dashboard export respect the active date range | Added a live Dashboard Analytics section to `src/app/admin/analytics/FinancialReportsPage.jsx` that loads `/api/admin/analytics/dashboard`, opens KPI/service/schedule/recent-booking drill-downs through `/api/admin/analytics/drill-down`, and keeps CSV/Excel/PDF export controls bound to the same active month range. Verified on 2026-07-01 with `npx jest src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx src/app/api/admin/analytics/dashboard/__tests__/route.test.js src/app/api/admin/analytics/drill-down/__tests__/route.test.js src/app/api/admin/analytics/reports/__tests__/route.test.js src/app/api/admin/analytics/reports/export/__tests__/route.test.js --runInBand`. |
 
 ## M3 - Verification and rollout
 

@@ -84,6 +84,155 @@ const reportPayload = {
   },
 };
 
+const dashboardPayload = {
+  comparison: {
+    cancelledBookings: { delta: 1 },
+    completedBookings: { delta: 2 },
+    expenses: { delta: 150 },
+    grossPayments: { delta: 800 },
+    lostValue: { delta: 300 },
+    netProfit: { delta: 550 },
+    netRevenue: { delta: 700 },
+    outstandingBalance: { delta: 125 },
+    pendingBookings: { delta: 1 },
+    refunds: { delta: 100 },
+  },
+  kpis: {
+    cancelledBookings: 1,
+    completedBookings: 3,
+    expenses: 450,
+    grossPayments: 1500,
+    lostValue: 300,
+    netProfit: 950,
+    netRevenue: 1400,
+    outstandingBalance: 225,
+    paidBookings: 3,
+    pendingBookings: 2,
+    refunds: 100,
+  },
+  recentBookings: [
+    {
+      bookingCode: "BK-201",
+      createdAt: "2026-06-24T09:00:00.000Z",
+      customer: {
+        email: "alex@example.com",
+        fullName: "Alex Tenant",
+        id: 9001,
+        phone: "+971500000900",
+      },
+      date: "2026-06-28",
+      id: 201,
+      status: "CONFIRMED",
+      total: 650,
+      workflowStatus: "SHOOT_BOOKED",
+    },
+  ],
+  revenueByService: [
+    { amount: 850, key: "photography", label: "Photography" },
+    { amount: 550, key: "videography", label: "Videography" },
+  ],
+  revenueTrend: {
+    buckets: [
+      {
+        bucketStartBusinessDate: "2026-06-01",
+        netRevenue: 450,
+      },
+      {
+        bucketStartBusinessDate: "2026-06-02",
+        netRevenue: 950,
+      },
+    ],
+    granularity: "day",
+  },
+  scheduleSummary: {
+    recentDayDetails: [
+      {
+        bucketStartBusinessDate: "2026-06-28",
+        cancelled: 0,
+        completed: 1,
+        pending: 1,
+        total: 2,
+      },
+    ],
+    totals: {
+      cancelled: 1,
+      completed: 3,
+      pending: 2,
+      total: 6,
+    },
+  },
+};
+
+const drilldownPayload = {
+  metricKey: "netRevenue",
+  pagination: {
+    hasNextPage: false,
+    hasPreviousPage: false,
+    page: 1,
+    pageSize: 10,
+    totalPages: 1,
+    totalRows: 2,
+  },
+  rows: [
+    {
+      eventAt: "2026-06-25T06:00:00.000Z",
+      id: 2,
+      linkedBookings: [
+        {
+          bookingCode: "BK-102",
+          customer: {
+            email: "june-2@example.com",
+            fullName: "June Two",
+            id: 502,
+            phone: "+971500000002",
+          },
+          date: "2026-06-20",
+          id: 102,
+          status: "CONFIRMED",
+          total: 500,
+          workflowStatus: "SHOOT_BOOKED",
+        },
+      ],
+      netAmount: -100,
+      transactionId: 2,
+      type: "refund",
+    },
+    {
+      eventAt: "2026-06-20T11:00:00.000Z",
+      id: 2,
+      linkedBookings: [
+        {
+          bookingCode: "BK-102",
+          customer: {
+            email: "june-2@example.com",
+            fullName: "June Two",
+            id: 502,
+            phone: "+971500000002",
+          },
+          date: "2026-06-20",
+          id: 102,
+          status: "CONFIRMED",
+          total: 500,
+          workflowStatus: "SHOOT_BOOKED",
+        },
+      ],
+      netAmount: 500,
+      transactionId: 2,
+      type: "payment",
+    },
+  ],
+  sort: {
+    allowedKeys: ["eventAt", "id", "netAmount"],
+    direction: "desc",
+    key: "eventAt",
+  },
+  total: {
+    currency: "AED",
+    kind: "amount",
+    value: 1400,
+  },
+};
+
 function createJsonResponse(payload, { ok = true, status = 200 } = {}) {
   return {
     json: async () => payload,
@@ -108,6 +257,12 @@ function createExpense(id, fields) {
 }
 
 function setupFetch({
+  dashboardError = "Failed to load dashboard analytics",
+  dashboardOk = true,
+  dashboardPayloadOverride = dashboardPayload,
+  drilldownError = "Failed to load dashboard drill-down",
+  drilldownOk = true,
+  drilldownPayloadOverride = drilldownPayload,
   expenseItems = [],
   reportOk = true,
   reportPayloadOverride = reportPayload,
@@ -128,6 +283,28 @@ function setupFetch({
       }
 
       return createJsonResponse(reportPayloadOverride);
+    }
+
+    if (requestUrl.includes("/api/admin/analytics/dashboard?")) {
+      if (!dashboardOk) {
+        return createJsonResponse(
+          { error: dashboardError },
+          { ok: false, status: 500 },
+        );
+      }
+
+      return createJsonResponse(dashboardPayloadOverride);
+    }
+
+    if (requestUrl.includes("/api/admin/analytics/drill-down?")) {
+      if (!drilldownOk) {
+        return createJsonResponse(
+          { error: drilldownError },
+          { ok: false, status: 500 },
+        );
+      }
+
+      return createJsonResponse(drilldownPayloadOverride);
     }
 
     if (requestUrl.includes("/api/admin/expenses?")) {
@@ -216,16 +393,25 @@ describe("FinancialReportsPage", () => {
     render(<FinancialReportsPage />);
 
     expect(
+      screen.getByLabelText("Loading dashboard analytics"),
+    ).toBeInTheDocument();
+    expect(
       screen.getByLabelText("Loading financial reports"),
     ).toBeInTheDocument();
     expect(
       screen.getByLabelText("Loading expense tracker"),
     ).toBeInTheDocument();
 
+    expect(await screen.findByText("Dashboard Analytics")).toBeInTheDocument();
     expect(await screen.findByText("Weekly Net Revenue")).toBeInTheDocument();
     expect(await screen.findByText("Expense Tracker")).toBeInTheDocument();
+    expect(screen.getByText("Gross Payments")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "View net revenue details" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Category Breakdown")).toBeInTheDocument();
     expect(screen.getByText("Tracked Expenses")).toBeInTheDocument();
+    expect(screen.getByText("BK-201")).toBeInTheDocument();
     expect(screen.getByText("Campaign shoot boost")).toBeInTheDocument();
     expect(screen.getAllByText("Marketing").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Jun 2026").length).toBeGreaterThan(0);
@@ -256,11 +442,37 @@ describe("FinancialReportsPage", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/analytics/dashboard?"),
+        expect.objectContaining({ cache: "no-store" }),
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining("/api/admin/analytics/reports?"),
         expect.objectContaining({ cache: "no-store" }),
       );
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining("/api/admin/expenses?"),
+        expect.objectContaining({ cache: "no-store" }),
+      );
+    });
+  });
+
+  it("opens a KPI drill-down modal for the active dashboard range", async () => {
+    setupFetch({
+      expenseItems: [],
+    });
+
+    render(<FinancialReportsPage />);
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "View net revenue details" }),
+    );
+
+    expect(await screen.findByText("Net Revenue Details")).toBeInTheDocument();
+    expect((await screen.findAllByText("June Two")).length).toBeGreaterThan(0);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/analytics/drill-down?"),
         expect.objectContaining({ cache: "no-store" }),
       );
     });
