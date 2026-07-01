@@ -99,6 +99,22 @@ describe("buildInvoiceCouponSummary", () => {
 });
 
 describe("buildInvoiceDiscountSummaries", () => {
+  it("shows the selected promotion from the immutable transaction snapshot", () => {
+    expect(
+      buildInvoiceDiscountSummaries({
+        amount: 550,
+        promotionSnapshot: {
+          id: 21,
+          kind: "AUTOMATIC",
+          name: "First-Shoot Launch Credit",
+          benefitAmount: 500,
+        },
+      }),
+    ).toEqual([
+      { label: "Promotion (First-Shoot Launch Credit)", amount: 500 },
+    ]);
+  });
+
   it("shows stacked launch credit and coupon deductions", () => {
     expect(
       buildInvoiceDiscountSummaries({

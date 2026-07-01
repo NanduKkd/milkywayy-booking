@@ -12,8 +12,12 @@ import {
 } from "@/lib/helpers/invoice-format";
 import { ensureTransactionInvoiceNumber } from "@/lib/helpers/numbering";
 import { getPricingConfig } from "@/lib/helpers/pricing";
+import {
+  buildTransactionPromotionSummary,
+  getTransactionGrossAmount,
+} from "@/lib/helpers/transactionPricing";
 
-export const INVOICE_TEMPLATE_VERSION = 2;
+export const INVOICE_TEMPLATE_VERSION = 3;
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || "us-east-1",
@@ -71,7 +75,8 @@ function normalizePropertySizeLabel(value) {
 
 function getBookingDisplayTitle(booking) {
   const property = booking.propertyDetails || {};
-  const type = property.type || property.propertyType || booking.propertyType || "";
+  const type =
+    property.type || property.propertyType || booking.propertyType || "";
   const size = normalizePropertySizeLabel(
     property.size || property.propertySize || booking.propertySize || "",
   );
@@ -222,10 +227,18 @@ export function buildInvoiceCouponSummary(transaction) {
 
 export function buildInvoiceDiscountSummaries(transaction) {
   const summaries = [];
+  const promotionSummary = buildTransactionPromotionSummary(transaction);
   const bulkDeduction = roundCurrency(transaction?.bulkDeduction || 0);
   const launchPromoDeduction = roundCurrency(
     transaction?.metadata?.appliedLaunchPromoDeduction || 0,
   );
+
+  if (promotionSummary) {
+    summaries.push({
+      label: promotionSummary.label,
+      amount: promotionSummary.amount,
+    });
+  }
 
   if (bulkDeduction > 0) {
     summaries.push({
@@ -322,33 +335,31 @@ async function resolveTransactionBookings(transaction) {
   const hasValidTimestamp =
     transactionCreatedAt instanceof Date &&
     !Number.isNaN(transactionCreatedAt.getTime());
-  const expectedGrossCents = toCents(
-    Number(transaction?.amount || 0) +
-    Number(transaction?.couponDeduction || 0) +
-    Number(transaction?.bulkDeduction || 0),
-  );
+  const expectedGrossCents = toCents(getTransactionGrossAmount(transaction));
   if (!transaction?.userId || !hasValidTimestamp || expectedGrossCents <= 0) {
     return [];
   }
 
-  const windowStart = new Date(transactionCreatedAt.getTime() - (2 * 60 * 60 * 1000));
-  const windowEnd = new Date(transactionCreatedAt.getTime() + (15 * 60 * 1000));
+  const windowStart = new Date(
+    transactionCreatedAt.getTime() - 2 * 60 * 60 * 1000,
+  );
+  const windowEnd = new Date(transactionCreatedAt.getTime() + 15 * 60 * 1000);
   const candidates = await Booking.findAll({
     where: {
       userId: transaction.userId,
       status: { [Op.in]: ["DRAFT", "CONFIRMED"] },
       createdAt: { [Op.between]: [windowStart, windowEnd] },
-      [Op.or]: [
-        { transactionId: null },
-        { transactionId: transaction.id },
-      ],
+      [Op.or]: [{ transactionId: null }, { transactionId: transaction.id }],
     },
     order: [
       ["createdAt", "DESC"],
       ["id", "DESC"],
     ],
   });
-  const matchedBookings = findBookingSubsetByAmount(candidates, expectedGrossCents);
+  const matchedBookings = findBookingSubsetByAmount(
+    candidates,
+    expectedGrossCents,
+  );
   if (matchedBookings.length === 0) {
     console.warn("[INVOICE] Unable to resolve bookings for transaction", {
       transactionId: transaction.id,
@@ -376,8 +387,10 @@ export function buildBookingInvoiceItems(booking, pricingConfig) {
   const property = booking?.propertyDetails || {};
   const shoot = booking?.shootDetails || {};
   const services = Array.isArray(shoot.services) ? shoot.services : [];
-  const propertyType = property.type || property.propertyType || booking?.propertyType;
-  const propertySize = property.size || property.propertySize || booking?.propertySize;
+  const propertyType =
+    property.type || property.propertyType || booking?.propertyType;
+  const propertySize =
+    property.size || property.propertySize || booking?.propertySize;
 
   const sizeConfig = pricingConfig?.[propertyType]?.sizes?.find(
     (size) => size.label === propertySize,
@@ -467,7 +480,9 @@ export async function generateAndUploadInvoice(
     let subTotal = 0;
     const bookingReferences = formatBookingReferenceList(bookings);
     const resolvedInvoiceNumber =
-      invoiceNumber || transaction.invoiceNumber || formatInvoiceNumber(transaction);
+      invoiceNumber ||
+      transaction.invoiceNumber ||
+      formatInvoiceNumber(transaction);
     const discountSummaryRows = buildInvoiceDiscountSummaries(transaction)
       .map(
         (summary) => `
@@ -827,10 +842,7 @@ ${bookingTables}
     // Create user-friendly filename
     const dateStr = invoiceIssuedAt.toISOString().split("T")[0];
     const customerName =
-      user.companyName ||
-      user.fullName ||
-      user.phone ||
-      "Customer";
+      user.companyName || user.fullName || user.phone || "Customer";
     const sanitizedName = customerName
       .replace(/[^a-zA-Z0-9]/g, "_")
       .toLowerCase();

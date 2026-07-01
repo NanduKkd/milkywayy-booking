@@ -1,6 +1,6 @@
+import { verifyStripeSession } from "@/lib/actions/bookings";
 import { render, screen } from "../../../../test-utils";
 import BookingSuccessPage from "../page";
-import { verifyStripeSession } from "@/lib/actions/bookings";
 
 jest.mock("@/lib/actions/bookings", () => ({
   verifyStripeSession: jest.fn(),
@@ -20,6 +20,14 @@ describe("BookingSuccessPage", () => {
         paymentVerified: true,
         bookingReferences: ["MWB-1001", "MWB-1002"],
         totalPaidAmount: 1250,
+        paymentSummary: {
+          subtotal: 1750,
+          promotion: {
+            label: "Promotion (First-Shoot Launch Credit)",
+            amount: 500,
+          },
+          totalPaidAmount: 1250,
+        },
         bookingSummaries: [
           {
             bookingReference: "MWB-1001",
@@ -54,20 +62,32 @@ describe("BookingSuccessPage", () => {
     expect(
       screen.getAllByText("2 Bed Apartment - Dubai Marina").length,
     ).toBeGreaterThan(0);
-    expect(screen.getAllByText("Villa - Palm Jumeirah").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Villa - Palm Jumeirah").length).toBeGreaterThan(
+      0,
+    );
     expect(screen.getAllByText("Booking ID:")).toHaveLength(2);
     expect(screen.getByText("MWB-1001")).toBeInTheDocument();
     expect(screen.getByText("MWB-1002")).toBeInTheDocument();
     expect(screen.getByText("AED 600")).toBeInTheDocument();
     expect(screen.getByText("AED 650")).toBeInTheDocument();
-    expect(screen.getByText("1204, Marina Gate, Dubai Marina")).toBeInTheDocument();
-    expect(screen.getByText("Photography, Videography - Short Form")).toBeInTheDocument();
+    expect(
+      screen.getByText("1204, Marina Gate, Dubai Marina"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Photography, Videography - Short Form"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Frond A, Palm Jumeirah")).toBeInTheDocument();
     expect(screen.getByText("360° Tour")).toBeInTheDocument();
     expect(screen.getByText("Morning")).toBeInTheDocument();
     expect(screen.getByText("Afternoon")).toBeInTheDocument();
     expect(screen.getByText("Arrival 09:00 - 09:30")).toBeInTheDocument();
     expect(screen.getByText("Arrival 13:00 - 13:30")).toBeInTheDocument();
+    expect(screen.getByText(/payment summary/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("Promotion (First-Shoot Launch Credit)"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("AED 1,750")).toBeInTheDocument();
+    expect(screen.getByText("AED 1,250")).toBeInTheDocument();
   });
 
   it("shows a pending state when the session has not been paid yet", async () => {
@@ -75,7 +95,8 @@ describe("BookingSuccessPage", () => {
       success: true,
       message: null,
       data: {
-        message: "Payment is still processing. Please refresh in a few seconds.",
+        message:
+          "Payment is still processing. Please refresh in a few seconds.",
         paymentVerified: false,
         bookingSummary: null,
         bookingSummaries: [],
@@ -92,7 +113,9 @@ describe("BookingSuccessPage", () => {
 
     expect(screen.getByText(/confirmation pending/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/payment is still processing\. please refresh in a few seconds\./i),
+      screen.getByText(
+        /payment is still processing\. please refresh in a few seconds\./i,
+      ),
     ).toBeInTheDocument();
   });
 });

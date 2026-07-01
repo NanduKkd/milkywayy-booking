@@ -35,6 +35,10 @@ import {
 import { getPricingConfig } from "@/lib/helpers/pricing";
 import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
 import {
+  buildTransactionPaymentSummary,
+  getTransactionGrossAmount,
+} from "@/lib/helpers/transactionPricing";
+import {
   completeDeliveredBookingState,
   updateBookingWorkflowState,
 } from "@/lib/services/bookingWorkflow";
@@ -301,11 +305,7 @@ const recoverTransactionBookings = async (transaction) => {
   const hasValidTimestamp =
     transactionCreatedAt instanceof Date &&
     !Number.isNaN(transactionCreatedAt.getTime());
-  const expectedGrossCents = toCents(
-    Number(transaction?.amount || 0) +
-      Number(transaction?.couponDeduction || 0) +
-      Number(transaction?.bulkDeduction || 0),
-  );
+  const expectedGrossCents = toCents(getTransactionGrossAmount(transaction));
 
   if (
     !transaction?.id ||
@@ -399,6 +399,17 @@ const buildDummyVerifyStripeSessionResponse = () => {
       (sum, summary) => sum + Number(summary.amount || 0),
       0,
     ),
+    paymentSummary: {
+      subtotal: bookingSummaries.reduce(
+        (sum, summary) => sum + Number(summary.amount || 0),
+        0,
+      ),
+      promotion: null,
+      totalPaidAmount: bookingSummaries.reduce(
+        (sum, summary) => sum + Number(summary.amount || 0),
+        0,
+      ),
+    },
   };
 };
 
@@ -1827,6 +1838,10 @@ const verifyStripeSessionHandler = async (sessionId) => {
     const bookingReferences = confirmedBookings
       .map((booking) => formatBookingReference(booking))
       .filter(Boolean);
+    const paymentSummary = buildTransactionPaymentSummary(
+      transaction,
+      bookingSummaries,
+    );
 
     return {
       message: "Payment verified and bookings confirmed",
@@ -1835,6 +1850,7 @@ const verifyStripeSessionHandler = async (sessionId) => {
       bookingSummaries,
       bookingReferences,
       totalPaidAmount: Number(transaction.amount || 0),
+      paymentSummary,
     };
   }
   return {
@@ -1844,6 +1860,7 @@ const verifyStripeSessionHandler = async (sessionId) => {
     bookingSummaries: [],
     bookingReferences: [],
     totalPaidAmount: 0,
+    paymentSummary: null,
   };
 };
 export const verifyStripeSession = actionWrapper(verifyStripeSessionHandler);
