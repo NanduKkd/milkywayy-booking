@@ -5,6 +5,7 @@ import BookingDeliveryFileVersion from "./bookingdeliveryfileversion.js";
 import BookingDeliveryUpload from "./bookingdeliveryupload.js";
 import BookingFileRevision from "./bookingfilerevision.js";
 import BookingRevision from "./bookingrevision.js";
+import CalendarEvent from "./calendarevent.js";
 import Coupon from "./coupon.js";
 import DynamicConfig from "./dynamicconfig.js";
 import Expense from "./expense.js";
@@ -34,6 +35,7 @@ const models = {
   BookingDeliveryUpload,
   BookingFileRevision,
   BookingRevision,
+  CalendarEvent,
   Transaction,
   Coupon,
   WalletTransaction,
@@ -63,6 +65,7 @@ export {
   BookingDeliveryUpload,
   BookingFileRevision,
   BookingRevision,
+  CalendarEvent,
   Transaction,
   Coupon,
   WalletTransaction,

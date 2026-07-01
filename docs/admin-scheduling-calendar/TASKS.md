@@ -1,15 +1,15 @@
 # Admin scheduling calendar task tracker
 
-- Last updated: 2026-06-30
-- Overall implementation status: `NOT_STARTED`
-- Current milestone: `M0 - Scheduling contract`
+- Last updated: 2026-07-02
+- Overall implementation status: `IN_PROGRESS`
+- Current milestone: `M1 - Data and shared availability`
 
 ## Progress summary
 
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
 | M0 - Scheduling contract | `IN_PROGRESS` | 0 | 2 | 1-2 days |
-| M1 - Data and shared availability | `NOT_STARTED` | 0 | 4 | 3-4 days |
+| M1 - Data and shared availability | `IN_PROGRESS` | 1 | 4 | 3-4 days |
 | M2 - Calendar and entry flows | `NOT_STARTED` | 0 | 5 | 5-7 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 4 | 3-4 days |
 
@@ -24,7 +24,7 @@
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| CAL-101 | Add calendar-only event persistence and migration | `NOT_STARTED` | Engineering | CAL-002 | Events store schedule, label/details, capacity behavior, creator, status, and audit timestamps | Pending |
+| CAL-101 | Add calendar-only event persistence and migration | `DONE` | Engineering | CAL-002 | Events store schedule, label/details, capacity behavior, creator, status, and audit timestamps | `src/lib/db/migrations/__tests__/20260702113000-create-calendar-events.test.js`, `src/lib/db/models/__tests__/calendarevent.test.js`, `npm test -- --runInBand src/lib/db/migrations/__tests__/20260702113000-create-calendar-events.test.js src/lib/db/models/__tests__/calendarevent.test.js` |
 | CAL-102 | Build unified calendar query service | `NOT_STARTED` | Engineering | CAL-101 | One bounded query returns bookings, events, and effective blocks for a date range | Pending |
 | CAL-103 | Extract shared availability evaluation | `NOT_STARTED` | Engineering | CAL-001 | Customer booking and admin calendar use the same precedence and capacity calculations | Pending |
 | CAL-104 | Add transactional conflict revalidation | `NOT_STARTED` | Engineering | CAL-103 | Conflicting concurrent creates/blocks fail safely with actionable responses | Pending |

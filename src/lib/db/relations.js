@@ -82,6 +82,18 @@ models.BookingRevision.belongsTo(models.Booking, {
   foreignKey: "bookingId",
   as: "booking",
 });
+models.CalendarEvent.belongsTo(models.User, {
+  foreignKey: "createdByUserId",
+  as: "createdByUser",
+});
+models.CalendarEvent.belongsTo(models.User, {
+  foreignKey: "updatedByUserId",
+  as: "updatedByUser",
+});
+models.CalendarEvent.belongsTo(models.User, {
+  foreignKey: "cancelledByUserId",
+  as: "cancelledByUser",
+});
 
 models.Expense.belongsTo(models.User, {
   foreignKey: "createdByUserId",
@@ -247,6 +259,18 @@ models.User.hasMany(models.WalletTransaction, {
   as: "walletTransactions",
 });
 models.User.hasMany(models.Booking, { foreignKey: "userId", as: "bookings" });
+models.User.hasMany(models.CalendarEvent, {
+  foreignKey: "createdByUserId",
+  as: "createdCalendarEvents",
+});
+models.User.hasMany(models.CalendarEvent, {
+  foreignKey: "updatedByUserId",
+  as: "updatedCalendarEvents",
+});
+models.User.hasMany(models.CalendarEvent, {
+  foreignKey: "cancelledByUserId",
+  as: "cancelledCalendarEvents",
+});
 models.User.hasMany(models.Expense, {
   foreignKey: "createdByUserId",
   as: "createdExpenses",
