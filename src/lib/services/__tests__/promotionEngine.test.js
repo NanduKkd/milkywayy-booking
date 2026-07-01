@@ -276,4 +276,200 @@ describe("promotionEngine service", () => {
       }),
     );
   });
+
+  it.each([
+    {
+      name: "future promotions before their start timestamp",
+      promotion: buildPromotion({
+        id: 80,
+        startsAt: "2026-07-03T00:00:00.000Z",
+      }),
+      now: new Date("2026-07-02T12:00:00.000Z"),
+      reason: "PROMOTION_NOT_STARTED",
+    },
+    {
+      name: "expired promotions after their end timestamp",
+      promotion: buildPromotion({
+        id: 81,
+        endsAt: "2026-07-01T23:59:59.000Z",
+      }),
+      now: new Date("2026-07-02T00:00:00.000Z"),
+      reason: "PROMOTION_ENDED",
+    },
+    {
+      name: "amount thresholds below the configured minimum spend",
+      promotion: buildPromotion({
+        id: 82,
+        minimumSpend: 900,
+      }),
+      eligibleSubtotal: 899,
+      reason: "MINIMUM_SPEND_NOT_MET",
+    },
+    {
+      name: "customer-targeted personal promotions without assignment",
+      promotion: buildPromotion({
+        id: 83,
+        kind: "PERSONAL",
+        triggerType: "NONE",
+      }),
+      reason: "PERSONAL_PROMOTION_NOT_ASSIGNED",
+    },
+    {
+      name: "generic codes that do not match the requested code",
+      promotion: buildPromotion({
+        id: 84,
+        kind: "GENERIC",
+        code: "SAVE20",
+        triggerType: "NONE",
+      }),
+      enteredCode: "SAVE10",
+      reason: "GENERIC_CODE_MISMATCH",
+    },
+    {
+      name: "date-range promotions before the Dubai business-date window",
+      promotion: buildPromotion({
+        id: 85,
+        triggerType: "DATE_RANGE",
+        triggerConfig: {
+          startDate: "2026-07-02",
+        },
+      }),
+      now: new Date("2026-07-01T12:00:00.000Z"),
+      reason: "DATE_RANGE_NOT_STARTED",
+    },
+    {
+      name: "date-range promotions after an exclusive Dubai business-date end",
+      promotion: buildPromotion({
+        id: 86,
+        triggerType: "DATE_RANGE",
+        triggerConfig: {
+          endDate: "2026-07-02",
+          includeEnd: false,
+        },
+      }),
+      now: new Date("2026-07-01T22:30:00.000Z"),
+      reason: "DATE_RANGE_ENDED",
+    },
+  ])(
+    "returns a deterministic ineligible reason for $name",
+    ({
+      promotion,
+      eligibleSubtotal = 700,
+      now = new Date("2026-07-01T12:00:00.000Z"),
+      enteredCode = null,
+      assignedPromotionIds = [],
+      reason,
+    }) => {
+      const evaluation = evaluatePromotion({
+        promotion,
+        eligibleSubtotal,
+        now,
+        enteredCode,
+        assignedPromotionIds,
+      });
+
+      expect(evaluation).toEqual(
+        expect.objectContaining({
+          eligible: false,
+          reason,
+        }),
+      );
+    },
+  );
+
+  it.each([
+    {
+      name: "customer-assigned personal promotions",
+      promotion: buildPromotion({
+        id: 90,
+        kind: "PERSONAL",
+        triggerType: "NONE",
+      }),
+      assignedPromotionIds: [90],
+      expectedTriggerSnapshot: {
+        triggerType: "NONE",
+        triggerConfig: {},
+      },
+    },
+    {
+      name: "generic code matches",
+      promotion: buildPromotion({
+        id: 91,
+        kind: "GENERIC",
+        code: "SAVE20",
+        triggerType: "NONE",
+        benefitValue: 20,
+        benefitType: "PERCENTAGE",
+      }),
+      eligibleSubtotal: 1000,
+      enteredCode: "save20",
+      expectedBenefitAmount: 200,
+      expectedTriggerSnapshot: {
+        triggerType: "NONE",
+        triggerConfig: {},
+      },
+    },
+    {
+      name: "second paid-booking automatic triggers",
+      promotion: buildPromotion({
+        id: 92,
+        triggerType: "SECOND_PAID_BOOKING",
+      }),
+      paidBookingCount: 1,
+      expectedTriggerSnapshot: {
+        triggerType: "SECOND_PAID_BOOKING",
+        triggerConfig: {},
+        paidBookingCount: 1,
+      },
+    },
+    {
+      name: "date-range windows on the inclusive Dubai boundary",
+      promotion: buildPromotion({
+        id: 93,
+        triggerType: "DATE_RANGE",
+        triggerConfig: {
+          startDate: "2026-07-02",
+          endDate: "2026-07-02",
+        },
+      }),
+      now: new Date("2026-07-01T22:30:00.000Z"),
+      expectedTriggerSnapshot: {
+        triggerType: "DATE_RANGE",
+        triggerConfig: {
+          startDate: "2026-07-02",
+          endDate: "2026-07-02",
+        },
+        businessDate: "2026-07-02",
+      },
+    },
+  ])(
+    "marks $name as eligible when every gating condition is met",
+    ({
+      promotion,
+      eligibleSubtotal = 700,
+      now = new Date("2026-07-01T12:00:00.000Z"),
+      enteredCode = null,
+      assignedPromotionIds = [],
+      paidBookingCount = 0,
+      expectedBenefitAmount = 100,
+      expectedTriggerSnapshot,
+    }) => {
+      const evaluation = evaluatePromotion({
+        promotion,
+        eligibleSubtotal,
+        now,
+        enteredCode,
+        assignedPromotionIds,
+        paidBookingCount,
+      });
+
+      expect(evaluation).toEqual(
+        expect.objectContaining({
+          eligible: true,
+          benefitAmount: expectedBenefitAmount,
+          triggerSnapshot: expectedTriggerSnapshot,
+        }),
+      );
+    },
+  );
 });

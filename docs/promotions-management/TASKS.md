@@ -11,7 +11,7 @@
 | M0 - Contract and migration mapping | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Persistence and evaluation engine | `DONE` | 5 | 5 | 5-7 days |
 | M2 - Admin UI and checkout integration | `DONE` | 5 | 5 | 6-9 days |
-| M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-6 days |
+| M3 - Verification and rollout | `IN_PROGRESS` | 1 | 5 | 4-6 days |
 
 ## M0 - Contract and migration mapping
 
@@ -45,7 +45,7 @@
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| PRM-301 | Add eligibility and precedence matrix tests | `NOT_STARTED` | Engineering | M2 | Generic, personal, automatic, wallet, date, amount, customer, and tie cases pass | Pending |
+| PRM-301 | Add eligibility and precedence matrix tests | `DONE` | Engineering | M2 | Generic, personal, automatic, wallet, date, amount, customer, and tie cases pass | Added table-driven eligibility coverage in `src/lib/services/__tests__/promotionEngine.test.js` for start/end windows, minimum spend, personal assignment, generic code matching, and Dubai business-date boundaries, plus `src/lib/helpers/__tests__/promotionPricing.test.js` to prove wallet rewards remain separate from the single selected promotion. Verification on 2026-07-01: `npm test -- src/lib/services/__tests__/promotionEngine.test.js src/lib/helpers/__tests__/promotionPricing.test.js --runInBand` passed. `npx biome check src/lib/services/__tests__/promotionEngine.test.js src/lib/helpers/__tests__/promotionPricing.test.js` passed. |
 | PRM-302 | Add concurrency and payment lifecycle tests | `NOT_STARTED` | Engineering | PRM-104 | Limit races, retries, failed payments, expiration, and webhook replay are safe | Pending |
 | PRM-303 | Add migration parity verification | `NOT_STARTED` | Engineering | PRM-101 | Existing promotion outcomes match recorded pre-migration fixtures | Pending |
 | PRM-304 | Resolve the pre-existing coupon test mismatch | `NOT_STARTED` | Engineering | PRM-301 | Launch-credit tests and intended automatic behavior agree | Pending |
