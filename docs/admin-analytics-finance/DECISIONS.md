@@ -1,6 +1,6 @@
 # Admin analytics and finance decisions
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 
 ## Accepted decisions
 
@@ -15,12 +15,7 @@
 | FIN-D007 | Exports are generated server-side from the same filtered dataset as Reports. | This prevents browser tampering and reconciliation drift. |
 | FIN-D008 | Dubai business time defines reporting periods. | Month/day boundaries must match the operating business rather than server timezone. |
 | FIN-D009 | Prototype figures and comparison claims are never shipped as defaults. | Every figure must derive from live records and expose a truthful empty state. |
-
-## Open accounting detail
-
-- FIN-002 must lock whether refunds are attributed to original payment month or
-  refund occurrence month. The recommended implementation is refund occurrence
-  month for cash reporting, with the original transaction retained in drill-down.
+| FIN-D010 | Refunds are recognized in the Dubai business period containing the refund occurrence timestamp, not the original payment period. | First-release reporting is cash-based. The drill-down still retains the original `paidAt` so operators can reconcile the refund to its source payment. |
 
 ## Deferred scope
 

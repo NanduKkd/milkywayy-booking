@@ -1,6 +1,6 @@
 # Admin analytics and finance architecture
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-01
 
 ## Metric source of truth
 
@@ -23,8 +23,8 @@ flowchart LR
 
 - Gross payments: successful transaction amounts whose `paidAt` falls in the
   selected business-time range.
-- Refunds: transaction refunded amounts attributable to the selected range
-  under the final refund-date policy defined by FIN-002.
+- Refunds: transaction refunded amounts whose refund occurrence timestamp falls
+  in the selected business-time range.
 - Net revenue: gross payments minus refunds.
 - Expenses: non-deleted expense amounts whose expense date falls in range.
 - Net profit: net revenue minus expenses.
@@ -84,3 +84,59 @@ Exports must not contain fields absent from the authorized on-screen dataset.
 AED is the reporting currency for this release. Business ranges are interpreted
 in `Asia/Dubai`; stored instants remain UTC. Range endpoints use explicit
 inclusive/exclusive semantics to prevent double counting.
+
+## Common reporting semantics
+
+- Every report range is normalized in `Asia/Dubai`, then applied to stored UTC
+  timestamps as `[rangeStart, rangeEnd)`.
+- Comparison cards always use the immediately preceding contiguous period with
+  the same duration as the active range.
+- Financial amounts are summed at storage precision and rounded only when the
+  API serializes the final response.
+- Empty amount metrics return `0.00`; empty counts return `0`; empty ratios and
+  percentages return `0`; empty charts still return the requested zero-filled
+  buckets; empty lists return `[]`.
+- Drill-down totals must reconcile exactly to the aggregate metric that opened
+  the drill-down, using the same date basis and filters.
+
+## Dashboard metric contract
+
+| Metric | Formula and date basis | Source fields | Filters | Empty behavior |
+|---|---|---|---|---|
+| Gross payments | `SUM(transactions.amount)` where `transactions.status = success` and `transactions.paidAt` falls in the active Dubai-normalized range | `transactions.amount`, `transactions.status`, `transactions.paid_at` | Active date range | `0.00` |
+| Refunds | `SUM(transactions.refundedAmount)` for refund events whose occurrence timestamp falls in the active Dubai-normalized range | `transactions.refunded_amount`, `transactions.metadata.lastRefund.refundedAt`, `transactions.paid_at` | Active date range | `0.00` |
+| Net revenue | Gross payments minus refunds for the same range | Gross-payment and refund inputs above | Active date range | `0.00` |
+| Expenses | `SUM(expenses.amount)` where `expenses.deletedAt IS NULL` and `expenses.expenseDate` falls in range | `expenses.amount`, `expenses.expense_date`, `expenses.deleted_at` | Active date range and optional expense category drill-down | `0.00` |
+| Net profit | Net revenue minus expenses for the same range | Net revenue and expense inputs above | Active date range | `0.00` |
+| Completed bookings | `COUNT(bookings.id)` where the booking is in a completed terminal state and `bookings.completedAt` falls in range | `bookings.status`, `bookings.workflow_status`, `bookings.completed_at` | Active date range | `0` |
+| Pending bookings | `COUNT(bookings.id)` where the booking is not cancelled, not completed, and its scheduled shoot date falls in range | `bookings.status`, `bookings.workflow_status`, `bookings.date`, `bookings.start_time` | Active date range | `0` |
+| Cancelled bookings | `COUNT(bookings.id)` where `bookings.cancelledAt` falls in range | `bookings.status`, `bookings.cancelled_at` | Active date range | `0` |
+| Lost value | `SUM(bookings.total)` for cancelled bookings whose `cancelledAt` falls in range; this never contributes to revenue | `bookings.total`, `bookings.cancelled_at`, `bookings.status` | Active date range | `0.00` |
+| Average booking value | Net revenue divided by the count of paid bookings whose successful payment falls in range | Net revenue inputs plus `bookings.transaction_id`, `transactions.status`, `transactions.paid_at` | Active date range | `0.00` |
+| Outstanding balance | `SUM(MAX(bookings.total - bookings.paidAmount, 0))` for non-cancelled payable bookings in range; customer checkout drafts are excluded | `bookings.total`, `bookings.paid_amount`, `bookings.status`, `bookings.cancelled_at`, `bookings.date` | Active date range | `0.00` |
+| Revenue trend | Net revenue bucketed by Dubai business month, week, or day depending on the selected Dashboard preset | Net revenue inputs above | Active date range and requested bucket size | Return every requested bucket with zero values when no data exists |
+| Revenue by service | Sum the persisted booking service line amounts for paid bookings in range. If the service allocation cannot be derived exactly from the booking pricing inputs, place that amount in `Unallocated` rather than guessing. | `bookings.total`, `bookings.property_details`, `bookings.shoot_details`, pricing configuration used by `buildBookingInvoiceItems`, `transactions.paid_at`, `transactions.status` | Active date range and optional service drill-down key | Return `[]` when no attributable services exist |
+| Schedule summary | Counts of bookings grouped by scheduled shoot day and workflow bucket using the booking shoot date, not payment date | `bookings.date`, `bookings.start_time`, `bookings.status`, `bookings.workflow_status` | Active date range | Return zero-count day buckets and `[]` for recent-day details |
+| Recent bookings | Most recently created non-draft bookings that intersect the active date range, ordered by `createdAt DESC` and capped by the Dashboard page size | `bookings.id`, `bookings.booking_code`, `bookings.created_at`, `bookings.status`, `bookings.total`, `bookings.date`, joined customer identity fields | Active date range, page size, and optional status drill-down | `[]` |
+
+## Financial report metric contract
+
+| Report output | Formula and date basis | Source fields | Filters | Empty behavior |
+|---|---|---|---|---|
+| KPI strip | Reuses the Dashboard definitions for gross payments, refunds, net revenue, expenses, net profit, completed bookings, average booking value, and lost value | Same as the Dashboard contract | Active report date range | Zero/empty values match the Dashboard contract |
+| Weekly trend chart | Net revenue grouped by Dubai business week using payment date for successful payments and refund occurrence date for refunds | `transactions.amount`, `transactions.refunded_amount`, `transactions.paid_at`, `transactions.metadata.lastRefund.refundedAt`, `transactions.status` | Active report date range | Return every requested week bucket with zero values |
+| Six-month trend chart | Net revenue grouped into the six Dubai business months ending with the selected report month | Same as weekly trend plus month bucket generation | Selected report month or explicit report range | Return six zero-valued month buckets when no data exists |
+| Booking status breakdown | Counts of bookings grouped by reporting bucket: scheduled and pending states by `bookings.date`, completed by `bookings.completedAt`, cancelled by `bookings.cancelledAt` | `bookings.status`, `bookings.workflow_status`, `bookings.date`, `bookings.completed_at`, `bookings.cancelled_at` | Active report date range and optional status key | Return zero-valued buckets for every supported status group |
+| Service revenue breakdown | Same service-allocation rule as the Dashboard, including mandatory `Unallocated` handling for non-reconstructable value | Same as Dashboard service revenue | Active report date range and optional service key | `[]` |
+| Monthly comparison table | One row per Dubai business month containing gross payments, refunds, net revenue, expenses, net profit, completed bookings, cancelled bookings, lost value, and average booking value | Same as the Dashboard contract, grouped by Dubai month | Requested month window | Return the requested month rows with zero-filled values |
+| Profit and loss summary | Net revenue, expenses, profit, and margin where `margin = profit / net revenue` when net revenue is positive, otherwise `0` | Net revenue and expense inputs above | Active report date range | Monetary values `0.00`, margin `0` |
+
+## Filter expectations for metric implementation
+
+- `rangeStart` and `rangeEnd` are required for every Dashboard and Reports
+  request, even when the UI starts from a month preset.
+- Metrics may add optional drill-down selectors such as service key, booking
+  status bucket, page, and page size, but they may not reinterpret the
+  underlying date basis in the browser.
+- FIN-003 will turn these expectations into the shared validated request schema
+  used by screen APIs, drill-downs, and exports.
