@@ -16,6 +16,7 @@ over bookings, transactions, refunds, and persisted expenses.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): metrics, query, export, and expense design.
 - [DECISIONS.md](./DECISIONS.md): accounting definitions and deferred scope.
 - [OPERATIONS.md](./OPERATIONS.md): migrations, rollout, monitoring, and recovery.
+- [ROLLOUT-VERIFICATION.md](./ROLLOUT-VERIFICATION.md): tracked automated rollout evidence and the handoff to private reconciliation records.
 - [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md): financial-data release gates.
 
 ## Status model

@@ -1,6 +1,6 @@
 # Admin analytics and finance security test plan
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-02
 - Release gate status: `IN_PROGRESS`
 
 ## Automated gates
@@ -26,6 +26,10 @@
 - Verify browser cancellation/retry does not duplicate expenses or exports.
 - Inspect generated CSV, Excel, and PDF files for correct filters, timezone, totals,
   encoding, and safe customer/property text.
+
+The tracked release evidence lives in `ROLLOUT-VERIFICATION.md`. Exact sampled
+totals and operator-specific signoff remain in the ignored local worksheet
+`docs/private/ADMIN-ANALYTICS-FINANCE-ROLLOUT.md`.
 
 ## Release blockers
 

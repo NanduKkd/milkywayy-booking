@@ -1,6 +1,6 @@
 # Admin analytics and finance operations
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-02
 
 ## Migration and rollout
 
@@ -23,6 +23,12 @@ For sampled periods, compare:
 - service allocation plus `Unallocated` equalling net attributable revenue.
 
 Finance approval of sampled figures is a release gate.
+
+Run `npm run verify:finance-rollout` before release review to refresh the
+tracked automated evidence in `ROLLOUT-VERIFICATION.md` and to prepare the
+ignored local worksheet `docs/private/ADMIN-ANALYTICS-FINANCE-ROLLOUT.md` for
+exact sampled totals, finance signoff, rollback rehearsal notes, and monitoring
+confirmation.
 
 ## Monitoring
 
