@@ -1,81 +1,100 @@
+import puppeteer from "puppeteer";
 import * as XLSX from "xlsx";
 import {
   buildFinancialReportCsv,
   buildFinancialReportCsvFilename,
+  buildFinancialReportPdf,
+  buildFinancialReportPdfFilename,
+  buildFinancialReportPdfHtml,
   buildFinancialReportWorkbook,
   buildFinancialReportWorkbookFilename,
 } from "../financialReportExport";
 
-describe("buildFinancialReportCsv", () => {
-  it("serializes report sections into a deterministic CSV payload", () => {
-    const csv = buildFinancialReportCsv({
-      bookingStatus: {
-        buckets: [{ count: 3, key: "completed", label: "Completed" }],
-      },
-      comparison: {
-        completedBookings: { delta: 1 },
-        netRevenue: { delta: 250 },
-      },
+jest.mock("puppeteer", () => ({
+  launch: jest.fn(),
+}));
+
+function createSampleReport() {
+  return {
+    bookingStatus: {
+      buckets: [{ count: 3, key: "completed", label: "Completed" }],
+    },
+    comparison: {
+      completedBookings: { delta: 1 },
+      netRevenue: { delta: 250 },
+    },
+    comparisonMode: "previous_period",
+    comparisonPeriod: {
+      rangeEndBusinessDateExclusive: "2026-06-01",
+      rangeStartBusinessDate: "2026-05-01",
+    },
+    filters: {
       comparisonMode: "previous_period",
-      comparisonPeriod: {
-        rangeEndBusinessDateExclusive: "2026-06-01",
-        rangeStartBusinessDate: "2026-05-01",
-      },
-      filters: {
-        comparisonMode: "previous_period",
-        groupBy: "week",
-        rangeEndBusinessDateExclusive: "2026-07-01",
-        rangeStartBusinessDate: "2026-06-01",
-        timezone: "Asia/Dubai",
-      },
-      kpis: {
+      groupBy: "week",
+      rangeEndBusinessDateExclusive: "2026-07-01",
+      rangeStartBusinessDate: "2026-06-01",
+      timezone: "Asia/Dubai",
+    },
+    kpis: {
+      averageBookingValue: 466.67,
+      completedBookings: 3,
+      expenses: 450,
+      grossPayments: 1500,
+      lostValue: 250,
+      netProfit: 950,
+      netRevenue: 1400,
+      refunds: 100,
+    },
+    monthlyComparison: [
+      {
+        averageBookingValue: 466.67,
+        cancelledBookings: 1,
         completedBookings: 3,
-        netRevenue: 1400,
-      },
-      monthlyComparison: [
-        {
-          averageBookingValue: 466.67,
-          cancelledBookings: 1,
-          completedBookings: 3,
-          expenses: 450,
-          grossPayments: 1500,
-          lostValue: 250,
-          monthEndBusinessDateExclusive: "2026-07-01",
-          monthLabel: "Jun 2026",
-          monthStartBusinessDate: "2026-06-01",
-          netProfit: 950,
-          netRevenue: 1400,
-          refunds: 100,
-        },
-      ],
-      profitAndLoss: {
         expenses: 450,
-        margin: 67.86,
+        grossPayments: 1500,
+        lostValue: 250,
+        monthEndBusinessDateExclusive: "2026-07-01",
+        monthLabel: "Jun 2026",
+        monthStartBusinessDate: "2026-06-01",
         netProfit: 950,
         netRevenue: 1400,
+        refunds: 100,
       },
-      revenueByService: [
-        { amount: 850, key: "photography", label: "Photography" },
+    ],
+    profitAndLoss: {
+      expenses: 450,
+      margin: 67.86,
+      netProfit: 950,
+      netRevenue: 1400,
+    },
+    revenueByService: [
+      { amount: 850, key: "photography", label: "Photography" },
+    ],
+    sixMonthTrend: {
+      buckets: [
+        {
+          bucketEndBusinessDateExclusive: "2026-07-01",
+          bucketStartBusinessDate: "2026-06-01",
+          monthLabel: "Jun 2026",
+          netRevenue: 1400,
+        },
       ],
-      sixMonthTrend: {
-        buckets: [
-          {
-            bucketEndBusinessDateExclusive: "2026-07-01",
-            bucketStartBusinessDate: "2026-06-01",
-            netRevenue: 1400,
-          },
-        ],
-      },
-      weeklyTrend: {
-        buckets: [
-          {
-            bucketEndBusinessDateExclusive: "2026-06-08",
-            bucketStartBusinessDate: "2026-06-01",
-            netRevenue: 400,
-          },
-        ],
-      },
-    });
+    },
+    weeklyTrend: {
+      buckets: [
+        {
+          bucketEndBusinessDateExclusive: "2026-06-08",
+          bucketStartBusinessDate: "2026-06-01",
+          netRevenue: 400,
+        },
+      ],
+    },
+  };
+}
+
+describe("buildFinancialReportCsv", () => {
+  it("serializes report sections into a deterministic CSV payload", () => {
+    const csv = buildFinancialReportCsv(createSampleReport());
 
     expect(csv).toContain(
       "section,rowKey,label,valueType,numericValue,textValue,bucketStartBusinessDate",
@@ -120,37 +139,8 @@ describe("buildFinancialReportCsvFilename", () => {
 describe("buildFinancialReportWorkbook", () => {
   it("serializes the report into a typed workbook with overview and data sheets", () => {
     const workbookBuffer = buildFinancialReportWorkbook({
-      bookingStatus: {
-        buckets: [{ count: 3, key: "completed", label: "Completed" }],
-      },
-      comparison: {
-        netRevenue: { delta: 250 },
-      },
-      comparisonMode: "previous_period",
-      comparisonPeriod: {
-        rangeEndBusinessDateExclusive: "2026-06-01",
-        rangeStartBusinessDate: "2026-05-01",
-      },
-      filters: {
-        comparisonMode: "previous_period",
-        groupBy: "week",
-        rangeEndBusinessDateExclusive: "2026-07-01",
-        rangeStartBusinessDate: "2026-06-01",
-        timezone: "Asia/Dubai",
-      },
-      kpis: {
-        completedBookings: 3,
-        expenses: 450,
-        netProfit: 950,
-        netRevenue: 1400,
-      },
+      ...createSampleReport(),
       monthlyComparison: [],
-      profitAndLoss: {
-        expenses: 450,
-        margin: 67.86,
-        netProfit: 950,
-        netRevenue: 1400,
-      },
       revenueByService: [{ amount: 10, key: "marketing", label: "=2+3" }],
       sixMonthTrend: { buckets: [] },
       weeklyTrend: { buckets: [] },
@@ -225,5 +215,76 @@ describe("buildFinancialReportWorkbookFilename", () => {
         },
       }),
     ).toBe("financial-report-2026-06-01-to-2026-07-01.xlsx");
+  });
+});
+
+describe("buildFinancialReportPdfHtml", () => {
+  it("renders a readable, filter-labelled HTML document for PDF export", () => {
+    const html = buildFinancialReportPdfHtml(createSampleReport());
+
+    expect(html).toContain("Financial report export");
+    expect(html).toContain(
+      "Server-generated PDF using the same validated report dataset",
+    );
+    expect(html).toContain("Range start");
+    expect(html).toContain("Jun 2026");
+    expect(html).toContain("Weekly net revenue");
+    expect(html).toContain("Revenue by service");
+    expect(html).toContain(
+      "This export reconciles to the live Financial Reports screen",
+    );
+  });
+});
+
+describe("buildFinancialReportPdf", () => {
+  it("renders the report HTML through puppeteer and returns a PDF buffer", async () => {
+    const close = jest.fn().mockResolvedValue(undefined);
+    const emulateMediaType = jest.fn().mockResolvedValue(undefined);
+    const pdf = jest.fn().mockResolvedValue(Buffer.from("%PDF-1.4\nmock"));
+    const setContent = jest.fn().mockResolvedValue(undefined);
+    const newPage = jest.fn().mockResolvedValue({
+      emulateMediaType,
+      pdf,
+      setContent,
+    });
+
+    puppeteer.launch.mockResolvedValue({
+      close,
+      newPage,
+    });
+
+    const buffer = await buildFinancialReportPdf(createSampleReport());
+
+    expect(puppeteer.launch).toHaveBeenCalledWith({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      headless: "new",
+    });
+    expect(newPage).toHaveBeenCalled();
+    expect(setContent).toHaveBeenCalledWith(
+      expect.stringContaining("Financial report export"),
+      expect.objectContaining({ waitUntil: "networkidle0" }),
+    );
+    expect(emulateMediaType).toHaveBeenCalledWith("screen");
+    expect(pdf).toHaveBeenCalledWith(
+      expect.objectContaining({
+        format: "A4",
+        printBackground: true,
+      }),
+    );
+    expect(close).toHaveBeenCalled();
+    expect(buffer.toString("utf8")).toContain("%PDF-1.4");
+  });
+});
+
+describe("buildFinancialReportPdfFilename", () => {
+  it("uses the normalized report business-date range", () => {
+    expect(
+      buildFinancialReportPdfFilename({
+        filters: {
+          rangeEndBusinessDateExclusive: "2026-07-01",
+          rangeStartBusinessDate: "2026-06-01",
+        },
+      }),
+    ).toBe("financial-report-2026-06-01-to-2026-07-01.pdf");
   });
 });

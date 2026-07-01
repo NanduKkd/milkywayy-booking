@@ -1,3 +1,4 @@
+import puppeteer from "puppeteer";
 import * as XLSX from "xlsx";
 import models from "@/lib/db/models";
 import { auth } from "@/lib/helpers/auth";
@@ -90,6 +91,9 @@ jest.mock("@/lib/helpers/pricing", () => ({
 }));
 
 jest.mock("@/lib/db/relations", () => ({}));
+jest.mock("puppeteer", () => ({
+  launch: jest.fn(),
+}));
 
 jest.mock("@/lib/services/financialAggregation", () => ({
   buildFinancialReports: jest.fn(() => ({
@@ -136,6 +140,14 @@ describe("Admin financial report CSV export route", () => {
     models.Booking.findAll.mockResolvedValue([{ id: 10 }]);
     models.Transaction.findAll.mockResolvedValue([{ id: 20 }]);
     models.Expense.findAll.mockResolvedValue([{ id: 30 }]);
+    puppeteer.launch.mockResolvedValue({
+      close: jest.fn().mockResolvedValue(undefined),
+      newPage: jest.fn().mockResolvedValue({
+        emulateMediaType: jest.fn().mockResolvedValue(undefined),
+        pdf: jest.fn().mockResolvedValue(Buffer.from("%PDF-1.4\nmock")),
+        setContent: jest.fn().mockResolvedValue(undefined),
+      }),
+    });
   });
 
   it("returns a CSV attachment for an authorized superadmin", async () => {
@@ -190,16 +202,30 @@ describe("Admin financial report CSV export route", () => {
     );
   });
 
+  it("returns a PDF attachment for an authorized superadmin", async () => {
+    const response = await GET({
+      url: "http://localhost:3000/api/admin/analytics/reports/export?rangeStart=2026-06-01&rangeEnd=2026-06-30&groupBy=week&format=pdf",
+    });
+    const pdfBuffer = Buffer.from(await response.arrayBuffer());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/pdf");
+    expect(response.headers.get("content-disposition")).toBe(
+      'attachment; filename="financial-report-2026-06-01-to-2026-07-01.pdf"',
+    );
+    expect(pdfBuffer.toString("utf8")).toContain("%PDF-1.4");
+  });
+
   it("rejects unsupported export formats", async () => {
     const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
     const response = await GET({
-      url: "http://localhost:3000/api/admin/analytics/reports/export?rangeStart=2026-06-01&rangeEnd=2026-06-30&format=pdf",
+      url: "http://localhost:3000/api/admin/analytics/reports/export?rangeStart=2026-06-01&rangeEnd=2026-06-30&format=json",
     });
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Financial report export format must be csv or xlsx",
+      error: "Financial report export format must be csv, xlsx, or pdf",
     });
 
     consoleSpy.mockRestore();

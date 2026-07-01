@@ -256,6 +256,7 @@ export default function FinancialReportsPage() {
   const empty = !loading && !error && !hasReportActivity(report);
   const csvExportHref = buildExportHref(monthValue, "csv");
   const excelExportHref = buildExportHref(monthValue, "xlsx");
+  const pdfExportHref = buildExportHref(monthValue, "pdf");
   const selectedMonthLabel = formatMonthLabel(monthValue);
   const { rangeEnd, rangeStart } = getMonthRange(monthValue);
 
@@ -316,6 +317,12 @@ export default function FinancialReportsPage() {
             <a aria-label="Export Excel" download href={excelExportHref}>
               <Download className="h-4 w-4" />
               Export Excel
+            </a>
+          </Button>
+          <Button asChild className="rounded-xl" variant="outline">
+            <a aria-label="Export PDF" download href={pdfExportHref}>
+              <Download className="h-4 w-4" />
+              Export PDF
             </a>
           </Button>
           <Button

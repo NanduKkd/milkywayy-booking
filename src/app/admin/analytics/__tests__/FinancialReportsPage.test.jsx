@@ -245,6 +245,14 @@ describe("FinancialReportsPage", () => {
       "href",
       expect.stringContaining("format=xlsx"),
     );
+    expect(screen.getByRole("link", { name: "Export PDF" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/api/admin/analytics/reports/export?"),
+    );
+    expect(screen.getByRole("link", { name: "Export PDF" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("format=pdf"),
+    );
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

@@ -5,6 +5,8 @@ import { auth } from "@/lib/helpers/auth";
 import {
   buildFinancialReportCsv,
   buildFinancialReportCsvFilename,
+  buildFinancialReportPdf,
+  buildFinancialReportPdfFilename,
   buildFinancialReportWorkbook,
   buildFinancialReportWorkbookFilename,
 } from "@/lib/services/financialReportExport";
@@ -14,14 +16,16 @@ import {
   loadFinancialReportData,
 } from "../_lib/reportData";
 
+export const runtime = "nodejs";
+
 function normalizeExportFormat(requestUrl) {
   const url = new URL(requestUrl);
   const format = String(url.searchParams.get("format") || "csv")
     .trim()
     .toLowerCase();
 
-  if (format !== "csv" && format !== "xlsx") {
-    throw new Error("Financial report export format must be csv or xlsx");
+  if (format !== "csv" && format !== "xlsx" && format !== "pdf") {
+    throw new Error("Financial report export format must be csv, xlsx, or pdf");
   }
 
   return format;
@@ -61,6 +65,20 @@ export async function GET(request) {
           "Content-Disposition": `attachment; filename="${filename}"`,
           "Content-Type":
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+        status: 200,
+      });
+    }
+
+    if (format === "pdf") {
+      const pdf = await buildFinancialReportPdf(report);
+      const filename = buildFinancialReportPdfFilename(report);
+
+      return new Response(pdf, {
+        headers: {
+          "Cache-Control": "no-store",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Content-Type": "application/pdf",
         },
         status: 200,
       });
