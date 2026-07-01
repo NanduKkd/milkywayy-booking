@@ -13,6 +13,8 @@
   minimum spend, per-user limits, total limits, and disabled promotions.
 - Precedence tests prove one promotion only, personal over automatic, generic
   only when strictly better, and wallet separation.
+- Migration parity fixtures cover preserved generic-coupon, launch-credit, and
+  wallet-separation outcomes plus the accepted direct-discount non-stacking cutover.
 - Concurrent reservation tests cannot exceed per-user or global limits.
 - Failed, expired, cancelled, and replayed payment flows release/finalize exactly once.
 - Transaction and invoice calculations use the stored promotion snapshot rather

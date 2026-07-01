@@ -14,6 +14,7 @@ promotion-management surface and one deterministic eligibility engine.
 
 - [TASKS.md](./TASKS.md): authoritative tracker.
 - [LEGACY-INVENTORY.md](./LEGACY-INVENTORY.md): current coupon, launch-credit, discount, wallet, and invoice behavior to preserve or intentionally replace.
+- [MIGRATION-PARITY-FIXTURES.md](./MIGRATION-PARITY-FIXTURES.md): recorded representative before/after promotion outcomes used for parity verification.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): promotion model, evaluation, redemption, and migration.
 - [DECISIONS.md](./DECISIONS.md): precedence, stacking, and compatibility decisions.
 - [OPERATIONS.md](./OPERATIONS.md): migration, rollout, and rollback.
