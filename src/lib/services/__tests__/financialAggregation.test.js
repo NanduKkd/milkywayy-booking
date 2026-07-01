@@ -1,5 +1,8 @@
 import {
   aggregateFinancialOverview,
+  buildDashboardAnalytics,
+  DASHBOARD_COMPARISON_MODE,
+  normalizeDashboardAnalyticsFilters,
   normalizeFinancialAggregationFilters,
   REPORTING_TIMEZONE,
 } from "../financialAggregation";
@@ -28,6 +31,40 @@ describe("normalizeFinancialAggregationFilters", () => {
         timezone: "UTC",
       }),
     ).toThrow("Financial aggregation timezone must be Asia/Dubai");
+  });
+
+  it("rejects ranges wider than 366 Dubai business days", () => {
+    expect(() =>
+      normalizeFinancialAggregationFilters({
+        rangeEnd: "2027-01-02",
+        rangeStart: "2026-01-01",
+      }),
+    ).toThrow("Financial aggregation range cannot exceed 366 days");
+  });
+});
+
+describe("normalizeDashboardAnalyticsFilters", () => {
+  it("defaults the dashboard comparison mode to previous_period", () => {
+    expect(
+      normalizeDashboardAnalyticsFilters({
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      }),
+    ).toMatchObject({
+      comparisonMode: DASHBOARD_COMPARISON_MODE,
+      rangeEndBusinessDateExclusive: "2026-07-01",
+      rangeStartBusinessDate: "2026-06-01",
+    });
+  });
+
+  it("rejects unsupported dashboard filter keys", () => {
+    expect(() =>
+      normalizeDashboardAnalyticsFilters({
+        metricKey: "netRevenue",
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      }),
+    ).toThrow("Dashboard analytics filter metricKey is unsupported");
   });
 });
 
@@ -63,6 +100,7 @@ describe("aggregateFinancialOverview", () => {
             videographySubService: "Short Form",
           },
           status: "COMPLETED",
+          paidAmount: 1000,
           total: 1000,
           transactionId: 1,
           workflowStatus: "PROJECT_COMPLETED",
@@ -76,6 +114,7 @@ describe("aggregateFinancialOverview", () => {
             services: ["Photography", "360° Tour"],
           },
           status: "CONFIRMED",
+          paidAmount: 500,
           total: 500,
           transactionId: 2,
           workflowStatus: "SHOOT_BOOKED",
@@ -92,6 +131,7 @@ describe("aggregateFinancialOverview", () => {
           cancelledAt: null,
           date: "2026-06-21",
           id: 104,
+          paidAmount: 0,
           status: "CONFIRMED",
           total: 400,
           workflowStatus: "EDITING",
@@ -169,6 +209,7 @@ describe("aggregateFinancialOverview", () => {
       lostValue: 300,
       netProfit: 1250,
       netRevenue: 1400,
+      outstandingBalance: 400,
       refunds: 100,
     });
     expect(result.counts).toEqual({
@@ -192,6 +233,7 @@ describe("aggregateFinancialOverview", () => {
       bookings: [
         {
           id: 1,
+          paidAmount: 200,
           propertyDetails: { size: "1 Bed", type: "Apartment" },
           shootDetails: { services: [] },
           status: "CONFIRMED",
@@ -241,6 +283,7 @@ describe("aggregateFinancialOverview", () => {
       lostValue: 0,
       netProfit: 0,
       netRevenue: 0,
+      outstandingBalance: 0,
       refunds: 0,
     });
     expect(result.counts).toEqual({
@@ -251,5 +294,279 @@ describe("aggregateFinancialOverview", () => {
     });
     expect(result.averages.averageBookingValue).toBe(0);
     expect(result.breakdowns.serviceRevenue).toEqual([]);
+  });
+});
+
+describe("buildDashboardAnalytics", () => {
+  it("returns bounded dashboard KPIs, comparisons, trends, schedule summaries, and recent bookings", () => {
+    const pricingConfig = {
+      Apartment: {
+        sizes: [
+          {
+            label: "1 Bed",
+            prices: {
+              Photography: { price: 450 },
+              Videography: {
+                "Short Form": { price: 550 },
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    const result = buildDashboardAnalytics({
+      bookings: [
+        {
+          cancelledAt: null,
+          completedAt: "2026-06-12T06:00:00.000Z",
+          createdAt: "2026-06-01T08:00:00.000Z",
+          date: "2026-06-10",
+          id: 101,
+          paidAmount: 1000,
+          propertyDetails: { size: "1 Bed", type: "Apartment" },
+          shootDetails: {
+            services: ["Photography", "Videography"],
+            videographySubService: "Short Form",
+          },
+          status: "COMPLETED",
+          total: 1000,
+          transactionId: 1,
+          user: {
+            email: "june-1@example.com",
+            fullName: "June One",
+            id: 501,
+            phone: "+971500000001",
+          },
+          workflowStatus: "PROJECT_COMPLETED",
+        },
+        {
+          cancelledAt: null,
+          createdAt: "2026-06-02T09:00:00.000Z",
+          date: "2026-06-20",
+          id: 102,
+          paidAmount: 500,
+          propertyDetails: { size: "Penthouse", type: "Apartment" },
+          shootDetails: {
+            services: ["Photography"],
+          },
+          status: "CONFIRMED",
+          total: 500,
+          transactionId: 2,
+          user: {
+            email: "june-2@example.com",
+            fullName: "June Two",
+            id: 502,
+            phone: "+971500000002",
+          },
+          workflowStatus: "SHOOT_BOOKED",
+        },
+        {
+          cancelledAt: "2026-06-18T05:00:00.000Z",
+          createdAt: "2026-06-03T10:00:00.000Z",
+          date: "2026-06-25",
+          id: 103,
+          status: "CANCELLED",
+          total: 300,
+          user: {
+            email: "june-3@example.com",
+            fullName: "June Three",
+            id: 503,
+            phone: "+971500000003",
+          },
+          workflowStatus: "SHOOT_BOOKED",
+        },
+        {
+          cancelledAt: null,
+          createdAt: "2026-06-04T11:00:00.000Z",
+          date: "2026-06-21",
+          id: 104,
+          paidAmount: 0,
+          status: "CONFIRMED",
+          total: 400,
+          user: {
+            email: "june-4@example.com",
+            fullName: "June Four",
+            id: 504,
+            phone: "+971500000004",
+          },
+          workflowStatus: "EDITING",
+        },
+        {
+          cancelledAt: null,
+          completedAt: "2026-05-15T07:00:00.000Z",
+          createdAt: "2026-05-10T12:00:00.000Z",
+          date: "2026-05-15",
+          id: 105,
+          paidAmount: 200,
+          propertyDetails: { size: "Studio", type: "Apartment" },
+          shootDetails: { services: [] },
+          status: "COMPLETED",
+          total: 200,
+          transactionId: 4,
+          user: {
+            email: "may@example.com",
+            fullName: "May Booking",
+            id: 505,
+            phone: "+971500000005",
+          },
+          workflowStatus: "PROJECT_COMPLETED",
+        },
+        {
+          createdAt: "2026-06-05T13:00:00.000Z",
+          date: "2026-06-22",
+          id: 106,
+          status: "DRAFT",
+          total: 150,
+          workflowStatus: "SHOOT_BOOKED",
+        },
+      ],
+      expenses: [
+        {
+          amount: 100,
+          deletedAt: null,
+          expenseDate: "2026-06-05",
+          id: 201,
+        },
+        {
+          amount: 50,
+          deletedAt: null,
+          expenseDate: "2026-06-23",
+          id: 202,
+        },
+        {
+          amount: 80,
+          deletedAt: null,
+          expenseDate: "2026-05-20",
+          id: 203,
+        },
+      ],
+      filters: {
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      },
+      pricingConfig,
+      transactions: [
+        {
+          amount: 1000,
+          id: 1,
+          metadata: {},
+          paidAt: "2026-06-10T08:00:00.000Z",
+          refundedAmount: 0,
+          status: "success",
+        },
+        {
+          amount: 500,
+          id: 2,
+          metadata: {
+            lastRefund: {
+              amount: 100,
+              refundedAt: "2026-06-25T06:00:00.000Z",
+            },
+          },
+          paidAt: "2026-06-20T11:00:00.000Z",
+          refundedAmount: 100,
+          status: "success",
+        },
+        {
+          amount: 300,
+          id: 3,
+          metadata: {},
+          paidAt: "2026-06-15T07:00:00.000Z",
+          refundedAmount: 0,
+          status: "pending",
+        },
+        {
+          amount: 200,
+          id: 4,
+          metadata: {},
+          paidAt: "2026-05-15T09:00:00.000Z",
+          refundedAmount: 0,
+          status: "success",
+        },
+      ],
+    });
+
+    expect(result.kpis).toEqual({
+      averageBookingValue: 700,
+      cancelledBookings: 1,
+      completedBookings: 1,
+      expenses: 150,
+      grossPayments: 1500,
+      lostValue: 300,
+      netProfit: 1250,
+      netRevenue: 1400,
+      outstandingBalance: 400,
+      paidBookings: 2,
+      pendingBookings: 2,
+      refunds: 100,
+    });
+    expect(result.comparison.netRevenue).toEqual({
+      current: 1400,
+      previous: 200,
+      delta: 1200,
+      deltaPercentage: 600,
+      direction: "up",
+    });
+    expect(result.revenueTrend.granularity).toBe("day");
+    expect(result.revenueTrend.buckets).toHaveLength(30);
+    expect(
+      result.revenueTrend.buckets.find(
+        (bucket) => bucket.bucketStartBusinessDate === "2026-06-25",
+      ),
+    ).toEqual({
+      bucketStartBusinessDate: "2026-06-25",
+      bucketEndBusinessDateExclusive: "2026-06-26",
+      grossPayments: 0,
+      refunds: 100,
+      netRevenue: -100,
+    });
+    expect(result.revenueByService).toEqual([
+      { amount: 450, key: "photography", label: "Photography" },
+      { amount: 500, key: "unallocated", label: "Unallocated" },
+      { amount: 550, key: "videography", label: "Videography" },
+    ]);
+    expect(result.scheduleSummary.totals).toEqual({
+      cancelled: 1,
+      completed: 1,
+      pending: 2,
+      total: 4,
+    });
+    expect(result.scheduleSummary.days).toEqual(
+      expect.arrayContaining([
+        {
+          bucketStartBusinessDate: "2026-06-10",
+          cancelled: 0,
+          completed: 1,
+          pending: 0,
+          total: 1,
+        },
+        {
+          bucketStartBusinessDate: "2026-06-20",
+          cancelled: 0,
+          completed: 0,
+          pending: 1,
+          total: 1,
+        },
+      ]),
+    );
+    expect(result.recentBookings.map((booking) => booking.id)).toEqual([
+      104, 103, 102, 101,
+    ]);
+    expect(result.recentBookings[0]).toEqual({
+      id: 104,
+      bookingCode: null,
+      createdAt: "2026-06-04T11:00:00.000Z",
+      date: "2026-06-21",
+      status: "CONFIRMED",
+      total: 400,
+      workflowStatus: "EDITING",
+      customer: {
+        email: "june-4@example.com",
+        fullName: "June Four",
+        id: 504,
+        phone: "+971500000004",
+      },
+    });
   });
 });

@@ -9,7 +9,7 @@
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
 | M0 - Metric and report contract | `DONE` | 3 | 3 | 2-3 days |
-| M1 - Expense and analytics foundation | `IN_PROGRESS` | 3 | 5 | 4-6 days |
+| M1 - Expense and analytics foundation | `IN_PROGRESS` | 4 | 5 | 4-6 days |
 | M2 - Reports and exports | `NOT_STARTED` | 0 | 6 | 7-10 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-5 days |
 
@@ -28,7 +28,7 @@
 | FIN-101 | Add Expense model, migration, associations, and indexes | `DONE` | Engineering | FIN-002 | Required v1 fields, creator/updater, soft-delete timestamps, and useful date/category indexes exist | Added `Expense` Sequelize model and user associations, plus migration `20260701120000-create-expenses.js` with active date/category indexes and soft-delete audit constraints. Verified with `npx jest src/lib/db/models/__tests__/expense.test.js src/lib/db/migrations/__tests__/20260701120000-create-expenses.test.js --runInBand`. |
 | FIN-102 | Implement authorized expense CRUD | `DONE` | Engineering | FIN-101, permission service | Create, update, list, and soft delete validate all inputs and produce audit events | Added `src/lib/services/expenseAdmin.js` with `SUPERADMIN` compatibility authorization, validated category/date/amount rules, soft deletion, and audit-event writes; added admin expense API routes plus `ExpenseAuditEvent` model/migration coverage. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/expenseAdmin.test.js src/app/api/admin/expenses/__tests__/route.test.js 'src/app/api/admin/expenses/\\[id\\]/__tests__/route.test.js' src/lib/db/models/__tests__/expense.test.js src/lib/db/models/__tests__/expenseauditevent.test.js src/lib/db/migrations/__tests__/20260701120000-create-expenses.test.js src/lib/db/migrations/__tests__/20260701130000-create-expense-audit-events.test.js --runInBand`. |
 | FIN-103 | Implement shared financial aggregation service | `DONE` | Engineering | FIN-002 | A framework-light service computes net revenue, expenses, profit, booking counts, averages, and service splits | Added `src/lib/services/financialAggregation.js` with Dubai-normalized range handling plus shared metric aggregation over bookings, transactions, and expenses. Verified with `npx jest src/lib/services/__tests__/financialAggregation.test.js --runInBand`. |
-| FIN-104 | Add bounded Dashboard analytics API | `NOT_STARTED` | Engineering | FIN-103 | Valid date ranges return KPIs, trends, service splits, schedule, recent bookings, and comparisons | Pending |
+| FIN-104 | Add bounded Dashboard analytics API | `DONE` | Engineering | FIN-103 | Valid date ranges return KPIs, trends, service splits, schedule, recent bookings, and comparisons | Added shared Dashboard analytics shaping to `src/lib/services/financialAggregation.js` and exposed `GET /api/admin/analytics/dashboard` with `SUPERADMIN` authorization, bounded range validation, KPI comparisons, revenue trend buckets, schedule summaries, and recent bookings. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialAggregation.test.js src/app/api/admin/analytics/dashboard/__tests__/route.test.js --runInBand`. |
 | FIN-105 | Add financial drill-down API | `NOT_STARTED` | Engineering | FIN-103 | Drill-down rows reconcile exactly to aggregate totals and support pagination | Pending |
 
 ## M2 - Reports and exports

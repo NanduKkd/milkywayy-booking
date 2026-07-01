@@ -2,6 +2,10 @@ const REPORTING_TIMEZONE = "Asia/Dubai";
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const SERVICE_KEY_UNALLOCATED = "unallocated";
 const SERVICE_LABEL_UNALLOCATED = "Unallocated";
+const BUSINESS_DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_FINANCIAL_RANGE_DAYS = 366;
+const DASHBOARD_COMPARISON_MODE = "previous_period";
+const MAX_DASHBOARD_RECENT_BOOKINGS = 10;
 
 function toCents(value) {
   const normalized = Number(value || 0);
@@ -39,6 +43,21 @@ function formatDubaiDate(value) {
     month: "2-digit",
     day: "2-digit",
   }).format(instant);
+}
+
+function dateOnlyToUtcDate(dateString) {
+  const [year, month, day] = String(dateString)
+    .split("-")
+    .map((value) => Number(value));
+
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function businessDateSpanDays(startDate, endDateExclusive) {
+  return Math.round(
+    (dateOnlyToUtcDate(endDateExclusive) - dateOnlyToUtcDate(startDate)) /
+      BUSINESS_DAY_MS,
+  );
 }
 
 function normalizeRangeBoundary(value, { endExclusive = false } = {}) {
@@ -91,6 +110,17 @@ export function normalizeFinancialAggregationFilters(input = {}) {
     throw new Error("Financial aggregation rangeEnd must be after rangeStart");
   }
 
+  const rangeDayCount = businessDateSpanDays(
+    normalizedStart.businessDate,
+    normalizedEnd.businessDate,
+  );
+
+  if (rangeDayCount > MAX_FINANCIAL_RANGE_DAYS) {
+    throw new Error(
+      `Financial aggregation range cannot exceed ${MAX_FINANCIAL_RANGE_DAYS} days`,
+    );
+  }
+
   return {
     timezone,
     rangeStart: normalizedStart.instant.toISOString(),
@@ -99,6 +129,17 @@ export function normalizeFinancialAggregationFilters(input = {}) {
     rangeEndBusinessDateExclusive: normalizedEnd.businessDate,
     rangeStartInstant: normalizedStart.instant,
     rangeEndInstant: normalizedEnd.instant,
+    rangeDayCount,
+  };
+}
+
+function serializeNormalizedFilters(filters) {
+  return {
+    rangeEnd: filters.rangeEnd,
+    rangeEndBusinessDateExclusive: filters.rangeEndBusinessDateExclusive,
+    rangeStart: filters.rangeStart,
+    rangeStartBusinessDate: filters.rangeStartBusinessDate,
+    timezone: filters.timezone,
   };
 }
 
@@ -143,6 +184,12 @@ function isBusinessDateInRange(value, filters) {
     normalized >= filters.rangeStartBusinessDate &&
     normalized < filters.rangeEndBusinessDateExclusive
   );
+}
+
+function roundMetricValue(value, digits = 2) {
+  const multiplier = 10 ** digits;
+
+  return Math.round(Number(value || 0) * multiplier) / multiplier;
 }
 
 function getServiceAmount(priceConfig) {
@@ -313,6 +360,26 @@ function addGroupedAmount(store, key, label, amountCents) {
   });
 }
 
+function buildDashboardComparisonEntry(currentValue, previousValue) {
+  const current = Number(currentValue || 0);
+  const previous = Number(previousValue || 0);
+  const delta = roundMetricValue(current - previous);
+  const deltaPercentage =
+    previous === 0
+      ? current === 0
+        ? 0
+        : null
+      : roundMetricValue(((current - previous) / previous) * 100);
+
+  return {
+    current,
+    previous,
+    delta,
+    deltaPercentage,
+    direction: delta === 0 ? "flat" : delta > 0 ? "up" : "down",
+  };
+}
+
 function isCompletedBooking(booking) {
   return (
     booking?.status === "COMPLETED" ||
@@ -412,6 +479,7 @@ export function aggregateFinancialOverview({
   let pendingBookings = 0;
   let cancelledBookings = 0;
   let lostValueCents = 0;
+  let outstandingBalanceCents = 0;
 
   expenses.forEach((expense) => {
     if (expense?.deletedAt) {
@@ -441,11 +509,19 @@ export function aggregateFinancialOverview({
 
     if (
       !isCancelledBooking(booking) &&
-      !isCompletedBooking(booking) &&
       booking?.status !== "DRAFT" &&
       isBusinessDateInRange(booking.date, filters)
     ) {
-      pendingBookings += 1;
+      const outstandingBalanceCentsForBooking = Math.max(
+        toCents(booking?.total) - toCents(booking?.paidAmount),
+        0,
+      );
+
+      outstandingBalanceCents += outstandingBalanceCentsForBooking;
+
+      if (!isCompletedBooking(booking)) {
+        pendingBookings += 1;
+      }
     }
   });
 
@@ -467,6 +543,7 @@ export function aggregateFinancialOverview({
       lostValue: fromCents(lostValueCents),
       netProfit: fromCents(netProfitCents),
       netRevenue: fromCents(netRevenueCents),
+      outstandingBalance: fromCents(outstandingBalanceCents),
       refunds: fromCents(refundsCents),
     },
     counts: {
@@ -493,4 +570,368 @@ export function aggregateFinancialOverview({
   };
 }
 
-export { REPORTING_TIMEZONE, SERVICE_KEY_UNALLOCATED };
+function buildPreviousPeriodFilters(filters) {
+  const rangeDurationMs =
+    filters.rangeEndInstant.getTime() - filters.rangeStartInstant.getTime();
+
+  return normalizeFinancialAggregationFilters({
+    rangeStart: new Date(
+      filters.rangeStartInstant.getTime() - rangeDurationMs,
+    ).toISOString(),
+    rangeEnd: filters.rangeStartInstant.toISOString(),
+    timezone: filters.timezone,
+  });
+}
+
+function resolveTrendGranularity(rangeDayCount) {
+  if (rangeDayCount <= 31) {
+    return "day";
+  }
+
+  if (rangeDayCount <= 120) {
+    return "week";
+  }
+
+  return "month";
+}
+
+function getBucketStartBusinessDate(businessDate, granularity) {
+  if (granularity === "day") {
+    return businessDate;
+  }
+
+  if (granularity === "month") {
+    return `${businessDate.slice(0, 7)}-01`;
+  }
+
+  const instant = dateOnlyToUtcDate(businessDate);
+  const isoWeekday = (instant.getUTCDay() + 6) % 7;
+
+  return addDays(businessDate, -isoWeekday);
+}
+
+function getBucketEndBusinessDateExclusive(
+  bucketStartBusinessDate,
+  granularity,
+) {
+  if (granularity === "day") {
+    return addDays(bucketStartBusinessDate, 1);
+  }
+
+  if (granularity === "week") {
+    return addDays(bucketStartBusinessDate, 7);
+  }
+
+  const [year, month] = bucketStartBusinessDate
+    .split("-")
+    .map((value) => Number(value));
+
+  return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+}
+
+function buildRevenueTrend(transactions, filters) {
+  const granularity = resolveTrendGranularity(filters.rangeDayCount);
+  const bucketMap = new Map();
+
+  for (
+    let businessDate = filters.rangeStartBusinessDate;
+    businessDate < filters.rangeEndBusinessDateExclusive;
+    businessDate = addDays(businessDate, 1)
+  ) {
+    const bucketStartBusinessDate = getBucketStartBusinessDate(
+      businessDate,
+      granularity,
+    );
+
+    if (bucketMap.has(bucketStartBusinessDate)) {
+      continue;
+    }
+
+    bucketMap.set(bucketStartBusinessDate, {
+      bucketStartBusinessDate,
+      bucketEndBusinessDateExclusive: getBucketEndBusinessDateExclusive(
+        bucketStartBusinessDate,
+        granularity,
+      ),
+      grossPaymentsCents: 0,
+      refundsCents: 0,
+    });
+  }
+
+  transactions.forEach((transaction) => {
+    if (transaction?.status !== "success") {
+      return;
+    }
+
+    if (isInstantInRange(transaction.paidAt, filters)) {
+      const businessDate = formatDubaiDate(transaction.paidAt);
+      const bucketStartBusinessDate = getBucketStartBusinessDate(
+        businessDate,
+        granularity,
+      );
+
+      if (bucketMap.has(bucketStartBusinessDate)) {
+        bucketMap.get(bucketStartBusinessDate).grossPaymentsCents += toCents(
+          transaction.amount,
+        );
+      }
+    }
+
+    const refundOccurredAt =
+      transaction?.metadata?.lastRefund?.refundedAt || transaction?.paidAt;
+    const refundAmountCents = getRefundEventAmountCents(transaction);
+
+    if (
+      refundAmountCents > 0 &&
+      refundOccurredAt &&
+      isInstantInRange(refundOccurredAt, filters)
+    ) {
+      const businessDate = formatDubaiDate(refundOccurredAt);
+      const bucketStartBusinessDate = getBucketStartBusinessDate(
+        businessDate,
+        granularity,
+      );
+
+      if (bucketMap.has(bucketStartBusinessDate)) {
+        bucketMap.get(bucketStartBusinessDate).refundsCents +=
+          refundAmountCents;
+      }
+    }
+  });
+
+  return {
+    granularity,
+    buckets: Array.from(bucketMap.values()).map((bucket) => ({
+      bucketStartBusinessDate: bucket.bucketStartBusinessDate,
+      bucketEndBusinessDateExclusive: bucket.bucketEndBusinessDateExclusive,
+      grossPayments: fromCents(bucket.grossPaymentsCents),
+      refunds: fromCents(bucket.refundsCents),
+      netRevenue: fromCents(bucket.grossPaymentsCents - bucket.refundsCents),
+    })),
+  };
+}
+
+function buildScheduleSummary(bookings, filters) {
+  const dayMap = new Map();
+
+  for (
+    let businessDate = filters.rangeStartBusinessDate;
+    businessDate < filters.rangeEndBusinessDateExclusive;
+    businessDate = addDays(businessDate, 1)
+  ) {
+    dayMap.set(businessDate, {
+      bucketStartBusinessDate: businessDate,
+      cancelled: 0,
+      completed: 0,
+      pending: 0,
+      total: 0,
+    });
+  }
+
+  bookings.forEach((booking) => {
+    if (
+      booking?.status === "DRAFT" ||
+      !isBusinessDateInRange(booking?.date, filters)
+    ) {
+      return;
+    }
+
+    const day = dayMap.get(normalizeBusinessDate(booking.date));
+
+    if (!day) {
+      return;
+    }
+
+    const statusBucket = isCancelledBooking(booking)
+      ? "cancelled"
+      : isCompletedBooking(booking)
+        ? "completed"
+        : "pending";
+
+    day[statusBucket] += 1;
+    day.total += 1;
+  });
+
+  const days = Array.from(dayMap.values());
+
+  return {
+    totals: days.reduce(
+      (summary, day) => ({
+        cancelled: summary.cancelled + day.cancelled,
+        completed: summary.completed + day.completed,
+        pending: summary.pending + day.pending,
+        total: summary.total + day.total,
+      }),
+      { cancelled: 0, completed: 0, pending: 0, total: 0 },
+    ),
+    days,
+    recentDayDetails: days
+      .filter((day) => day.total > 0)
+      .slice(-7)
+      .reverse(),
+  };
+}
+
+function doesBookingIntersectDashboardRange(booking, filters) {
+  if (!booking || booking.status === "DRAFT") {
+    return false;
+  }
+
+  return (
+    isBusinessDateInRange(booking.date, filters) ||
+    isInstantInRange(booking.completedAt, filters) ||
+    isInstantInRange(booking.cancelledAt, filters)
+  );
+}
+
+function serializeRecentBooking(booking) {
+  const plain =
+    typeof booking?.get === "function" ? booking.get({ plain: true }) : booking;
+  const user = plain?.user || null;
+
+  return {
+    id: Number(plain?.id),
+    bookingCode: plain?.bookingCode || null,
+    createdAt: plain?.createdAt
+      ? new Date(plain.createdAt).toISOString()
+      : null,
+    date: plain?.date || null,
+    status: plain?.status || null,
+    total: roundMetricValue(plain?.total),
+    workflowStatus: plain?.workflowStatus || null,
+    customer: user
+      ? {
+          id: Number(user.id),
+          email: user.email || null,
+          fullName: user.fullName || null,
+          phone: user.phone || null,
+        }
+      : null,
+  };
+}
+
+export function normalizeDashboardAnalyticsFilters(input = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("Dashboard analytics filters must be an object");
+  }
+
+  const allowedKeys = new Set([
+    "comparisonMode",
+    "rangeEnd",
+    "rangeStart",
+    "timezone",
+  ]);
+
+  Object.keys(input).forEach((key) => {
+    if (!allowedKeys.has(key)) {
+      throw new Error(`Dashboard analytics filter ${key} is unsupported`);
+    }
+  });
+
+  const comparisonMode =
+    input.comparisonMode == null
+      ? DASHBOARD_COMPARISON_MODE
+      : String(input.comparisonMode).trim();
+
+  if (comparisonMode !== DASHBOARD_COMPARISON_MODE) {
+    throw new Error(
+      `Dashboard analytics comparisonMode must be ${DASHBOARD_COMPARISON_MODE}`,
+    );
+  }
+
+  return {
+    ...normalizeFinancialAggregationFilters(input),
+    comparisonMode,
+  };
+}
+
+export function buildDashboardAnalytics({
+  bookings = [],
+  transactions = [],
+  expenses = [],
+  pricingConfig = {},
+  filters: rawFilters,
+} = {}) {
+  const filters = normalizeDashboardAnalyticsFilters(rawFilters);
+  const previousPeriodFilters = buildPreviousPeriodFilters(filters);
+  const currentOverview = aggregateFinancialOverview({
+    bookings,
+    transactions,
+    expenses,
+    pricingConfig,
+    filters,
+  });
+  const previousOverview = aggregateFinancialOverview({
+    bookings,
+    transactions,
+    expenses,
+    pricingConfig,
+    filters: previousPeriodFilters,
+  });
+  const revenueTrend = buildRevenueTrend(transactions, filters);
+  const scheduleSummary = buildScheduleSummary(bookings, filters);
+  const recentBookings = bookings
+    .filter((booking) => doesBookingIntersectDashboardRange(booking, filters))
+    .sort((left, right) => {
+      const leftTime = new Date(left?.createdAt || 0).getTime();
+      const rightTime = new Date(right?.createdAt || 0).getTime();
+
+      return rightTime - leftTime;
+    })
+    .slice(0, MAX_DASHBOARD_RECENT_BOOKINGS)
+    .map((booking) => serializeRecentBooking(booking));
+
+  const kpis = {
+    averageBookingValue: currentOverview.averages.averageBookingValue,
+    cancelledBookings: currentOverview.counts.cancelledBookings,
+    completedBookings: currentOverview.counts.completedBookings,
+    expenses: currentOverview.totals.expenses,
+    grossPayments: currentOverview.totals.grossPayments,
+    lostValue: currentOverview.totals.lostValue,
+    netProfit: currentOverview.totals.netProfit,
+    netRevenue: currentOverview.totals.netRevenue,
+    outstandingBalance: currentOverview.totals.outstandingBalance,
+    paidBookings: currentOverview.counts.paidBookings,
+    pendingBookings: currentOverview.counts.pendingBookings,
+    refunds: currentOverview.totals.refunds,
+  };
+
+  const previousKpis = {
+    averageBookingValue: previousOverview.averages.averageBookingValue,
+    cancelledBookings: previousOverview.counts.cancelledBookings,
+    completedBookings: previousOverview.counts.completedBookings,
+    expenses: previousOverview.totals.expenses,
+    grossPayments: previousOverview.totals.grossPayments,
+    lostValue: previousOverview.totals.lostValue,
+    netProfit: previousOverview.totals.netProfit,
+    netRevenue: previousOverview.totals.netRevenue,
+    outstandingBalance: previousOverview.totals.outstandingBalance,
+    paidBookings: previousOverview.counts.paidBookings,
+    pendingBookings: previousOverview.counts.pendingBookings,
+    refunds: previousOverview.totals.refunds,
+  };
+
+  return {
+    comparison: Object.fromEntries(
+      Object.entries(kpis).map(([key, currentValue]) => [
+        key,
+        buildDashboardComparisonEntry(currentValue, previousKpis[key]),
+      ]),
+    ),
+    comparisonMode: filters.comparisonMode,
+    comparisonPeriod: serializeNormalizedFilters(previousPeriodFilters),
+    filters: serializeNormalizedFilters(filters),
+    kpis,
+    recentBookings,
+    revenueByService: currentOverview.breakdowns.serviceRevenue,
+    revenueTrend,
+    scheduleSummary,
+  };
+}
+
+export {
+  DASHBOARD_COMPARISON_MODE,
+  MAX_FINANCIAL_RANGE_DAYS,
+  REPORTING_TIMEZONE,
+  SERVICE_KEY_UNALLOCATED,
+};
