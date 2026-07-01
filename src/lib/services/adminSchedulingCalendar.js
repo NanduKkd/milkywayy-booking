@@ -7,33 +7,14 @@ import {
   getDynamicTwilightSlotLabel,
 } from "@/lib/helpers/bookingUtils";
 import { formatBookingReference } from "@/lib/helpers/invoice-format";
+import {
+  enumerateDateRange,
+  getEffectiveBlockForDate,
+  normalizeTimeSlotConfig,
+} from "@/lib/services/schedulingAvailability";
 
 const CONFIG_KEY = "timeSlots";
-const PERIODS = ["morning", "afternoon", "evening"];
 const MAX_QUERY_RANGE_DAYS = 124;
-const DEFAULT_WORKING_DAYS = {
-  Monday: true,
-  Tuesday: true,
-  Wednesday: true,
-  Thursday: true,
-  Friday: true,
-  Saturday: true,
-  Sunday: false,
-};
-const DEFAULT_BLOCK_DEFINITIONS = {
-  morning: { label: "Morning", startTime: "09:00", endTime: "12:00" },
-  afternoon: { label: "Afternoon", startTime: "13:00", endTime: "16:00" },
-  evening: { label: "Evening", startTime: "17:00", endTime: "20:00" },
-};
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
 
 function normalizeDateOnly(value, label) {
   const normalized = String(value ?? "").trim();
@@ -58,77 +39,6 @@ function normalizeDateOnly(value, label) {
   }
 
   return normalized;
-}
-
-function parseDateOnly(dateStr) {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
-}
-
-function getDayNameFromDateStr(dateStr) {
-  return DAY_NAMES[parseDateOnly(dateStr).getUTCDay()];
-}
-
-function enumerateDateRange(startDate, endDate) {
-  const cursor = parseDateOnly(startDate);
-  const end = parseDateOnly(endDate);
-  const dates = [];
-
-  while (cursor <= end) {
-    const year = cursor.getUTCFullYear();
-    const month = String(cursor.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(cursor.getUTCDate()).padStart(2, "0");
-    dates.push(`${year}-${month}-${day}`);
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-  }
-
-  return dates;
-}
-
-function normalizeTimeSlotConfig(value) {
-  const fallback = {
-    weeklyRules: {},
-    dateOverrides: {},
-    systemSettings: {
-      workingDays: DEFAULT_WORKING_DAYS,
-      blockDefinitions: DEFAULT_BLOCK_DEFINITIONS,
-    },
-  };
-
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return fallback;
-  }
-
-  const weekdayKeys = Object.keys(DEFAULT_WORKING_DAYS);
-  const hasLegacyWeekdayShape = weekdayKeys.some((key) =>
-    Array.isArray(value[key]),
-  );
-
-  if (hasLegacyWeekdayShape) {
-    return {
-      ...fallback,
-      weeklyRules: value,
-    };
-  }
-
-  return {
-    ...fallback,
-    ...value,
-    weeklyRules: value.weeklyRules || {},
-    dateOverrides: value.dateOverrides || {},
-    systemSettings: {
-      ...fallback.systemSettings,
-      ...(value.systemSettings || {}),
-      workingDays: {
-        ...DEFAULT_WORKING_DAYS,
-        ...(value.systemSettings?.workingDays || {}),
-      },
-      blockDefinitions: {
-        ...DEFAULT_BLOCK_DEFINITIONS,
-        ...(value.systemSettings?.blockDefinitions || {}),
-      },
-    },
-  };
 }
 
 function buildRangeMetadata(startDate, endDate) {
@@ -252,56 +162,6 @@ function buildBookingServiceSnapshot(shootDetails) {
     services,
     videographySelections,
     label,
-  };
-}
-
-function getEffectiveBlockForDate(dateStr, config) {
-  const dayName = getDayNameFromDateStr(dateStr);
-  const workingDays =
-    config.systemSettings?.workingDays || DEFAULT_WORKING_DAYS;
-  const blockDefinitions =
-    config.systemSettings?.blockDefinitions || DEFAULT_BLOCK_DEFINITIONS;
-  const isWorkingDay = Boolean(workingDays[dayName]);
-  const override = config.dateOverrides?.[dateStr] || {};
-  const blockedPeriods = new Set();
-
-  if (!isWorkingDay) {
-    PERIODS.forEach((period) => {
-      blockedPeriods.add(period);
-    });
-  }
-
-  const weeklyRules = config.weeklyRules?.[dayName] || [];
-  weeklyRules.forEach((rule) => {
-    if (rule?.period && rule.isActive === false) {
-      blockedPeriods.add(rule.period);
-    }
-  });
-
-  if (override.fullDayBlocked === true) {
-    PERIODS.forEach((period) => {
-      blockedPeriods.add(period);
-    });
-  }
-
-  PERIODS.forEach((period) => {
-    if (override.blocks?.[period] === "blocked") {
-      blockedPeriods.add(period);
-    }
-  });
-
-  const fullDayBlocked =
-    !isWorkingDay ||
-    override.fullDayBlocked === true ||
-    PERIODS.every((period) => blockedPeriods.has(period));
-
-  return {
-    date: dateStr,
-    dayName,
-    isWorkingDay,
-    fullDayBlocked,
-    blockedPeriods: PERIODS.filter((period) => blockedPeriods.has(period)),
-    blockDefinitions,
   };
 }
 

@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import Booking from "@/lib/db/models/booking";
+import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import {
   cancelBookingBySessionId,
   createBookings,
@@ -209,6 +210,23 @@ describe("Booking Actions", () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/no longer available/i);
+    });
+
+    it("should fail if the requested date is blocked by shared admin availability rules", async () => {
+      DynamicConfig.findOne.mockResolvedValue({
+        value: {
+          dateOverrides: {
+            [mockFutureDate]: {
+              fullDayBlocked: true,
+            },
+          },
+        },
+      });
+
+      const result = await createBookings(mockProperties);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/blocked by admin calendar rules/i);
     });
 
     it("should return error if not authenticated", async () => {

@@ -57,6 +57,13 @@ import {
   evaluateCheckoutPromotionPricing,
   isPromotionCodeValidationSuccessful,
 } from "@/lib/services/promotionPricing";
+import {
+  enumerateDateRange,
+  getBlockedSlotTimesForDate,
+  isDateOutsideRollingWindow,
+  normalizeTimeSlotConfig,
+  PERIOD_TO_HOURLY,
+} from "@/lib/services/schedulingAvailability";
 import { USER_ROLES } from "../config/app.config";
 
 let stripe;
@@ -82,12 +89,6 @@ const REVERSE_SLOT_MAPPING = {
   1: "morning",
   2: "afternoon",
   3: "evening",
-};
-
-const PERIOD_TO_HOURLY = {
-  morning: ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30"],
-  afternoon: ["13:00", "13:30", "14:00", "14:30", "15:00", "15:30"],
-  evening: ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30"],
 };
 
 const START_TIME_TO_PERIOD = {
@@ -494,165 +495,6 @@ const getTimeSlots = (startTime, durationHours, options = {}) => {
   return requiredPeriods.flatMap((period) => PERIOD_TO_HOURLY[period] || []);
 };
 
-const PERIODS = ["morning", "afternoon", "evening"];
-
-const DEFAULT_WORKING_DAYS = {
-  Monday: true,
-  Tuesday: true,
-  Wednesday: true,
-  Thursday: true,
-  Friday: true,
-  Saturday: true,
-  Sunday: false,
-};
-
-const getDayNameFromDateStr = (dateStr) => {
-  const date = new Date(`${dateStr}T00:00:00`);
-  const dayNames = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  return dayNames[date.getDay()];
-};
-
-const enumerateDateRange = (startDate, endDate) => {
-  const out = [];
-  const start = new Date(`${startDate}T00:00:00`);
-  const end = new Date(`${endDate}T00:00:00`);
-  const cursor = new Date(start);
-  while (cursor <= end) {
-    const y = cursor.getFullYear();
-    const m = String(cursor.getMonth() + 1).padStart(2, "0");
-    const d = String(cursor.getDate()).padStart(2, "0");
-    out.push(`${y}-${m}-${d}`);
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return out;
-};
-
-const normalizeTimeSlotConfig = (value) => {
-  const fallback = {
-    version: 2,
-    weeklyRules: {},
-    dateOverrides: {},
-    slotRules: [],
-    systemSettings: {
-      rollingWindowDays: 90,
-      slotCapacity: 6,
-      weightModel: {},
-      workingDays: DEFAULT_WORKING_DAYS,
-      blockDefinitions: {},
-    },
-  };
-
-  if (!value || typeof value !== "object") return fallback;
-
-  // Backward compatibility: old format with weekday keys at root.
-  const weekdayKeys = Object.keys(DEFAULT_WORKING_DAYS);
-  const hasWeekdayRoot = weekdayKeys.some((k) => Array.isArray(value[k]));
-  if (hasWeekdayRoot) {
-    return {
-      ...fallback,
-      weeklyRules: value,
-    };
-  }
-
-  return {
-    ...fallback,
-    ...value,
-    weeklyRules: value.weeklyRules || {},
-    dateOverrides: value.dateOverrides || {},
-    systemSettings: {
-      ...fallback.systemSettings,
-      ...(value.systemSettings || {}),
-      slotCapacity: 6,
-      weightModel: {
-        ...(fallback.systemSettings.weightModel || {}),
-        ...(value.systemSettings?.weightModel || {}),
-      },
-      workingDays: {
-        ...DEFAULT_WORKING_DAYS,
-        ...(value.systemSettings?.workingDays || {}),
-      },
-    },
-  };
-};
-
-const getAdminBlockedSlotsForDate = (dateStr, config) => {
-  const blocked = new Set();
-  if (!config) return blocked;
-
-  const dayName = getDayNameFromDateStr(dateStr);
-  const workingDays =
-    config.systemSettings?.workingDays || DEFAULT_WORKING_DAYS;
-  const isWorkingDay = Boolean(workingDays[dayName]);
-
-  if (!isWorkingDay) {
-    PERIODS.forEach((period) => {
-      getTimeSlots(period, 1).forEach((slot) => {
-        blocked.add(slot);
-      });
-    });
-    return blocked;
-  }
-
-  const override = config.dateOverrides?.[dateStr] || {};
-  if (override.fullDayBlocked) {
-    PERIODS.forEach((period) => {
-      getTimeSlots(period, 1).forEach((slot) => {
-        blocked.add(slot);
-      });
-    });
-    return blocked;
-  }
-
-  // Weekly-level inactive periods
-  const dayRules = config.weeklyRules?.[dayName] || [];
-  dayRules.forEach((periodRule) => {
-    if (periodRule?.period && periodRule.isActive === false) {
-      getTimeSlots(periodRule.period, 1).forEach((slot) => {
-        blocked.add(slot);
-      });
-    }
-  });
-
-  // Date override block flags
-  PERIODS.forEach((period) => {
-    if (override.blocks?.[period] === "blocked") {
-      getTimeSlots(period, 1).forEach((slot) => {
-        blocked.add(slot);
-      });
-    }
-  });
-
-  return blocked;
-};
-
-const getRollingWindowBounds = (config) => {
-  const rollingWindowDays = Math.max(
-    parseInt(config?.systemSettings?.rollingWindowDays, 10) || 90,
-    1,
-  );
-  const today = new Date();
-  const min = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const max = new Date(min);
-  // Inclusive range: today counts as day 1.
-  max.setDate(max.getDate() + (rollingWindowDays - 1));
-  return { min, max };
-};
-
-const isDateOutsideRollingWindow = (dateStr, config) => {
-  if (!dateStr) return false;
-  const selected = new Date(`${dateStr}T00:00:00`);
-  const { min, max } = getRollingWindowBounds(config);
-  return selected < min || selected > max;
-};
-
 const isSlotBlocked = (booking) => {
   if (booking.cancelledAt) return false;
 
@@ -742,7 +584,7 @@ const getAvailabilityForRangeHandler = async (startDate, endDate) => {
 
     // Merge admin calendar blocks into availability first.
     enumerateDateRange(startDate, endDate).forEach((dateStr) => {
-      const blockedByAdmin = getAdminBlockedSlotsForDate(
+      const blockedByAdmin = getBlockedSlotTimesForDate(
         dateStr,
         timeSlotConfig,
       );
@@ -857,7 +699,7 @@ const checkAvailability = async (properties, excludeBookingIds = []) => {
     });
     if (requestedSlots.length === 0) continue;
 
-    const blockedByAdmin = getAdminBlockedSlotsForDate(
+    const blockedByAdmin = getBlockedSlotTimesForDate(
       property.preferredDate,
       timeSlotConfig,
     );
