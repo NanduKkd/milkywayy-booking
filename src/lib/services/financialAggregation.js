@@ -1,3 +1,8 @@
+import {
+  EXPENSE_CATEGORY_KEYS,
+  getExpenseCategoryLabel,
+} from "@/lib/config/expenseCategories";
+
 const REPORTING_TIMEZONE = "Asia/Dubai";
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const SERVICE_KEY_UNALLOCATED = "unallocated";
@@ -6,6 +11,143 @@ const BUSINESS_DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_FINANCIAL_RANGE_DAYS = 366;
 const DASHBOARD_COMPARISON_MODE = "previous_period";
 const MAX_DASHBOARD_RECENT_BOOKINGS = 10;
+const DEFAULT_DRILLDOWN_PAGE = 1;
+const DEFAULT_DRILLDOWN_PAGE_SIZE = 25;
+const MAX_DRILLDOWN_PAGE_SIZE = 100;
+const BOOKING_STATUS_BUCKET_ALL = "all";
+const BOOKING_STATUS_BUCKET_PENDING = "pending";
+const BOOKING_STATUS_BUCKET_COMPLETED = "completed";
+const BOOKING_STATUS_BUCKET_CANCELLED = "cancelled";
+const BOOKING_STATUS_BUCKETS = new Set([
+  BOOKING_STATUS_BUCKET_ALL,
+  BOOKING_STATUS_BUCKET_PENDING,
+  BOOKING_STATUS_BUCKET_COMPLETED,
+  BOOKING_STATUS_BUCKET_CANCELLED,
+]);
+const SORT_DIRECTION_ASC = "asc";
+const SORT_DIRECTION_DESC = "desc";
+const DRILLDOWN_SERVICE_KEYS = new Set([
+  "photography",
+  SERVICE_KEY_UNALLOCATED,
+  "tour-360",
+  "videography",
+]);
+const DRILLDOWN_METRIC_CONFIG = {
+  cancelledBookings: {
+    allowedBookingStatusBuckets: new Set([
+      BOOKING_STATUS_BUCKET_ALL,
+      BOOKING_STATUS_BUCKET_CANCELLED,
+    ]),
+    allowedFilterKeys: new Set(["bookingStatusBucket"]),
+    allowedSortKeys: ["cancelledAt", "date", "id", "total"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "cancelledAt",
+    totalKind: "count",
+  },
+  completedBookings: {
+    allowedBookingStatusBuckets: new Set([
+      BOOKING_STATUS_BUCKET_ALL,
+      BOOKING_STATUS_BUCKET_COMPLETED,
+    ]),
+    allowedFilterKeys: new Set(["bookingStatusBucket"]),
+    allowedSortKeys: ["completedAt", "date", "id", "total"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "completedAt",
+    totalKind: "count",
+  },
+  expenses: {
+    allowedFilterKeys: new Set(["expenseCategory"]),
+    allowedSortKeys: ["amount", "createdAt", "expenseDate", "id"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "expenseDate",
+    totalKind: "amount",
+  },
+  grossPayments: {
+    allowedFilterKeys: new Set(),
+    allowedSortKeys: ["amount", "id", "paidAt"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "paidAt",
+    totalKind: "amount",
+  },
+  lostValue: {
+    allowedBookingStatusBuckets: new Set([
+      BOOKING_STATUS_BUCKET_ALL,
+      BOOKING_STATUS_BUCKET_CANCELLED,
+    ]),
+    allowedFilterKeys: new Set(["bookingStatusBucket"]),
+    allowedSortKeys: ["cancelledAt", "date", "id", "lostValue"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "cancelledAt",
+    totalKind: "amount",
+  },
+  netProfit: {
+    allowedFilterKeys: new Set(["expenseCategory"]),
+    allowedSortKeys: ["eventAt", "id", "netAmount"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "eventAt",
+    totalKind: "amount",
+  },
+  netRevenue: {
+    allowedFilterKeys: new Set(),
+    allowedSortKeys: ["eventAt", "id", "netAmount"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "eventAt",
+    totalKind: "amount",
+  },
+  outstandingBalance: {
+    allowedBookingStatusBuckets: new Set([
+      BOOKING_STATUS_BUCKET_ALL,
+      BOOKING_STATUS_BUCKET_COMPLETED,
+      BOOKING_STATUS_BUCKET_PENDING,
+    ]),
+    allowedFilterKeys: new Set(["bookingStatusBucket"]),
+    allowedSortKeys: ["date", "id", "outstandingBalance", "total"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "date",
+    totalKind: "amount",
+  },
+  pendingBookings: {
+    allowedBookingStatusBuckets: new Set([
+      BOOKING_STATUS_BUCKET_ALL,
+      BOOKING_STATUS_BUCKET_PENDING,
+    ]),
+    allowedFilterKeys: new Set(["bookingStatusBucket"]),
+    allowedSortKeys: ["date", "id", "total"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "date",
+    totalKind: "count",
+  },
+  recentBookings: {
+    allowedBookingStatusBuckets: BOOKING_STATUS_BUCKETS,
+    allowedFilterKeys: new Set(["bookingStatusBucket"]),
+    allowedSortKeys: ["createdAt", "date", "id", "total"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "createdAt",
+    totalKind: "count",
+  },
+  refunds: {
+    allowedFilterKeys: new Set(),
+    allowedSortKeys: ["amount", "id", "refundedAt"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "refundedAt",
+    totalKind: "amount",
+  },
+  revenueByService: {
+    allowedFilterKeys: new Set(["serviceKey"]),
+    allowedSortKeys: ["amount", "bookingId", "paidAt", "serviceLabel"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "paidAt",
+    totalKind: "amount",
+  },
+  scheduleSummary: {
+    allowedBookingStatusBuckets: BOOKING_STATUS_BUCKETS,
+    allowedFilterKeys: new Set(["bookingStatusBucket"]),
+    allowedSortKeys: ["date", "id", "statusBucket", "total"],
+    defaultSortDirection: SORT_DIRECTION_DESC,
+    defaultSortKey: "date",
+    totalKind: "count",
+  },
+};
 
 function toCents(value) {
   const normalized = Number(value || 0);
@@ -141,6 +283,156 @@ function serializeNormalizedFilters(filters) {
     rangeStartBusinessDate: filters.rangeStartBusinessDate,
     timezone: filters.timezone,
   };
+}
+
+function serializeDrilldownFilters(filters) {
+  return {
+    ...serializeNormalizedFilters(filters),
+    bookingStatusBucket: filters.bookingStatusBucket,
+    expenseCategory: filters.expenseCategory,
+    metricKey: filters.metricKey,
+    page: filters.page,
+    pageSize: filters.pageSize,
+    serviceKey: filters.serviceKey,
+    sortDirection: filters.sortDirection,
+    sortKey: filters.sortKey,
+  };
+}
+
+function toPlainRecord(record) {
+  return typeof record?.get === "function"
+    ? record.get({ plain: true })
+    : record;
+}
+
+function normalizeOptionalSlug(value) {
+  if (value == null) {
+    return null;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+
+  return normalized || null;
+}
+
+function normalizeMetricKey(value) {
+  if (value == null) {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+
+  return normalized || null;
+}
+
+function normalizeOptionalInteger(value, { defaultValue, label, min, max }) {
+  if (value == null || String(value).trim() === "") {
+    return defaultValue;
+  }
+
+  const normalized = Number(value);
+
+  if (!Number.isInteger(normalized)) {
+    throw new Error(`${label} must be an integer`);
+  }
+
+  if (normalized < min || normalized > max) {
+    throw new Error(`${label} must be between ${min} and ${max}`);
+  }
+
+  return normalized;
+}
+
+function normalizeSortDirection(value, defaultValue) {
+  if (value == null || String(value).trim() === "") {
+    return defaultValue;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+
+  if (normalized !== SORT_DIRECTION_ASC && normalized !== SORT_DIRECTION_DESC) {
+    throw new Error(
+      `Financial drill-down sortDirection must be ${SORT_DIRECTION_ASC} or ${SORT_DIRECTION_DESC}`,
+    );
+  }
+
+  return normalized;
+}
+
+function normalizeBookingStatusBucket(value) {
+  const normalized = normalizeOptionalSlug(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (!BOOKING_STATUS_BUCKETS.has(normalized)) {
+    throw new Error("Financial drill-down bookingStatusBucket is unsupported");
+  }
+
+  return normalized;
+}
+
+function normalizeExpenseCategory(value) {
+  const normalized = normalizeOptionalSlug(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (!EXPENSE_CATEGORY_KEYS.has(normalized)) {
+    throw new Error("Financial drill-down expenseCategory is unsupported");
+  }
+
+  return normalized;
+}
+
+function normalizeServiceKey(value) {
+  const normalized = normalizeOptionalSlug(value);
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (!DRILLDOWN_SERVICE_KEYS.has(normalized)) {
+    throw new Error("Financial drill-down serviceKey is unsupported");
+  }
+
+  return normalized;
+}
+
+function validateDrilldownMetricFilters(filters, metricConfig) {
+  const providedFilterKeys = [];
+
+  if (filters.bookingStatusBucket) {
+    providedFilterKeys.push("bookingStatusBucket");
+  }
+
+  if (filters.expenseCategory) {
+    providedFilterKeys.push("expenseCategory");
+  }
+
+  if (filters.serviceKey) {
+    providedFilterKeys.push("serviceKey");
+  }
+
+  providedFilterKeys.forEach((key) => {
+    if (!metricConfig.allowedFilterKeys.has(key)) {
+      throw new Error(
+        `Financial drill-down metric ${filters.metricKey} does not support ${key}`,
+      );
+    }
+  });
+
+  if (
+    filters.bookingStatusBucket &&
+    metricConfig.allowedBookingStatusBuckets &&
+    !metricConfig.allowedBookingStatusBuckets.has(filters.bookingStatusBucket)
+  ) {
+    throw new Error(
+      `Financial drill-down metric ${filters.metricKey} does not support bookingStatusBucket=${filters.bookingStatusBucket}`,
+    );
+  }
 }
 
 function isInstantInRange(value, filters) {
@@ -808,6 +1100,696 @@ function serializeRecentBooking(booking) {
         }
       : null,
   };
+}
+
+function getDrilldownMetricConfig(metricKey) {
+  const config = DRILLDOWN_METRIC_CONFIG[metricKey];
+
+  if (!config) {
+    throw new Error("Financial drill-down metricKey is unsupported");
+  }
+
+  return config;
+}
+
+export function normalizeFinancialDrilldownFilters(input = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("Financial drill-down filters must be an object");
+  }
+
+  const allowedKeys = new Set([
+    "bookingStatusBucket",
+    "expenseCategory",
+    "metricKey",
+    "page",
+    "pageSize",
+    "rangeEnd",
+    "rangeStart",
+    "serviceKey",
+    "sortDirection",
+    "sortKey",
+    "timezone",
+  ]);
+
+  Object.keys(input).forEach((key) => {
+    if (!allowedKeys.has(key)) {
+      throw new Error(`Financial drill-down filter ${key} is unsupported`);
+    }
+  });
+
+  const metricKey = normalizeMetricKey(input.metricKey);
+
+  if (!metricKey) {
+    throw new Error("Financial drill-down metricKey is required");
+  }
+
+  const metricConfig = getDrilldownMetricConfig(metricKey);
+  const sortKey =
+    input.sortKey == null || String(input.sortKey).trim() === ""
+      ? metricConfig.defaultSortKey
+      : String(input.sortKey).trim();
+
+  if (!metricConfig.allowedSortKeys.includes(sortKey)) {
+    throw new Error(
+      `Financial drill-down metric ${metricKey} does not support sortKey=${sortKey}`,
+    );
+  }
+
+  const filters = {
+    ...normalizeFinancialAggregationFilters(input),
+    bookingStatusBucket: normalizeBookingStatusBucket(
+      input.bookingStatusBucket,
+    ),
+    expenseCategory: normalizeExpenseCategory(input.expenseCategory),
+    metricKey,
+    page: normalizeOptionalInteger(input.page, {
+      defaultValue: DEFAULT_DRILLDOWN_PAGE,
+      label: "Financial drill-down page",
+      max: Number.MAX_SAFE_INTEGER,
+      min: 1,
+    }),
+    pageSize: normalizeOptionalInteger(input.pageSize, {
+      defaultValue: DEFAULT_DRILLDOWN_PAGE_SIZE,
+      label: "Financial drill-down pageSize",
+      max: MAX_DRILLDOWN_PAGE_SIZE,
+      min: 1,
+    }),
+    serviceKey: normalizeServiceKey(input.serviceKey),
+    sortDirection: normalizeSortDirection(
+      input.sortDirection,
+      metricConfig.defaultSortDirection,
+    ),
+    sortKey,
+  };
+
+  validateDrilldownMetricFilters(filters, metricConfig);
+
+  return filters;
+}
+
+function toIsoStringOrNull(value) {
+  if (!value) {
+    return null;
+  }
+
+  const instant = value instanceof Date ? value : new Date(value);
+
+  if (Number.isNaN(instant.getTime())) {
+    return null;
+  }
+
+  return instant.toISOString();
+}
+
+function buildCustomerSummary(user) {
+  const plain = toPlainRecord(user);
+
+  if (!plain) {
+    return null;
+  }
+
+  return {
+    email: plain.email || null,
+    fullName: plain.fullName || null,
+    id: Number(plain.id),
+    phone: plain.phone || null,
+  };
+}
+
+function serializeBookingBase(booking) {
+  const plain = toPlainRecord(booking);
+
+  return {
+    bookingCode: plain?.bookingCode || null,
+    cancelledAt: toIsoStringOrNull(plain?.cancelledAt),
+    completedAt: toIsoStringOrNull(plain?.completedAt),
+    createdAt: toIsoStringOrNull(plain?.createdAt),
+    customer: buildCustomerSummary(plain?.user),
+    date: plain?.date || null,
+    id: Number(plain?.id),
+    paidAmount: roundMetricValue(plain?.paidAmount),
+    status: plain?.status || null,
+    total: roundMetricValue(plain?.total),
+    transactionId:
+      plain?.transactionId == null ? null : Number(plain.transactionId),
+    workflowStatus: plain?.workflowStatus || null,
+  };
+}
+
+function serializeLinkedBookings(bookings) {
+  return bookings.map((booking) => {
+    const serialized = serializeBookingBase(booking);
+
+    return {
+      bookingCode: serialized.bookingCode,
+      customer: serialized.customer,
+      date: serialized.date,
+      id: serialized.id,
+      status: serialized.status,
+      total: serialized.total,
+      workflowStatus: serialized.workflowStatus,
+    };
+  });
+}
+
+function buildBookingsByTransactionId(bookings) {
+  return bookings.reduce((map, booking) => {
+    const plain = toPlainRecord(booking);
+
+    if (plain?.transactionId == null) {
+      return map;
+    }
+
+    const transactionId = Number(plain.transactionId);
+
+    if (!map.has(transactionId)) {
+      map.set(transactionId, []);
+    }
+
+    map.get(transactionId).push(plain);
+
+    return map;
+  }, new Map());
+}
+
+function compareSortValues(left, right) {
+  if (left == null && right == null) {
+    return 0;
+  }
+
+  if (left == null) {
+    return 1;
+  }
+
+  if (right == null) {
+    return -1;
+  }
+
+  if (typeof left === "number" && typeof right === "number") {
+    return left - right;
+  }
+
+  return String(left).localeCompare(String(right), "en", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
+function sortDrilldownRows(rows, filters) {
+  return rows
+    .map((row, index) => ({ index, row }))
+    .sort((left, right) => {
+      const directionMultiplier =
+        filters.sortDirection === SORT_DIRECTION_ASC ? 1 : -1;
+      const primaryComparison =
+        compareSortValues(
+          left.row?.[filters.sortKey],
+          right.row?.[filters.sortKey],
+        ) * directionMultiplier;
+
+      if (primaryComparison !== 0) {
+        return primaryComparison;
+      }
+
+      const idComparison = compareSortValues(left.row?.id, right.row?.id);
+
+      if (idComparison !== 0) {
+        return idComparison;
+      }
+
+      return left.index - right.index;
+    })
+    .map((entry) => entry.row);
+}
+
+function paginateRows(rows, filters) {
+  const offset = (filters.page - 1) * filters.pageSize;
+
+  return rows.slice(offset, offset + filters.pageSize);
+}
+
+function getBookingStatusBucket(booking) {
+  if (isCancelledBooking(booking)) {
+    return BOOKING_STATUS_BUCKET_CANCELLED;
+  }
+
+  if (isCompletedBooking(booking)) {
+    return BOOKING_STATUS_BUCKET_COMPLETED;
+  }
+
+  return BOOKING_STATUS_BUCKET_PENDING;
+}
+
+function matchesBookingStatusBucket(booking, filters) {
+  if (
+    !filters.bookingStatusBucket ||
+    filters.bookingStatusBucket === BOOKING_STATUS_BUCKET_ALL
+  ) {
+    return true;
+  }
+
+  return getBookingStatusBucket(booking) === filters.bookingStatusBucket;
+}
+
+function buildPaymentRows(transactions, bookingsByTransactionId, filters) {
+  return transactions
+    .map((transaction) => toPlainRecord(transaction))
+    .filter(
+      (transaction) =>
+        transaction?.status === "success" &&
+        isInstantInRange(transaction.paidAt, filters),
+    )
+    .map((transaction) => ({
+      amount: roundMetricValue(transaction.amount),
+      id: Number(transaction.id),
+      linkedBookings: serializeLinkedBookings(
+        bookingsByTransactionId.get(Number(transaction.id)) || [],
+      ),
+      paidAt: toIsoStringOrNull(transaction.paidAt),
+      transactionId: Number(transaction.id),
+      type: "payment",
+    }));
+}
+
+function buildRefundRows(transactions, bookingsByTransactionId, filters) {
+  return transactions
+    .map((transaction) => toPlainRecord(transaction))
+    .map((transaction) => {
+      const refundedAt =
+        transaction?.metadata?.lastRefund?.refundedAt || transaction?.paidAt;
+      const amount = fromCents(getRefundEventAmountCents(transaction));
+
+      return {
+        amount,
+        id: Number(transaction.id),
+        linkedBookings: serializeLinkedBookings(
+          bookingsByTransactionId.get(Number(transaction.id)) || [],
+        ),
+        originalPaidAt: toIsoStringOrNull(transaction?.paidAt),
+        refundedAt: toIsoStringOrNull(refundedAt),
+        transactionId: Number(transaction.id),
+        type: "refund",
+      };
+    })
+    .filter(
+      (row) =>
+        row.amount > 0 &&
+        row.refundedAt &&
+        isInstantInRange(row.refundedAt, filters),
+    );
+}
+
+function buildExpenseRows(expenses, filters) {
+  return expenses
+    .map((expense) => toPlainRecord(expense))
+    .filter(
+      (expense) =>
+        !expense?.deletedAt &&
+        isBusinessDateInRange(expense.expenseDate, filters) &&
+        (!filters.expenseCategory ||
+          expense.category === filters.expenseCategory),
+    )
+    .map((expense) => ({
+      amount: roundMetricValue(expense.amount),
+      category: expense.category || null,
+      categoryLabel: getExpenseCategoryLabel(expense.category) || null,
+      createdAt: toIsoStringOrNull(expense.createdAt),
+      description: expense.description || null,
+      expenseDate: expense.expenseDate || null,
+      id: Number(expense.id),
+      updatedAt: toIsoStringOrNull(expense.updatedAt),
+    }));
+}
+
+function buildCompletedBookingRows(bookings, filters) {
+  return bookings
+    .map((booking) => toPlainRecord(booking))
+    .filter(
+      (booking) =>
+        isCompletedBooking(booking) &&
+        isInstantInRange(booking.completedAt, filters) &&
+        matchesBookingStatusBucket(booking, filters),
+    )
+    .map((booking) => serializeBookingBase(booking));
+}
+
+function buildPendingBookingRows(bookings, filters) {
+  return bookings
+    .map((booking) => toPlainRecord(booking))
+    .filter(
+      (booking) =>
+        booking?.status !== "DRAFT" &&
+        !isCancelledBooking(booking) &&
+        !isCompletedBooking(booking) &&
+        isBusinessDateInRange(booking.date, filters) &&
+        matchesBookingStatusBucket(booking, filters),
+    )
+    .map((booking) => serializeBookingBase(booking));
+}
+
+function buildCancelledBookingRows(bookings, filters) {
+  return bookings
+    .map((booking) => toPlainRecord(booking))
+    .filter(
+      (booking) =>
+        isCancelledBooking(booking) &&
+        isInstantInRange(booking.cancelledAt, filters) &&
+        matchesBookingStatusBucket(booking, filters),
+    )
+    .map((booking) => serializeBookingBase(booking));
+}
+
+function buildLostValueRows(bookings, filters) {
+  return buildCancelledBookingRows(bookings, filters).map((booking) => ({
+    ...booking,
+    lostValue: booking.total,
+  }));
+}
+
+function buildOutstandingBalanceRows(bookings, filters) {
+  return bookings
+    .map((booking) => toPlainRecord(booking))
+    .filter(
+      (booking) =>
+        booking?.status !== "DRAFT" &&
+        !isCancelledBooking(booking) &&
+        isBusinessDateInRange(booking.date, filters) &&
+        matchesBookingStatusBucket(booking, filters),
+    )
+    .map((booking) => ({
+      ...serializeBookingBase(booking),
+      outstandingBalance: roundMetricValue(
+        Math.max(toCents(booking.total) - toCents(booking.paidAmount), 0) / 100,
+      ),
+    }))
+    .filter((booking) => booking.outstandingBalance > 0);
+}
+
+function buildRecentBookingRows(bookings, filters) {
+  return bookings
+    .map((booking) => toPlainRecord(booking))
+    .filter(
+      (booking) =>
+        doesBookingIntersectDashboardRange(booking, filters) &&
+        matchesBookingStatusBucket(booking, filters),
+    )
+    .map((booking) => serializeRecentBooking(booking));
+}
+
+function buildScheduleSummaryRows(bookings, filters) {
+  return bookings
+    .map((booking) => toPlainRecord(booking))
+    .filter(
+      (booking) =>
+        booking?.status !== "DRAFT" &&
+        isBusinessDateInRange(booking.date, filters) &&
+        matchesBookingStatusBucket(booking, filters),
+    )
+    .map((booking) => ({
+      ...serializeBookingBase(booking),
+      statusBucket: getBookingStatusBucket(booking),
+    }));
+}
+
+function buildRevenueByServiceRows(
+  bookings,
+  transactions,
+  pricingConfig,
+  filters,
+) {
+  const bookingsByTransactionId = buildBookingsByTransactionId(bookings);
+
+  return transactions
+    .map((transaction) => toPlainRecord(transaction))
+    .filter(
+      (transaction) =>
+        transaction?.status === "success" &&
+        isInstantInRange(transaction.paidAt, filters),
+    )
+    .flatMap((transaction) =>
+      (bookingsByTransactionId.get(Number(transaction.id)) || []).flatMap(
+        (booking) =>
+          buildAttributedServiceAmounts(booking, pricingConfig)
+            .filter(
+              (item) => !filters.serviceKey || item.key === filters.serviceKey,
+            )
+            .map((item, index) => ({
+              amount: fromCents(item.amountCents),
+              bookingCode: booking.bookingCode || null,
+              bookingId: Number(booking.id),
+              customer: buildCustomerSummary(booking.user),
+              date: booking.date || null,
+              id: `${booking.id}-${item.key}-${index}`,
+              paidAt: toIsoStringOrNull(transaction.paidAt),
+              serviceKey: item.key,
+              serviceLabel: item.label,
+              total: roundMetricValue(booking.total),
+              transactionId: Number(transaction.id),
+            })),
+      ),
+    );
+}
+
+function buildNetRevenueRows(transactions, bookingsByTransactionId, filters) {
+  const paymentRows = buildPaymentRows(
+    transactions,
+    bookingsByTransactionId,
+    filters,
+  ).map((row) => ({
+    ...row,
+    eventAt: row.paidAt,
+    netAmount: row.amount,
+  }));
+  const refundRows = buildRefundRows(
+    transactions,
+    bookingsByTransactionId,
+    filters,
+  ).map((row) => ({
+    ...row,
+    eventAt: row.refundedAt,
+    netAmount: roundMetricValue(-row.amount),
+  }));
+
+  return [...paymentRows, ...refundRows];
+}
+
+function buildNetProfitRows(
+  transactions,
+  expenses,
+  bookingsByTransactionId,
+  filters,
+) {
+  const revenueRows = buildNetRevenueRows(
+    transactions,
+    bookingsByTransactionId,
+    filters,
+  ).map((row) => ({
+    ...row,
+    entryType: "revenue",
+  }));
+  const expenseRows = buildExpenseRows(expenses, filters).map((row) => ({
+    ...row,
+    entryType: "expense",
+    eventAt: row.expenseDate,
+    netAmount: roundMetricValue(-row.amount),
+  }));
+
+  return [...revenueRows, ...expenseRows];
+}
+
+function sumAmountRows(rows, key = "amount") {
+  return roundMetricValue(
+    rows.reduce((sum, row) => sum + Number(row?.[key] || 0), 0),
+  );
+}
+
+function buildDrilldownResponse({ filters, rows, totalValue }) {
+  const metricConfig = getDrilldownMetricConfig(filters.metricKey);
+  const sortedRows = sortDrilldownRows(rows, filters);
+  const paginatedRows = paginateRows(sortedRows, filters);
+  const totalRows = sortedRows.length;
+
+  return {
+    filters: serializeDrilldownFilters(filters),
+    metricKey: filters.metricKey,
+    pagination: {
+      hasNextPage: filters.page * filters.pageSize < totalRows,
+      hasPreviousPage: filters.page > 1 && totalRows > 0,
+      page: filters.page,
+      pageSize: filters.pageSize,
+      totalPages: totalRows === 0 ? 0 : Math.ceil(totalRows / filters.pageSize),
+      totalRows,
+    },
+    rows: paginatedRows,
+    sort: {
+      allowedKeys: metricConfig.allowedSortKeys,
+      direction: filters.sortDirection,
+      key: filters.sortKey,
+    },
+    total: {
+      currency: metricConfig.totalKind === "amount" ? "AED" : null,
+      kind: metricConfig.totalKind,
+      value:
+        metricConfig.totalKind === "count"
+          ? Number(totalValue || 0)
+          : roundMetricValue(totalValue),
+    },
+  };
+}
+
+export function buildFinancialDrilldown({
+  bookings = [],
+  transactions = [],
+  expenses = [],
+  pricingConfig = {},
+  filters: rawFilters,
+} = {}) {
+  const filters = normalizeFinancialDrilldownFilters(rawFilters);
+  const bookingsByTransactionId = buildBookingsByTransactionId(bookings);
+
+  switch (filters.metricKey) {
+    case "grossPayments": {
+      const rows = buildPaymentRows(
+        transactions,
+        bookingsByTransactionId,
+        filters,
+      );
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: sumAmountRows(rows),
+      });
+    }
+    case "refunds": {
+      const rows = buildRefundRows(
+        transactions,
+        bookingsByTransactionId,
+        filters,
+      );
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: sumAmountRows(rows),
+      });
+    }
+    case "netRevenue": {
+      const rows = buildNetRevenueRows(
+        transactions,
+        bookingsByTransactionId,
+        filters,
+      );
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: sumAmountRows(rows, "netAmount"),
+      });
+    }
+    case "expenses": {
+      const rows = buildExpenseRows(expenses, filters);
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: sumAmountRows(rows),
+      });
+    }
+    case "netProfit": {
+      const rows = buildNetProfitRows(
+        transactions,
+        expenses,
+        bookingsByTransactionId,
+        filters,
+      );
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: sumAmountRows(rows, "netAmount"),
+      });
+    }
+    case "completedBookings": {
+      const rows = buildCompletedBookingRows(bookings, filters);
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: rows.length,
+      });
+    }
+    case "pendingBookings": {
+      const rows = buildPendingBookingRows(bookings, filters);
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: rows.length,
+      });
+    }
+    case "cancelledBookings": {
+      const rows = buildCancelledBookingRows(bookings, filters);
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: rows.length,
+      });
+    }
+    case "lostValue": {
+      const rows = buildLostValueRows(bookings, filters);
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: sumAmountRows(rows, "lostValue"),
+      });
+    }
+    case "outstandingBalance": {
+      const rows = buildOutstandingBalanceRows(bookings, filters);
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: sumAmountRows(rows, "outstandingBalance"),
+      });
+    }
+    case "revenueByService": {
+      const rows = buildRevenueByServiceRows(
+        bookings,
+        transactions,
+        pricingConfig,
+        filters,
+      );
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: sumAmountRows(rows),
+      });
+    }
+    case "scheduleSummary": {
+      const rows = buildScheduleSummaryRows(bookings, filters);
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: rows.length,
+      });
+    }
+    case "recentBookings": {
+      const rows = buildRecentBookingRows(bookings, filters);
+
+      return buildDrilldownResponse({
+        filters,
+        rows,
+        totalValue: rows.length,
+      });
+    }
+    default:
+      throw new Error("Financial drill-down metricKey is unsupported");
+  }
 }
 
 export function normalizeDashboardAnalyticsFilters(input = {}) {

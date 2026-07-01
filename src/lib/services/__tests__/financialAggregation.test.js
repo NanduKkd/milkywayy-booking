@@ -1,9 +1,11 @@
 import {
   aggregateFinancialOverview,
   buildDashboardAnalytics,
+  buildFinancialDrilldown,
   DASHBOARD_COMPARISON_MODE,
   normalizeDashboardAnalyticsFilters,
   normalizeFinancialAggregationFilters,
+  normalizeFinancialDrilldownFilters,
   REPORTING_TIMEZONE,
 } from "../financialAggregation";
 
@@ -65,6 +67,45 @@ describe("normalizeDashboardAnalyticsFilters", () => {
         rangeStart: "2026-06-01",
       }),
     ).toThrow("Dashboard analytics filter metricKey is unsupported");
+  });
+});
+
+describe("normalizeFinancialDrilldownFilters", () => {
+  it("normalizes pagination, sorting, and supported overlay filters", () => {
+    expect(
+      normalizeFinancialDrilldownFilters({
+        bookingStatusBucket: "all",
+        metricKey: "recentBookings",
+        page: "2",
+        pageSize: "10",
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+        sortDirection: "asc",
+        sortKey: "date",
+      }),
+    ).toMatchObject({
+      bookingStatusBucket: "all",
+      metricKey: "recentBookings",
+      page: 2,
+      pageSize: 10,
+      rangeEndBusinessDateExclusive: "2026-07-01",
+      rangeStartBusinessDate: "2026-06-01",
+      sortDirection: "asc",
+      sortKey: "date",
+    });
+  });
+
+  it("rejects metric-specific unsupported filters", () => {
+    expect(() =>
+      normalizeFinancialDrilldownFilters({
+        expenseCategory: "rent",
+        metricKey: "netRevenue",
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      }),
+    ).toThrow(
+      "Financial drill-down metric netRevenue does not support expenseCategory",
+    );
   });
 });
 
@@ -294,6 +335,160 @@ describe("aggregateFinancialOverview", () => {
     });
     expect(result.averages.averageBookingValue).toBe(0);
     expect(result.breakdowns.serviceRevenue).toEqual([]);
+  });
+});
+
+describe("buildFinancialDrilldown", () => {
+  it("builds paginated net revenue rows that reconcile to the aggregate total", () => {
+    const result = buildFinancialDrilldown({
+      bookings: [
+        {
+          bookingCode: "BK-101",
+          createdAt: "2026-06-01T08:00:00.000Z",
+          date: "2026-06-10",
+          id: 101,
+          paidAmount: 1000,
+          status: "COMPLETED",
+          total: 1000,
+          transactionId: 1,
+          user: {
+            email: "june-1@example.com",
+            fullName: "June One",
+            id: 501,
+            phone: "+971500000001",
+          },
+          workflowStatus: "PROJECT_COMPLETED",
+        },
+        {
+          bookingCode: "BK-102",
+          createdAt: "2026-06-02T09:00:00.000Z",
+          date: "2026-06-20",
+          id: 102,
+          paidAmount: 500,
+          status: "CONFIRMED",
+          total: 500,
+          transactionId: 2,
+          user: {
+            email: "june-2@example.com",
+            fullName: "June Two",
+            id: 502,
+            phone: "+971500000002",
+          },
+          workflowStatus: "SHOOT_BOOKED",
+        },
+      ],
+      expenses: [
+        {
+          amount: 100,
+          category: "rent",
+          createdAt: "2026-06-03T08:00:00.000Z",
+          deletedAt: null,
+          expenseDate: "2026-06-03",
+          id: 201,
+          updatedAt: "2026-06-03T08:00:00.000Z",
+        },
+      ],
+      filters: {
+        metricKey: "netRevenue",
+        page: 1,
+        pageSize: 2,
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      },
+      transactions: [
+        {
+          amount: 1000,
+          id: 1,
+          metadata: {},
+          paidAt: "2026-06-10T08:00:00.000Z",
+          refundedAmount: 0,
+          status: "success",
+        },
+        {
+          amount: 500,
+          id: 2,
+          metadata: {
+            lastRefund: {
+              amount: 100,
+              refundedAt: "2026-06-25T06:00:00.000Z",
+            },
+          },
+          paidAt: "2026-06-20T11:00:00.000Z",
+          refundedAmount: 100,
+          status: "success",
+        },
+      ],
+    });
+
+    expect(result.total).toEqual({
+      currency: "AED",
+      kind: "amount",
+      value: 1400,
+    });
+    expect(result.pagination).toMatchObject({
+      hasNextPage: true,
+      page: 1,
+      pageSize: 2,
+      totalPages: 2,
+      totalRows: 3,
+    });
+    expect(result.rows).toEqual([
+      expect.objectContaining({
+        eventAt: "2026-06-25T06:00:00.000Z",
+        netAmount: -100,
+        transactionId: 2,
+        type: "refund",
+      }),
+      expect.objectContaining({
+        eventAt: "2026-06-20T11:00:00.000Z",
+        netAmount: 500,
+        transactionId: 2,
+        type: "payment",
+      }),
+    ]);
+  });
+
+  it("filters and totals expense rows by category", () => {
+    const result = buildFinancialDrilldown({
+      expenses: [
+        {
+          amount: 100,
+          category: "rent",
+          createdAt: "2026-06-03T08:00:00.000Z",
+          deletedAt: null,
+          description: "Office rent",
+          expenseDate: "2026-06-03",
+          id: 201,
+          updatedAt: "2026-06-03T08:00:00.000Z",
+        },
+        {
+          amount: 50,
+          category: "marketing",
+          createdAt: "2026-06-23T08:00:00.000Z",
+          deletedAt: null,
+          description: "Ads",
+          expenseDate: "2026-06-23",
+          id: 202,
+          updatedAt: "2026-06-23T08:00:00.000Z",
+        },
+      ],
+      filters: {
+        expenseCategory: "marketing",
+        metricKey: "expenses",
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      },
+    });
+
+    expect(result.total.value).toBe(50);
+    expect(result.rows).toEqual([
+      expect.objectContaining({
+        amount: 50,
+        category: "marketing",
+        categoryLabel: "Marketing",
+        id: 202,
+      }),
+    ]);
   });
 });
 
