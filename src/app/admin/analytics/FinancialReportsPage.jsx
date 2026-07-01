@@ -112,10 +112,10 @@ function buildQuery(monthValue) {
   return `/api/admin/analytics/reports?${buildReportParams(monthValue).toString()}`;
 }
 
-function buildExportHref(monthValue) {
+function buildExportHref(monthValue, format) {
   const params = buildReportParams(monthValue);
 
-  params.set("format", "csv");
+  params.set("format", format);
 
   return `/api/admin/analytics/reports/export?${params.toString()}`;
 }
@@ -254,7 +254,8 @@ export default function FinancialReportsPage() {
   }, [monthValue, reloadToken]);
 
   const empty = !loading && !error && !hasReportActivity(report);
-  const exportHref = buildExportHref(monthValue);
+  const csvExportHref = buildExportHref(monthValue, "csv");
+  const excelExportHref = buildExportHref(monthValue, "xlsx");
   const selectedMonthLabel = formatMonthLabel(monthValue);
   const { rangeEnd, rangeStart } = getMonthRange(monthValue);
 
@@ -306,9 +307,15 @@ export default function FinancialReportsPage() {
             />
           </label>
           <Button asChild className="rounded-xl" variant="outline">
-            <a aria-label="Export CSV" download href={exportHref}>
+            <a aria-label="Export CSV" download href={csvExportHref}>
               <Download className="h-4 w-4" />
               Export CSV
+            </a>
+          </Button>
+          <Button asChild className="rounded-xl" variant="outline">
+            <a aria-label="Export Excel" download href={excelExportHref}>
+              <Download className="h-4 w-4" />
+              Export Excel
             </a>
           </Button>
           <Button

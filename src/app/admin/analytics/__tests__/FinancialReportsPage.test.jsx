@@ -237,6 +237,14 @@ describe("FinancialReportsPage", () => {
       "href",
       expect.stringContaining("format=csv"),
     );
+    expect(screen.getByRole("link", { name: "Export Excel" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/api/admin/analytics/reports/export?"),
+    );
+    expect(screen.getByRole("link", { name: "Export Excel" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("format=xlsx"),
+    );
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(

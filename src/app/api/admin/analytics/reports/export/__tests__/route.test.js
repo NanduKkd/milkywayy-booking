@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import models from "@/lib/db/models";
 import { auth } from "@/lib/helpers/auth";
 import { getPricingConfig } from "@/lib/helpers/pricing";
@@ -22,7 +23,36 @@ global.Response = class MockResponse {
   }
 
   async text() {
-    return this.body;
+    if (typeof this.body === "string") {
+      return this.body;
+    }
+
+    if (this.body instanceof ArrayBuffer) {
+      return Buffer.from(this.body).toString("utf8");
+    }
+
+    if (ArrayBuffer.isView(this.body)) {
+      return Buffer.from(this.body.buffer).toString("utf8");
+    }
+
+    return String(this.body);
+  }
+
+  async arrayBuffer() {
+    if (this.body instanceof ArrayBuffer) {
+      return this.body;
+    }
+
+    if (ArrayBuffer.isView(this.body)) {
+      const view = this.body;
+
+      return view.buffer.slice(
+        view.byteOffset,
+        view.byteOffset + view.byteLength,
+      );
+    }
+
+    return new TextEncoder().encode(String(this.body)).buffer;
   }
 };
 
@@ -127,6 +157,39 @@ describe("Admin financial report CSV export route", () => {
     expect(csv).toContain("kpis,netRevenue,netRevenue,amount,1400");
   });
 
+  it("returns an Excel attachment for an authorized superadmin", async () => {
+    const response = await GET({
+      url: "http://localhost:3000/api/admin/analytics/reports/export?rangeStart=2026-06-01&rangeEnd=2026-06-30&groupBy=week&format=xlsx",
+    });
+    const workbookBuffer = Buffer.from(await response.arrayBuffer());
+    const workbook = XLSX.read(workbookBuffer, {
+      cellDates: true,
+      type: "buffer",
+    });
+    const overviewRows = XLSX.utils.sheet_to_json(workbook.Sheets.Overview, {
+      defval: "",
+      raw: true,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(response.headers.get("content-disposition")).toBe(
+      'attachment; filename="financial-report-2026-06-01-to-2026-07-01.xlsx"',
+    );
+    expect(workbook.SheetNames).toEqual(["Overview", "Report Data"]);
+    expect(overviewRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Net revenue",
+          section: "kpis",
+          value: 1400,
+        }),
+      ]),
+    );
+  });
+
   it("rejects unsupported export formats", async () => {
     const consoleSpy = jest.spyOn(console, "error").mockImplementation();
 
@@ -136,7 +199,7 @@ describe("Admin financial report CSV export route", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: "Financial report export format must be csv",
+      error: "Financial report export format must be csv or xlsx",
     });
 
     consoleSpy.mockRestore();

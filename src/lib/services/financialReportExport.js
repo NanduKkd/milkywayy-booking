@@ -1,4 +1,6 @@
-const CSV_ROW_COLUMNS = [
+import * as XLSX from "xlsx";
+
+const REPORT_DATA_COLUMNS = [
   "section",
   "rowKey",
   "label",
@@ -13,6 +15,15 @@ const CSV_ROW_COLUMNS = [
   "groupBy",
   "comparisonMode",
 ];
+
+const REPORT_DATA_DATE_COLUMNS = new Set([
+  "bucketEndBusinessDateExclusive",
+  "bucketStartBusinessDate",
+  "rangeEndBusinessDateExclusive",
+  "rangeStartBusinessDate",
+]);
+
+const OVERVIEW_COLUMNS = ["section", "label", "value", "valueType"];
 
 function addDays(dateString, days) {
   const [year, month, day] = String(dateString)
@@ -31,6 +42,28 @@ function formatTimestamp(value) {
   }
 
   return instant.toISOString();
+}
+
+function parseDateCellValue(value) {
+  if (!value) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/u.test(String(value))) {
+    const [year, month, day] = String(value)
+      .split("-")
+      .map((part) => Number(part));
+
+    return new Date(Date.UTC(year, month - 1, day));
+  }
+
+  const instant = new Date(value);
+
+  if (Number.isNaN(instant.getTime())) {
+    return "";
+  }
+
+  return instant;
 }
 
 function sanitizeSpreadsheetText(value) {
@@ -63,14 +96,6 @@ function serializeCsvValue(value) {
   return `"${sanitized.replace(/"/gu, '""')}"`;
 }
 
-function buildCsvRow(baseRow, values = {}) {
-  const row = { ...baseRow, ...values };
-
-  return CSV_ROW_COLUMNS.map((column) => serializeCsvValue(row[column])).join(
-    ",",
-  );
-}
-
 function createBaseRow(report) {
   return {
     bucketEndBusinessDateExclusive: "",
@@ -90,27 +115,31 @@ function createBaseRow(report) {
   };
 }
 
+function buildExportRow(baseRow, values = {}) {
+  return { ...baseRow, ...values };
+}
+
 function buildMetadataRows(report, baseRow) {
   const comparisonPeriod = report?.comparisonPeriod || {};
   const filters = report?.filters || {};
   const generatedAt = formatTimestamp(new Date());
 
   return [
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Generated at",
       rowKey: "generatedAt",
       section: "metadata",
       textValue: generatedAt,
       valueType: "text",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Report range start",
       rowKey: "rangeStartBusinessDate",
       section: "metadata",
       textValue: filters.rangeStartBusinessDate || "",
       valueType: "text",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Report range end (inclusive)",
       rowKey: "rangeEndBusinessDateInclusive",
       section: "metadata",
@@ -119,21 +148,21 @@ function buildMetadataRows(report, baseRow) {
         : "",
       valueType: "text",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Report range end (exclusive)",
       rowKey: "rangeEndBusinessDateExclusive",
       section: "metadata",
       textValue: filters.rangeEndBusinessDateExclusive || "",
       valueType: "text",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Comparison period start",
       rowKey: "comparisonRangeStartBusinessDate",
       section: "metadata",
       textValue: comparisonPeriod.rangeStartBusinessDate || "",
       valueType: "text",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Comparison period end (exclusive)",
       rowKey: "comparisonRangeEndBusinessDateExclusive",
       section: "metadata",
@@ -149,7 +178,7 @@ function getMetricValueType(rowKey) {
 
 function buildMetricRows(section, metrics, baseRow, valueType) {
   return Object.entries(metrics || {}).map(([rowKey, numericValue]) =>
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: rowKey,
       numericValue,
       rowKey,
@@ -161,7 +190,7 @@ function buildMetricRows(section, metrics, baseRow, valueType) {
 
 function buildComparisonRows(report, baseRow) {
   return Object.entries(report?.comparison || {}).map(([rowKey, value]) =>
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: `${rowKey} delta`,
       numericValue: value?.delta ?? "",
       rowKey,
@@ -173,7 +202,7 @@ function buildComparisonRows(report, baseRow) {
 
 function buildTrendRows(section, buckets, baseRow) {
   return (buckets || []).map((bucket) =>
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive:
         bucket.bucketEndBusinessDateExclusive || "",
       bucketStartBusinessDate: bucket.bucketStartBusinessDate || "",
@@ -188,7 +217,7 @@ function buildTrendRows(section, buckets, baseRow) {
 
 function buildMonthlyComparisonRows(report, baseRow) {
   return (report?.monthlyComparison || []).flatMap((month) => [
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} gross payments`,
@@ -197,7 +226,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
       section: "monthlyComparison",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} refunds`,
@@ -206,7 +235,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
       section: "monthlyComparison",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} net revenue`,
@@ -215,7 +244,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
       section: "monthlyComparison",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} expenses`,
@@ -224,7 +253,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
       section: "monthlyComparison",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} net profit`,
@@ -233,7 +262,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
       section: "monthlyComparison",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} completed bookings`,
@@ -242,7 +271,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
       section: "monthlyComparison",
       valueType: "count",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} cancelled bookings`,
@@ -251,7 +280,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
       section: "monthlyComparison",
       valueType: "count",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} lost value`,
@@ -260,7 +289,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
       section: "monthlyComparison",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive || "",
       bucketStartBusinessDate: month.monthStartBusinessDate || "",
       label: `${month.monthLabel} average booking value`,
@@ -274,7 +303,7 @@ function buildMonthlyComparisonRows(report, baseRow) {
 
 function buildBookingStatusRows(report, baseRow) {
   return (report?.bookingStatus?.buckets || []).map((bucket) =>
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: bucket.label || bucket.key,
       numericValue: bucket.count ?? "",
       rowKey: bucket.key || "",
@@ -286,7 +315,7 @@ function buildBookingStatusRows(report, baseRow) {
 
 function buildServiceRevenueRows(report, baseRow) {
   return (report?.revenueByService || []).map((service) =>
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: service.label || service.key,
       numericValue: service.amount ?? "",
       rowKey: service.key || "",
@@ -298,28 +327,28 @@ function buildServiceRevenueRows(report, baseRow) {
 
 function buildProfitAndLossRows(report, baseRow) {
   return [
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Net revenue",
       numericValue: report?.profitAndLoss?.netRevenue ?? "",
       rowKey: "netRevenue",
       section: "profitAndLoss",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Expenses",
       numericValue: report?.profitAndLoss?.expenses ?? "",
       rowKey: "expenses",
       section: "profitAndLoss",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Net profit",
       numericValue: report?.profitAndLoss?.netProfit ?? "",
       rowKey: "netProfit",
       section: "profitAndLoss",
       valueType: "amount",
     }),
-    buildCsvRow(baseRow, {
+    buildExportRow(baseRow, {
       label: "Margin",
       numericValue: report?.profitAndLoss?.margin ?? "",
       rowKey: "margin",
@@ -329,10 +358,10 @@ function buildProfitAndLossRows(report, baseRow) {
   ];
 }
 
-export function buildFinancialReportCsv(report) {
+export function buildFinancialReportRows(report) {
   const baseRow = createBaseRow(report);
-  const rows = [
-    CSV_ROW_COLUMNS.join(","),
+
+  return [
     ...buildMetadataRows(report, baseRow),
     ...buildMetricRows("kpis", report?.kpis, baseRow),
     ...buildComparisonRows(report, baseRow),
@@ -343,14 +372,183 @@ export function buildFinancialReportCsv(report) {
     ...buildServiceRevenueRows(report, baseRow),
     ...buildProfitAndLossRows(report, baseRow),
   ];
-
-  return `\uFEFF${rows.join("\n")}\n`;
 }
 
-export function buildFinancialReportCsvFilename(report) {
+function serializeReportDataRow(row) {
+  return REPORT_DATA_COLUMNS.map((column) =>
+    serializeCsvValue(row[column]),
+  ).join(",");
+}
+
+function createSheetFromObjects(columns, rows, dateColumns = new Set()) {
+  const data = [
+    columns,
+    ...rows.map((row) =>
+      columns.map((column) => {
+        const value = row[column];
+
+        if (value == null || value === "") {
+          return "";
+        }
+
+        if (dateColumns.has(column)) {
+          return parseDateCellValue(value);
+        }
+
+        return typeof value === "string"
+          ? sanitizeSpreadsheetText(value)
+          : value;
+      }),
+    ),
+  ];
+
+  const sheet = XLSX.utils.aoa_to_sheet(data);
+
+  if (sheet["!ref"]) {
+    sheet["!autofilter"] = { ref: sheet["!ref"] };
+  }
+
+  sheet["!freeze"] = { xSplit: 0, ySplit: 1 };
+
+  return sheet;
+}
+
+function buildOverviewRows(report) {
+  const filters = report?.filters || {};
+  const comparisonPeriod = report?.comparisonPeriod || {};
+
+  return [
+    {
+      label: "Generated at",
+      section: "metadata",
+      value: new Date(),
+      valueType: "datetime",
+    },
+    {
+      label: "Report range start",
+      section: "metadata",
+      value: parseDateCellValue(filters.rangeStartBusinessDate),
+      valueType: "date",
+    },
+    {
+      label: "Report range end (inclusive)",
+      section: "metadata",
+      value: parseDateCellValue(
+        filters.rangeEndBusinessDateExclusive
+          ? addDays(filters.rangeEndBusinessDateExclusive, -1)
+          : "",
+      ),
+      valueType: "date",
+    },
+    {
+      label: "Report range end (exclusive)",
+      section: "metadata",
+      value: parseDateCellValue(filters.rangeEndBusinessDateExclusive),
+      valueType: "date",
+    },
+    {
+      label: "Comparison period start",
+      section: "metadata",
+      value: parseDateCellValue(comparisonPeriod.rangeStartBusinessDate),
+      valueType: "date",
+    },
+    {
+      label: "Comparison period end (exclusive)",
+      section: "metadata",
+      value: parseDateCellValue(comparisonPeriod.rangeEndBusinessDateExclusive),
+      valueType: "date",
+    },
+    {
+      label: "Timezone",
+      section: "filters",
+      value: filters.timezone || "",
+      valueType: "text",
+    },
+    {
+      label: "Group by",
+      section: "filters",
+      value: filters.groupBy || "",
+      valueType: "text",
+    },
+    {
+      label: "Comparison mode",
+      section: "filters",
+      value: report?.comparisonMode || "",
+      valueType: "text",
+    },
+    {
+      label: "Net revenue",
+      section: "kpis",
+      value: report?.kpis?.netRevenue ?? "",
+      valueType: "amount",
+    },
+    {
+      label: "Expenses",
+      section: "kpis",
+      value: report?.kpis?.expenses ?? "",
+      valueType: "amount",
+    },
+    {
+      label: "Net profit",
+      section: "kpis",
+      value: report?.kpis?.netProfit ?? "",
+      valueType: "amount",
+    },
+    {
+      label: "Completed bookings",
+      section: "kpis",
+      value: report?.kpis?.completedBookings ?? "",
+      valueType: "count",
+    },
+    {
+      label: "P&L margin",
+      section: "profitAndLoss",
+      value: report?.profitAndLoss?.margin ?? "",
+      valueType: "percent",
+    },
+  ];
+}
+
+export function buildFinancialReportCsv(report) {
+  const rows = buildFinancialReportRows(report);
+
+  return `\uFEFF${[REPORT_DATA_COLUMNS.join(","), ...rows.map(serializeReportDataRow)].join("\n")}\n`;
+}
+
+export function buildFinancialReportWorkbook(report) {
+  const workbook = XLSX.utils.book_new();
+  const overviewSheet = createSheetFromObjects(
+    OVERVIEW_COLUMNS,
+    buildOverviewRows(report),
+  );
+  const reportDataSheet = createSheetFromObjects(
+    REPORT_DATA_COLUMNS,
+    buildFinancialReportRows(report),
+    REPORT_DATA_DATE_COLUMNS,
+  );
+
+  XLSX.utils.book_append_sheet(workbook, overviewSheet, "Overview");
+  XLSX.utils.book_append_sheet(workbook, reportDataSheet, "Report Data");
+
+  return XLSX.write(workbook, {
+    bookType: "xlsx",
+    compression: true,
+    type: "buffer",
+  });
+}
+
+function buildFinancialReportFilename(report, extension) {
   const rangeStart = report?.filters?.rangeStartBusinessDate || "unknown-start";
   const rangeEnd =
     report?.filters?.rangeEndBusinessDateExclusive || "unknown-end";
 
-  return `financial-report-${rangeStart}-to-${rangeEnd}.csv`;
+  return `financial-report-${rangeStart}-to-${rangeEnd}.${extension}`;
+}
+
+export function buildFinancialReportCsvFilename(report) {
+  return buildFinancialReportFilename(report, "csv");
+}
+
+export function buildFinancialReportWorkbookFilename(report) {
+  return buildFinancialReportFilename(report, "xlsx");
 }

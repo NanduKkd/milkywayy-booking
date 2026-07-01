@@ -5,6 +5,8 @@ import { auth } from "@/lib/helpers/auth";
 import {
   buildFinancialReportCsv,
   buildFinancialReportCsvFilename,
+  buildFinancialReportWorkbook,
+  buildFinancialReportWorkbookFilename,
 } from "@/lib/services/financialReportExport";
 import {
   buildFinancialReportFilterInput,
@@ -18,8 +20,8 @@ function normalizeExportFormat(requestUrl) {
     .trim()
     .toLowerCase();
 
-  if (format !== "csv") {
-    throw new Error("Financial report export format must be csv");
+  if (format !== "csv" && format !== "xlsx") {
+    throw new Error("Financial report export format must be csv or xlsx");
   }
 
   return format;
@@ -44,10 +46,26 @@ export async function GET(request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    normalizeExportFormat(request.url);
+    const format = normalizeExportFormat(request.url);
 
     const filters = buildFinancialReportFilterInput(request.url);
     const report = await loadFinancialReportData(filters);
+
+    if (format === "xlsx") {
+      const workbook = buildFinancialReportWorkbook(report);
+      const filename = buildFinancialReportWorkbookFilename(report);
+
+      return new Response(workbook, {
+        headers: {
+          "Cache-Control": "no-store",
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+        status: 200,
+      });
+    }
+
     const csv = buildFinancialReportCsv(report);
     const filename = buildFinancialReportCsvFilename(report);
 
