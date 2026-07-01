@@ -1,6 +1,5 @@
-import models from "@/lib/db/models";
-import { getPricingConfig } from "@/lib/helpers/pricing";
 import { buildFinancialReports } from "@/lib/services/financialAggregation";
+import { loadFinancialReportDependencies } from "@/lib/services/financialAnalyticsData";
 
 export function buildFinancialReportFilterInput(requestUrl) {
   const url = new URL(requestUrl);
@@ -24,27 +23,8 @@ export function isFinancialReportValidationError(error) {
 }
 
 export async function loadFinancialReportData(filters) {
-  const [pricingConfig, bookings, transactions, expenses] = await Promise.all([
-    getPricingConfig(),
-    models.Booking.findAll({
-      include: [
-        {
-          model: models.User,
-          as: "user",
-          attributes: ["id", "fullName", "email", "phone"],
-          required: false,
-        },
-      ],
-      order: [["createdAt", "DESC"]],
-    }),
-    models.Transaction.findAll({
-      where: { status: "success" },
-      order: [["paidAt", "DESC"]],
-    }),
-    models.Expense.findAll({
-      order: [["expenseDate", "DESC"]],
-    }),
-  ]);
+  const { bookings, transactions, expenses, pricingConfig } =
+    await loadFinancialReportDependencies(filters);
 
   return buildFinancialReports({
     bookings,

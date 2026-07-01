@@ -40,9 +40,14 @@ jest.mock("@/lib/helpers/pricing", () => ({
 
 jest.mock("@/lib/db/relations", () => ({}));
 
-jest.mock("@/lib/services/financialAggregation", () => ({
-  buildFinancialDrilldown: jest.fn(),
-}));
+jest.mock("@/lib/services/financialAggregation", () => {
+  const actual = jest.requireActual("@/lib/services/financialAggregation");
+
+  return {
+    ...actual,
+    buildFinancialDrilldown: jest.fn(),
+  };
+});
 
 describe("Admin financial drill-down API route", () => {
   beforeEach(() => {

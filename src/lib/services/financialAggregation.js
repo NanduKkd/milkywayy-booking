@@ -322,6 +322,16 @@ function serializeDrilldownFilters(filters) {
   };
 }
 
+function serializeDataWindow(startFilters, endFilters) {
+  return {
+    rangeEnd: endFilters.rangeEnd,
+    rangeEndBusinessDateExclusive: endFilters.rangeEndBusinessDateExclusive,
+    rangeStart: startFilters.rangeStart,
+    rangeStartBusinessDate: startFilters.rangeStartBusinessDate,
+    timezone: endFilters.timezone,
+  };
+}
+
 function toPlainRecord(record) {
   return typeof record?.get === "function"
     ? record.get({ plain: true })
@@ -1217,6 +1227,12 @@ export function normalizeFinancialDrilldownFilters(input = {}) {
   return filters;
 }
 
+export function buildFinancialDrilldownDataWindow(input = {}) {
+  const filters = normalizeFinancialDrilldownFilters(input);
+
+  return serializeDataWindow(filters, filters);
+}
+
 function toIsoStringOrNull(value) {
   if (!value) {
     return null;
@@ -1857,6 +1873,13 @@ export function normalizeDashboardAnalyticsFilters(input = {}) {
   };
 }
 
+export function buildDashboardAnalyticsDataWindow(input = {}) {
+  const filters = normalizeDashboardAnalyticsFilters(input);
+  const previousPeriodFilters = buildPreviousPeriodFilters(filters);
+
+  return serializeDataWindow(previousPeriodFilters, filters);
+}
+
 export function normalizeFinancialReportFilters(input = {}) {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new Error("Financial report filters must be an object");
@@ -1900,6 +1923,34 @@ export function normalizeFinancialReportFilters(input = {}) {
     comparisonMode,
     groupBy: normalizedGroupBy,
   };
+}
+
+export function buildFinancialReportDataWindow(input = {}) {
+  const filters = normalizeFinancialReportFilters(input);
+  const previousPeriodFilters = buildPreviousPeriodFilters(filters);
+  const activeMonthStart = getBucketStartBusinessDate(
+    addDays(filters.rangeEndBusinessDateExclusive, -1),
+    "month",
+  );
+  const monthWindowFilters = normalizeFinancialAggregationFilters({
+    rangeEnd: addDays(
+      getBucketEndBusinessDateExclusive(activeMonthStart, "month"),
+      -1,
+    ),
+    rangeStart: addMonths(activeMonthStart, -5),
+    timezone: filters.timezone,
+  });
+  const startFilters =
+    previousPeriodFilters.rangeStartInstant <=
+    monthWindowFilters.rangeStartInstant
+      ? previousPeriodFilters
+      : monthWindowFilters;
+  const endFilters =
+    filters.rangeEndInstant >= monthWindowFilters.rangeEndInstant
+      ? filters
+      : monthWindowFilters;
+
+  return serializeDataWindow(startFilters, endFilters);
 }
 
 function formatMonthLabel(monthStartBusinessDate) {

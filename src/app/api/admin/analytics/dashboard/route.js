@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
-import models from "@/lib/db/models";
 import "@/lib/db/relations";
 import { auth } from "@/lib/helpers/auth";
-import { getPricingConfig } from "@/lib/helpers/pricing";
 import { buildDashboardAnalytics } from "@/lib/services/financialAggregation";
+import { loadDashboardAnalyticsDependencies } from "@/lib/services/financialAnalyticsData";
 
 function buildDashboardFilterInput(requestUrl) {
   const url = new URL(requestUrl);
@@ -39,29 +38,8 @@ export async function GET(request) {
     }
 
     const filters = buildDashboardFilterInput(request.url);
-    const [pricingConfig, bookings, transactions, expenses] = await Promise.all(
-      [
-        getPricingConfig(),
-        models.Booking.findAll({
-          include: [
-            {
-              model: models.User,
-              as: "user",
-              attributes: ["id", "fullName", "email", "phone"],
-              required: false,
-            },
-          ],
-          order: [["createdAt", "DESC"]],
-        }),
-        models.Transaction.findAll({
-          where: { status: "success" },
-          order: [["paidAt", "DESC"]],
-        }),
-        models.Expense.findAll({
-          order: [["expenseDate", "DESC"]],
-        }),
-      ],
-    );
+    const { bookings, transactions, expenses, pricingConfig } =
+      await loadDashboardAnalyticsDependencies(filters);
 
     const result = buildDashboardAnalytics({
       bookings,

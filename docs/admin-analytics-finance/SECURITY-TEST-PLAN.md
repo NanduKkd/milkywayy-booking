@@ -17,6 +17,7 @@
 - CSV/Excel values beginning with formula characters are neutralized.
 - PDF and spreadsheet generation escape user-controlled text and enforce output limits.
 - Export responses contain no secrets, internal metadata, or fields outside the report contract.
+- Representative finance analytics checks stay within the agreed synthetic response budget: Dashboard under `1500ms`, Financial Reports under `2500ms`, and drill-down under `1000ms` on the repo verification fixture while data-loading tests confirm bounded indexed query windows.
 
 ## Manual gates
 

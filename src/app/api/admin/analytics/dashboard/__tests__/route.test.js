@@ -40,9 +40,14 @@ jest.mock("@/lib/helpers/pricing", () => ({
 
 jest.mock("@/lib/db/relations", () => ({}));
 
-jest.mock("@/lib/services/financialAggregation", () => ({
-  buildDashboardAnalytics: jest.fn(),
-}));
+jest.mock("@/lib/services/financialAggregation", () => {
+  const actual = jest.requireActual("@/lib/services/financialAggregation");
+
+  return {
+    ...actual,
+    buildDashboardAnalytics: jest.fn(),
+  };
+});
 
 describe("Admin dashboard analytics API route", () => {
   beforeEach(() => {

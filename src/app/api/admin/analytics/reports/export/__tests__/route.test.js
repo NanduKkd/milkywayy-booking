@@ -97,9 +97,14 @@ jest.mock("puppeteer", () => ({
   launch: jest.fn(),
 }));
 
-jest.mock("@/lib/services/financialAggregation", () => ({
-  buildFinancialReports: jest.fn(),
-}));
+jest.mock("@/lib/services/financialAggregation", () => {
+  const actual = jest.requireActual("@/lib/services/financialAggregation");
+
+  return {
+    ...actual,
+    buildFinancialReports: jest.fn(),
+  };
+});
 
 function createMockReport() {
   return {
@@ -321,10 +326,13 @@ describe("Admin financial report CSV export route", () => {
     const exportResponse = await GET({
       url: `${requestUrl}&format=xlsx`.replace("/reports?", "/reports/export?"),
     });
-    const workbook = XLSX.read(Buffer.from(await exportResponse.arrayBuffer()), {
-      cellDates: true,
-      type: "buffer",
-    });
+    const workbook = XLSX.read(
+      Buffer.from(await exportResponse.arrayBuffer()),
+      {
+        cellDates: true,
+        type: "buffer",
+      },
+    );
     const overviewRows = XLSX.utils.sheet_to_json(workbook.Sheets.Overview, {
       defval: "",
       raw: true,
@@ -343,12 +351,12 @@ describe("Admin financial report CSV export route", () => {
         ?.value.toISOString()
         .slice(0, 10),
     ).toBe(report.filters.rangeStartBusinessDate);
-    expect(
-      overviewRows.find((row) => row.label === "Net revenue")?.value,
-    ).toBe(report.kpis.netRevenue);
-    expect(
-      overviewRows.find((row) => row.label === "Net profit")?.value,
-    ).toBe(report.kpis.netProfit);
+    expect(overviewRows.find((row) => row.label === "Net revenue")?.value).toBe(
+      report.kpis.netRevenue,
+    );
+    expect(overviewRows.find((row) => row.label === "Net profit")?.value).toBe(
+      report.kpis.netProfit,
+    );
     expect(
       reportDataRows.find(
         (row) => row.section === "profitAndLoss" && row.rowKey === "margin",
