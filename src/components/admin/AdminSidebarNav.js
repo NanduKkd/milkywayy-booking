@@ -2,6 +2,7 @@
 
 import {
   CalendarClock,
+  CalendarDays,
   FileText,
   FolderKanban,
   Home,
@@ -22,6 +23,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/invoices", label: "Invoices", icon: Receipt },
   { href: "/admin/analytics", label: "Reports", icon: LineChart },
   { href: "/admin/promotions", label: "Promotions", icon: Sparkles },
+  { href: "/admin/scheduling-calendar", label: "Calendar", icon: CalendarDays },
   { href: "/admin/timeslots", label: "Time Slots", icon: CalendarClock },
   { href: "/admin/prices", label: "Pricing", icon: FileText },
   { href: "/admin/portfolio", label: "Portfolio", icon: Images },

@@ -24,12 +24,19 @@ export default function AdminDashboard() {
     {
       href: "/admin/analytics",
       title: "Reports",
-      description: "Track live revenue, expenses, profit, and monthly comparisons.",
+      description:
+        "Track live revenue, expenses, profit, and monthly comparisons.",
     },
     {
       href: "/admin/promotions",
       title: "Promotions",
       description: "Manage generic, personal, and automatic promotions.",
+    },
+    {
+      href: "/admin/scheduling-calendar",
+      title: "Calendar",
+      description:
+        "Monitor live bookings, events, and schedule blocks in one view.",
     },
     {
       href: "/admin/timeslots",

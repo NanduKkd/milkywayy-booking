@@ -18,7 +18,7 @@ describe("AdminSidebarNav", () => {
     mockUsePathname.mockReturnValue("/admin/promotions");
   });
 
-  it("shows Promotions in primary navigation and removes Discounts and Coupons", () => {
+  it("shows Promotions and Calendar in primary navigation and removes Discounts and Coupons", () => {
     render(<AdminSidebarNav />);
 
     expect(screen.getByRole("link", { name: /Reports/i })).toHaveAttribute(
@@ -28,6 +28,10 @@ describe("AdminSidebarNav", () => {
     expect(screen.getByRole("link", { name: /Promotions/i })).toHaveAttribute(
       "href",
       "/admin/promotions",
+    );
+    expect(screen.getByRole("link", { name: /Calendar/i })).toHaveAttribute(
+      "href",
+      "/admin/scheduling-calendar",
     );
     expect(
       screen.queryByRole("link", { name: /Discounts/i }),
