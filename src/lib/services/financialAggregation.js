@@ -14,6 +14,12 @@ const MAX_DASHBOARD_RECENT_BOOKINGS = 10;
 const DEFAULT_DRILLDOWN_PAGE = 1;
 const DEFAULT_DRILLDOWN_PAGE_SIZE = 25;
 const MAX_DRILLDOWN_PAGE_SIZE = 100;
+const FINANCIAL_REPORT_GROUP_BY_WEEK = "week";
+const FINANCIAL_REPORT_GROUP_BY_MONTH = "month";
+const FINANCIAL_REPORT_GROUP_BY_VALUES = new Set([
+  FINANCIAL_REPORT_GROUP_BY_WEEK,
+  FINANCIAL_REPORT_GROUP_BY_MONTH,
+]);
 const BOOKING_STATUS_BUCKET_ALL = "all";
 const BOOKING_STATUS_BUCKET_PENDING = "pending";
 const BOOKING_STATUS_BUCKET_COMPLETED = "completed";
@@ -172,6 +178,15 @@ function addDays(dateString, days) {
   return instant.toISOString().slice(0, 10);
 }
 
+function addMonths(dateString, months) {
+  const [year, month] = String(dateString)
+    .split("-")
+    .map((value) => Number(value));
+  const instant = new Date(Date.UTC(year, month - 1 + months, 1));
+
+  return instant.toISOString().slice(0, 10);
+}
+
 function formatDubaiDate(value) {
   const instant = value instanceof Date ? value : new Date(value);
 
@@ -282,6 +297,14 @@ function serializeNormalizedFilters(filters) {
     rangeStart: filters.rangeStart,
     rangeStartBusinessDate: filters.rangeStartBusinessDate,
     timezone: filters.timezone,
+  };
+}
+
+function serializeFinancialReportFilters(filters) {
+  return {
+    ...serializeNormalizedFilters(filters),
+    comparisonMode: filters.comparisonMode,
+    groupBy: filters.groupBy,
   };
 }
 
@@ -921,8 +944,7 @@ function getBucketEndBusinessDateExclusive(
   return new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
 }
 
-function buildRevenueTrend(transactions, filters) {
-  const granularity = resolveTrendGranularity(filters.rangeDayCount);
+function buildRevenueTrendForGranularity(transactions, filters, granularity) {
   const bucketMap = new Map();
 
   for (
@@ -1001,6 +1023,14 @@ function buildRevenueTrend(transactions, filters) {
       netRevenue: fromCents(bucket.grossPaymentsCents - bucket.refundsCents),
     })),
   };
+}
+
+function buildRevenueTrend(transactions, filters) {
+  return buildRevenueTrendForGranularity(
+    transactions,
+    filters,
+    resolveTrendGranularity(filters.rangeDayCount),
+  );
 }
 
 function buildScheduleSummary(bookings, filters) {
@@ -1827,6 +1857,233 @@ export function normalizeDashboardAnalyticsFilters(input = {}) {
   };
 }
 
+export function normalizeFinancialReportFilters(input = {}) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error("Financial report filters must be an object");
+  }
+
+  const allowedKeys = new Set([
+    "comparisonMode",
+    "groupBy",
+    "rangeEnd",
+    "rangeStart",
+    "timezone",
+  ]);
+
+  Object.keys(input).forEach((key) => {
+    if (!allowedKeys.has(key)) {
+      throw new Error(`Financial report filter ${key} is unsupported`);
+    }
+  });
+
+  const comparisonMode =
+    input.comparisonMode == null
+      ? DASHBOARD_COMPARISON_MODE
+      : String(input.comparisonMode).trim();
+
+  if (comparisonMode !== DASHBOARD_COMPARISON_MODE) {
+    throw new Error(
+      `Financial report comparisonMode must be ${DASHBOARD_COMPARISON_MODE}`,
+    );
+  }
+
+  const groupBy =
+    input.groupBy == null ? FINANCIAL_REPORT_GROUP_BY_WEEK : input.groupBy;
+  const normalizedGroupBy = String(groupBy).trim().toLowerCase();
+
+  if (!FINANCIAL_REPORT_GROUP_BY_VALUES.has(normalizedGroupBy)) {
+    throw new Error("Financial report groupBy must be week or month");
+  }
+
+  return {
+    ...normalizeFinancialAggregationFilters(input),
+    comparisonMode,
+    groupBy: normalizedGroupBy,
+  };
+}
+
+function formatMonthLabel(monthStartBusinessDate) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    timeZone: "UTC",
+    year: "numeric",
+  }).format(dateOnlyToUtcDate(monthStartBusinessDate));
+}
+
+function buildMonthlyRangeFilters(monthStartBusinessDate, timezone) {
+  return normalizeFinancialAggregationFilters({
+    rangeEnd: addDays(addMonths(monthStartBusinessDate, 1), -1),
+    rangeStart: monthStartBusinessDate,
+    timezone,
+  });
+}
+
+function buildMonthlyComparisonRows({
+  bookings,
+  transactions,
+  expenses,
+  pricingConfig,
+  filters,
+  monthCount = 6,
+}) {
+  const activeMonthStart = getBucketStartBusinessDate(
+    addDays(filters.rangeEndBusinessDateExclusive, -1),
+    "month",
+  );
+  const monthStarts = [];
+
+  for (let index = monthCount - 1; index >= 0; index -= 1) {
+    monthStarts.push(addMonths(activeMonthStart, -index));
+  }
+
+  return monthStarts.map((monthStartBusinessDate) => {
+    const monthFilters = buildMonthlyRangeFilters(
+      monthStartBusinessDate,
+      filters.timezone,
+    );
+    const overview = aggregateFinancialOverview({
+      bookings,
+      transactions,
+      expenses,
+      pricingConfig,
+      filters: monthFilters,
+    });
+
+    return {
+      averageBookingValue: overview.averages.averageBookingValue,
+      cancelledBookings: overview.counts.cancelledBookings,
+      completedBookings: overview.counts.completedBookings,
+      expenses: overview.totals.expenses,
+      grossPayments: overview.totals.grossPayments,
+      lostValue: overview.totals.lostValue,
+      monthEndBusinessDateExclusive: monthFilters.rangeEndBusinessDateExclusive,
+      monthLabel: formatMonthLabel(monthStartBusinessDate),
+      monthStartBusinessDate,
+      netProfit: overview.totals.netProfit,
+      netRevenue: overview.totals.netRevenue,
+      refunds: overview.totals.refunds,
+    };
+  });
+}
+
+function buildBookingStatusBreakdown(overview) {
+  const buckets = [
+    {
+      count: overview.counts.pendingBookings,
+      key: BOOKING_STATUS_BUCKET_PENDING,
+      label: "Pending",
+    },
+    {
+      count: overview.counts.completedBookings,
+      key: BOOKING_STATUS_BUCKET_COMPLETED,
+      label: "Completed",
+    },
+    {
+      count: overview.counts.cancelledBookings,
+      key: BOOKING_STATUS_BUCKET_CANCELLED,
+      label: "Cancelled",
+    },
+  ];
+
+  return {
+    buckets,
+    total: buckets.reduce((sum, bucket) => sum + bucket.count, 0),
+  };
+}
+
+export function buildFinancialReports({
+  bookings = [],
+  transactions = [],
+  expenses = [],
+  pricingConfig = {},
+  filters: rawFilters,
+} = {}) {
+  const filters = normalizeFinancialReportFilters(rawFilters);
+  const previousPeriodFilters = buildPreviousPeriodFilters(filters);
+  const currentOverview = aggregateFinancialOverview({
+    bookings,
+    transactions,
+    expenses,
+    pricingConfig,
+    filters,
+  });
+  const previousOverview = aggregateFinancialOverview({
+    bookings,
+    transactions,
+    expenses,
+    pricingConfig,
+    filters: previousPeriodFilters,
+  });
+  const monthlyComparison = buildMonthlyComparisonRows({
+    bookings,
+    transactions,
+    expenses,
+    pricingConfig,
+    filters,
+  });
+
+  const kpis = {
+    averageBookingValue: currentOverview.averages.averageBookingValue,
+    completedBookings: currentOverview.counts.completedBookings,
+    expenses: currentOverview.totals.expenses,
+    grossPayments: currentOverview.totals.grossPayments,
+    lostValue: currentOverview.totals.lostValue,
+    netProfit: currentOverview.totals.netProfit,
+    netRevenue: currentOverview.totals.netRevenue,
+    refunds: currentOverview.totals.refunds,
+  };
+  const previousKpis = {
+    averageBookingValue: previousOverview.averages.averageBookingValue,
+    completedBookings: previousOverview.counts.completedBookings,
+    expenses: previousOverview.totals.expenses,
+    grossPayments: previousOverview.totals.grossPayments,
+    lostValue: previousOverview.totals.lostValue,
+    netProfit: previousOverview.totals.netProfit,
+    netRevenue: previousOverview.totals.netRevenue,
+    refunds: previousOverview.totals.refunds,
+  };
+
+  return {
+    bookingStatus: buildBookingStatusBreakdown(currentOverview),
+    comparison: Object.fromEntries(
+      Object.entries(kpis).map(([key, currentValue]) => [
+        key,
+        buildDashboardComparisonEntry(currentValue, previousKpis[key]),
+      ]),
+    ),
+    comparisonMode: filters.comparisonMode,
+    comparisonPeriod: serializeNormalizedFilters(previousPeriodFilters),
+    filters: serializeFinancialReportFilters(filters),
+    kpis,
+    monthlyComparison,
+    profitAndLoss: {
+      expenses: currentOverview.totals.expenses,
+      margin:
+        currentOverview.totals.netRevenue > 0
+          ? roundMetricValue(
+              (currentOverview.totals.netProfit /
+                currentOverview.totals.netRevenue) *
+                100,
+            )
+          : 0,
+      netProfit: currentOverview.totals.netProfit,
+      netRevenue: currentOverview.totals.netRevenue,
+    },
+    revenueByService: currentOverview.breakdowns.serviceRevenue,
+    sixMonthTrend: {
+      buckets: monthlyComparison.map((month) => ({
+        bucketEndBusinessDateExclusive: month.monthEndBusinessDateExclusive,
+        bucketStartBusinessDate: month.monthStartBusinessDate,
+        grossPayments: month.grossPayments,
+        netRevenue: month.netRevenue,
+        refunds: month.refunds,
+      })),
+      granularity: "month",
+    },
+    weeklyTrend: buildRevenueTrendForGranularity(transactions, filters, "week"),
+  };
+}
+
 export function buildDashboardAnalytics({
   bookings = [],
   transactions = [],
@@ -1913,6 +2170,8 @@ export function buildDashboardAnalytics({
 
 export {
   DASHBOARD_COMPARISON_MODE,
+  FINANCIAL_REPORT_GROUP_BY_MONTH,
+  FINANCIAL_REPORT_GROUP_BY_WEEK,
   MAX_FINANCIAL_RANGE_DAYS,
   REPORTING_TIMEZONE,
   SERVICE_KEY_UNALLOCATED,

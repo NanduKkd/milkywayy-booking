@@ -22,6 +22,11 @@ export default function AdminDashboard() {
       description: "View and manage invoices.",
     },
     {
+      href: "/admin/analytics",
+      title: "Reports",
+      description: "Track live revenue, expenses, profit, and monthly comparisons.",
+    },
+    {
       href: "/admin/promotions",
       title: "Promotions",
       description: "Manage generic, personal, and automatic promotions.",

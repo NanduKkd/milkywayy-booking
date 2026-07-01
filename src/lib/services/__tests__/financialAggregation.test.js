@@ -1,10 +1,13 @@
 import {
   aggregateFinancialOverview,
   buildDashboardAnalytics,
+  buildFinancialReports,
   buildFinancialDrilldown,
   DASHBOARD_COMPARISON_MODE,
+  FINANCIAL_REPORT_GROUP_BY_WEEK,
   normalizeDashboardAnalyticsFilters,
   normalizeFinancialAggregationFilters,
+  normalizeFinancialReportFilters,
   normalizeFinancialDrilldownFilters,
   REPORTING_TIMEZONE,
 } from "../financialAggregation";
@@ -67,6 +70,32 @@ describe("normalizeDashboardAnalyticsFilters", () => {
         rangeStart: "2026-06-01",
       }),
     ).toThrow("Dashboard analytics filter metricKey is unsupported");
+  });
+});
+
+describe("normalizeFinancialReportFilters", () => {
+  it("defaults the report grouping to week", () => {
+    expect(
+      normalizeFinancialReportFilters({
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      }),
+    ).toMatchObject({
+      comparisonMode: DASHBOARD_COMPARISON_MODE,
+      groupBy: FINANCIAL_REPORT_GROUP_BY_WEEK,
+      rangeEndBusinessDateExclusive: "2026-07-01",
+      rangeStartBusinessDate: "2026-06-01",
+    });
+  });
+
+  it("rejects unsupported report keys", () => {
+    expect(() =>
+      normalizeFinancialReportFilters({
+        metricKey: "netRevenue",
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      }),
+    ).toThrow("Financial report filter metricKey is unsupported");
   });
 });
 
@@ -762,6 +791,182 @@ describe("buildDashboardAnalytics", () => {
         id: 504,
         phone: "+971500000004",
       },
+    });
+  });
+});
+
+describe("buildFinancialReports", () => {
+  it("returns live KPI, trend, monthly comparison, and P&L data", () => {
+    const pricingConfig = {
+      Apartment: {
+        sizes: [
+          {
+            label: "1 Bed",
+            prices: {
+              Photography: { price: 450 },
+              Videography: {
+                "Short Form": { price: 550 },
+              },
+            },
+          },
+        ],
+      },
+    };
+
+    const result = buildFinancialReports({
+      bookings: [
+        {
+          cancelledAt: null,
+          completedAt: "2026-06-12T06:00:00.000Z",
+          date: "2026-06-10",
+          id: 101,
+          paidAmount: 1000,
+          propertyDetails: { size: "1 Bed", type: "Apartment" },
+          shootDetails: {
+            services: ["Photography", "Videography"],
+            videographySubService: "Short Form",
+          },
+          status: "COMPLETED",
+          total: 1000,
+          transactionId: 1,
+          workflowStatus: "PROJECT_COMPLETED",
+        },
+        {
+          cancelledAt: null,
+          date: "2026-06-20",
+          id: 102,
+          paidAmount: 500,
+          propertyDetails: { size: "Penthouse", type: "Apartment" },
+          shootDetails: {
+            services: ["Photography"],
+          },
+          status: "CONFIRMED",
+          total: 500,
+          transactionId: 2,
+          workflowStatus: "SHOOT_BOOKED",
+        },
+        {
+          cancelledAt: "2026-06-18T05:00:00.000Z",
+          date: "2026-06-25",
+          id: 103,
+          status: "CANCELLED",
+          total: 300,
+          workflowStatus: "SHOOT_BOOKED",
+        },
+        {
+          cancelledAt: null,
+          date: "2026-06-21",
+          id: 104,
+          paidAmount: 0,
+          status: "CONFIRMED",
+          total: 400,
+          workflowStatus: "EDITING",
+        },
+        {
+          cancelledAt: null,
+          completedAt: "2026-05-15T07:00:00.000Z",
+          date: "2026-05-15",
+          id: 105,
+          paidAmount: 200,
+          propertyDetails: { size: "Studio", type: "Apartment" },
+          shootDetails: { services: [] },
+          status: "COMPLETED",
+          total: 200,
+          transactionId: 4,
+          workflowStatus: "PROJECT_COMPLETED",
+        },
+      ],
+      expenses: [
+        {
+          amount: 100,
+          deletedAt: null,
+          expenseDate: "2026-06-05",
+          id: 201,
+        },
+        {
+          amount: 50,
+          deletedAt: null,
+          expenseDate: "2026-06-23",
+          id: 202,
+        },
+        {
+          amount: 80,
+          deletedAt: null,
+          expenseDate: "2026-05-20",
+          id: 203,
+        },
+      ],
+      filters: {
+        groupBy: "week",
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      },
+      pricingConfig,
+      transactions: [
+        {
+          amount: 1000,
+          id: 1,
+          metadata: {},
+          paidAt: "2026-06-10T08:00:00.000Z",
+          refundedAmount: 0,
+          status: "success",
+        },
+        {
+          amount: 500,
+          id: 2,
+          metadata: {
+            lastRefund: {
+              amount: 100,
+              refundedAt: "2026-06-25T06:00:00.000Z",
+            },
+          },
+          paidAt: "2026-06-20T11:00:00.000Z",
+          refundedAmount: 100,
+          status: "success",
+        },
+        {
+          amount: 200,
+          id: 4,
+          metadata: {},
+          paidAt: "2026-05-15T09:00:00.000Z",
+          refundedAmount: 0,
+          status: "success",
+        },
+      ],
+    });
+
+    expect(result.kpis).toEqual({
+      averageBookingValue: 700,
+      completedBookings: 1,
+      expenses: 150,
+      grossPayments: 1500,
+      lostValue: 300,
+      netProfit: 1250,
+      netRevenue: 1400,
+      refunds: 100,
+    });
+    expect(result.profitAndLoss).toEqual({
+      expenses: 150,
+      margin: 89.29,
+      netProfit: 1250,
+      netRevenue: 1400,
+    });
+    expect(result.weeklyTrend.granularity).toBe("week");
+    expect(result.sixMonthTrend.granularity).toBe("month");
+    expect(result.bookingStatus).toEqual({
+      buckets: [
+        { count: 2, key: "pending", label: "Pending" },
+        { count: 1, key: "completed", label: "Completed" },
+        { count: 1, key: "cancelled", label: "Cancelled" },
+      ],
+      total: 4,
+    });
+    expect(result.monthlyComparison.at(-1)).toMatchObject({
+      completedBookings: 1,
+      expenses: 150,
+      monthStartBusinessDate: "2026-06-01",
+      netProfit: 1250,
+      netRevenue: 1400,
     });
   });
 });

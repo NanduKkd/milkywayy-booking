@@ -21,6 +21,10 @@ describe("AdminSidebarNav", () => {
   it("shows Promotions in primary navigation and removes Discounts and Coupons", () => {
     render(<AdminSidebarNav />);
 
+    expect(screen.getByRole("link", { name: /Reports/i })).toHaveAttribute(
+      "href",
+      "/admin/analytics",
+    );
     expect(screen.getByRole("link", { name: /Promotions/i })).toHaveAttribute(
       "href",
       "/admin/promotions",

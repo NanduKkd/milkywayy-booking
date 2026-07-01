@@ -5,6 +5,10 @@ describe("AdminDashboard", () => {
   it("links operators to Promotions instead of legacy Discounts or Coupons", () => {
     render(<AdminDashboard />);
 
+    expect(screen.getByRole("link", { name: /Reports/i })).toHaveAttribute(
+      "href",
+      "/admin/analytics",
+    );
     expect(screen.getByRole("link", { name: /Promotions/i })).toHaveAttribute(
       "href",
       "/admin/promotions",

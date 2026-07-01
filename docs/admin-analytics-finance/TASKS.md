@@ -10,7 +10,7 @@
 |---|---|---:|---:|---:|
 | M0 - Metric and report contract | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Expense and analytics foundation | `DONE` | 5 | 5 | 4-6 days |
-| M2 - Reports and exports | `NOT_STARTED` | 0 | 6 | 7-10 days |
+| M2 - Reports and exports | `IN_PROGRESS` | 1 | 6 | 7-10 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-5 days |
 
 ## M0 - Metric and report contract
@@ -35,7 +35,7 @@
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| FIN-201 | Build Financial Reports UI | `NOT_STARTED` | Engineering | FIN-103 | KPI, chart, monthly comparison, P&L, loading, empty, and error states use live data | Pending |
+| FIN-201 | Build Financial Reports UI | `DONE` | Engineering | FIN-103 | KPI, chart, monthly comparison, P&L, loading, empty, and error states use live data | Added `buildFinancialReports` and `normalizeFinancialReportFilters` to `src/lib/services/financialAggregation.js`, exposed `GET /api/admin/analytics/reports`, and shipped the live `/admin/analytics` Financial Reports page with month filtering, KPI cards, weekly and six-month charts, monthly comparison, P&L, booking-status/service breakdowns, plus loading, empty, and error states. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialAggregation.test.js src/app/api/admin/analytics/reports/__tests__/route.test.js src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx src/components/admin/__tests__/AdminSidebarNav.test.jsx src/app/admin/__tests__/page.test.jsx --runInBand`. |
 | FIN-202 | Build expense tracker UI | `NOT_STARTED` | Engineering | FIN-102 | Month filtering, category breakdown, add/edit/delete, totals, and confirmations work | Pending |
 | FIN-203 | Implement CSV export | `NOT_STARTED` | Engineering | FIN-003, FIN-103 | Export uses authorized server data and reconciles to screen totals | Pending |
 | FIN-204 | Implement Excel export | `NOT_STARTED` | Engineering | FIN-003, FIN-103 | Workbook has stable columns, types, filters, totals, and safe cell values | Pending |
