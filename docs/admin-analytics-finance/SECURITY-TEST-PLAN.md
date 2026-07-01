@@ -1,7 +1,7 @@
 # Admin analytics and finance security test plan
 
-- Last updated: 2026-06-30
-- Release gate status: `NOT_STARTED`
+- Last updated: 2026-07-01
+- Release gate status: `IN_PROGRESS`
 
 ## Automated gates
 

@@ -12,6 +12,208 @@ import {
   REPORTING_TIMEZONE,
 } from "../financialAggregation";
 
+function buildReconciliationFixture() {
+  return {
+    bookings: [
+      {
+        cancelledAt: null,
+        completedAt: "2026-06-12T06:00:00.000Z",
+        createdAt: "2026-06-01T08:00:00.000Z",
+        date: "2026-06-10",
+        id: 101,
+        paidAmount: 600,
+        propertyDetails: { size: "1 Bed", type: "Apartment" },
+        shootDetails: {
+          services: ["Photography", "Videography"],
+          videographySubService: "Short Form",
+        },
+        status: "COMPLETED",
+        total: 600,
+        transactionId: 1,
+        user: {
+          email: "booking-101@example.com",
+          fullName: "Booking 101",
+          id: 501,
+          phone: "+971500000101",
+        },
+        workflowStatus: "PROJECT_COMPLETED",
+      },
+      {
+        cancelledAt: null,
+        createdAt: "2026-06-02T08:00:00.000Z",
+        date: "2026-06-15",
+        id: 102,
+        paidAmount: 0,
+        status: "CONFIRMED",
+        total: 500,
+        transactionId: 2,
+        user: {
+          email: "booking-102@example.com",
+          fullName: "Booking 102",
+          id: 502,
+          phone: "+971500000102",
+        },
+        workflowStatus: "SHOOT_BOOKED",
+      },
+      {
+        cancelledAt: "2026-06-20T05:00:00.000Z",
+        createdAt: "2026-06-03T08:00:00.000Z",
+        date: "2026-06-22",
+        id: 103,
+        status: "CANCELLED",
+        total: 300,
+        user: {
+          email: "booking-103@example.com",
+          fullName: "Booking 103",
+          id: 503,
+          phone: "+971500000103",
+        },
+        workflowStatus: "SHOOT_BOOKED",
+      },
+      {
+        cancelledAt: null,
+        completedAt: "2026-05-29T05:00:00.000Z",
+        createdAt: "2026-05-20T08:00:00.000Z",
+        date: "2026-05-28",
+        id: 104,
+        paidAmount: 400,
+        shootDetails: { services: [] },
+        status: "COMPLETED",
+        total: 400,
+        transactionId: 3,
+        user: {
+          email: "booking-104@example.com",
+          fullName: "Booking 104",
+          id: 504,
+          phone: "+971500000104",
+        },
+        workflowStatus: "PROJECT_COMPLETED",
+      },
+      {
+        cancelledAt: null,
+        createdAt: "2026-06-05T08:00:00.000Z",
+        date: "2026-06-25",
+        id: 105,
+        paidAmount: 0,
+        status: "CONFIRMED",
+        total: 250,
+        transactionId: 5,
+        user: {
+          email: "booking-105@example.com",
+          fullName: "Booking 105",
+          id: 505,
+          phone: "+971500000105",
+        },
+        workflowStatus: "EDITING",
+      },
+      {
+        cancelledAt: null,
+        createdAt: "2026-06-06T08:00:00.000Z",
+        date: "2026-06-18",
+        id: 106,
+        paidAmount: 0,
+        status: "DRAFT",
+        total: 120,
+        workflowStatus: "SHOOT_BOOKED",
+      },
+    ],
+    expenses: [
+      {
+        amount: 100,
+        deletedAt: null,
+        expenseDate: "2026-06-03",
+        id: 201,
+      },
+      {
+        amount: 25,
+        deletedAt: null,
+        expenseDate: "2026-06-18",
+        id: 202,
+      },
+      {
+        amount: 80,
+        deletedAt: null,
+        expenseDate: "2026-05-20",
+        id: 203,
+      },
+      {
+        amount: 50,
+        deletedAt: "2026-06-19T00:00:00.000Z",
+        expenseDate: "2026-06-19",
+        id: 204,
+      },
+    ],
+    filters: {
+      currentMonth: {
+        rangeEnd: "2026-06-30",
+        rangeStart: "2026-06-01",
+      },
+      emptyMonth: {
+        rangeEnd: "2026-07-31",
+        rangeStart: "2026-07-01",
+      },
+      previousMonth: {
+        rangeEnd: "2026-05-31",
+        rangeStart: "2026-05-01",
+      },
+    },
+    pricingConfig: {
+      Apartment: {
+        sizes: [
+          {
+            label: "1 Bed",
+            prices: {
+              Photography: { price: 400 },
+              Videography: {
+                "Short Form": { price: 200 },
+              },
+            },
+          },
+        ],
+      },
+    },
+    transactions: [
+      {
+        amount: 600,
+        id: 1,
+        metadata: {},
+        paidAt: "2026-06-02T08:00:00.000Z",
+        refundedAmount: 0,
+        status: "success",
+      },
+      {
+        amount: 500,
+        id: 2,
+        metadata: {},
+        paidAt: "2026-06-15T08:00:00.000Z",
+        refundedAmount: 0,
+        status: "pending",
+      },
+      {
+        amount: 400,
+        id: 3,
+        metadata: {
+          lastRefund: {
+            amount: 150,
+            refundedAt: "2026-06-05T10:00:00.000Z",
+          },
+        },
+        paidAt: "2026-05-29T09:00:00.000Z",
+        refundedAmount: 150,
+        status: "success",
+      },
+      {
+        amount: 250,
+        id: 5,
+        metadata: {},
+        paidAt: "2026-06-25T09:00:00.000Z",
+        refundedAmount: 0,
+        status: "failed",
+      },
+    ],
+  };
+}
+
 describe("normalizeFinancialAggregationFilters", () => {
   it("normalizes Dubai business-day ranges from date-only input", () => {
     expect(
@@ -364,6 +566,70 @@ describe("aggregateFinancialOverview", () => {
     });
     expect(result.averages.averageBookingValue).toBe(0);
     expect(result.breakdowns.serviceRevenue).toEqual([]);
+  });
+
+  it("reconciles cross-month payments and refunds while excluding pending and failed transactions", () => {
+    const fixture = buildReconciliationFixture();
+
+    const juneOverview = aggregateFinancialOverview({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: fixture.filters.currentMonth,
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const mayOverview = aggregateFinancialOverview({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: fixture.filters.previousMonth,
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+
+    expect(juneOverview.totals).toEqual({
+      expenses: 125,
+      grossPayments: 600,
+      lostValue: 300,
+      netProfit: 325,
+      netRevenue: 450,
+      outstandingBalance: 750,
+      refunds: 150,
+    });
+    expect(juneOverview.counts).toEqual({
+      cancelledBookings: 1,
+      completedBookings: 1,
+      paidBookings: 1,
+      pendingBookings: 2,
+    });
+    expect(juneOverview.averages).toEqual({
+      averageBookingValue: 450,
+    });
+    expect(juneOverview.breakdowns.serviceRevenue).toEqual([
+      { amount: 400, key: "photography", label: "Photography" },
+      { amount: 200, key: "videography", label: "Videography" },
+    ]);
+
+    expect(mayOverview.totals).toEqual({
+      expenses: 80,
+      grossPayments: 400,
+      lostValue: 0,
+      netProfit: 320,
+      netRevenue: 400,
+      outstandingBalance: 0,
+      refunds: 0,
+    });
+    expect(mayOverview.counts).toEqual({
+      cancelledBookings: 0,
+      completedBookings: 1,
+      paidBookings: 1,
+      pendingBookings: 0,
+    });
+    expect(mayOverview.averages).toEqual({
+      averageBookingValue: 400,
+    });
+    expect(mayOverview.breakdowns.serviceRevenue).toEqual([
+      { amount: 400, key: "unallocated", label: "Unallocated" },
+    ]);
   });
 });
 
@@ -968,5 +1234,203 @@ describe("buildFinancialReports", () => {
       netProfit: 1250,
       netRevenue: 1400,
     });
+  });
+
+  it("keeps dashboard, reports, and drill-down totals reconciled for current, prior, and empty months", () => {
+    const fixture = buildReconciliationFixture();
+
+    const juneDashboard = buildDashboardAnalytics({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: fixture.filters.currentMonth,
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const juneReports = buildFinancialReports({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: {
+        ...fixture.filters.currentMonth,
+        groupBy: "week",
+      },
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const juneNetRevenueDrilldown = buildFinancialDrilldown({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: {
+        ...fixture.filters.currentMonth,
+        metricKey: "netRevenue",
+      },
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const junePendingDrilldown = buildFinancialDrilldown({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: {
+        ...fixture.filters.currentMonth,
+        metricKey: "pendingBookings",
+      },
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const juneCancelledDrilldown = buildFinancialDrilldown({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: {
+        ...fixture.filters.currentMonth,
+        metricKey: "cancelledBookings",
+      },
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const juneRefundDrilldown = buildFinancialDrilldown({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: {
+        ...fixture.filters.currentMonth,
+        metricKey: "refunds",
+      },
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const mayDashboard = buildDashboardAnalytics({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: fixture.filters.previousMonth,
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const emptyDashboard = buildDashboardAnalytics({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: fixture.filters.emptyMonth,
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const emptyReports = buildFinancialReports({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: {
+        ...fixture.filters.emptyMonth,
+        groupBy: "week",
+      },
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+    const emptyDrilldown = buildFinancialDrilldown({
+      bookings: fixture.bookings,
+      expenses: fixture.expenses,
+      filters: {
+        ...fixture.filters.emptyMonth,
+        metricKey: "netRevenue",
+      },
+      pricingConfig: fixture.pricingConfig,
+      transactions: fixture.transactions,
+    });
+
+    expect(juneDashboard.kpis).toMatchObject({
+      cancelledBookings: 1,
+      completedBookings: 1,
+      expenses: 125,
+      grossPayments: 600,
+      lostValue: 300,
+      netProfit: 325,
+      netRevenue: 450,
+      outstandingBalance: 750,
+      paidBookings: 1,
+      pendingBookings: 2,
+      refunds: 150,
+    });
+    expect(juneReports.kpis).toMatchObject({
+      averageBookingValue: 450,
+      completedBookings: 1,
+      expenses: 125,
+      grossPayments: 600,
+      lostValue: 300,
+      netProfit: 325,
+      netRevenue: 450,
+      refunds: 150,
+    });
+    expect(juneReports.bookingStatus).toEqual({
+      buckets: [
+        { count: 2, key: "pending", label: "Pending" },
+        { count: 1, key: "completed", label: "Completed" },
+        { count: 1, key: "cancelled", label: "Cancelled" },
+      ],
+      total: 4,
+    });
+    expect(juneNetRevenueDrilldown.total.value).toBe(450);
+    expect(juneNetRevenueDrilldown.rows.map((row) => row.netAmount)).toEqual([
+      -150,
+      600,
+    ]);
+    expect(junePendingDrilldown.total.value).toBe(2);
+    expect(junePendingDrilldown.rows.map((row) => row.id)).toEqual([105, 102]);
+    expect(juneCancelledDrilldown.total.value).toBe(1);
+    expect(juneCancelledDrilldown.rows.map((row) => row.id)).toEqual([103]);
+    expect(juneRefundDrilldown.total.value).toBe(150);
+    expect(juneRefundDrilldown.rows).toEqual([
+      expect.objectContaining({
+        amount: 150,
+        refundedAt: "2026-06-05T10:00:00.000Z",
+        transactionId: 3,
+      }),
+    ]);
+
+    expect(mayDashboard.kpis).toMatchObject({
+      completedBookings: 1,
+      expenses: 80,
+      grossPayments: 400,
+      netProfit: 320,
+      netRevenue: 400,
+      refunds: 0,
+    });
+    expect(mayDashboard.comparison.netRevenue).toEqual({
+      current: 400,
+      previous: 0,
+      delta: 400,
+      deltaPercentage: null,
+      direction: "up",
+    });
+
+    expect(emptyDashboard.kpis).toEqual({
+      averageBookingValue: 0,
+      cancelledBookings: 0,
+      completedBookings: 0,
+      expenses: 0,
+      grossPayments: 0,
+      lostValue: 0,
+      netProfit: 0,
+      netRevenue: 0,
+      outstandingBalance: 0,
+      paidBookings: 0,
+      pendingBookings: 0,
+      refunds: 0,
+    });
+    expect(emptyReports.kpis).toEqual({
+      averageBookingValue: 0,
+      completedBookings: 0,
+      expenses: 0,
+      grossPayments: 0,
+      lostValue: 0,
+      netProfit: 0,
+      netRevenue: 0,
+      refunds: 0,
+    });
+    expect(emptyDrilldown.total).toEqual({
+      currency: "AED",
+      kind: "amount",
+      value: 0,
+    });
+    expect(emptyDrilldown.pagination).toMatchObject({
+      hasNextPage: false,
+      hasPreviousPage: false,
+      totalPages: 0,
+      totalRows: 0,
+    });
+    expect(emptyDrilldown.rows).toEqual([]);
   });
 });

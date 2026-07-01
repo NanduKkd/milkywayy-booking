@@ -11,7 +11,7 @@
 | M0 - Metric and report contract | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Expense and analytics foundation | `DONE` | 5 | 5 | 4-6 days |
 | M2 - Reports and exports | `DONE` | 6 | 6 | 7-10 days |
-| M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-5 days |
+| M3 - Verification and rollout | `IN_PROGRESS` | 1 | 5 | 4-5 days |
 
 ## M0 - Metric and report contract
 
@@ -46,7 +46,7 @@
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| FIN-301 | Add calculation and reconciliation tests | `NOT_STARTED` | Engineering | M2 | Payment, refund, pending, failed, cancelled, cross-month, and no-data cases pass | Pending |
+| FIN-301 | Add calculation and reconciliation tests | `DONE` | Engineering | M2 | Payment, refund, pending, failed, cancelled, cross-month, and no-data cases pass | Added reconciliation fixtures and assertions to `src/lib/services/__tests__/financialAggregation.test.js` covering cross-month payment/refund timing, pending and failed transaction exclusion, cancelled/lost-value handling, prior-month reconciliation, and zero-data behavior across overview, Dashboard, Reports, and drill-down totals. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialAggregation.test.js --runInBand`. |
 | FIN-302 | Add expense authorization and audit tests | `NOT_STARTED` | Engineering | FIN-102 | Unauthorized and invalid mutations fail; soft deletion and audit evidence are correct | Pending |
 | FIN-303 | Add export equivalence and injection-safety tests | `NOT_STARTED` | Engineering | FIN-203 to FIN-205 | Export totals match APIs and spreadsheet-formula injection is neutralized | Pending |
 | FIN-304 | Run migration and production-like volume checks | `NOT_STARTED` | Engineering | FIN-301 | Queries use indexes and meet agreed response limits on representative data | Pending |
