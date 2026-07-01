@@ -69,7 +69,7 @@ describe("Admin expenses collection API route", () => {
     expect(data.items).toEqual([{ id: 7 }]);
   });
 
-  it("rejects anonymous and non-superadmin access", async () => {
+  it("rejects anonymous and non-superadmin access for reads and writes", async () => {
     auth.mockResolvedValueOnce(null);
 
     const unauthorizedResponse = await GET({
@@ -79,6 +79,19 @@ describe("Admin expenses collection API route", () => {
     expect(unauthorizedResponse.status).toBe(401);
     expect(listExpenses).not.toHaveBeenCalled();
 
+    auth.mockResolvedValueOnce(null);
+
+    const unauthorizedCreateResponse = await POST({
+      json: async () => ({
+        amount: "100.00",
+        expenseDate: "2026-07-01",
+        category: "office",
+      }),
+    });
+
+    expect(unauthorizedCreateResponse.status).toBe(401);
+    expect(createExpense).not.toHaveBeenCalled();
+
     auth.mockResolvedValueOnce({ id: 2, role: "CUSTOMER" });
     models.User.findByPk.mockResolvedValueOnce({ id: 2, role: "CUSTOMER" });
 
@@ -87,6 +100,20 @@ describe("Admin expenses collection API route", () => {
     });
 
     expect(forbiddenResponse.status).toBe(403);
+
+    auth.mockResolvedValueOnce({ id: 2, role: "CUSTOMER" });
+    models.User.findByPk.mockResolvedValueOnce({ id: 2, role: "CUSTOMER" });
+
+    const forbiddenCreateResponse = await POST({
+      json: async () => ({
+        amount: "100.00",
+        expenseDate: "2026-07-01",
+        category: "office",
+      }),
+    });
+
+    expect(forbiddenCreateResponse.status).toBe(403);
+    expect(createExpense).not.toHaveBeenCalled();
   });
 
   it("creates an expense and returns 201", async () => {

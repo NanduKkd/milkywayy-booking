@@ -152,7 +152,7 @@ describe("expenseAdmin service", () => {
     );
   });
 
-  it("rejects unauthorized actors", async () => {
+  it("rejects unauthorized actors for every expense mutation", async () => {
     await expect(
       createExpense({
         actorUser: customerActor,
@@ -163,6 +163,31 @@ describe("expenseAdmin service", () => {
         },
       }),
     ).rejects.toThrow("Unauthorized: Expense admin access required");
+
+    await expect(
+      updateExpense({
+        actorUser: customerActor,
+        expenseId: 9,
+        input: {
+          amount: "101.00",
+          expenseDate: "2026-07-01",
+          category: "office",
+        },
+      }),
+    ).rejects.toThrow("Unauthorized: Expense admin access required");
+
+    await expect(
+      deleteExpense({
+        actorUser: customerActor,
+        expenseId: 9,
+        reason: "duplicate entry",
+      }),
+    ).rejects.toThrow("Unauthorized: Expense admin access required");
+
+    expect(sequelize.transaction).not.toHaveBeenCalled();
+    expect(models.Expense.create).not.toHaveBeenCalled();
+    expect(models.Expense.findByPk).not.toHaveBeenCalled();
+    expect(models.ExpenseAuditEvent.create).not.toHaveBeenCalled();
   });
 
   it("creates an expense and records an audit event", async () => {
@@ -344,8 +369,26 @@ describe("expenseAdmin service", () => {
     );
     expect(models.ExpenseAuditEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        expenseId: 9,
+        actorUserId: 11,
         action: "DELETED",
+        beforeState: expect.objectContaining({
+          id: 9,
+          amount: 245.5,
+          deletedByUserId: null,
+          deleteReason: null,
+        }),
+        afterState: expect.objectContaining({
+          id: 9,
+          amount: 245.5,
+          deletedByUserId: 11,
+          deleteReason: "duplicate entry",
+          deletedAt: expect.any(String),
+        }),
         reason: "duplicate entry",
+        metadata: {
+          authorizationMode: EXPENSE_ADMIN_AUTHORIZATION_MODE,
+        },
       }),
       {
         transaction: mockTransaction,
@@ -359,7 +402,9 @@ describe("expenseAdmin service", () => {
     );
   });
 
-  it("rejects unsupported values before writing", async () => {
+  it("rejects invalid mutations before writing or auditing", async () => {
+    const existingExpense = buildExpenseRecord();
+
     await expect(
       createExpense({
         actorUser: superadminActor,
@@ -373,6 +418,18 @@ describe("expenseAdmin service", () => {
       "Expense amount must be a positive amount with up to 2 decimals",
     );
 
+    models.Expense.findByPk.mockResolvedValue(existingExpense);
+
+    await expect(
+      updateExpense({
+        actorUser: superadminActor,
+        expenseId: 9,
+        input: {
+          category: "invalid-category",
+        },
+      }),
+    ).rejects.toThrow("Expense category is unsupported");
+
     await expect(
       deleteExpense({
         actorUser: superadminActor,
@@ -380,5 +437,10 @@ describe("expenseAdmin service", () => {
         reason: "",
       }),
     ).rejects.toThrow("Delete reason is required");
+
+    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+    expect(models.Expense.create).not.toHaveBeenCalled();
+    expect(existingExpense.update).not.toHaveBeenCalled();
+    expect(models.ExpenseAuditEvent.create).not.toHaveBeenCalled();
   });
 });

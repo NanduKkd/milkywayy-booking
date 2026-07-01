@@ -1,6 +1,6 @@
 # Admin analytics and finance task tracker
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-02
 - Overall implementation status: `IN_PROGRESS`
 - Current milestone: `M3 - Verification and rollout`
 
@@ -11,7 +11,7 @@
 | M0 - Metric and report contract | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Expense and analytics foundation | `DONE` | 5 | 5 | 4-6 days |
 | M2 - Reports and exports | `DONE` | 6 | 6 | 7-10 days |
-| M3 - Verification and rollout | `IN_PROGRESS` | 1 | 5 | 4-5 days |
+| M3 - Verification and rollout | `IN_PROGRESS` | 2 | 5 | 4-5 days |
 
 ## M0 - Metric and report contract
 
@@ -47,7 +47,7 @@
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
 | FIN-301 | Add calculation and reconciliation tests | `DONE` | Engineering | M2 | Payment, refund, pending, failed, cancelled, cross-month, and no-data cases pass | Added reconciliation fixtures and assertions to `src/lib/services/__tests__/financialAggregation.test.js` covering cross-month payment/refund timing, pending and failed transaction exclusion, cancelled/lost-value handling, prior-month reconciliation, and zero-data behavior across overview, Dashboard, Reports, and drill-down totals. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialAggregation.test.js --runInBand`. |
-| FIN-302 | Add expense authorization and audit tests | `NOT_STARTED` | Engineering | FIN-102 | Unauthorized and invalid mutations fail; soft deletion and audit evidence are correct | Pending |
+| FIN-302 | Add expense authorization and audit tests | `DONE` | Engineering | FIN-102 | Unauthorized and invalid mutations fail; soft deletion and audit evidence are correct | Expanded `src/lib/services/__tests__/expenseAdmin.test.js` to cover deny-paths across create/update/delete, invalid update rejection without writes/audit, and soft-delete audit snapshot/metadata assertions; extended `src/app/api/admin/expenses/__tests__/route.test.js` and `src/app/api/admin/expenses/[id]/__tests__/route.test.js` to verify anonymous/non-superadmin mutation denial plus safe 400 mapping for invalid updates. Verified on 2026-07-02 with `npx jest --runTestsByPath src/lib/services/__tests__/expenseAdmin.test.js src/app/api/admin/expenses/__tests__/route.test.js "src/app/api/admin/expenses/[id]/__tests__/route.test.js" --runInBand`. |
 | FIN-303 | Add export equivalence and injection-safety tests | `NOT_STARTED` | Engineering | FIN-203 to FIN-205 | Export totals match APIs and spreadsheet-formula injection is neutralized | Pending |
 | FIN-304 | Run migration and production-like volume checks | `NOT_STARTED` | Engineering | FIN-301 | Queries use indexes and meet agreed response limits on representative data | Pending |
 | FIN-305 | Roll out and reconcile initial figures | `NOT_STARTED` | Engineering / Finance / Operations | FIN-301 to FIN-304 | Finance signs off sampled totals; rollback and monitoring evidence is recorded | Pending |

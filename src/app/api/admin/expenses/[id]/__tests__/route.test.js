@@ -85,6 +85,37 @@ describe("Admin expense item API route", () => {
     });
   });
 
+  it("rejects anonymous and non-superadmin access for mutations", async () => {
+    auth.mockResolvedValueOnce(null);
+
+    const unauthorizedUpdateResponse = await PUT(
+      {
+        json: async () => ({
+          amount: "120.00",
+          expenseDate: "2026-07-05",
+          category: "software",
+        }),
+      },
+      { params: Promise.resolve({ id: "8" }) },
+    );
+
+    expect(unauthorizedUpdateResponse.status).toBe(401);
+    expect(updateExpense).not.toHaveBeenCalled();
+
+    auth.mockResolvedValueOnce({ id: 2, role: "CUSTOMER" });
+    models.User.findByPk.mockResolvedValueOnce({ id: 2, role: "CUSTOMER" });
+
+    const forbiddenDeleteResponse = await DELETE(
+      {
+        text: async () => JSON.stringify({ reason: "duplicate entry" }),
+      },
+      { params: Promise.resolve({ id: "8" }) },
+    );
+
+    expect(forbiddenDeleteResponse.status).toBe(403);
+    expect(deleteExpense).not.toHaveBeenCalled();
+  });
+
   it("maps not found and validation errors to safe statuses", async () => {
     const consoleSpy = jest.spyOn(console, "error").mockImplementation();
     updateExpense.mockRejectedValueOnce(new Error("Expense not found"));
@@ -101,6 +132,25 @@ describe("Admin expense item API route", () => {
     );
 
     expect(notFoundResponse.status).toBe(404);
+
+    updateExpense.mockRejectedValueOnce(
+      new Error("Expense category is unsupported"),
+    );
+
+    const badUpdateResponse = await PUT(
+      {
+        json: async () => ({
+          category: "invalid-category",
+        }),
+      },
+      { params: Promise.resolve({ id: "8" }) },
+    );
+
+    expect(badUpdateResponse.status).toBe(400);
+    expect(NextResponse.json).toHaveBeenCalledWith(
+      { error: "Expense category is unsupported" },
+      { status: 400 },
+    );
 
     deleteExpense.mockRejectedValueOnce(new Error("Delete reason is required"));
 
