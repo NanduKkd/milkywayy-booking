@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import ExpenseTrackerSection from "./ExpenseTrackerSection";
 
 const REPORT_TIMEZONE = "Asia/Dubai";
 
@@ -236,6 +237,7 @@ export default function FinancialReportsPage() {
 
   const empty = !loading && !error && !hasReportActivity(report);
   const selectedMonthLabel = formatMonthLabel(monthValue);
+  const { rangeEnd, rangeStart } = getMonthRange(monthValue);
 
   return (
     <div className="space-y-8">
@@ -513,8 +515,17 @@ export default function FinancialReportsPage() {
               </CardContent>
             </Card>
           </div>
+
         </>
       ) : null}
+
+      <ExpenseTrackerSection
+        onDataChanged={() => setReloadToken((value) => value + 1)}
+        rangeEnd={rangeEnd}
+        rangeStart={rangeStart}
+        reloadToken={reloadToken}
+        selectedMonthLabel={selectedMonthLabel}
+      />
     </div>
   );
 }
