@@ -92,6 +92,51 @@ function createSampleReport() {
   };
 }
 
+function parseCsvRows(csv) {
+  const parseCsvLine = (line) => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index];
+
+      if (character === '"') {
+        if (inQuotes && line[index + 1] === '"') {
+          current += '"';
+          index += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+
+        continue;
+      }
+
+      if (character === "," && !inQuotes) {
+        values.push(current);
+        current = "";
+        continue;
+      }
+
+      current += character;
+    }
+
+    values.push(current);
+
+    return values;
+  };
+  const [headerLine, ...rowLines] = String(csv).trim().split(/\r?\n/u);
+  const headers = parseCsvLine(headerLine.replace(/^\uFEFF/u, ""));
+
+  return rowLines.filter(Boolean).map((rowLine) => {
+    const values = parseCsvLine(rowLine);
+
+    return Object.fromEntries(
+      headers.map((header, index) => [header, values[index] ?? ""]),
+    );
+  });
+}
+
 describe("buildFinancialReportCsv", () => {
   it("serializes report sections into a deterministic CSV payload", () => {
     const csv = buildFinancialReportCsv(createSampleReport());
@@ -108,7 +153,7 @@ describe("buildFinancialReportCsv", () => {
   });
 
   it("neutralizes spreadsheet formulas in text cells", () => {
-    const csv = buildFinancialReportCsv({
+    const report = {
       comparisonMode: "previous_period",
       filters: {
         groupBy: "week",
@@ -116,10 +161,93 @@ describe("buildFinancialReportCsv", () => {
         rangeStartBusinessDate: "2026-06-01",
         timezone: "Asia/Dubai",
       },
-      revenueByService: [{ amount: 10, key: "marketing", label: "=2+3" }],
+      revenueByService: [
+        { amount: 10, key: "equals", label: "=2+3" },
+        { amount: 11, key: "plus", label: "+SUM(A1:A2)" },
+        { amount: 12, key: "minus", label: "-cmd|' /C calc'!A0" },
+        { amount: 13, key: "at", label: "@SUM(1+1)" },
+      ],
+    };
+    const csv = buildFinancialReportCsv(report);
+    const csvRows = parseCsvRows(csv);
+    const workbook = XLSX.read(buildFinancialReportWorkbook(report), {
+      cellDates: true,
+      type: "buffer",
     });
+    const reportDataRows = XLSX.utils.sheet_to_json(
+      workbook.Sheets["Report Data"],
+      {
+        defval: "",
+        raw: true,
+      },
+    );
 
-    expect(csv).toContain("revenueByService,marketing,'=2+3,amount,10");
+    expect(csvRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "'=2+3", rowKey: "equals" }),
+        expect.objectContaining({ label: "'+SUM(A1:A2)", rowKey: "plus" }),
+        expect.objectContaining({
+          label: "'-cmd|' /C calc'!A0",
+          rowKey: "minus",
+        }),
+        expect.objectContaining({ label: "'@SUM(1+1)", rowKey: "at" }),
+      ]),
+    );
+    expect(reportDataRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "'=2+3", rowKey: "equals" }),
+        expect.objectContaining({ label: "'+SUM(A1:A2)", rowKey: "plus" }),
+        expect.objectContaining({
+          label: "'-cmd|' /C calc'!A0",
+          rowKey: "minus",
+        }),
+        expect.objectContaining({ label: "'@SUM(1+1)", rowKey: "at" }),
+      ]),
+    );
+  });
+
+  it("keeps CSV rows aligned with the report payload totals and filters", () => {
+    const report = createSampleReport();
+    const csvRows = parseCsvRows(buildFinancialReportCsv(report));
+
+    expect(csvRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowKey: "rangeStartBusinessDate",
+          section: "metadata",
+          textValue: "2026-06-01",
+        }),
+        expect.objectContaining({
+          rowKey: "rangeEndBusinessDateExclusive",
+          section: "metadata",
+          textValue: "2026-07-01",
+        }),
+        expect.objectContaining({
+          numericValue: String(report.kpis.netRevenue),
+          rowKey: "netRevenue",
+          section: "kpis",
+          valueType: "amount",
+        }),
+        expect.objectContaining({
+          numericValue: String(report.kpis.completedBookings),
+          rowKey: "completedBookings",
+          section: "kpis",
+          valueType: "count",
+        }),
+        expect.objectContaining({
+          numericValue: String(report.profitAndLoss.netProfit),
+          rowKey: "netProfit",
+          section: "profitAndLoss",
+          valueType: "amount",
+        }),
+        expect.objectContaining({
+          numericValue: String(report.profitAndLoss.margin),
+          rowKey: "margin",
+          section: "profitAndLoss",
+          valueType: "percent",
+        }),
+      ]),
+    );
   });
 });
 
@@ -203,6 +331,47 @@ describe("buildFinancialReportWorkbook", () => {
       reportDataRows.find((row) => row.rowKey === "netRevenue")?.numericValue,
     ).toBe(1400);
   });
+
+  it("keeps workbook overview and report data aligned with the report payload", () => {
+    const report = createSampleReport();
+    const workbook = XLSX.read(buildFinancialReportWorkbook(report), {
+      cellDates: true,
+      type: "buffer",
+    });
+    const overviewRows = XLSX.utils.sheet_to_json(workbook.Sheets.Overview, {
+      defval: "",
+      raw: true,
+    });
+    const reportDataRows = XLSX.utils.sheet_to_json(
+      workbook.Sheets["Report Data"],
+      {
+        defval: "",
+        raw: true,
+      },
+    );
+
+    expect(
+      overviewRows.find((row) => row.label === "Report range start")?.value,
+    )
+      .toBeInstanceOf(Date);
+    expect(
+      overviewRows
+        .find((row) => row.label === "Report range start")
+        ?.value.toISOString()
+        .slice(0, 10),
+    ).toBe(report.filters.rangeStartBusinessDate);
+    expect(
+      overviewRows.find((row) => row.label === "Net revenue")?.value,
+    ).toBe(report.kpis.netRevenue);
+    expect(
+      overviewRows.find((row) => row.label === "Net profit")?.value,
+    ).toBe(report.kpis.netProfit);
+    expect(
+      reportDataRows.find(
+        (row) => row.section === "profitAndLoss" && row.rowKey === "margin",
+      )?.numericValue,
+    ).toBe(report.profitAndLoss.margin);
+  });
 });
 
 describe("buildFinancialReportWorkbookFilename", () => {
@@ -233,6 +402,11 @@ describe("buildFinancialReportPdfHtml", () => {
     expect(html).toContain(
       "This export reconciles to the live Financial Reports screen",
     );
+    expect(html).toContain("Jun 1, 2026");
+    expect(html).toContain("Jun 30, 2026");
+    expect(html).toContain("67.86%");
+    expect(html).toMatch(/1,400\.00/u);
+    expect(html).toMatch(/950\.00/u);
   });
 });
 

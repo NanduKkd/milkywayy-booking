@@ -3,6 +3,8 @@ import * as XLSX from "xlsx";
 import models from "@/lib/db/models";
 import { auth } from "@/lib/helpers/auth";
 import { getPricingConfig } from "@/lib/helpers/pricing";
+import { buildFinancialReports } from "@/lib/services/financialAggregation";
+import { GET as getReports } from "../../route";
 import { GET } from "../route";
 
 global.Response = class MockResponse {
@@ -96,7 +98,11 @@ jest.mock("puppeteer", () => ({
 }));
 
 jest.mock("@/lib/services/financialAggregation", () => ({
-  buildFinancialReports: jest.fn(() => ({
+  buildFinancialReports: jest.fn(),
+}));
+
+function createMockReport() {
+  return {
     bookingStatus: {
       buckets: [{ count: 3, key: "completed", label: "Completed" }],
     },
@@ -117,6 +123,8 @@ jest.mock("@/lib/services/financialAggregation", () => ({
     },
     kpis: {
       completedBookings: 3,
+      expenses: 450,
+      netProfit: 950,
       netRevenue: 1400,
     },
     monthlyComparison: [],
@@ -126,11 +134,56 @@ jest.mock("@/lib/services/financialAggregation", () => ({
       netProfit: 950,
       netRevenue: 1400,
     },
-    revenueByService: [],
+    revenueByService: [{ amount: 20, key: "equals", label: "=2+3" }],
     sixMonthTrend: { buckets: [] },
     weeklyTrend: { buckets: [] },
-  })),
-}));
+  };
+}
+
+function parseCsvRows(csv) {
+  const parseCsvLine = (line) => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index];
+
+      if (character === '"') {
+        if (inQuotes && line[index + 1] === '"') {
+          current += '"';
+          index += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+
+        continue;
+      }
+
+      if (character === "," && !inQuotes) {
+        values.push(current);
+        current = "";
+        continue;
+      }
+
+      current += character;
+    }
+
+    values.push(current);
+
+    return values;
+  };
+  const [headerLine, ...rowLines] = String(csv).trim().split(/\r?\n/u);
+  const headers = parseCsvLine(headerLine.replace(/^\uFEFF/u, ""));
+
+  return rowLines.filter(Boolean).map((rowLine) => {
+    const values = parseCsvLine(rowLine);
+
+    return Object.fromEntries(
+      headers.map((header, index) => [header, values[index] ?? ""]),
+    );
+  });
+}
 
 describe("Admin financial report CSV export route", () => {
   beforeEach(() => {
@@ -140,6 +193,7 @@ describe("Admin financial report CSV export route", () => {
     models.Booking.findAll.mockResolvedValue([{ id: 10 }]);
     models.Transaction.findAll.mockResolvedValue([{ id: 20 }]);
     models.Expense.findAll.mockResolvedValue([{ id: 30 }]);
+    buildFinancialReports.mockReturnValue(createMockReport());
     puppeteer.launch.mockResolvedValue({
       close: jest.fn().mockResolvedValue(undefined),
       newPage: jest.fn().mockResolvedValue({
@@ -167,6 +221,63 @@ describe("Admin financial report CSV export route", () => {
       "section,rowKey,label,valueType,numericValue,textValue",
     );
     expect(csv).toContain("kpis,netRevenue,netRevenue,amount,1400");
+  });
+
+  it("keeps CSV export totals aligned with the reports API response", async () => {
+    const requestUrl =
+      "http://localhost:3000/api/admin/analytics/reports?rangeStart=2026-06-01&rangeEnd=2026-06-30&groupBy=week";
+    const reportResponse = await getReports({ url: requestUrl });
+    const report = await reportResponse.json();
+    const exportResponse = await GET({
+      url: `${requestUrl}&format=csv`.replace("/reports?", "/reports/export?"),
+    });
+    const csvRows = parseCsvRows(await exportResponse.text());
+
+    expect(csvRows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rowKey: "rangeStartBusinessDate",
+          section: "metadata",
+          textValue: report.filters.rangeStartBusinessDate,
+        }),
+        expect.objectContaining({
+          rowKey: "rangeEndBusinessDateExclusive",
+          section: "metadata",
+          textValue: report.filters.rangeEndBusinessDateExclusive,
+        }),
+        expect.objectContaining({
+          rowKey: "netRevenue",
+          section: "kpis",
+          numericValue: String(report.kpis.netRevenue),
+        }),
+        expect.objectContaining({
+          rowKey: "expenses",
+          section: "kpis",
+          numericValue: String(report.kpis.expenses),
+        }),
+        expect.objectContaining({
+          rowKey: "completedBookings",
+          section: "kpis",
+          numericValue: String(report.kpis.completedBookings),
+        }),
+        expect.objectContaining({
+          rowKey: "netProfit",
+          section: "profitAndLoss",
+          numericValue: String(report.profitAndLoss.netProfit),
+        }),
+        expect.objectContaining({
+          rowKey: "margin",
+          section: "profitAndLoss",
+          numericValue: String(report.profitAndLoss.margin),
+        }),
+        expect.objectContaining({
+          rowKey: "equals",
+          section: "revenueByService",
+          label: "'=2+3",
+          numericValue: "20",
+        }),
+      ]),
+    );
   });
 
   it("returns an Excel attachment for an authorized superadmin", async () => {
@@ -200,6 +311,54 @@ describe("Admin financial report CSV export route", () => {
         }),
       ]),
     );
+  });
+
+  it("keeps Excel export totals aligned with the reports API response", async () => {
+    const requestUrl =
+      "http://localhost:3000/api/admin/analytics/reports?rangeStart=2026-06-01&rangeEnd=2026-06-30&groupBy=week";
+    const reportResponse = await getReports({ url: requestUrl });
+    const report = await reportResponse.json();
+    const exportResponse = await GET({
+      url: `${requestUrl}&format=xlsx`.replace("/reports?", "/reports/export?"),
+    });
+    const workbook = XLSX.read(Buffer.from(await exportResponse.arrayBuffer()), {
+      cellDates: true,
+      type: "buffer",
+    });
+    const overviewRows = XLSX.utils.sheet_to_json(workbook.Sheets.Overview, {
+      defval: "",
+      raw: true,
+    });
+    const reportDataRows = XLSX.utils.sheet_to_json(
+      workbook.Sheets["Report Data"],
+      {
+        defval: "",
+        raw: true,
+      },
+    );
+
+    expect(
+      overviewRows
+        .find((row) => row.label === "Report range start")
+        ?.value.toISOString()
+        .slice(0, 10),
+    ).toBe(report.filters.rangeStartBusinessDate);
+    expect(
+      overviewRows.find((row) => row.label === "Net revenue")?.value,
+    ).toBe(report.kpis.netRevenue);
+    expect(
+      overviewRows.find((row) => row.label === "Net profit")?.value,
+    ).toBe(report.kpis.netProfit);
+    expect(
+      reportDataRows.find(
+        (row) => row.section === "profitAndLoss" && row.rowKey === "margin",
+      )?.numericValue,
+    ).toBe(report.profitAndLoss.margin);
+    expect(
+      reportDataRows.find(
+        (row) => row.section === "revenueByService" && row.rowKey === "equals",
+      )?.label,
+    ).toBe("'=2+3");
   });
 
   it("returns a PDF attachment for an authorized superadmin", async () => {
