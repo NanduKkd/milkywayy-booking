@@ -1,7 +1,15 @@
-import { GET } from "../route";
-import Booking from "../../../../../lib/db/models/booking";
-import DynamicConfig from "../../../../../lib/db/models/dynamicconfig";
 import { Op } from "sequelize";
+import { sequelize } from "../../../../../lib/db/db";
+import Booking from "../../../../../lib/db/models/booking";
+import CalendarEvent from "../../../../../lib/db/models/calendarevent";
+import DynamicConfig from "../../../../../lib/db/models/dynamicconfig";
+import { GET, PUT } from "../route";
+
+const mockTransaction = {
+  LOCK: {
+    UPDATE: "UPDATE",
+  },
+};
 
 jest.mock("next/server", () => ({
   NextResponse: {
@@ -16,14 +24,28 @@ jest.mock("../../../../../lib/db/models/booking", () => ({
   findAll: jest.fn(),
 }));
 
+jest.mock("../../../../../lib/db/models/calendarevent", () => ({
+  findAll: jest.fn(),
+}));
+
 jest.mock("../../../../../lib/db/models/dynamicconfig", () => ({
   findOne: jest.fn(),
   findOrCreate: jest.fn(),
 }));
 
+jest.mock("../../../../../lib/db/models/transaction", () => ({}));
+
+jest.mock("../../../../../lib/db/db", () => ({
+  sequelize: {
+    query: jest.fn(),
+    transaction: jest.fn((callback) => callback(mockTransaction)),
+  },
+}));
+
 describe("Admin TimeSlots API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    CalendarEvent.findAll.mockResolvedValue([]);
   });
 
   it("returns config and bookedMap with booked slots", async () => {
@@ -154,5 +176,120 @@ describe("Admin TimeSlots API Route", () => {
         "7 Bed"
       ],
     ).toBe(5.5);
+  });
+
+  it("returns 409 when a new block conflicts with an existing booking", async () => {
+    const existingEntry = {
+      value: {
+        version: 2,
+        weeklyRules: {},
+        dateOverrides: {},
+        slotRules: [],
+        systemSettings: {
+          rollingWindowDays: 90,
+          workingDays: {},
+          blockDefinitions: {},
+        },
+      },
+      save: jest.fn(),
+    };
+
+    DynamicConfig.findOrCreate.mockResolvedValue([existingEntry, false]);
+    Booking.findAll.mockResolvedValue([
+      {
+        id: 1,
+        bookingCode: "BK-001",
+        date: "2026-07-12",
+        slot: 1,
+        startTime: "09:00",
+        duration: 1,
+        status: "CONFIRMED",
+      },
+    ]);
+
+    const request = {
+      json: jest.fn().mockResolvedValue({
+        timeSlots: {
+          version: 2,
+          weeklyRules: {},
+          dateOverrides: {
+            "2026-07-12": {
+              blocks: {
+                morning: "blocked",
+              },
+            },
+          },
+          slotRules: [],
+          systemSettings: {
+            rollingWindowDays: 90,
+            workingDays: {},
+            blockDefinitions: {},
+          },
+        },
+      }),
+    };
+
+    const response = await PUT(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(data.reasonCode).toBe("schedule_conflict_existing_records");
+    expect(data.conflicts[0].bookings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          bookingCode: "BK-001",
+          date: "2026-07-12",
+        }),
+      ]),
+    );
+    expect(existingEntry.save).not.toHaveBeenCalled();
+  });
+
+  it("persists new blocks when no scheduled records conflict", async () => {
+    const existingEntry = {
+      value: {
+        version: 2,
+        weeklyRules: {},
+        dateOverrides: {},
+        slotRules: [],
+        systemSettings: {
+          rollingWindowDays: 90,
+          workingDays: {},
+          blockDefinitions: {},
+        },
+      },
+      save: jest.fn(),
+    };
+
+    DynamicConfig.findOrCreate.mockResolvedValue([existingEntry, false]);
+    Booking.findAll.mockResolvedValue([]);
+
+    const request = {
+      json: jest.fn().mockResolvedValue({
+        timeSlots: {
+          version: 2,
+          weeklyRules: {},
+          dateOverrides: {
+            "2026-07-13": {
+              fullDayBlocked: true,
+            },
+          },
+          slotRules: [],
+          systemSettings: {
+            rollingWindowDays: 90,
+            workingDays: {},
+            blockDefinitions: {},
+          },
+        },
+      }),
+    };
+
+    const response = await PUT(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({ success: true });
+    expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+    expect(existingEntry.save).toHaveBeenCalledTimes(1);
   });
 });

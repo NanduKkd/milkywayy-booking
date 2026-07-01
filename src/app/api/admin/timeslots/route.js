@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Op } from "sequelize";
+import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import {
@@ -9,6 +10,10 @@ import {
   getDynamicTwilightSlotLabel,
 } from "@/lib/helpers/bookingUtils";
 import { formatBookingReference } from "@/lib/helpers/invoice-format";
+import {
+  revalidateSchedulingRequests,
+  SchedulingConflictError,
+} from "@/lib/services/schedulingConflictRevalidation";
 
 const CONFIG_KEY = "timeSlots";
 const DAYS_OF_WEEK = [
@@ -62,6 +67,7 @@ const DEFAULT_PERIODS = [
     slotsRequired: 1,
   },
 ];
+const PERIODS = ["morning", "afternoon", "evening"];
 
 const DEFAULT_SYSTEM_SETTINGS = {
   rollingWindowDays: 90,
@@ -340,7 +346,9 @@ export async function GET(request) {
 
         bookedDetailsMap[booking.date][period].push({
           bookingCode: formatBookingReference(booking),
-          propertyLabel: [propertyType, propertySize].filter(Boolean).join(" - "),
+          propertyLabel: [propertyType, propertySize]
+            .filter(Boolean)
+            .join(" - "),
           serviceLabel,
           slotLabel,
           arrival:
@@ -369,6 +377,46 @@ function labelizePeriod(period) {
   return period.charAt(0).toUpperCase() + period.slice(1);
 }
 
+function buildDateOverrideBlockRequests(previousConfig, nextConfig) {
+  const previousOverrides = previousConfig?.dateOverrides || {};
+  const nextOverrides = nextConfig?.dateOverrides || {};
+  const dates = [...new Set(Object.keys(nextOverrides))].sort();
+  const requests = [];
+
+  dates.forEach((date) => {
+    const previousOverride = previousOverrides[date] || {};
+    const nextOverride = nextOverrides[date] || {};
+
+    if (
+      nextOverride.fullDayBlocked === true &&
+      previousOverride.fullDayBlocked !== true
+    ) {
+      requests.push({
+        type: "block",
+        date,
+        fullDayBlocked: true,
+      });
+      return;
+    }
+
+    const newlyBlockedPeriods = PERIODS.filter(
+      (period) =>
+        nextOverride.blocks?.[period] === "blocked" &&
+        previousOverride.blocks?.[period] !== "blocked",
+    );
+
+    if (newlyBlockedPeriods.length > 0) {
+      requests.push({
+        type: "block",
+        date,
+        blockedPeriods: newlyBlockedPeriods,
+      });
+    }
+  });
+
+  return requests;
+}
+
 export async function PUT(request) {
   try {
     const body = await request.json();
@@ -381,18 +429,48 @@ export async function PUT(request) {
       );
     }
 
-    const [entry, created] = await DynamicConfig.findOrCreate({
-      where: { key: CONFIG_KEY },
-      defaults: { value: timeSlots },
-    });
+    await sequelize.transaction(async (transaction) => {
+      const [entry, created] = await DynamicConfig.findOrCreate({
+        where: { key: CONFIG_KEY },
+        defaults: { value: timeSlots },
+        transaction,
+      });
 
-    if (!created) {
-      entry.value = timeSlots;
-      await entry.save();
-    }
+      const previousConfig = created
+        ? getDefaultConfig()
+        : normalizeConfig(entry.value);
+      const blockRequests = buildDateOverrideBlockRequests(
+        previousConfig,
+        timeSlots,
+      );
+
+      if (blockRequests.length > 0) {
+        await revalidateSchedulingRequests({
+          dates: blockRequests.map((item) => item.date),
+          requests: blockRequests,
+          transaction,
+        });
+      }
+
+      if (!created) {
+        entry.value = timeSlots;
+        await entry.save({ transaction });
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof SchedulingConflictError) {
+      return NextResponse.json(
+        {
+          error: error.message,
+          reasonCode: error.reasonCode,
+          conflicts: error.conflicts,
+        },
+        { status: error.status || 409 },
+      );
+    }
+
     console.error("Error saving admin time slots:", error);
     return NextResponse.json(
       { error: "Failed to save time slots" },

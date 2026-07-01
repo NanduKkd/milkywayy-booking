@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
 import Booking from "@/lib/db/models/booking";
+import CalendarEvent from "@/lib/db/models/calendarevent";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
 import {
   cancelBookingBySessionId,
@@ -13,6 +14,7 @@ jest.unmock("@/lib/actions/utils"); // unmock utils too just in case
 
 import Stripe from "stripe";
 import { getDiscounts } from "@/lib/actions/discounts";
+import { sequelize } from "@/lib/db/db";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import { auth } from "@/lib/helpers/auth";
@@ -24,12 +26,29 @@ import {
 } from "@/lib/services/promotionCheckout";
 import { evaluateCheckoutPromotionPricing } from "@/lib/services/promotionPricing";
 
+const mockTransaction = {
+  LOCK: {
+    UPDATE: "UPDATE",
+  },
+};
+
+function buildFutureWorkingDate() {
+  const date = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  while (date.getDay() === 0) {
+    date.setDate(date.getDate() + 1);
+  }
+
+  return date.toISOString().slice(0, 10);
+}
+
 // Mock dependencies that cause side effects or DB connections
 jest.mock("@/lib/db/relations", () => ({}));
 jest.mock("@/lib/db/db", () => ({
   sequelize: {
     define: jest.fn(() => ({})),
-    transaction: jest.fn(),
+    query: jest.fn(),
+    transaction: jest.fn((callback) => callback(mockTransaction)),
     models: {
       User: {},
       Transaction: {},
@@ -43,6 +62,10 @@ jest.mock("@/lib/db/models/booking", () => ({
   destroy: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
+}));
+
+jest.mock("@/lib/db/models/calendarevent", () => ({
+  findAll: jest.fn(),
 }));
 
 jest.mock("@/lib/db/models/transaction", () => ({
@@ -109,9 +132,7 @@ jest.mock("stripe", () => {
 
 describe("Booking Actions", () => {
   const mockUserId = "user-123";
-  const mockFutureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const mockFutureDate = buildFutureWorkingDate();
   const mockProperties = [
     {
       propertyType: "Apartment",
@@ -150,6 +171,7 @@ describe("Booking Actions", () => {
       id: mockUserId,
       email: "test@example.com",
     });
+    DynamicConfig.findOne.mockResolvedValue(null);
     applyPromotionForCheckoutTransaction.mockResolvedValue(null);
     releasePromotionForCheckoutTransaction.mockResolvedValue(null);
     reservePromotionForCheckoutTransaction.mockResolvedValue(null);
@@ -162,6 +184,7 @@ describe("Booking Actions", () => {
     // Mock Booking.findAll to return empty for availability check
     Booking.findAll.mockResolvedValue([]);
     Booking.count.mockResolvedValue(0);
+    CalendarEvent.findAll.mockResolvedValue([]);
   });
 
   describe("createBookings", () => {
@@ -181,7 +204,9 @@ describe("Booking Actions", () => {
       expect(result.data).toEqual([{ id: 1, bookingCode: "MWB-1001" }]);
       expect(Booking.destroy).toHaveBeenCalledWith({
         where: { userId: mockUserId, status: "DRAFT" },
+        transaction: mockTransaction,
       });
+      expect(sequelize.transaction).toHaveBeenCalledTimes(1);
       expect(Booking.create).toHaveBeenCalledTimes(1);
       expect(Booking.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -191,6 +216,7 @@ describe("Booking Actions", () => {
           duration: 2,
           total: 500,
         }),
+        { transaction: mockTransaction },
       );
     });
 
@@ -227,6 +253,23 @@ describe("Booking Actions", () => {
 
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/blocked by admin calendar rules/i);
+    });
+
+    it("should fail if the requested slot overlaps a capacity-consuming calendar event", async () => {
+      CalendarEvent.findAll.mockResolvedValue([
+        {
+          id: 51,
+          businessDate: mockFutureDate,
+          period: "morning",
+          status: "ACTIVE",
+          consumesCapacity: true,
+        },
+      ]);
+
+      const result = await createBookings(mockProperties);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/no longer available/i);
     });
 
     it("should return error if not authenticated", async () => {

@@ -2,14 +2,14 @@
 
 - Last updated: 2026-07-02
 - Overall implementation status: `IN_PROGRESS`
-- Current milestone: `M1 - Data and shared availability`
+- Current milestone: `M2 - Calendar and entry flows`
 
 ## Progress summary
 
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
 | M0 - Scheduling contract | `IN_PROGRESS` | 0 | 2 | 1-2 days |
-| M1 - Data and shared availability | `IN_PROGRESS` | 3 | 4 | 3-4 days |
+| M1 - Data and shared availability | `DONE` | 4 | 4 | 3-4 days |
 | M2 - Calendar and entry flows | `NOT_STARTED` | 0 | 5 | 5-7 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 4 | 3-4 days |
 
@@ -27,7 +27,7 @@
 | CAL-101 | Add calendar-only event persistence and migration | `DONE` | Engineering | CAL-002 | Events store schedule, label/details, capacity behavior, creator, status, and audit timestamps | `src/lib/db/migrations/__tests__/20260702113000-create-calendar-events.test.js`, `src/lib/db/models/__tests__/calendarevent.test.js`, `npm test -- --runInBand src/lib/db/migrations/__tests__/20260702113000-create-calendar-events.test.js src/lib/db/models/__tests__/calendarevent.test.js` |
 | CAL-102 | Build unified calendar query service | `DONE` | Engineering | CAL-101 | One bounded query returns bookings, events, and effective blocks for a date range | `src/lib/services/adminSchedulingCalendar.js`, `src/lib/services/__tests__/adminSchedulingCalendar.test.js`, `src/app/api/admin/scheduling-calendar/route.js`, `src/app/api/admin/scheduling-calendar/__tests__/route.test.js`, `npm test -- --runInBand src/lib/services/__tests__/adminSchedulingCalendar.test.js src/app/api/admin/scheduling-calendar/__tests__/route.test.js` |
 | CAL-103 | Extract shared availability evaluation | `DONE` | Engineering | CAL-001 | Customer booking and admin calendar use the same precedence and capacity calculations | `src/lib/services/schedulingAvailability.js`, `src/lib/services/__tests__/schedulingAvailability.test.js`, `src/lib/services/adminSchedulingCalendar.js`, `src/lib/actions/bookings.js`, `src/lib/actions/__tests__/bookings.test.js`, `npm test -- --runInBand src/lib/services/__tests__/schedulingAvailability.test.js src/lib/services/__tests__/adminSchedulingCalendar.test.js src/lib/actions/__tests__/bookings.test.js`, `npx biome check src/lib/services/schedulingAvailability.js src/lib/services/adminSchedulingCalendar.js src/lib/actions/bookings.js src/lib/services/__tests__/schedulingAvailability.test.js src/lib/actions/__tests__/bookings.test.js` |
-| CAL-104 | Add transactional conflict revalidation | `NOT_STARTED` | Engineering | CAL-103 | Conflicting concurrent creates/blocks fail safely with actionable responses | Pending |
+| CAL-104 | Add transactional conflict revalidation | `DONE` | Engineering | CAL-103 | Conflicting concurrent creates/blocks fail safely with actionable responses | `src/lib/services/schedulingConflictRevalidation.js`, `src/lib/services/__tests__/schedulingConflictRevalidation.test.js`, `src/lib/actions/bookings.js`, `src/lib/actions/__tests__/bookings.test.js`, `src/app/api/admin/timeslots/route.js`, `src/app/api/admin/timeslots/__tests__/route.test.js`, `npm test -- --runInBand src/lib/actions/__tests__/bookings.test.js src/lib/services/__tests__/schedulingConflictRevalidation.test.js src/app/api/admin/timeslots/__tests__/route.test.js`, `npx biome check src/lib/services/schedulingConflictRevalidation.js src/lib/services/__tests__/schedulingConflictRevalidation.test.js src/lib/actions/bookings.js src/lib/actions/__tests__/bookings.test.js src/app/api/admin/timeslots/route.js src/app/api/admin/timeslots/__tests__/route.test.js` |
 
 ## M2 - Calendar and entry flows
 

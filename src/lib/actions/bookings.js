@@ -64,6 +64,11 @@ import {
   normalizeTimeSlotConfig,
   PERIOD_TO_HOURLY,
 } from "@/lib/services/schedulingAvailability";
+import {
+  assertSchedulingRequestsAvailable,
+  loadSchedulingConflictContext,
+  SchedulingConflictError,
+} from "@/lib/services/schedulingConflictRevalidation";
 import { USER_ROLES } from "../config/app.config";
 
 let stripe;
@@ -639,12 +644,22 @@ export const getAvailabilityForRange = actionWrapper(
   getAvailabilityForRangeHandler,
 );
 
-const checkAvailability = async (properties, excludeBookingIds = []) => {
-  const configEntry = await DynamicConfig.findOne({
-    where: { key: "timeSlots" },
-    attributes: ["value"],
+const checkAvailability = async (
+  properties,
+  excludeBookingIds = [],
+  { transaction = null } = {},
+) => {
+  const datesToCheck = [
+    ...new Set(
+      properties.map((property) => property.preferredDate).filter(Boolean),
+    ),
+  ];
+  const schedulingContext = await loadSchedulingConflictContext({
+    dates: datesToCheck,
+    transaction,
   });
-  const timeSlotConfig = normalizeTimeSlotConfig(configEntry?.value);
+  const timeSlotConfig = schedulingContext.timeSlotConfig;
+  const normalizedRequests = [];
 
   for (const property of properties) {
     if (!property.preferredDate) continue;
@@ -699,51 +714,43 @@ const checkAvailability = async (properties, excludeBookingIds = []) => {
     });
     if (requestedSlots.length === 0) continue;
 
-    const blockedByAdmin = getBlockedSlotTimesForDate(
-      property.preferredDate,
-      timeSlotConfig,
-    );
-    const blockedByRules = requestedSlots.some((slot) =>
-      blockedByAdmin.has(slot),
-    );
-    if (blockedByRules) {
-      throw new Error(
-        `Selected time on ${property.preferredDate} is blocked by admin calendar rules.`,
-      );
-    }
-
-    const whereClause = {
+    normalizedRequests.push({
+      type: "booking",
       date: property.preferredDate,
-    };
-
-    if (excludeBookingIds.length > 0) {
-      whereClause.id = { [Op.notIn]: excludeBookingIds };
-    }
-
-    const existingBookings = await Booking.findAll({
-      where: whereClause,
-      include: [{ model: Transaction, as: "transaction" }],
+      startTime,
+      durationHours: duration,
+      isNightService: isNightCompatible,
     });
+  }
 
-    const isBlocked = existingBookings.some((b) => {
-      if (!isSlotBlocked(b)) return false;
-
-      const bStartTime = b.startTime || REVERSE_SLOT_MAPPING[b.slot];
-      const bDuration = b.duration || 1;
-      const bSlots = getTimeSlots(bStartTime, bDuration, {
-        isNightService: isNightServiceFromBooking(b),
-      });
-
-      // Check for intersection
-      return requestedSlots.some((slot) => bSlots.includes(slot));
+  try {
+    assertSchedulingRequestsAvailable({
+      context: schedulingContext,
+      requests: normalizedRequests,
+      excludeBookingIds,
     });
+  } catch (error) {
+    if (error instanceof SchedulingConflictError) {
+      const conflictDate =
+        error.conflicts?.[0]?.date || normalizedRequests[0]?.date;
 
-    if (isBlocked) {
+      if (error.reasonCode === "schedule_conflict_blocked_period") {
+        throw new Error(
+          `Selected time on ${conflictDate} is blocked by admin calendar rules.`,
+        );
+      }
+
       throw new Error(
-        `Selected time on ${property.preferredDate} is no longer available.`,
+        `Selected time on ${conflictDate} is no longer available.`,
       );
     }
+
+    throw error;
   }
+
+  return {
+    timeSlotConfig,
+  };
 };
 
 const calculatePropertyPrice = (property, pricingConfig) => {
@@ -975,29 +982,35 @@ export const rescheduleBookingByCode = actionWrapper(
       },
     );
 
-    await checkAvailability(
-      [
-        {
-          preferredDate: selectedDate,
-          startTime: normalizedStartTime,
-          timeSlot: REVERSE_SLOT_MAPPING[slotNumber],
-          duration: computedDuration,
-          services,
-          videographySubService,
-          propertyType,
-          propertySize,
-        },
-      ],
-      [booking.id],
-    );
+    await db.transaction(async (transaction) => {
+      await checkAvailability(
+        [
+          {
+            preferredDate: selectedDate,
+            startTime: normalizedStartTime,
+            timeSlot: REVERSE_SLOT_MAPPING[slotNumber],
+            duration: computedDuration,
+            services,
+            videographySubService,
+            propertyType,
+            propertySize,
+          },
+        ],
+        [booking.id],
+        { transaction },
+      );
 
-    await booking.update({
-      date: selectedDate,
-      startTime: normalizedStartTime,
-      slot: slotNumber,
-      duration: computedDuration,
-      rescheduledAt: new Date(),
-      rescheduleCount: (booking.rescheduleCount || 0) + 1,
+      await booking.update(
+        {
+          date: selectedDate,
+          startTime: normalizedStartTime,
+          slot: slotNumber,
+          duration: computedDuration,
+          rescheduledAt: new Date(),
+          rescheduleCount: (booking.rescheduleCount || 0) + 1,
+        },
+        { transaction },
+      );
     });
 
     try {
@@ -1054,93 +1067,94 @@ const saveDraftsHandler = async (properties) => {
 
   const userId = session.id;
 
-  // Delete existing drafts for this user to avoid duplicates
-
-  // We only delete DRAFT status bookings, preserving history of confirmed/cancelled ones
-  await Booking.destroy({
-    where: {
-      userId: userId,
-      status: "DRAFT",
-    },
-  });
-
-  // Check availability first
-  await checkAvailability(properties);
-
-  const createdBookings = [];
-
   const pricingConfig = await getPricingConfig();
-  const configEntry = await DynamicConfig.findOne({
-    where: { key: "timeSlots" },
-    attributes: ["value"],
-  });
-  const timeSlotConfig = normalizeTimeSlotConfig(configEntry?.value);
 
-  for (const property of properties) {
-    const price = calculatePropertyPrice(property, pricingConfig);
-
-    const duration = calculateBookingDuration(
-      {
-        id: property.services || [],
-        videographySubService: property.videographySubService || "",
+  return db.transaction(async (transaction) => {
+    await Booking.destroy({
+      where: {
+        userId: userId,
+        status: "DRAFT",
       },
-      {
-        type: property.propertyType,
-        size: property.propertySize,
-        videographySubService: property.videographySubService || "",
-      },
-      {
-        slotCapacity: timeSlotConfig?.systemSettings?.slotCapacity,
-        weightModel: timeSlotConfig?.systemSettings?.weightModel,
-      },
-    );
-
-    const booking = await Booking.create({
-      userId: userId,
-      shootDetails: {
-        services: property.services,
-        videographySubService: property.videographySubService || null,
-      },
-      propertyDetails: {
-        type: property.propertyType,
-        size: property.propertySize,
-        building: property.building,
-        community: property.community,
-        unit: property.unitNumber,
-      },
-      contactDetails: {
-        name: property.contactName,
-        phone: property.contactPhone,
-        email: property.contactEmail,
-      },
-      date: property.preferredDate || null,
-      startTime:
-        property.startTime ||
-        (property.timeSlot === "morning"
-          ? "09:00"
-          : property.timeSlot === "afternoon"
-            ? "13:00"
-            : property.timeSlot === "evening"
-              ? "17:00"
-              : null),
-      slot:
-        SLOT_MAPPING[property.timeSlot] ||
-        START_TIME_TO_SLOT[property.startTime] ||
-        null,
-      duration: property.duration || duration,
-      total: price,
-      status: "DRAFT",
+      transaction,
     });
-    createdBookings.push(booking);
-  }
 
-  // Generate booking codes for new bookings
-  for (const booking of createdBookings) {
-    const bookingCode = buildBookingReferenceFromId(booking.id);
-    await booking.update({ bookingCode });
-  }
+    const { timeSlotConfig } = await checkAvailability(properties, [], {
+      transaction,
+    });
 
-  return createdBookings.map((b) => ({ id: b.id, bookingCode: b.bookingCode }));
+    const createdBookings = [];
+
+    for (const property of properties) {
+      const price = calculatePropertyPrice(property, pricingConfig);
+
+      const duration = calculateBookingDuration(
+        {
+          id: property.services || [],
+          videographySubService: property.videographySubService || "",
+        },
+        {
+          type: property.propertyType,
+          size: property.propertySize,
+          videographySubService: property.videographySubService || "",
+        },
+        {
+          slotCapacity: timeSlotConfig?.systemSettings?.slotCapacity,
+          weightModel: timeSlotConfig?.systemSettings?.weightModel,
+        },
+      );
+
+      const booking = await Booking.create(
+        {
+          userId: userId,
+          shootDetails: {
+            services: property.services,
+            videographySubService: property.videographySubService || null,
+          },
+          propertyDetails: {
+            type: property.propertyType,
+            size: property.propertySize,
+            building: property.building,
+            community: property.community,
+            unit: property.unitNumber,
+          },
+          contactDetails: {
+            name: property.contactName,
+            phone: property.contactPhone,
+            email: property.contactEmail,
+          },
+          date: property.preferredDate || null,
+          startTime:
+            property.startTime ||
+            (property.timeSlot === "morning"
+              ? "09:00"
+              : property.timeSlot === "afternoon"
+                ? "13:00"
+                : property.timeSlot === "evening"
+                  ? "17:00"
+                  : null),
+          slot:
+            SLOT_MAPPING[property.timeSlot] ||
+            START_TIME_TO_SLOT[property.startTime] ||
+            null,
+          duration: property.duration || duration,
+          total: price,
+          status: "DRAFT",
+        },
+        { transaction },
+      );
+      createdBookings.push(booking);
+    }
+
+    for (const booking of createdBookings) {
+      const bookingCode = buildBookingReferenceFromId(booking.id);
+      await booking.update({ bookingCode }, { transaction });
+    }
+
+    return createdBookings.map((booking) => ({
+      id: booking.id,
+      bookingCode: booking.bookingCode,
+    }));
+  });
 };
 export const saveDrafts = actionWrapper(saveDraftsHandler);
 
