@@ -35,4 +35,3 @@
 - More than one promotion applies or wallet value disappears.
 - Usage limits can be exceeded through concurrency or payment retries.
 - Checkout, transaction, and invoice totals disagree.
-- The pre-existing launch-credit behavioral mismatch remains unresolved at cutover.
