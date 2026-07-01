@@ -1,14 +1,14 @@
 # Admin analytics and finance task tracker
 
 - Last updated: 2026-07-01
-- Overall implementation status: `NOT_STARTED`
-- Current milestone: `M0 - Metric and report contract`
+- Overall implementation status: `IN_PROGRESS`
+- Current milestone: `M1 - Expense and analytics foundation`
 
 ## Progress summary
 
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
-| M0 - Metric and report contract | `IN_PROGRESS` | 2 | 3 | 2-3 days |
+| M0 - Metric and report contract | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Expense and analytics foundation | `NOT_STARTED` | 0 | 5 | 4-6 days |
 | M2 - Reports and exports | `NOT_STARTED` | 0 | 6 | 7-10 days |
 | M3 - Verification and rollout | `NOT_STARTED` | 0 | 5 | 4-5 days |
@@ -19,7 +19,7 @@
 |---|---|---|---|---|---|---|
 | FIN-001 | Approve revenue and refund recognition rules | `DONE` | Product / Engineering | None | Net successful payments by `paidAt`, less refunds, is the authoritative revenue basis | `DECISIONS.md` now records `FIN-D001` and `FIN-D010`, locking cash reporting to successful payments by `paidAt` and refund recognition by refund occurrence date in Dubai business time. |
 | FIN-002 | Define every dashboard and report metric | `DONE` | Engineering | FIN-001 | Formula, source fields, timezone, filters, and empty behavior are documented | `ARCHITECTURE.md` now defines common reporting semantics plus Dashboard and Financial Report metric contracts covering formulas, source fields, filter expectations, comparison behavior, and empty-state handling. |
-| FIN-003 | Define report and export filter contract | `NOT_STARTED` | Engineering | FIN-002 | Screen, drill-down, CSV, Excel, and PDF use identical validated filters | Pending |
+| FIN-003 | Define report and export filter contract | `DONE` | Engineering | FIN-002 | Screen, drill-down, CSV, Excel, and PDF use identical validated filters | `ARCHITECTURE.md` now defines the canonical filter fields, normalization rules, per-surface overlays, and export-equivalence requirements, while `DECISIONS.md` records `FIN-D011` to lock all analytics surfaces onto the same validated contract. |
 
 ## M1 - Expense and analytics foundation
 

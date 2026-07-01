@@ -99,6 +99,65 @@ inclusive/exclusive semantics to prevent double counting.
 - Drill-down totals must reconcile exactly to the aggregate metric that opened
   the drill-down, using the same date basis and filters.
 
+## Shared filter and export contract
+
+Every analytics surface accepts one canonical validated filter object. Dashboard
+cards, Financial Reports, drill-downs, CSV, Excel, and PDF exports may layer
+surface-specific options on top of that object, but they may not reinterpret
+date boundaries, silently widen scope, or add hidden server-only filters.
+
+### Canonical filter fields
+
+| Field | Required | Contract |
+|---|---|---|
+| `rangeStart` | Yes | Inclusive lower bound. Accept an ISO 8601 timestamp or a date-only `YYYY-MM-DD` value; date-only input is normalized to the start of that Dubai business day. |
+| `rangeEnd` | Yes | Exclusive upper bound. Accept an ISO 8601 timestamp or a date-only `YYYY-MM-DD` value; date-only input is normalized to the start of the following Dubai business day so every request remains `[rangeStart, rangeEnd)`. |
+| `timezone` | No | Defaults to `Asia/Dubai`. If supplied, it must equal `Asia/Dubai`; first release does not support caller-selected reporting timezones. |
+| `comparisonMode` | No | Only `previous_period` is valid. Omitted means comparison is still derived as the immediately preceding contiguous period with the same duration. |
+| `serviceKey` | No | Canonical service slug from the pricing configuration, or `unallocated` for value that cannot be attributed exactly. Unsupported values are rejected. |
+| `bookingStatusBucket` | No | One of the documented report buckets: `pending`, `completed`, `cancelled`, or `all`. Raw workflow states are not accepted as filter input. |
+| `expenseCategory` | No | Canonical configured expense-category slug. Deleted or unknown categories are rejected rather than treated as no-op filters. |
+| `groupBy` | No | Only `day`, `week`, or `month`. Each endpoint further narrows which groupings it accepts. |
+| `metricKey` | No | Required for drill-down requests. Must reference a metric explicitly documented in this feature contract; arbitrary SQL/report column names are never accepted from clients. |
+| `page` | No | Drill-down only. Integer `>= 1`. Omitted defaults to `1`. |
+| `pageSize` | No | Drill-down only. Integer `1-100`. Omitted defaults to `25`. |
+| `sortKey` | No | Drill-down only. Must be selected from a per-metric allowlist documented by the API response metadata. |
+| `sortDirection` | No | Drill-down only. `asc` or `desc`; omitted uses the metric's default stable sort. |
+
+### Validation and normalization rules
+
+- Reject requests missing `rangeStart` or `rangeEnd`.
+- Reject ranges where the normalized end is not after the normalized start.
+- Reject normalized ranges wider than `366` Dubai business days.
+- Normalize all date-only input before database access; do not let each query
+  path interpret raw strings independently.
+- Treat omitted optional filters and explicit `null` values identically.
+- Reject unknown filter keys so exports and drill-downs cannot smuggle
+  unreviewed query behavior into the aggregation layer.
+- Canonicalize every accepted request into a normalized server object that is
+  reused unchanged by screen APIs, drill-down queries, and export jobs.
+
+### Surface overlays
+
+| Surface | Allowed overlay fields | Additional contract |
+|---|---|---|
+| Dashboard summary API | `comparisonMode` | Summary responses use the canonical range and comparison period only. Pagination, sort, `metricKey`, and export-format inputs are invalid. |
+| Financial report API | `comparisonMode`, `serviceKey`, `bookingStatusBucket`, `expenseCategory`, `groupBy` | `groupBy` is limited to `week` and `month` for report charts. The KPI strip, charts, breakdowns, and P&L all read from the same normalized filter object. |
+| Drill-down API | `metricKey`, `serviceKey`, `bookingStatusBucket`, `expenseCategory`, `page`, `pageSize`, `sortKey`, `sortDirection` | The drill-down must use the exact same normalized base filters as the card or report section that opened it. Only one documented metric domain may be drilled at a time. |
+| Export API | Same filter fields as the source Dashboard/Report/Drill-down view plus `format` in `{csv,xlsx,pdf}` | Export jobs reuse the caller's normalized filter object exactly. They may not request a wider range, a different comparison mode, extra hidden columns, or an alternate dataset version. |
+
+### Export equivalence rules
+
+- CSV, Excel, and PDF exports must embed the normalized date range, timezone,
+  and any optional filter labels visible on screen.
+- Export totals, bucket counts, and drill-down rows must reconcile to the same
+  normalized request that rendered the UI state the operator exported.
+- When a screen launches an export from a drill-down, the export inherits the
+  active `metricKey`, pagination-off row scope, and sort order unless the
+  format explicitly documents a different full-result export mode.
+- Export filenames and audit events should store the same normalized filter
+  payload used for generation so reconciliation does not depend on browser state.
+
 ## Dashboard metric contract
 
 | Metric | Formula and date basis | Source fields | Filters | Empty behavior |
@@ -138,5 +197,5 @@ inclusive/exclusive semantics to prevent double counting.
 - Metrics may add optional drill-down selectors such as service key, booking
   status bucket, page, and page size, but they may not reinterpret the
   underlying date basis in the browser.
-- FIN-003 will turn these expectations into the shared validated request schema
-  used by screen APIs, drill-downs, and exports.
+- The shared validated request schema above is the source of truth for screen
+  APIs, drill-downs, and exports.

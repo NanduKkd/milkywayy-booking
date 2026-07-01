@@ -16,6 +16,7 @@
 | FIN-D008 | Dubai business time defines reporting periods. | Month/day boundaries must match the operating business rather than server timezone. |
 | FIN-D009 | Prototype figures and comparison claims are never shipped as defaults. | Every figure must derive from live records and expose a truthful empty state. |
 | FIN-D010 | Refunds are recognized in the Dubai business period containing the refund occurrence timestamp, not the original payment period. | First-release reporting is cash-based. The drill-down still retains the original `paidAt` so operators can reconcile the refund to its source payment. |
+| FIN-D011 | Dashboard, Reports, drill-downs, and exports share one canonical validated filter contract. | Matching figures require shared date normalization, optional-filter semantics, and bounded input validation across every surface. |
 
 ## Deferred scope
 
