@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -578,6 +579,8 @@ export default function SchedulingCalendarPage() {
   const [bookingHandoffState, setBookingHandoffState] = useState(
     EMPTY_HANDOFF_LINK_STATE,
   );
+  const [sendBookingHandoffViaWhatsApp, setSendBookingHandoffViaWhatsApp] =
+    useState(false);
   const hasLoadedOnceRef = useRef(false);
   const loadTrigger = `${monthKey}:${reloadVersion}`;
 
@@ -1076,6 +1079,7 @@ export default function SchedulingCalendarPage() {
     setSelectedExistingCustomer(null);
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
     setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
+    setSendBookingHandoffViaWhatsApp(false);
   };
 
   const openBookingPreparationDialog = () => {
@@ -1090,6 +1094,7 @@ export default function SchedulingCalendarPage() {
     setSelectedExistingCustomer(null);
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
     setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
+    setSendBookingHandoffViaWhatsApp(false);
   };
 
   const updateBookingPreparationCustomer = (field, value) => {
@@ -1262,6 +1267,7 @@ export default function SchedulingCalendarPage() {
           body: JSON.stringify({
             input: requestPayload,
             transactionId: bookingHandoffState.transactionId || null,
+            sendWhatsApp: sendBookingHandoffViaWhatsApp,
           }),
         },
       );
@@ -1281,11 +1287,22 @@ export default function SchedulingCalendarPage() {
         url: payload.url || "",
         expiresAt: payload.expiresAt || "",
       });
-      toast.success(
-        bookingHandoffState.transactionId
-          ? "Booking handoff regenerated"
-          : "Booking handoff created",
-      );
+      const actionLabel = bookingHandoffState.transactionId
+        ? "Booking handoff regenerated"
+        : "Booking handoff created";
+
+      if (payload?.notification?.attempted && payload.notification.sent) {
+        toast.success(`${actionLabel} and sent on WhatsApp`);
+      } else {
+        toast.success(actionLabel);
+      }
+
+      if (payload?.notification?.attempted && !payload.notification.sent) {
+        toast.error(
+          payload.notification.error ||
+            "WhatsApp delivery failed. Copy the secure link manually.",
+        );
+      }
     } catch (error) {
       toast.error(error.message || "Failed to create booking handoff");
     } finally {
@@ -2923,6 +2940,30 @@ export default function SchedulingCalendarPage() {
                     </div>
                   </div>
                 ) : null}
+
+                <div className="mt-4 rounded-2xl border border-white/10 bg-background/60 p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="send-booking-handoff-whatsapp"
+                      checked={sendBookingHandoffViaWhatsApp}
+                      onCheckedChange={(checked) =>
+                        setSendBookingHandoffViaWhatsApp(checked === true)
+                      }
+                    />
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor="send-booking-handoff-whatsapp"
+                        className="font-medium"
+                      >
+                        Send customer link via WhatsApp
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Defaults off. Registration-required and registered
+                        customers receive different handoff messages.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : null}
 

@@ -26,6 +26,7 @@ export async function POST(request) {
       },
       input: body?.input || body,
       transactionId: body?.transactionId || null,
+      sendWhatsApp: Boolean(body?.sendWhatsApp),
     });
 
     return NextResponse.json(result);

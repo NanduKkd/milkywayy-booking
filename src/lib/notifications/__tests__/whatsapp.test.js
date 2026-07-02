@@ -11,6 +11,7 @@ describe("sendWhatsAppTemplate", () => {
       TWILIO_ACCOUNT_SID: "AC123",
       TWILIO_AUTH_TOKEN: "token123",
       TWILIO_WHATSAPP_FROM: "+1234567890",
+      TWILIO_CONTENT_SID_ADMIN_BOOKING_HANDOFF_REGISTRATION: "HX_handoff_reg",
       TWILIO_CONTENT_SID_TEAM_ON_THE_WAY: "HX_team",
       TWILIO_CONTENT_SID_SHOOT_CONFIRMATION: "HX_confirm",
     };
@@ -69,6 +70,31 @@ describe("sendWhatsAppTemplate", () => {
       2: "Amal",
       3: "Apr 14, 2026",
       4: "13:00 - 13:30",
+    });
+  });
+
+  it("maps admin booking handoff variables for registration links", async () => {
+    await sendWhatsAppTemplate({
+      to: "+971500000000",
+      templateName: "admin_booking_handoff_registration",
+      variables: {
+        Client_Name: "Ava Agent",
+        Property_Summary: "2 Bed Apartment at Marina Gate",
+        Handoff_Link: "https://example.com/booking/handoff/token-1",
+        Expires_At: "02 Jul 2026, 18:00",
+      },
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [, request] = global.fetch.mock.calls[0];
+    const body = new URLSearchParams(request.body);
+    const contentVariables = JSON.parse(body.get("ContentVariables"));
+
+    expect(contentVariables).toEqual({
+      1: "Ava Agent",
+      2: "2 Bed Apartment at Marina Gate",
+      3: "https://example.com/booking/handoff/token-1",
+      4: "02 Jul 2026, 18:00",
     });
   });
 });

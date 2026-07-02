@@ -16,6 +16,7 @@ import {
   formatBookingReference,
 } from "@/lib/helpers/invoice-format";
 import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
+import { sendAdminBookingHandoffWhatsApp } from "@/lib/services/adminBookingHandoffNotifications";
 import {
   ADMIN_BOOKING_HANDOFF_TTL_MS,
   getAdminBookingHandoffBookingIds,
@@ -551,6 +552,7 @@ export async function createAdminBookingHandoff({
   actorUser,
   input,
   transactionId = null,
+  sendWhatsApp = false,
 } = {}) {
   const actor = assertAuthorizedActor(actorUser);
   const now = new Date();
@@ -707,7 +709,22 @@ export async function createAdminBookingHandoff({
     };
   });
 
-  return result;
+  if (!sendWhatsApp) {
+    return result;
+  }
+
+  const notification = await sendAdminBookingHandoffWhatsApp({
+    customer: result.customer,
+    propertyPreviews: result.propertyPreviews,
+    url: result.url,
+    expiresAt: result.expiresAt,
+    requiresRegistration: result.requiresRegistration,
+  });
+
+  return {
+    ...result,
+    notification,
+  };
 }
 
 export async function getAdminBookingHandoffByToken({ token } = {}) {

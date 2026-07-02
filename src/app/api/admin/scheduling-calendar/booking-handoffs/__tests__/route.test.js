@@ -43,6 +43,7 @@ describe("Admin booking handoff POST route", () => {
           properties: [],
         },
         transactionId: 91,
+        sendWhatsApp: true,
       }),
     });
     const data = await response.json();
@@ -56,6 +57,7 @@ describe("Admin booking handoff POST route", () => {
         properties: [],
       },
       transactionId: 91,
+      sendWhatsApp: true,
     });
     expect(data.transactionId).toBe(91);
   });

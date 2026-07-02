@@ -2,6 +2,10 @@ const TWILIO_API_BASE = "https://api.twilio.com/2010-04-01";
 
 const TEMPLATE_ENV_KEYS = {
   login_otp: "TWILIO_CONTENT_SID_LOGIN_OTP",
+  admin_booking_handoff_registration:
+    "TWILIO_CONTENT_SID_ADMIN_BOOKING_HANDOFF_REGISTRATION",
+  admin_booking_handoff_checkout:
+    "TWILIO_CONTENT_SID_ADMIN_BOOKING_HANDOFF_CHECKOUT",
   shoot_confirmation: "TWILIO_CONTENT_SID_SHOOT_CONFIRMATION",
   shoot_reminder: "TWILIO_CONTENT_SID_SHOOT_REMINDER",
   team_on_the_way: "TWILIO_CONTENT_SID_TEAM_ON_THE_WAY",
@@ -17,6 +21,18 @@ const TEMPLATE_VARIABLE_MAP = {
   login_otp: {
     1: "Code",
     2: "Expiry_Minutes",
+  },
+  admin_booking_handoff_registration: {
+    1: "Client_Name",
+    2: "Property_Summary",
+    3: "Handoff_Link",
+    4: "Expires_At",
+  },
+  admin_booking_handoff_checkout: {
+    1: "Client_Name",
+    2: "Property_Summary",
+    3: "Handoff_Link",
+    4: "Expires_At",
   },
   shoot_confirmation: {
     1: "Property_Name",
@@ -69,6 +85,45 @@ const TEMPLATES_FALLBACK = {
       "",
       `This code expires in ${Expiry_Minutes || "5"} minutes.`,
     ].join("\n"),
+
+  admin_booking_handoff_registration: ({
+    Client_Name,
+    Property_Summary,
+    Handoff_Link,
+    Expires_At,
+  }) =>
+    [
+      "Milkywayy booking handoff",
+      "",
+      Client_Name
+        ? `Hi ${Client_Name}, your booking details are ready.`
+        : "Your booking details are ready.",
+      "Please verify your phone number, review the prepared properties, and complete payment using the secure link below.",
+      Property_Summary ? `Prepared booking: ${Property_Summary}` : null,
+      Expires_At ? `Link expires: ${Expires_At}` : null,
+      Handoff_Link ? `Secure link: ${Handoff_Link}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+
+  admin_booking_handoff_checkout: ({
+    Client_Name,
+    Property_Summary,
+    Handoff_Link,
+    Expires_At,
+  }) =>
+    [
+      "Milkywayy booking handoff",
+      "",
+      Client_Name
+        ? `Hi ${Client_Name}, your booking details are ready for review and payment.`
+        : "Your booking details are ready for review and payment.",
+      Property_Summary ? `Prepared booking: ${Property_Summary}` : null,
+      Expires_At ? `Link expires: ${Expires_At}` : null,
+      Handoff_Link ? `Secure link: ${Handoff_Link}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n"),
 
   shoot_confirmation: ({
     Property_Name,

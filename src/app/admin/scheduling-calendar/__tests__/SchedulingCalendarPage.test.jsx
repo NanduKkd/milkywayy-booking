@@ -275,12 +275,14 @@ function recalculateCalendarPayload(payload) {
 
 describe("SchedulingCalendarPage", () => {
   let timeSlotPutBodies;
+  let bookingHandoffBodies;
   let currentJulyPayload;
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-07-15T08:00:00.000Z"));
     timeSlotPutBodies = [];
+    bookingHandoffBodies = [];
     currentJulyPayload = clonePayload(julyPayload);
     global.fetch = jest.fn((input, init) => {
       const url = String(input);
@@ -526,6 +528,73 @@ describe("SchedulingCalendarPage", () => {
               arrivalWindow: "09:00 - 09:30",
               total: 1450,
             })),
+          }),
+        });
+      }
+
+      if (url === "/api/admin/scheduling-calendar/booking-handoffs") {
+        const body = JSON.parse(init?.body || "{}");
+        bookingHandoffBodies.push(body);
+
+        const selectedCustomer =
+          body.input.customerMode === "existing"
+            ? {
+                id: 7,
+                accountType: "INDIVIDUAL",
+                fullName: "Ava Agent",
+                companyName: null,
+                email: "ava@example.com",
+                phone: "+971500000000",
+                displayName: "Ava Agent",
+              }
+            : {
+                id: null,
+                accountType: body.input.customer.accountType,
+                fullName: body.input.customer.fullName || null,
+                companyName: body.input.customer.companyName || null,
+                email: body.input.customer.email || null,
+                phone: body.input.customer.phone || null,
+                displayName:
+                  body.input.customer.companyName ||
+                  body.input.customer.fullName ||
+                  body.input.customer.phone,
+              };
+
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            transactionId: body.transactionId || 91,
+            url: "https://example.com/booking/handoff/token-1",
+            expiresAt: "2026-07-15T12:00:00.000Z",
+            customer: selectedCustomer,
+            propertyPreviews: body.input.properties.map((property) => ({
+              label: `${property.propertySize} ${property.propertyType}`,
+              locationLabel: [
+                property.unitNumber,
+                property.building,
+                property.community,
+              ]
+                .filter(Boolean)
+                .join(", "),
+              serviceLabel: property.services.includes("Videography")
+                ? `Photography, Videography (${property.videographySubService})`
+                : property.services.join(", "),
+              preferredDate: property.preferredDate,
+              startTime: property.startTime,
+              arrivalWindow: "09:00 - 09:30",
+              total: 1450,
+            })),
+            totalAmount: 1450,
+            notification: body.sendWhatsApp
+              ? {
+                  attempted: true,
+                  channel: "whatsapp",
+                  sent: true,
+                  templateName: "admin_booking_handoff_checkout",
+                  error: null,
+                }
+              : null,
           }),
         });
       }
@@ -927,5 +996,80 @@ describe("SchedulingCalendarPage", () => {
       within(dialog).getByText("Photography, Videography (Short Form)"),
     ).toBeInTheDocument();
     expect(within(dialog).getAllByText("AED 1450").length).toBeGreaterThan(0);
+  });
+
+  it("defaults WhatsApp handoff delivery off and lets the admin opt in before creating the link", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Scheduling Calendar/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Prepare booking/i }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /Prepare admin booking/i,
+    });
+
+    fireEvent.change(within(dialog).getByLabelText("Search customer"), {
+      target: { value: "ava" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Search$/i }));
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: /Ava Agent/i }),
+    );
+
+    fireEvent.change(within(dialog).getByLabelText("Property type"), {
+      target: { value: "Apartment" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Property size"), {
+      target: { value: "2 Bed" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Photography"));
+    fireEvent.change(within(dialog).getByLabelText("Building"), {
+      target: { value: "Marina Gate" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Community"), {
+      target: { value: "Dubai Marina" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Unit number"), {
+      target: { value: "1504" },
+    });
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /Validate preparation/i }),
+    );
+
+    const whatsappCheckbox = await within(dialog).findByRole("checkbox", {
+      name: /Send customer link via WhatsApp/i,
+    });
+
+    expect(whatsappCheckbox).not.toBeChecked();
+
+    fireEvent.click(whatsappCheckbox);
+    expect(whatsappCheckbox).toBeChecked();
+
+    await act(async () => {
+      fireEvent.click(
+        within(dialog).getByRole("button", { name: /Create secure link/i }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(bookingHandoffBodies).toHaveLength(1);
+    });
+
+    expect(bookingHandoffBodies[0]).toMatchObject({
+      sendWhatsApp: true,
+      input: {
+        customerMode: "existing",
+        customerId: 7,
+      },
+    });
+    expect(
+      await within(dialog).findByText(
+        "https://example.com/booking/handoff/token-1",
+      ),
+    ).toBeInTheDocument();
   });
 });
