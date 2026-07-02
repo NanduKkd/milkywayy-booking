@@ -1,9 +1,8 @@
 import { Building, Check } from "lucide-react";
 import { Controller } from "react-hook-form";
 
-import { cn } from "@/lib/utils";
-
 import { PROPERTY_TYPE_ORDER } from "@/lib/config/pricing";
+import { cn } from "@/lib/utils";
 
 import { OptionCard } from "../OptionCard";
 import { PROPERTY_TYPE_ICONS, PROPERTY_TYPE_META } from "./constants";
@@ -12,15 +11,16 @@ export function PropertyTypeSection({
   control,
   errorMessage,
   index,
+  onSelectionComplete,
   pricingConfig,
   setValue,
   updatePropertyField,
 }) {
   return (
     <div>
-      <label className="block text-2xs md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2.5 md:mb-3">
+      <p className="block text-2xs md:text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2.5 md:mb-3">
         PROPERTY TYPE
-      </label>
+      </p>
 
       <Controller
         name={`properties.${index}.propertyType`}
@@ -45,9 +45,14 @@ export function PropertyTypeSection({
                   unselectedClassName="premium-card"
                   isSelected={field.value === type}
                   onClick={() => {
+                    if (field.value === type) {
+                      return;
+                    }
+
                     updatePropertyField(index, "propertyType", type);
                     setValue(`properties.${index}.propertySize`, "");
                     setValue(`properties.${index}.services`, []);
+                    onSelectionComplete?.();
                   }}
                 >
                   <div
@@ -93,7 +98,9 @@ export function PropertyTypeSection({
         )}
       />
 
-      {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+      {errorMessage && (
+        <p className="text-red-500 text-xs mt-1">{errorMessage}</p>
+      )}
     </div>
   );
 }

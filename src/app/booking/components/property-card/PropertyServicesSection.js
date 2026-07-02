@@ -1,9 +1,8 @@
 import { Camera, Check } from "lucide-react";
 import { Controller } from "react-hook-form";
 
-import { cn } from "@/lib/utils";
-
 import { SERVICE_ORDER } from "@/lib/config/pricing";
+import { cn } from "@/lib/utils";
 
 import { OptionCard } from "../OptionCard";
 import {
@@ -23,6 +22,7 @@ export function PropertyServicesSection({
   errorMessage,
   index,
   mobileVideographyOptions,
+  onSelectionComplete,
   packageInfo,
   pricingConfig,
   property,
@@ -35,9 +35,11 @@ export function PropertyServicesSection({
 
   return (
     <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-      <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
-        {property.propertyType === "Commercial" ? "Step 2 — Select Services" : "SERVICES"}
-      </label>
+      <p className="block text-xs font-medium uppercase tracking-wider text-muted-foreground mb-4">
+        {property.propertyType === "Commercial"
+          ? "Step 2 — Select Services"
+          : "SERVICES"}
+      </p>
 
       <Controller
         name={`properties.${index}.services`}
@@ -59,7 +61,8 @@ export function PropertyServicesSection({
                   ? COMMERCIAL_SERVICE_AVAILABILITY[property.propertySize] || []
                   : SERVICE_ORDER;
                 const isTourIncluded =
-                  serviceName !== "360° Tour" || packageInfo?.tour !== "Not included";
+                  serviceName !== "360° Tour" ||
+                  packageInfo?.tour !== "Not included";
                 const isServiceAvailable =
                   !isCommercial ||
                   (availableServices.includes(serviceName) && isTourIncluded);
@@ -72,7 +75,10 @@ export function PropertyServicesSection({
                   serviceName === "Videography" &&
                   property.videographySubService &&
                   typeof priceConfig === "object"
-                    ? getVideographySelectionsTotal(priceConfig, videographySelections)
+                    ? getVideographySelectionsTotal(
+                        priceConfig,
+                        videographySelections,
+                      )
                     : typeof priceConfig === "object"
                       ? priceConfig.price || 0
                       : priceConfig || 0;
@@ -95,6 +101,10 @@ export function PropertyServicesSection({
                     onClick={() => {
                       if (!isServiceAvailable) return;
                       toggleService(index, serviceName, field.value || []);
+
+                      if (!isSelected) {
+                        onSelectionComplete?.(serviceName);
+                      }
                     }}
                   >
                     <div className="flex w-full flex-row items-start gap-2 md:flex-col md:gap-2.5 text-left">
@@ -102,7 +112,9 @@ export function PropertyServicesSection({
                         <Icon
                           size={14}
                           className={
-                            isSelected ? "text-foreground" : "text-muted-foreground"
+                            isSelected
+                              ? "text-foreground"
+                              : "text-muted-foreground"
                           }
                         />
                       </div>
@@ -134,15 +146,11 @@ export function PropertyServicesSection({
                         </div>
 
                         <div className="shrink-0 text-sm md:text-sm font-bold text-foreground/90">
-                          {property.propertyType === "Commercial" ? (
-                              serviceName !== "Videography" &&
-                                isServiceAvailable &&
-                                `AED ${price}`
-                          ) : (
-                            serviceName !== "Videography" && (
-                                `AED ${price}`
-                            )
-                          )}
+                          {property.propertyType === "Commercial"
+                            ? serviceName !== "Videography" &&
+                              isServiceAvailable &&
+                              `AED ${price}`
+                            : serviceName !== "Videography" && `AED ${price}`}
                         </div>
                       </div>
                       {isSelected && (
@@ -152,11 +160,14 @@ export function PropertyServicesSection({
                       )}
                     </div>
                   </OptionCard>,
-                  serviceName === "Videography" && isSelected ? (
-                    <div key={`${serviceName}-mobile-options`} className="lg:hidden">
-                      {mobileVideographyOptions}
-                    </div>
-                  ) : null,
+                  serviceName === "Videography" && isSelected
+                    ? <div
+                        key={`${serviceName}-mobile-options`}
+                        className="lg:hidden"
+                      >
+                        {mobileVideographyOptions}
+                      </div>
+                    : null,
                 ];
               })}
             </div>
@@ -164,7 +175,9 @@ export function PropertyServicesSection({
         }}
       />
 
-      {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+      {errorMessage && (
+        <p className="text-red-500 text-xs mt-1">{errorMessage}</p>
+      )}
     </div>
   );
 }

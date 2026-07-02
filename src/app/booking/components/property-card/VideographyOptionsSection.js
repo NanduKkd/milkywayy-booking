@@ -1,23 +1,19 @@
 import { Check, Clock } from "lucide-react";
 import { Controller } from "react-hook-form";
 
-import { cn } from "@/lib/utils";
-
 import {
   VIDEOGRAPHY_SUB_CATEGORIES,
-  VIDEOGRAPHY_SUB_SERVICES,
   VIDEOGRAPHY_SUB_SERVICE_ORDER,
+  VIDEOGRAPHY_SUB_SERVICES,
 } from "@/lib/config/pricing";
 import {
   getBookingLoadBreakdown,
   getDynamicTwilightSlotLabel,
 } from "@/lib/helpers/bookingUtils";
+import { cn } from "@/lib/utils";
 
 import { OptionCard } from "../OptionCard";
-import {
-  LIGHTING_OPTION_ICONS,
-  VIDEOGRAPHY_OPTION_META,
-} from "./constants";
+import { VIDEOGRAPHY_OPTION_META } from "./constants";
 import {
   formatDeliveryLabel,
   getInitialLongFormSelection,
@@ -74,7 +70,9 @@ function getNextVideographySelections({
       value.startsWith(`${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`) ||
       value === VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
   );
-  const hasShort = currentSelections.includes(VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM);
+  const hasShort = currentSelections.includes(
+    VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM,
+  );
 
   if (subService === VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM) {
     if (variant === "mobile") {
@@ -119,6 +117,7 @@ export function VideographyOptionsSection({
   errorMessage,
   hasShortFormSelection,
   index,
+  onSelectionComplete,
   pricingConfig,
   property,
   selectedLongForm,
@@ -132,12 +131,12 @@ export function VideographyOptionsSection({
     propertyType: property.propertyType,
     propertySize: property.propertySize,
     services: ["Videography"],
-    videographySubService:
-      [selectedLongForm, hasShortFormSelection
-        ? VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM
-        : ""]
-        .filter(Boolean)
-        .join("|"),
+    videographySubService: [
+      selectedLongForm,
+      hasShortFormSelection ? VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM : "",
+    ]
+      .filter(Boolean)
+      .join("|"),
   });
   const dynamicTwilightSlotLabel = getDynamicTwilightSlotLabel(
     videographyLoad.totalLoad,
@@ -162,9 +161,9 @@ export function VideographyOptionsSection({
 
   return (
     <div className={containerClassName}>
-      <label className={isMobile ? MOBILE_LABEL_CLASS : DESKTOP_LABEL_CLASS}>
-        <h5>Video Format</h5>
-      </label>
+      <p className={isMobile ? MOBILE_LABEL_CLASS : DESKTOP_LABEL_CLASS}>
+        Video Format
+      </p>
 
       <Controller
         name={`properties.${index}.videographySubService`}
@@ -188,7 +187,7 @@ export function VideographyOptionsSection({
                   pricingConfig,
                   property.propertyType,
                   property.propertySize,
-                )?.prices?.["Videography"];
+                )?.prices?.Videography;
                 const resolvedLongFormPrice = getVideographySelectionPrice(
                   videographyPriceConfig,
                   selectedLongForm || VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
@@ -225,17 +224,25 @@ export function VideographyOptionsSection({
                       if (!isSubServiceAvailable) return;
 
                       const nextSelections = getNextVideographySelections({
-                        currentSelections: parseVideographySelections(field.value),
+                        currentSelections: parseVideographySelections(
+                          field.value,
+                        ),
                         propertyType: property.propertyType,
                         subService,
                         variant,
                       });
+                      const nextValue =
+                        serializeVideographySelections(nextSelections);
 
                       updatePropertyField(
                         index,
                         "videographySubService",
-                        serializeVideographySelections(nextSelections),
+                        nextValue,
                       );
+
+                      if (field.value !== nextValue) {
+                        onSelectionComplete?.();
+                      }
                     }}
                   >
                     <div className="flex flex-col w-full text-left gap-1.5">
@@ -251,7 +258,8 @@ export function VideographyOptionsSection({
                         )}
                       </div>
 
-                      {(!isMobile || property.propertyType !== "Commercial") && (
+                      {(!isMobile ||
+                        property.propertyType !== "Commercial") && (
                         <div
                           className={
                             isMobile
@@ -294,9 +302,13 @@ export function VideographyOptionsSection({
             ) &&
               property.propertyType !== "Commercial" && (
                 <div className="mt-4">
-                  <label className={isMobile ? MOBILE_LABEL_CLASS : DESKTOP_LABEL_CLASS}>
-                    <h5>Lighting Preference</h5>
-                  </label>
+                  <p
+                    className={
+                      isMobile ? MOBILE_LABEL_CLASS : DESKTOP_LABEL_CLASS
+                    }
+                  >
+                    Lighting Preference
+                  </p>
 
                   {(() => {
                     const [mainService] = selectedLongForm.split(".") || [];
@@ -345,50 +357,56 @@ export function VideographyOptionsSection({
                                   unselectedClassName="border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/25 hover:text-white"
                                   isSelected={currentCategory === categoryName}
                                   onClick={() => {
-                                    const currentSelections = parseVideographySelections(
-                                      field.value,
-                                    );
-                                    const withoutLong = currentSelections.filter(
-                                      (value) =>
-                                        !value.startsWith(
-                                          `${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`,
-                                        ) &&
-                                        value !== VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
-                                    );
+                                    const currentSelections =
+                                      parseVideographySelections(field.value);
+                                    const withoutLong =
+                                      currentSelections.filter(
+                                        (value) =>
+                                          !value.startsWith(
+                                            `${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.`,
+                                          ) &&
+                                          value !==
+                                            VIDEOGRAPHY_SUB_SERVICES.LONG_FORM,
+                                      );
+
+                                    const nextValue =
+                                      serializeVideographySelections([
+                                        ...withoutLong,
+                                        `${mainService}.${categoryName}`,
+                                      ]);
 
                                     updatePropertyField(
                                       index,
                                       "videographySubService",
-                                      serializeVideographySelections([
-                                        ...withoutLong,
-                                        `${mainService}.${categoryName}`,
-                                      ]),
+                                      nextValue,
                                     );
+
+                                    if (field.value !== nextValue) {
+                                      onSelectionComplete?.();
+                                    }
                                   }}
                                 >
-                                  {isMobile ? (
-                                    <div className="flex items-center justify-center gap-1">
-                                      <div className="font-medium text-2xs md:text-sm">
-                                        {categoryTitle}
+                                  {isMobile
+                                    ? <div className="flex items-center justify-center gap-1">
+                                        <div className="font-medium text-2xs md:text-sm">
+                                          {categoryTitle}
+                                        </div>
+                                        {currentCategory === categoryName && (
+                                          <span className="absolute right-1 top-1.2 h-4 w-4 md:h-5 md:w-5 rounded-full bg-white text-black flex items-center justify-center">
+                                            <Check className="h-3 w-3" />
+                                          </span>
+                                        )}
                                       </div>
-                                      {currentCategory === categoryName && (
-                                        <span className="absolute right-1 top-1.2 h-4 w-4 md:h-5 md:w-5 rounded-full bg-white text-black flex items-center justify-center">
-                                          <Check className="h-3 w-3" />
-                                        </span>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center justify-center gap-2">
-                                      <div className="text-sm font-medium">
-                                        {categoryTitle}
-                                      </div>
-                                      {currentCategory === categoryName && (
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
-                                          <Check className="h-3 w-3" />
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
+                                    : <div className="flex items-center justify-center gap-2">
+                                        <div className="text-sm font-medium">
+                                          {categoryTitle}
+                                        </div>
+                                        {currentCategory === categoryName && (
+                                          <span className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-white text-black flex items-center justify-center">
+                                            <Check className="h-3 w-3" />
+                                          </span>
+                                        )}
+                                      </div>}
                                 </OptionCard>
                               );
                             },
@@ -409,7 +427,9 @@ export function VideographyOptionsSection({
         )}
       />
 
-      {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+      {errorMessage && (
+        <p className="text-red-500 text-xs mt-1">{errorMessage}</p>
+      )}
     </div>
   );
 }
