@@ -8,8 +8,8 @@
 ## Purpose
 
 Add the target Calendar experience for viewing bookings, blocking availability,
-creating calendar-only events, and creating full admin bookings without creating
-a second scheduling authority.
+creating non-blocking calendar events, and preparing customer bookings without
+creating a second scheduling, registration, pricing, or checkout authority.
 
 ## Document index
 
@@ -34,24 +34,33 @@ a second scheduling authority.
 
 - Monthly calendar showing bookings and calendar-only events with status markers.
 - Selected-day schedule and upcoming-shoot table.
-- Full-day and period blocking through the existing Time Slots date overrides.
-- Manual entry chooser supporting calendar-only events and complete admin-created bookings.
-- Capacity-aware calendar-only events that can optionally reserve customer availability.
-- Server-side conflict validation and explicit override handling for administrators.
+- Full-day and exact time-range blocking in 30-minute increments, integrated
+  with Time Slots availability.
+- Non-blocking calendar events with a title, optional description, date, and
+  full-day or 30-minute-aligned start/end selection.
+- Multi-property admin booking preparation for existing and new customers.
+- Secure customer handoff through editable prefilled registration/property
+  details, phone OTP verification when registration is required, and the normal
+  promotion-aware payment flow.
+- Four-hour pending availability holds with copyable, regeneratable payment links.
+- Optional customer-state-specific WhatsApp handoff notifications, defaulting off.
+- Server-side conflict validation without an admin availability or price override.
 - Shared Dubai-business-time date interpretation.
 
 ## Explicit non-goals
 
 - Redesigning the Time Slots page.
 - Replacing property/service weight configuration.
-- Turning notes that do not reserve capacity into customer bookings.
+- Making informational events affect customer availability; only blocks do so.
 - Recurring calendar events in the first release.
 
 ## Dependencies
 
 - Existing Time Slots configuration and date override API.
 - Existing booking creation, pricing, payment, invoice, and workflow services.
-- `admin-access-control` for calendar view, block, event-create, and booking-create permissions.
+- Existing customer registration, OTP, promotion, checkout, payment, invoice,
+  dashboard, and WhatsApp notification services.
+- Calendar access remains Super Admin-only while `admin-access-control` is deferred.
 
 ## Delivery estimate
 
@@ -65,7 +74,9 @@ a second scheduling authority.
 ## Completion definition
 
 - Calendar, customer availability, and Time Slots produce consistent answers.
-- Both manual entry modes work and are clearly distinguished.
+- Events, blocks, and admin booking preparation are clearly distinguished.
 - Existing bookings cannot be silently invalidated by new blocks or events.
 - Concurrent changes are revalidated server-side before persistence.
-- Calendar-only events reserve capacity only when explicitly configured to do so.
+- Calendar events never affect customer availability.
+- New and existing customers enter the correct editable handoff path and finish
+  through the existing promotion-aware payment flow.

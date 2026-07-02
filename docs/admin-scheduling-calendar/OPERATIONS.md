@@ -10,11 +10,11 @@
 3. Switch customer and admin availability reads to the shared evaluator after
    parity tests pass.
 4. Release the Calendar read view.
-5. Enable calendar-event mutation, blocking, then full admin-booking creation in
-   separate gates.
+5. Release event mutation, exact blocking, admin booking preparation, secure
+   customer handoff, WhatsApp notification, and payment integration together.
 
-Calendar-only records must not affect customer availability until the shared
-evaluator and `consumesCapacity` behavior are enabled together.
+Calendar-only records must remain non-blocking in both customer and admin
+availability evaluation.
 
 ## Pre-release checks
 
@@ -22,20 +22,26 @@ evaluator and `consumesCapacity` behavior are enabled together.
 - Compare effective availability for working/non-working days, blocks, full
   capacity, partial capacity, and rolling-window boundaries.
 - Verify events and bookings across Dubai midnight and month transitions.
-- Exercise simultaneous event/booking creation against the same capacity.
+- Exercise simultaneous block/booking creation against the same interval.
+- Verify both customer-state handoff links, editable multiple properties,
+  eligible discounts, OTP verification, WhatsApp choice, and payment completion.
+- Verify four-hour expiry, pending availability release, copy-link behavior, and
+  replacement-link invalidation without duplicate reservations.
 - Confirm block warnings enumerate existing affected records without mutating them.
 
 ## Monitoring
 
-Monitor calendar query latency, conflict response rate, override creation,
-capacity calculation errors, failed manual booking creation, and differences
-reported between customer and admin availability.
+Monitor calendar query latency, conflict response rate, capacity calculation
+errors, handoff creation/completion/expiry, OTP failures, WhatsApp delivery,
+checkout failures, and differences between customer and admin availability.
 
 ## Rollback
 
 - Disable Calendar mutations before rolling back shared evaluation code.
 - Preserve calendar-event rows during application rollback; unused rows are safer
   than destructive down-migration.
+- Revoke outstanding customer handoff links before rolling back their backing
+  schema or application routes.
 - Restore the previous customer availability path only if its schema remains compatible.
 - Blocks continue to use existing date overrides and therefore remain operational.
 

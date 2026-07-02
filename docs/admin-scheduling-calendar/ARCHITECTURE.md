@@ -1,6 +1,6 @@
 # Admin scheduling calendar architecture
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-02
 
 ## Scheduling authority
 
@@ -14,7 +14,7 @@ flowchart TD
     Config["Time Slots configuration"] --> Availability["Shared availability evaluator"]
     Overrides["Full-day and period overrides"] --> Availability
     Bookings["Bookings"] --> Availability
-    Events["Calendar-only events"] --> Availability
+    Events["Non-blocking calendar events"] --> Admin
     Availability --> Customer["Customer date/slot picker"]
     Availability --> Admin["Admin Calendar"]
     Admin --> EventCreate["Create calendar event"]
@@ -27,38 +27,67 @@ flowchart TD
 For a date and period, evaluate in this order:
 
 1. Explicit full-day block.
-2. Explicit period block.
+2. Explicit time-range block, evaluated against the booking's actual scheduled interval.
 3. Non-working weekday baseline.
-4. Capacity consumed by active bookings and capacity-consuming calendar events.
+4. Capacity consumed by active bookings.
 5. Remaining property/service weight capacity for the requested booking.
 6. Customer rolling-window restriction.
 
 The rolling window limits customer selection. Authorized administrators may
 create future entries outside it, but must still receive block/capacity warnings
-and explicitly confirm an allowed override.
+and explicitly confirm an allowed override where the conflict type permits one.
 
 Existing bookings are not cancelled or moved when a later block is added. The
-block flow must show affected records and require confirmation.
+block mutation must fail when its interval overlaps an active booking. The UI
+must identify and link the affected booking, direct the administrator to manage
+it in the Bookings section, and allow the block to be retried only after the
+booking no longer conflicts. There is no block override for active bookings.
+
+Administrators choose exact block start and end times in 30-minute increments,
+for example `10:00`-`10:30` or `10:00`-`12:30`. A block consumes all customer
+availability during that interval; administrators do not enter capacity units
+for blocks. Any customer booking whose scheduled interval overlaps the block is
+rejected. Full-day blocking remains available as a shortcut.
 
 ## Calendar-only event model
 
-Create a dedicated persisted record with at least:
+Calendar-only events remain informational and never affect customer
+availability. Their operator-facing contract is:
 
-- `id`, `title`, optional description and property/contact summary;
-- local business date, period and/or start/end time;
-- `consumesCapacity` and reserved capacity units;
-- status (`ACTIVE`, `CANCELLED`);
-- `createdBy`, `updatedBy`, timestamps, and cancellation metadata.
+- required title and Dubai business date;
+- optional description;
+- full-day or 30-minute-aligned start/end selection;
+- status (`ACTIVE`, `CANCELLED`), actor attribution, and audit timestamps.
 
-Calendar-only events do not create transactions, invoices, delivery workflows,
-or customer dashboard records. Cancellation releases their reservation.
+Past events are read-only. Events do not create transactions, invoices,
+delivery workflows, customer dashboard records, or availability reservations.
 
-## Full admin booking
+## Admin booking preparation and customer handoff
 
-The admin flow calls a shared booking-creation service used by the customer
-flow. It creates a normal Booking and related pricing data, but accepts an
-explicit admin payment state instead of requiring Stripe checkout. It must not
-duplicate pricing or availability calculations in the page.
+The Super Admin may prepare multiple properties for an existing or
+not-yet-registered customer. Preparation creates a secure, auditable handoff in
+an implicit payment-pending state; the admin does not choose payment status or
+override price or availability.
+
+For a new customer, the handoff opens editable prefilled name, optional company
+name, email, admin-entered phone number, and property details. The customer
+completes registration, verifies their phone using the existing OTP flow,
+reviews the editable properties, and continues to payment. For an existing
+customer, the handoff opens directly at property review.
+
+Final validation and checkout reuse normal availability, pricing, eligible
+coupon, promotion, discount, wallet, payment, and invoice services. Completed
+bookings appear in the customer dashboard. A checkbox, unselected by default,
+lets the admin send the handoff through WhatsApp; registration-required and
+registered-customer flows use distinct templates. The admin can copy the secure
+payment link at any time.
+
+The link and its pending availability reservation expire after four hours. The
+pending booking blocks conflicting customer selection during that window but is
+labelled as a pending hold, not a booked shoot. Successful payment promotes it
+through the existing confirmed-booking flow. An admin can generate a replacement
+link from the latest details; regeneration invalidates the previous link and
+starts a new four-hour link and reservation window.
 
 ## Query boundary
 
