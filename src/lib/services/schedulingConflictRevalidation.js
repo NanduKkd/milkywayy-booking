@@ -402,29 +402,12 @@ function getConflictingBookings(bookings, request, excludeBookingIds) {
 }
 
 function getConflictingEvents(
-  events,
-  request,
-  excludeEventIds,
-  { includeNonCapacityEvents = false } = {},
+  _events,
+  _request,
+  _excludeEventIds,
+  _options = {},
 ) {
-  return events.filter((event) => {
-    if (excludeEventIds.has(Number(event.id))) {
-      return false;
-    }
-
-    if (
-      event.businessDate !== request.date ||
-      event.status !== ACTIVE_EVENT_STATUS
-    ) {
-      return false;
-    }
-
-    if (!includeNonCapacityEvents && !event.consumesCapacity) {
-      return false;
-    }
-
-    return slotTimesOverlap(getEventBlockedSlots(event), request.blockedSlots);
-  });
+  return [];
 }
 
 function assertRequestConflicts({

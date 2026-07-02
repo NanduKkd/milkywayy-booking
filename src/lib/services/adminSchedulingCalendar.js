@@ -233,10 +233,11 @@ function buildEventCalendarItem(event) {
     date: event.businessDate,
     status: event.status,
     period: event.period || null,
+    isAllDay: !event.startTime && !event.endTime,
     startTime: event.startTime || null,
     endTime: event.endTime || null,
-    consumesCapacity: Boolean(event.consumesCapacity),
-    reservedCapacityUnits: Number(event.reservedCapacityUnits || 0),
+    consumesCapacity: false,
+    reservedCapacityUnits: 0,
     propertySummary: event.propertySummary || null,
     contactSummary: event.contactSummary || null,
     createdByUser: event.createdByUser
@@ -373,9 +374,6 @@ export async function listAdminSchedulingCalendarRange({
     if (event.status === "ACTIVE") {
       counts.activeEvents += 1;
     }
-    if (event.status === "ACTIVE" && event.consumesCapacity) {
-      counts.capacityConsumingEvents += 1;
-    }
   });
 
   const days = enumerateDateRange(range.startDate, range.endDate).map(
@@ -413,9 +411,7 @@ export async function listAdminSchedulingCalendarRange({
       totalEvents: events.length,
       totalActiveEvents: events.filter((event) => event.status === "ACTIVE")
         .length,
-      totalCapacityConsumingEvents: events.filter(
-        (event) => event.status === "ACTIVE" && event.consumesCapacity,
-      ).length,
+      totalCapacityConsumingEvents: 0,
       totalFullyBlockedDays: days.filter((day) => day.block.fullDayBlocked)
         .length,
       totalPartiallyBlockedDays: days.filter(

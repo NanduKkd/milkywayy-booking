@@ -255,7 +255,15 @@ describe("Booking Actions", () => {
       expect(result.message).toMatch(/blocked by admin calendar rules/i);
     });
 
-    it("should fail if the requested slot overlaps a capacity-consuming calendar event", async () => {
+    it("should allow booking creation when an informational calendar event overlaps the slot", async () => {
+      Booking.create.mockResolvedValue({
+        id: 2,
+        bookingCode: null,
+        update: jest.fn().mockImplementation(function updateBooking(data) {
+          this.bookingCode = data.bookingCode;
+          return Promise.resolve(this);
+        }),
+      });
       CalendarEvent.findAll.mockResolvedValue([
         {
           id: 51,
@@ -268,8 +276,8 @@ describe("Booking Actions", () => {
 
       const result = await createBookings(mockProperties);
 
-      expect(result.success).toBe(false);
-      expect(result.message).toMatch(/no longer available/i);
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual([{ id: 2, bookingCode: "MWB-1002" }]);
     });
 
     it("should return error if not authenticated", async () => {

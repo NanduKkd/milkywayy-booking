@@ -27,7 +27,7 @@ const julyPayload = {
     totalBookings: 2,
     totalEvents: 2,
     totalActiveEvents: 2,
-    totalCapacityConsumingEvents: 1,
+    totalCapacityConsumingEvents: 0,
     totalFullyBlockedDays: 1,
     totalPartiallyBlockedDays: 1,
   },
@@ -68,7 +68,7 @@ const julyPayload = {
               bookings: 0,
               events: 1,
               activeEvents: 1,
-              capacityConsumingEvents: 1,
+              capacityConsumingEvents: 0,
             }
           : day === 3
             ? {
@@ -163,8 +163,8 @@ const julyPayload = {
       period: "afternoon",
       startTime: "13:00",
       endTime: "16:00",
-      consumesCapacity: true,
-      reservedCapacityUnits: 2.5,
+      consumesCapacity: false,
+      reservedCapacityUnits: 0,
       propertySummary: {
         label: "Palm Jumeirah penthouse",
       },
@@ -361,13 +361,18 @@ describe("SchedulingCalendarPage", () => {
           description: body.description || "",
           date: body.date,
           status: "ACTIVE",
-          period: body.period || "afternoon",
+          period: body.allDay
+            ? null
+            : body.startTime < "12:00"
+              ? "morning"
+              : body.startTime < "17:00"
+                ? "afternoon"
+                : "evening",
+          isAllDay: Boolean(body.allDay),
           startTime: body.startTime || null,
           endTime: body.endTime || null,
-          consumesCapacity: Boolean(body.consumesCapacity),
-          reservedCapacityUnits: body.consumesCapacity
-            ? Number(body.reservedCapacityUnits || 1)
-            : 0,
+          consumesCapacity: false,
+          reservedCapacityUnits: 0,
           propertySummary: body.propertySummary || null,
           contactSummary: body.contactSummary || null,
           createdByUser: null,
@@ -398,13 +403,18 @@ describe("SchedulingCalendarPage", () => {
             title: body.title,
             description: body.description || "",
             date: body.date,
-            period: body.period || "afternoon",
+            period: body.allDay
+              ? null
+              : body.startTime < "12:00"
+                ? "morning"
+                : body.startTime < "17:00"
+                  ? "afternoon"
+                  : "evening",
+            isAllDay: Boolean(body.allDay),
             startTime: body.startTime || null,
             endTime: body.endTime || null,
-            consumesCapacity: Boolean(body.consumesCapacity),
-            reservedCapacityUnits: body.consumesCapacity
-              ? Number(body.reservedCapacityUnits || 1)
-              : 0,
+            consumesCapacity: false,
+            reservedCapacityUnits: 0,
             propertySummary: body.propertySummary || null,
             contactSummary: body.contactSummary || null,
           });
@@ -491,7 +501,8 @@ describe("SchedulingCalendarPage", () => {
 
     expect(await screen.findAllByText("Owner hold")).toHaveLength(2);
     expect(screen.getByText("Waiting for confirmation")).toBeInTheDocument();
-    expect(screen.getByText(/Reserves 2.5 capacity/i)).toBeInTheDocument();
+    expect(screen.getAllByText("Informational").length).toBeGreaterThan(0);
+    expect(screen.getByText("Read-only past event")).toBeInTheDocument();
   });
 
   it("navigates months and refetches the bounded range", async () => {
@@ -730,22 +741,14 @@ describe("SchedulingCalendarPage", () => {
     fireEvent.change(within(createDialog).getByLabelText("Property summary"), {
       target: { value: "Dubai Hills villa" },
     });
-    fireEvent.click(
-      within(createDialog).getByLabelText("Reserve scheduling capacity"),
-    );
-    fireEvent.change(
-      within(createDialog).getByLabelText("Reserved capacity units"),
-      {
-        target: { value: "1.5" },
-      },
-    );
+    fireEvent.click(within(createDialog).getByLabelText("All day"));
 
     fireEvent.click(
       within(createDialog).getByRole("button", { name: /Create event/i }),
     );
 
     expect(await screen.findAllByText("Walkthrough hold")).toHaveLength(2);
-    expect(screen.getByText(/Reserves 1.5 capacity/i)).toBeInTheDocument();
+    expect(screen.getAllByText("All day")).not.toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: /Edit event/i }));
 
@@ -755,6 +758,13 @@ describe("SchedulingCalendarPage", () => {
     fireEvent.change(within(editDialog).getByLabelText("Title"), {
       target: { value: "Updated walkthrough hold" },
     });
+    fireEvent.click(within(editDialog).getByLabelText("All day"));
+    fireEvent.change(within(editDialog).getByLabelText("Start time"), {
+      target: { value: "10:00" },
+    });
+    fireEvent.change(within(editDialog).getByLabelText("End time"), {
+      target: { value: "11:00" },
+    });
 
     fireEvent.click(
       within(editDialog).getByRole("button", { name: /Save changes/i }),
@@ -763,16 +773,19 @@ describe("SchedulingCalendarPage", () => {
     expect(await screen.findAllByText("Updated walkthrough hold")).toHaveLength(
       2,
     );
+    expect(
+      screen.getAllByText(/Morning • 10:00 to 11:00/i).length,
+    ).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /Cancel event/i }));
 
-    expect(await screen.findByText("Capacity released")).toBeInTheDocument();
+    expect(await screen.findByText("Event cancelled")).toBeInTheDocument();
     expect(screen.getAllByText("CANCELLED")).not.toHaveLength(0);
 
     fireEvent.click(screen.getByRole("button", { name: /Restore event/i }));
 
     await waitFor(() => {
-      expect(screen.queryByText("Capacity released")).not.toBeInTheDocument();
+      expect(screen.queryByText("Event cancelled")).not.toBeInTheDocument();
     });
     expect(screen.getAllByText("ACTIVE")).not.toHaveLength(0);
   });

@@ -177,10 +177,10 @@ describe("schedulingConflictRevalidation", () => {
       "schedule_conflict_existing_bookings",
     );
     expect(receivedError.conflicts[0].bookings).toHaveLength(1);
-    expect(receivedError.conflicts[0].events).toHaveLength(1);
+    expect(receivedError.conflicts[0].events).toHaveLength(0);
   });
 
-  it("allows an explicit override request for event-only block conflicts", async () => {
+  it("allows blocks to coexist with informational events", async () => {
     CalendarEvent.findAll.mockResolvedValue([
       {
         id: 9,
@@ -200,7 +200,6 @@ describe("schedulingConflictRevalidation", () => {
             type: "block",
             date: "2026-07-13",
             blockedPeriods: ["morning"],
-            allowOverride: true,
           },
         ],
       }),

@@ -1,19 +1,15 @@
 import { USER_ROLES } from "@/lib/config/app.config";
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
-import { PERIODS } from "@/lib/services/schedulingAvailability";
-import {
-  revalidateSchedulingRequests,
-  SchedulingConflictError,
-} from "@/lib/services/schedulingConflictRevalidation";
+import { SchedulingConflictError } from "@/lib/services/schedulingConflictRevalidation";
 
 const ACTIVE_STATUS = "ACTIVE";
 const CANCELLED_STATUS = "CANCELLED";
+const DUBAI_TIMEZONE = "Asia/Dubai";
 const MAX_TITLE_LENGTH = 160;
 const MAX_DESCRIPTION_LENGTH = 2000;
 const MAX_SUMMARY_LABEL_LENGTH = 200;
 const MAX_CANCELLATION_REASON_LENGTH = 500;
-const MAX_RESERVED_CAPACITY_UNITS = 999.99;
 const CALENDAR_EVENT_MUTATION_INCLUDE = [
   {
     model: models.User,
@@ -117,25 +113,40 @@ function normalizeOptionalTime(value, label) {
     throw new Error(`${label} must use HH:MM`);
   }
 
+  const minutes = Number(normalized.split(":")[1]);
+
+  if (![0, 30].includes(minutes)) {
+    throw new Error(`${label} must use 30-minute increments`);
+  }
+
   return normalized;
 }
 
-function normalizeOptionalPeriod(value) {
-  if (value == null) {
-    return null;
+function getDatePartsInTimeZone(date, timeZone) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(date)
+    .reduce((accumulator, part) => {
+      if (part.type !== "literal") {
+        accumulator[part.type] = part.value;
+      }
+      return accumulator;
+    }, {});
+}
+
+function getTodayDateKeyInDubai() {
+  const parts = getDatePartsInTimeZone(new Date(), DUBAI_TIMEZONE);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function assertEventDateEditable(businessDate) {
+  if (businessDate < getTodayDateKeyInDubai()) {
+    throw new Error("Past calendar events are read-only");
   }
-
-  const normalized = String(value).trim().toLowerCase();
-
-  if (!normalized) {
-    return null;
-  }
-
-  if (!PERIODS.includes(normalized)) {
-    throw new Error("Calendar event period is unsupported");
-  }
-
-  return normalized;
 }
 
 function inferPeriodFromStartTime(startTime) {
@@ -174,51 +185,6 @@ function normalizeSummary(value, label) {
   return normalizedLabel ? { label: normalizedLabel } : null;
 }
 
-function normalizeConsumesCapacity(value, fallbackValue) {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    if (value === "true") return true;
-    if (value === "false") return false;
-  }
-
-  if (typeof fallbackValue === "boolean") {
-    return fallbackValue;
-  }
-
-  return false;
-}
-
-function normalizeReservedCapacityUnits(value, { consumesCapacity }) {
-  if (!consumesCapacity) {
-    return "0.00";
-  }
-
-  const normalized = String(value ?? "").trim();
-
-  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
-    throw new Error(
-      "Reserved capacity units must be a positive number with up to 2 decimals",
-    );
-  }
-
-  const parsed = Number(normalized);
-
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error("Reserved capacity units must be greater than 0");
-  }
-
-  if (parsed > MAX_RESERVED_CAPACITY_UNITS) {
-    throw new Error(
-      `Reserved capacity units must be ${MAX_RESERVED_CAPACITY_UNITS.toFixed(2)} or less`,
-    );
-  }
-
-  return parsed.toFixed(2);
-}
-
 function buildCalendarEventSnapshot(event) {
   const plain =
     typeof event?.get === "function" ? event.get({ plain: true }) : event;
@@ -234,10 +200,11 @@ function buildCalendarEventSnapshot(event) {
     date: plain.businessDate,
     status: plain.status,
     period: plain.period || null,
+    isAllDay: !plain.startTime && !plain.endTime,
     startTime: plain.startTime || null,
     endTime: plain.endTime || null,
-    consumesCapacity: Boolean(plain.consumesCapacity),
-    reservedCapacityUnits: Number(plain.reservedCapacityUnits || 0),
+    consumesCapacity: false,
+    reservedCapacityUnits: 0,
     propertySummary: plain.propertySummary || null,
     contactSummary: plain.contactSummary || null,
     createdByUser: plain.createdByUser
@@ -293,13 +260,11 @@ function normalizeCalendarEventInput(input, { existingEvent = null } = {}) {
         title: existingEvent.title,
         description: existingEvent.description,
         businessDate: existingEvent.businessDate,
-        period: existingEvent.period,
         startTime: existingEvent.startTime,
         endTime: existingEvent.endTime,
+        isAllDay: !existingEvent.startTime && !existingEvent.endTime,
         propertySummary: existingEvent.propertySummary,
         contactSummary: existingEvent.contactSummary,
-        consumesCapacity: Boolean(existingEvent.consumesCapacity),
-        reservedCapacityUnits: existingEvent.reservedCapacityUnits,
       }
     : null;
 
@@ -313,26 +278,26 @@ function normalizeCalendarEventInput(input, { existingEvent = null } = {}) {
       : Object.hasOwn(input, "businessDate")
         ? input.businessDate
         : current?.businessDate,
-    period: Object.hasOwn(input, "period") ? input.period : current?.period,
     startTime: Object.hasOwn(input, "startTime")
       ? input.startTime
       : current?.startTime,
     endTime: Object.hasOwn(input, "endTime") ? input.endTime : current?.endTime,
+    allDay: Object.hasOwn(input, "allDay")
+      ? Boolean(input.allDay)
+      : current?.isAllDay || false,
     propertySummary: Object.hasOwn(input, "propertySummary")
       ? input.propertySummary
       : current?.propertySummary,
     contactSummary: Object.hasOwn(input, "contactSummary")
       ? input.contactSummary
       : current?.contactSummary,
-    consumesCapacity: Object.hasOwn(input, "consumesCapacity")
-      ? input.consumesCapacity
-      : current?.consumesCapacity,
-    reservedCapacityUnits: Object.hasOwn(input, "reservedCapacityUnits")
-      ? input.reservedCapacityUnits
-      : current?.reservedCapacityUnits,
   };
 
-  const period = normalizeOptionalPeriod(merged.period);
+  const businessDate = normalizeDateOnly(
+    merged.businessDate,
+    "Calendar event date",
+  );
+  const isAllDay = Boolean(merged.allDay);
   const startTime = normalizeOptionalTime(
     merged.startTime,
     "Calendar event start time",
@@ -341,28 +306,26 @@ function normalizeCalendarEventInput(input, { existingEvent = null } = {}) {
     merged.endTime,
     "Calendar event end time",
   );
-  const resolvedPeriod = period || inferPeriodFromStartTime(startTime);
 
-  if (!resolvedPeriod) {
-    throw new Error(
-      "Calendar event period or start time is required to place the event",
-    );
+  assertEventDateEditable(businessDate);
+
+  if (isAllDay) {
+    if (startTime || endTime) {
+      throw new Error(
+        "All-day calendar events cannot include start or end times",
+      );
+    }
+  } else {
+    if (!startTime || !endTime) {
+      throw new Error(
+        "Calendar event start and end time are required unless the event is all day",
+      );
+    }
+
+    if (endTime <= startTime) {
+      throw new Error("Calendar event end time must be after start time");
+    }
   }
-
-  if (endTime && !startTime) {
-    throw new Error(
-      "Calendar event start time is required when an end time is provided",
-    );
-  }
-
-  if (startTime && endTime && endTime <= startTime) {
-    throw new Error("Calendar event end time must be after start time");
-  }
-
-  const consumesCapacity = normalizeConsumesCapacity(
-    merged.consumesCapacity,
-    current?.consumesCapacity,
-  );
 
   return {
     title: normalizeRequiredText(merged.title, {
@@ -373,10 +336,11 @@ function normalizeCalendarEventInput(input, { existingEvent = null } = {}) {
       label: "Calendar event description",
       maxLength: MAX_DESCRIPTION_LENGTH,
     }),
-    businessDate: normalizeDateOnly(merged.businessDate, "Calendar event date"),
-    period: resolvedPeriod,
-    startTime,
-    endTime,
+    businessDate,
+    period: isAllDay ? null : inferPeriodFromStartTime(startTime),
+    isAllDay,
+    startTime: isAllDay ? null : startTime,
+    endTime: isAllDay ? null : endTime,
     propertySummary: normalizeSummary(
       merged.propertySummary,
       "Calendar event property summary",
@@ -385,24 +349,8 @@ function normalizeCalendarEventInput(input, { existingEvent = null } = {}) {
       merged.contactSummary,
       "Calendar event contact summary",
     ),
-    consumesCapacity,
-    reservedCapacityUnits: normalizeReservedCapacityUnits(
-      merged.reservedCapacityUnits,
-      {
-        consumesCapacity,
-      },
-    ),
-  };
-}
-
-function buildRevalidationRequest(input) {
-  return {
-    type: "event",
-    date: input.businessDate,
-    period: input.period,
-    startTime: input.startTime,
-    endTime: input.endTime,
-    consumesCapacity: input.consumesCapacity,
+    consumesCapacity: false,
+    reservedCapacityUnits: "0.00",
   };
 }
 
@@ -431,8 +379,9 @@ export function isCalendarEventValidationError(error) {
   return (
     message === "Calendar event input must be an object" ||
     message === "Calendar event not found" ||
+    message === "Past calendar events are read-only" ||
     message.includes("Calendar event ") ||
-    message.includes("Reserved capacity units")
+    message.includes("All-day calendar events")
   );
 }
 
@@ -445,12 +394,6 @@ export async function createCalendarEvent({
   const normalizedInput = normalizeCalendarEventInput(input);
 
   return runInTransaction(transaction, async (activeTransaction) => {
-    await revalidateSchedulingRequests({
-      dates: [normalizedInput.businessDate],
-      transaction: activeTransaction,
-      requests: [buildRevalidationRequest(normalizedInput)],
-    });
-
     const createdEvent = await models.CalendarEvent.create(
       {
         title: normalizedInput.title,
@@ -461,8 +404,8 @@ export async function createCalendarEvent({
         endTime: normalizedInput.endTime,
         propertySummary: normalizedInput.propertySummary,
         contactSummary: normalizedInput.contactSummary,
-        consumesCapacity: normalizedInput.consumesCapacity,
-        reservedCapacityUnits: normalizedInput.reservedCapacityUnits,
+        consumesCapacity: false,
+        reservedCapacityUnits: "0.00",
         status: ACTIVE_STATUS,
         createdByUserId: actor.id,
         updatedByUserId: actor.id,
@@ -497,15 +440,6 @@ export async function updateCalendarEvent({
       existingEvent,
     });
 
-    if (existingEvent.status === ACTIVE_STATUS) {
-      await revalidateSchedulingRequests({
-        dates: [normalizedInput.businessDate],
-        transaction: activeTransaction,
-        requests: [buildRevalidationRequest(normalizedInput)],
-        excludeEventIds: [existingEvent.id],
-      });
-    }
-
     existingEvent.title = normalizedInput.title;
     existingEvent.description = normalizedInput.description;
     existingEvent.businessDate = normalizedInput.businessDate;
@@ -514,8 +448,8 @@ export async function updateCalendarEvent({
     existingEvent.endTime = normalizedInput.endTime;
     existingEvent.propertySummary = normalizedInput.propertySummary;
     existingEvent.contactSummary = normalizedInput.contactSummary;
-    existingEvent.consumesCapacity = normalizedInput.consumesCapacity;
-    existingEvent.reservedCapacityUnits = normalizedInput.reservedCapacityUnits;
+    existingEvent.consumesCapacity = false;
+    existingEvent.reservedCapacityUnits = "0.00";
     existingEvent.updatedByUserId = actor.id;
 
     await existingEvent.save({ transaction: activeTransaction });
@@ -544,6 +478,8 @@ export async function cancelCalendarEvent({
     const event = await loadCalendarEventOrThrow(eventId, {
       transaction: activeTransaction,
     });
+
+    assertEventDateEditable(event.businessDate);
 
     if (event.status !== CANCELLED_STATUS) {
       event.status = CANCELLED_STATUS;
@@ -574,21 +510,9 @@ export async function restoreCalendarEvent({
       transaction: activeTransaction,
     });
 
+    assertEventDateEditable(event.businessDate);
+
     if (event.status !== ACTIVE_STATUS) {
-      const normalizedInput = normalizeCalendarEventInput(
-        {},
-        {
-          existingEvent: event,
-        },
-      );
-
-      await revalidateSchedulingRequests({
-        dates: [normalizedInput.businessDate],
-        transaction: activeTransaction,
-        requests: [buildRevalidationRequest(normalizedInput)],
-        excludeEventIds: [event.id],
-      });
-
       event.status = ACTIVE_STATUS;
       event.cancelledByUserId = null;
       event.cancelledAt = null;

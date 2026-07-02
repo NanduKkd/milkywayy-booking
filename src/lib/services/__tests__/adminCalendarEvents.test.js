@@ -4,10 +4,8 @@ import {
   cancelCalendarEvent,
   createCalendarEvent,
   restoreCalendarEvent,
-  SchedulingConflictError,
   updateCalendarEvent,
 } from "../adminCalendarEvents";
-import { revalidateSchedulingRequests } from "../schedulingConflictRevalidation";
 
 const mockTransaction = {
   LOCK: {
@@ -40,7 +38,6 @@ jest.mock("../schedulingConflictRevalidation", () => ({
       Object.assign(this, details);
     }
   },
-  revalidateSchedulingRequests: jest.fn(),
 }));
 
 function buildHydratedEvent(overrides = {}) {
@@ -48,14 +45,14 @@ function buildHydratedEvent(overrides = {}) {
     id: 15,
     title: "Owner hold",
     description: "Waiting for confirmation",
-    businessDate: "2026-07-08",
+    businessDate: "2099-07-08",
     period: "afternoon",
     startTime: "13:00",
     endTime: "16:00",
     propertySummary: { label: "Palm Jumeirah penthouse" },
     contactSummary: { label: "Property manager" },
-    consumesCapacity: true,
-    reservedCapacityUnits: "2.50",
+    consumesCapacity: false,
+    reservedCapacityUnits: "0.00",
     status: "ACTIVE",
     createdByUserId: 4,
     updatedByUserId: 4,
@@ -92,8 +89,12 @@ describe("adminCalendarEvents service", () => {
     jest.clearAllMocks();
   });
 
-  it("creates a capacity-consuming event after conflict revalidation", async () => {
-    const createdEvent = buildHydratedEvent();
+  it("creates an all-day informational event without capacity reservations", async () => {
+    const createdEvent = buildHydratedEvent({
+      period: null,
+      startTime: null,
+      endTime: null,
+    });
     models.CalendarEvent.create.mockResolvedValue({ id: 15 });
     models.CalendarEvent.findByPk.mockResolvedValue(createdEvent);
 
@@ -102,34 +103,21 @@ describe("adminCalendarEvents service", () => {
       input: {
         title: "Owner hold",
         description: "Waiting for confirmation",
-        date: "2026-07-08",
-        period: "afternoon",
-        startTime: "13:00",
-        endTime: "16:00",
+        date: "2099-07-08",
+        allDay: true,
         propertySummary: { label: "Palm Jumeirah penthouse" },
         contactSummary: { label: "Property manager" },
-        consumesCapacity: true,
-        reservedCapacityUnits: "2.5",
       },
     });
 
-    expect(revalidateSchedulingRequests).toHaveBeenCalledWith({
-      dates: ["2026-07-08"],
-      transaction: mockTransaction,
-      requests: [
-        expect.objectContaining({
-          type: "event",
-          date: "2026-07-08",
-          period: "afternoon",
-          consumesCapacity: true,
-        }),
-      ],
-    });
     expect(models.CalendarEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
         title: "Owner hold",
-        consumesCapacity: true,
-        reservedCapacityUnits: "2.50",
+        period: null,
+        startTime: null,
+        endTime: null,
+        consumesCapacity: false,
+        reservedCapacityUnits: "0.00",
         createdByUserId: 4,
         updatedByUserId: 4,
       }),
@@ -139,20 +127,26 @@ describe("adminCalendarEvents service", () => {
       expect.objectContaining({
         id: 15,
         title: "Owner hold",
-        date: "2026-07-08",
-        reservedCapacityUnits: 2.5,
+        isAllDay: true,
+        reservedCapacityUnits: 0,
       }),
     );
   });
 
-  it("updates an active event and excludes the same event from revalidation", async () => {
-    const event = buildHydratedEvent();
+  it("updates an active event to a timed informational entry", async () => {
+    const event = buildHydratedEvent({
+      period: null,
+      startTime: null,
+      endTime: null,
+    });
     models.CalendarEvent.findByPk
       .mockResolvedValueOnce(event)
       .mockResolvedValueOnce(
         buildHydratedEvent({
           title: "Updated hold",
-          reservedCapacityUnits: "3.00",
+          startTime: "10:00",
+          endTime: "11:00",
+          period: "morning",
         }),
       );
 
@@ -161,29 +155,23 @@ describe("adminCalendarEvents service", () => {
       eventId: 15,
       input: {
         title: "Updated hold",
-        reservedCapacityUnits: "3",
+        allDay: false,
+        startTime: "10:00",
+        endTime: "11:00",
       },
     });
 
-    expect(revalidateSchedulingRequests).toHaveBeenCalledWith({
-      dates: ["2026-07-08"],
-      transaction: mockTransaction,
-      requests: [
-        expect.objectContaining({
-          type: "event",
-          date: "2026-07-08",
-        }),
-      ],
-      excludeEventIds: [15],
-    });
     expect(event.title).toBe("Updated hold");
-    expect(event.reservedCapacityUnits).toBe("3.00");
+    expect(event.startTime).toBe("10:00");
+    expect(event.endTime).toBe("11:00");
+    expect(event.period).toBe("morning");
+    expect(event.reservedCapacityUnits).toBe("0.00");
     expect(event.updatedByUserId).toBe(7);
     expect(event.save).toHaveBeenCalledWith({ transaction: mockTransaction });
     expect(result.title).toBe("Updated hold");
   });
 
-  it("cancels an event and records cancellation audit fields", async () => {
+  it("cancels and restores a future event with audit fields", async () => {
     const event = buildHydratedEvent();
     models.CalendarEvent.findByPk
       .mockResolvedValueOnce(event)
@@ -197,63 +185,31 @@ describe("adminCalendarEvents service", () => {
           },
           cancelledByUserId: 9,
           cancellationReason: "Client asked to hold",
-          cancelledAt: new Date("2026-07-02T10:00:00.000Z"),
+          cancelledAt: new Date("2099-07-02T10:00:00.000Z"),
         }),
-      );
+      )
+      .mockResolvedValueOnce(
+        buildHydratedEvent({
+          status: "CANCELLED",
+          cancelledByUserId: 9,
+          cancelledAt: new Date("2099-07-02T10:00:00.000Z"),
+          cancellationReason: "Client asked to hold",
+        }),
+      )
+      .mockResolvedValueOnce(buildHydratedEvent());
 
-    const result = await cancelCalendarEvent({
+    const cancelledResult = await cancelCalendarEvent({
       actorUser: { id: 9, role: "SUPERADMIN" },
       eventId: 15,
       cancellationReason: "Client asked to hold",
     });
-
-    expect(revalidateSchedulingRequests).not.toHaveBeenCalled();
-    expect(event.status).toBe("CANCELLED");
-    expect(event.cancelledByUserId).toBe(9);
-    expect(event.cancellationReason).toBe("Client asked to hold");
-    expect(event.updatedByUserId).toBe(9);
-    expect(result.status).toBe("CANCELLED");
-    expect(result.cancellationReason).toBe("Client asked to hold");
-  });
-
-  it("restores a cancelled event only after conflict revalidation passes", async () => {
-    const cancelledEvent = buildHydratedEvent({
-      status: "CANCELLED",
-      cancelledByUserId: 9,
-      cancelledByUser: {
-        id: 9,
-        fullName: "Shift Lead",
-        email: "lead@example.com",
-      },
-      cancelledAt: new Date("2026-07-02T10:00:00.000Z"),
-      cancellationReason: "Client asked to hold",
-    });
-    models.CalendarEvent.findByPk
-      .mockResolvedValueOnce(cancelledEvent)
-      .mockResolvedValueOnce(buildHydratedEvent());
-
-    const result = await restoreCalendarEvent({
+    const restoredResult = await restoreCalendarEvent({
       actorUser: { id: 4, role: "SUPERADMIN" },
       eventId: 15,
     });
 
-    expect(revalidateSchedulingRequests).toHaveBeenCalledWith({
-      dates: ["2026-07-08"],
-      transaction: mockTransaction,
-      requests: [
-        expect.objectContaining({
-          type: "event",
-          date: "2026-07-08",
-          consumesCapacity: true,
-        }),
-      ],
-      excludeEventIds: [15],
-    });
-    expect(cancelledEvent.status).toBe("ACTIVE");
-    expect(cancelledEvent.cancelledByUserId).toBeNull();
-    expect(cancelledEvent.cancelledAt).toBeNull();
-    expect(cancelledEvent.cancellationReason).toBeNull();
-    expect(result.status).toBe("ACTIVE");
+    expect(cancelledResult.status).toBe("CANCELLED");
+    expect(restoredResult.status).toBe("ACTIVE");
   });
 
   it("rejects invalid event inputs before hitting the database", async () => {
@@ -262,38 +218,27 @@ describe("adminCalendarEvents service", () => {
         actorUser: { id: 4, role: "SUPERADMIN" },
         input: {
           title: "",
-          date: "2026-07-08",
-          period: "afternoon",
+          date: "2099-07-08",
+          allDay: true,
         },
       }),
     ).rejects.toThrow("Calendar event title is required");
 
-    expect(revalidateSchedulingRequests).not.toHaveBeenCalled();
     expect(models.CalendarEvent.create).not.toHaveBeenCalled();
   });
 
-  it("surfaces scheduling conflicts from restore", async () => {
-    const cancelledEvent = buildHydratedEvent({
-      status: "CANCELLED",
-      cancelledAt: new Date("2026-07-02T10:00:00.000Z"),
-      cancellationReason: "Client asked to hold",
+  it("rejects mutations for past events", async () => {
+    const pastEvent = buildHydratedEvent({
+      businessDate: "2026-07-01",
     });
-    models.CalendarEvent.findByPk.mockResolvedValue(cancelledEvent);
-    revalidateSchedulingRequests.mockRejectedValue(
-      new SchedulingConflictError("Conflict", {
-        reasonCode: "schedule_conflict_existing_entries",
-      }),
-    );
+    models.CalendarEvent.findByPk.mockResolvedValue(pastEvent);
 
     await expect(
-      restoreCalendarEvent({
+      cancelCalendarEvent({
         actorUser: { id: 4, role: "SUPERADMIN" },
         eventId: 15,
       }),
-    ).rejects.toMatchObject({
-      name: "SchedulingConflictError",
-      reasonCode: "schedule_conflict_existing_entries",
-    });
+    ).rejects.toThrow("Past calendar events are read-only");
   });
 
   it("rejects unauthorized actors", async () => {
@@ -302,8 +247,8 @@ describe("adminCalendarEvents service", () => {
         actorUser: { id: 4, role: "CUSTOMER" },
         input: {
           title: "Owner hold",
-          date: "2026-07-08",
-          period: "afternoon",
+          date: "2099-07-08",
+          allDay: true,
         },
       }),
     ).rejects.toThrow(

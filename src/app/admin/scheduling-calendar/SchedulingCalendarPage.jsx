@@ -195,7 +195,7 @@ function formatMoney(amount) {
   }).format(Number(amount));
 }
 
-function buildDayAriaLabel(day, counts, eventsForDay) {
+function buildDayAriaLabel(day, counts, _eventsForDay) {
   const parts = [formatDateLabel(day.date)];
   const blockedTimeRanges = Array.isArray(day.block?.blockedTimeRanges)
     ? day.block.blockedTimeRanges
@@ -226,14 +226,6 @@ function buildDayAriaLabel(day, counts, eventsForDay) {
       `${counts.activeEvents} active event${counts.activeEvents === 1 ? "" : "s"}`,
     );
   }
-  if (
-    eventsForDay.some(
-      (event) => event.status === "ACTIVE" && event.consumesCapacity,
-    )
-  ) {
-    parts.push("has capacity reservation");
-  }
-
   return parts.join(". ");
 }
 
@@ -306,6 +298,10 @@ function getEntrySortTime(entry) {
     return entry.booking.slot?.startTime || "99:99";
   }
 
+  if (entry.event.isAllDay) {
+    return "00:00";
+  }
+
   if (entry.event.startTime) {
     return entry.event.startTime;
   }
@@ -326,10 +322,18 @@ function formatUpcomingEntrySchedule(entry) {
     return startTime ? `${label} • ${startTime}` : label;
   }
 
+  if (entry.event.isAllDay) {
+    return "All day";
+  }
+
   const periodLabel = entry.event.period
     ? labelizePeriod(entry.event.period)
-    : "Custom";
-  const parts = [periodLabel];
+    : "";
+  const parts = [];
+
+  if (periodLabel) {
+    parts.push(periodLabel);
+  }
 
   if (entry.event.startTime) {
     parts.push(entry.event.startTime);
@@ -340,6 +344,10 @@ function formatUpcomingEntrySchedule(entry) {
   }
 
   return parts.join(" • ").replace(" • to ", " to ");
+}
+
+function isPastDateKey(dateKey, todayDateKey) {
+  return Boolean(dateKey && todayDateKey && dateKey < todayDateKey);
 }
 
 function buildUpcomingScheduleEntries({
@@ -434,15 +442,11 @@ function buildEventFormState(dateKey, event = null) {
     title: event?.title || "",
     description: event?.description || "",
     date: event?.date || dateKey || "",
-    period: event?.period || "",
+    allDay: Boolean(event?.isAllDay),
     startTime: event?.startTime || "",
     endTime: event?.endTime || "",
     propertyLabel: event?.propertySummary?.label || "",
     contactLabel: event?.contactSummary?.label || "",
-    consumesCapacity: Boolean(event?.consumesCapacity),
-    reservedCapacityUnits: event?.consumesCapacity
-      ? String(event?.reservedCapacityUnits || 1)
-      : "0",
   };
 }
 
@@ -825,10 +829,19 @@ export default function SchedulingCalendarPage() {
   };
 
   const handleEventFormChange = (field, value) => {
-    setEventForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
+    setEventForm((current) => {
+      const nextForm = {
+        ...current,
+        [field]: value,
+      };
+
+      if (field === "allDay" && value) {
+        nextForm.startTime = "";
+        nextForm.endTime = "";
+      }
+
+      return nextForm;
+    });
   };
 
   const refreshCalendarForDate = (dateKey) => {
@@ -851,19 +864,15 @@ export default function SchedulingCalendarPage() {
         title: eventForm.title,
         description: eventForm.description,
         date: eventForm.date,
-        period: eventForm.period || null,
-        startTime: eventForm.startTime || null,
-        endTime: eventForm.endTime || null,
+        allDay: eventForm.allDay,
+        startTime: eventForm.allDay ? null : eventForm.startTime || null,
+        endTime: eventForm.allDay ? null : eventForm.endTime || null,
         propertySummary: eventForm.propertyLabel.trim()
           ? { label: eventForm.propertyLabel.trim() }
           : null,
         contactSummary: eventForm.contactLabel.trim()
           ? { label: eventForm.contactLabel.trim() }
           : null,
-        consumesCapacity: eventForm.consumesCapacity,
-        reservedCapacityUnits: eventForm.consumesCapacity
-          ? eventForm.reservedCapacityUnits || "1"
-          : "0",
       };
       const endpoint =
         eventDialogState.mode === "create"
@@ -1668,7 +1677,10 @@ export default function SchedulingCalendarPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={!selectedDateKey}
+                    disabled={
+                      !selectedDateKey ||
+                      isPastDateKey(selectedDateKey, todayDateKey)
+                    }
                     onClick={openCreateEventDialog}
                   >
                     Create event
@@ -1702,6 +1714,7 @@ export default function SchedulingCalendarPage() {
                               variant="outline"
                               size="sm"
                               disabled={
+                                isPastDateKey(event.date, todayDateKey) ||
                                 eventSaving ||
                                 (eventActionState.id === event.id &&
                                   eventActionState.action.length > 0)
@@ -1717,6 +1730,7 @@ export default function SchedulingCalendarPage() {
                                 variant="outline"
                                 size="sm"
                                 disabled={
+                                  isPastDateKey(event.date, todayDateKey) ||
                                   eventSaving ||
                                   eventActionState.id === event.id
                                 }
@@ -1733,6 +1747,7 @@ export default function SchedulingCalendarPage() {
                                 variant="outline"
                                 size="sm"
                                 disabled={
+                                  isPastDateKey(event.date, todayDateKey) ||
                                   eventSaving ||
                                   eventActionState.id === event.id
                                 }
@@ -1749,13 +1764,14 @@ export default function SchedulingCalendarPage() {
                             >
                               {event.status}
                             </Badge>
-                            {event.consumesCapacity ? (
+                            <Badge variant="outline">
+                              {event.isAllDay ? "All day" : "Informational"}
+                            </Badge>
+                            {isPastDateKey(event.date, todayDateKey) ? (
                               <Badge variant="outline">
-                                Reserves {event.reservedCapacityUnits} capacity
+                                Read-only past event
                               </Badge>
-                            ) : (
-                              <Badge variant="outline">No capacity hold</Badge>
-                            )}
+                            ) : null}
                           </div>
                         </div>
 
@@ -1768,9 +1784,11 @@ export default function SchedulingCalendarPage() {
                               Schedule
                             </p>
                             <p className="text-muted-foreground">
-                              {event.period
-                                ? labelizePeriod(event.period)
-                                : "Custom"}
+                              {event.isAllDay
+                                ? "All day"
+                                : event.period
+                                  ? labelizePeriod(event.period)
+                                  : "Timed"}
                               {event.startTime ? ` • ${event.startTime}` : ""}
                               {event.endTime ? ` to ${event.endTime}` : ""}
                             </p>
@@ -1789,11 +1807,11 @@ export default function SchedulingCalendarPage() {
                         {event.status === "CANCELLED" ? (
                           <div className="mt-3 rounded-xl border border-rose-400/20 bg-rose-500/5 p-3 text-sm">
                             <p className="font-medium text-rose-100">
-                              Capacity released
+                              Event cancelled
                             </p>
                             <p className="mt-1 text-muted-foreground">
                               {event.cancellationReason ||
-                                "This event is cancelled and does not reserve capacity."}
+                                "This informational event is cancelled."}
                             </p>
                           </div>
                         ) : null}
@@ -1942,9 +1960,9 @@ export default function SchedulingCalendarPage() {
                                     {entry.event.status}
                                   </Badge>
                                   <Badge variant="outline">
-                                    {entry.event.consumesCapacity
-                                      ? `Reserves ${entry.event.reservedCapacityUnits}`
-                                      : "No capacity hold"}
+                                    {entry.event.isAllDay
+                                      ? "All day"
+                                      : "Informational"}
                                   </Badge>
                                 </div>
                               )}
@@ -2021,21 +2039,22 @@ export default function SchedulingCalendarPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="calendar-event-period">Period</Label>
-                <select
-                  id="calendar-event-period"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                  value={eventForm.period}
+              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-background/40 p-4 sm:col-span-2">
+                <input
+                  id="calendar-event-all-day"
+                  type="checkbox"
+                  checked={eventForm.allDay}
                   onChange={(event) =>
-                    handleEventFormChange("period", event.target.value)
+                    handleEventFormChange("allDay", event.target.checked)
                   }
-                >
-                  <option value="">Infer from time</option>
-                  <option value="morning">Morning</option>
-                  <option value="afternoon">Afternoon</option>
-                  <option value="evening">Evening</option>
-                </select>
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="calendar-event-all-day">All day</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Use this for informational events that span the whole Dubai
+                    business day.
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -2043,6 +2062,8 @@ export default function SchedulingCalendarPage() {
                 <Input
                   id="calendar-event-start-time"
                   type="time"
+                  step="1800"
+                  disabled={eventForm.allDay}
                   value={eventForm.startTime}
                   onChange={(event) =>
                     handleEventFormChange("startTime", event.target.value)
@@ -2055,6 +2076,8 @@ export default function SchedulingCalendarPage() {
                 <Input
                   id="calendar-event-end-time"
                   type="time"
+                  step="1800"
+                  disabled={eventForm.allDay}
                   value={eventForm.endTime}
                   onChange={(event) =>
                     handleEventFormChange("endTime", event.target.value)
@@ -2096,60 +2119,6 @@ export default function SchedulingCalendarPage() {
                   maxLength={2000}
                   onChange={(event) =>
                     handleEventFormChange("description", event.target.value)
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
-              <div className="flex items-start gap-3">
-                <input
-                  id="calendar-event-consumes-capacity"
-                  type="checkbox"
-                  checked={eventForm.consumesCapacity}
-                  onChange={(event) =>
-                    setEventForm((current) => ({
-                      ...current,
-                      consumesCapacity: event.target.checked,
-                      reservedCapacityUnits: event.target.checked
-                        ? current.reservedCapacityUnits === "0"
-                          ? "1"
-                          : current.reservedCapacityUnits
-                        : "0",
-                    }))
-                  }
-                />
-                <div className="space-y-1">
-                  <Label htmlFor="calendar-event-consumes-capacity">
-                    Reserve scheduling capacity
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Leave this off for informational notes that should not
-                    affect customer availability.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <Label htmlFor="calendar-event-capacity-units">
-                  Reserved capacity units
-                </Label>
-                <Input
-                  id="calendar-event-capacity-units"
-                  type="number"
-                  min="0"
-                  step="0.25"
-                  disabled={!eventForm.consumesCapacity}
-                  value={
-                    eventForm.consumesCapacity
-                      ? eventForm.reservedCapacityUnits
-                      : "0"
-                  }
-                  onChange={(event) =>
-                    handleEventFormChange(
-                      "reservedCapacityUnits",
-                      event.target.value,
-                    )
                   }
                 />
               </div>

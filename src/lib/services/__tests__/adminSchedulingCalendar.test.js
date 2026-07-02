@@ -189,8 +189,9 @@ describe("adminSchedulingCalendar service", () => {
       expect.objectContaining({
         title: "Owner hold",
         date: "2026-07-02",
-        consumesCapacity: true,
-        reservedCapacityUnits: 2.5,
+        isAllDay: false,
+        consumesCapacity: false,
+        reservedCapacityUnits: 0,
       }),
     );
     expect(result.days).toEqual([
@@ -207,7 +208,7 @@ describe("adminSchedulingCalendar service", () => {
           bookings: 0,
           events: 1,
           activeEvents: 1,
-          capacityConsumingEvents: 1,
+          capacityConsumingEvents: 0,
         },
       }),
       expect.objectContaining({
@@ -251,7 +252,7 @@ describe("adminSchedulingCalendar service", () => {
       totalBookings: 1,
       totalEvents: 1,
       totalActiveEvents: 1,
-      totalCapacityConsumingEvents: 1,
+      totalCapacityConsumingEvents: 0,
       totalFullyBlockedDays: 1,
       totalPartiallyBlockedDays: 2,
     });
