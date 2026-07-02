@@ -8,6 +8,10 @@ import {
 } from "@/lib/helpers/bookingUtils";
 import { formatBookingReference } from "@/lib/helpers/invoice-format";
 import {
+  isAdminBookingHandoffExpired,
+  isAdminBookingHandoffTransaction,
+} from "@/lib/services/adminBookingHandoffState";
+import {
   enumerateDateRange,
   getEffectiveBlockForDate,
   normalizeTimeSlotConfig,
@@ -183,6 +187,11 @@ function buildBookingCalendarItem(booking) {
   });
   const resolvedPeriods = blockedPeriods.length > 0 ? blockedPeriods : [];
   const amountSource = booking.transaction?.amount ?? booking.total ?? null;
+  const paymentStatus =
+    isAdminBookingHandoffTransaction(booking.transaction) &&
+    isAdminBookingHandoffExpired(booking.transaction)
+      ? "expired"
+      : booking.transaction?.status || null;
 
   return {
     id: Number(booking.id),
@@ -200,7 +209,7 @@ function buildBookingCalendarItem(booking) {
     property,
     service,
     amount: amountSource == null ? null : Number(amountSource),
-    paymentStatus: booking.transaction?.status || null,
+    paymentStatus,
     slot: {
       startTime: booking.startTime || "",
       durationHours: Number(
@@ -223,6 +232,39 @@ function buildBookingCalendarItem(booking) {
       }),
     },
   };
+}
+
+function shouldIncludeCalendarBooking(booking) {
+  if (!booking || booking.cancelledAt) {
+    return true;
+  }
+
+  if (booking.status === "CONFIRMED" || booking.status === "COMPLETED") {
+    return true;
+  }
+
+  if (booking.status !== "DRAFT") {
+    return true;
+  }
+
+  if (booking.transaction) {
+    if (
+      isAdminBookingHandoffTransaction(booking.transaction) &&
+      isAdminBookingHandoffExpired(booking.transaction)
+    ) {
+      return false;
+    }
+
+    return ["pending", "success"].includes(booking.transaction.status);
+  }
+
+  if (!booking.createdAt) {
+    return false;
+  }
+
+  const ageMinutes =
+    (Date.now() - new Date(booking.createdAt).getTime()) / 60000;
+  return ageMinutes < 15;
 }
 
 function buildEventCalendarItem(event) {
@@ -344,9 +386,10 @@ export async function listAdminSchedulingCalendarRange({
   ]);
 
   const config = normalizeTimeSlotConfig(configEntry?.value);
-  const bookings = bookingRecords.map((record) =>
-    buildBookingCalendarItem(toPlainRecord(record)),
-  );
+  const bookings = bookingRecords
+    .map((record) => toPlainRecord(record))
+    .filter(shouldIncludeCalendarBooking)
+    .map((record) => buildBookingCalendarItem(record));
   const events = eventRecords.map((record) =>
     buildEventCalendarItem(toPlainRecord(record)),
   );

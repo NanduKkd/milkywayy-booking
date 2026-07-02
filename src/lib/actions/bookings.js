@@ -39,6 +39,10 @@ import {
   getTransactionGrossAmount,
 } from "@/lib/helpers/transactionPricing";
 import {
+  isAdminBookingHandoffExpired,
+  isAdminBookingHandoffTransaction,
+} from "@/lib/services/adminBookingHandoffState";
+import {
   assertBookingPropertiesAvailable,
   calculatePropertyPrice,
   REVERSE_SLOT_MAPPING,
@@ -479,6 +483,13 @@ const isSlotBlocked = (booking) => {
 
     // If has transaction
     if (booking.transaction) {
+      if (
+        isAdminBookingHandoffTransaction(booking.transaction) &&
+        isAdminBookingHandoffExpired(booking.transaction)
+      ) {
+        return false;
+      }
+
       // If transaction is pending or success, blocked
       if (["pending", "success"].includes(booking.transaction.status))
         return true;
@@ -835,6 +846,10 @@ const getDraftsHandler = async () => {
     return drafts
       .filter((d) => {
         const txStatus = d.transaction?.status;
+        if (isAdminBookingHandoffTransaction(d.transaction)) {
+          return false;
+        }
+
         return !txStatus || txStatus === "failed";
       })
       .map((d) => d.get({ plain: true }));

@@ -234,6 +234,7 @@ export async function searchAdminBookingPreparationCustomers({
 export async function previewAdminBookingPreparation({
   actorUser,
   input,
+  excludeBookingIds = [],
   transaction = null,
 } = {}) {
   assertAuthorizedActor(actorUser);
@@ -242,7 +243,7 @@ export async function previewAdminBookingPreparation({
   const pricingConfig = await getPricingConfig();
   const { timeSlotConfig } = await assertBookingPropertiesAvailable(
     normalizedInput.properties,
-    [],
+    excludeBookingIds,
     { transaction },
   );
 

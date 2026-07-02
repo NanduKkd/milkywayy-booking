@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Copy,
   MapPinned,
   Pencil,
   Plus,
@@ -470,6 +471,11 @@ const EMPTY_PREPARATION_CUSTOMER = {
   trn: "",
 };
 const EMPTY_PREPARATION_PREVIEW = null;
+const EMPTY_HANDOFF_LINK_STATE = {
+  transactionId: null,
+  url: "",
+  expiresAt: "",
+};
 
 function createPreparedPropertyLocalId() {
   return (
@@ -567,6 +573,10 @@ export default function SchedulingCalendarPage() {
     useState(false);
   const [bookingPreparationPreview, setBookingPreparationPreview] = useState(
     EMPTY_PREPARATION_PREVIEW,
+  );
+  const [bookingHandoffSaving, setBookingHandoffSaving] = useState(false);
+  const [bookingHandoffState, setBookingHandoffState] = useState(
+    EMPTY_HANDOFF_LINK_STATE,
   );
   const hasLoadedOnceRef = useRef(false);
   const loadTrigger = `${monthKey}:${reloadVersion}`;
@@ -1065,6 +1075,7 @@ export default function SchedulingCalendarPage() {
     setCustomerSearchResults([]);
     setSelectedExistingCustomer(null);
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
   };
 
   const openBookingPreparationDialog = () => {
@@ -1078,6 +1089,7 @@ export default function SchedulingCalendarPage() {
     setCustomerSearchResults([]);
     setSelectedExistingCustomer(null);
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
   };
 
   const updateBookingPreparationCustomer = (field, value) => {
@@ -1086,6 +1098,7 @@ export default function SchedulingCalendarPage() {
       [field]: value,
     }));
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
   };
 
   const updatePreparedProperty = (index, field, value) => {
@@ -1114,6 +1127,7 @@ export default function SchedulingCalendarPage() {
       }),
     );
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
   };
 
   const togglePreparedPropertyService = (index, service) => {
@@ -1134,6 +1148,7 @@ export default function SchedulingCalendarPage() {
       createEmptyPreparedProperty(selectedDateKey || todayDateKey),
     ]);
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
   };
 
   const removePreparedProperty = (index) => {
@@ -1145,6 +1160,7 @@ export default function SchedulingCalendarPage() {
       return current.filter((_, propertyIndex) => propertyIndex !== index);
     });
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
   };
 
   const searchExistingCustomers = async () => {
@@ -1219,6 +1235,75 @@ export default function SchedulingCalendarPage() {
       toast.error(error.message || "Failed to prepare booking");
     } finally {
       setBookingPreparationSaving(false);
+    }
+  };
+
+  const createBookingHandoff = async () => {
+    setBookingHandoffSaving(true);
+
+    try {
+      const requestPayload =
+        bookingPreparationMode === "existing"
+          ? {
+              customerMode: "existing",
+              customerId: selectedExistingCustomer?.id,
+              properties: bookingPreparationProperties,
+            }
+          : {
+              customerMode: "new",
+              customer: bookingPreparationCustomer,
+              properties: bookingPreparationProperties,
+            };
+      const response = await fetch(
+        "/api/admin/scheduling-calendar/booking-handoffs",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            input: requestPayload,
+            transactionId: bookingHandoffState.transactionId || null,
+          }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to create booking handoff");
+      }
+
+      setBookingPreparationPreview({
+        customer: payload.customer,
+        properties: payload.propertyPreviews || payload.properties || [],
+        totalAmount: payload.totalAmount,
+      });
+      setBookingHandoffState({
+        transactionId: payload.transactionId || null,
+        url: payload.url || "",
+        expiresAt: payload.expiresAt || "",
+      });
+      toast.success(
+        bookingHandoffState.transactionId
+          ? "Booking handoff regenerated"
+          : "Booking handoff created",
+      );
+    } catch (error) {
+      toast.error(error.message || "Failed to create booking handoff");
+    } finally {
+      setBookingHandoffSaving(false);
+    }
+  };
+
+  const copyBookingHandoffLink = async () => {
+    if (!bookingHandoffState.url) {
+      toast.error("No booking handoff link available yet");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(bookingHandoffState.url);
+      toast.success("Booking handoff link copied");
+    } catch {
+      toast.error("Failed to copy booking handoff link");
     }
   };
 
@@ -2289,7 +2374,7 @@ export default function SchedulingCalendarPage() {
             <DialogTitle>Prepare admin booking</DialogTitle>
             <DialogDescription>
               Collect the customer and property details, then validate pricing
-              and availability before the secure handoff flow is added.
+              and availability, then create a secure payment handoff link.
             </DialogDescription>
           </DialogHeader>
 
@@ -2306,6 +2391,7 @@ export default function SchedulingCalendarPage() {
                   onClick={() => {
                     setBookingPreparationMode("existing");
                     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+                    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
                   }}
                 >
                   Existing customer
@@ -2318,6 +2404,7 @@ export default function SchedulingCalendarPage() {
                   onClick={() => {
                     setBookingPreparationMode("new");
                     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+                    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
                   }}
                 >
                   New customer
@@ -2371,6 +2458,7 @@ export default function SchedulingCalendarPage() {
                               setBookingPreparationPreview(
                                 EMPTY_PREPARATION_PREVIEW,
                               );
+                              setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
                             }}
                           >
                             <p className="font-medium">
@@ -2806,6 +2894,35 @@ export default function SchedulingCalendarPage() {
                     ),
                   )}
                 </div>
+
+                {bookingHandoffState.url ? (
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-background/60 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">Secure handoff link</p>
+                        <p className="mt-1 break-all text-sm text-muted-foreground">
+                          {bookingHandoffState.url}
+                        </p>
+                        {bookingHandoffState.expiresAt ? (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            Expires{" "}
+                            {new Date(
+                              bookingHandoffState.expiresAt,
+                            ).toLocaleString("en-GB")}
+                          </p>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={copyBookingHandoffLink}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy link
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -2822,6 +2939,17 @@ export default function SchedulingCalendarPage() {
                 {bookingPreparationSaving
                   ? "Validating..."
                   : "Validate preparation"}
+              </Button>
+              <Button
+                type="button"
+                disabled={bookingHandoffSaving || !bookingPreparationPreview}
+                onClick={createBookingHandoff}
+              >
+                {bookingHandoffSaving
+                  ? "Saving..."
+                  : bookingHandoffState.transactionId
+                    ? "Regenerate link"
+                    : "Create secure link"}
               </Button>
             </DialogFooter>
           </form>

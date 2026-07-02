@@ -8,6 +8,10 @@ import BookingRevision from "@/lib/db/models/bookingrevision";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import { auth } from "@/lib/helpers/auth";
+import {
+  isAdminBookingHandoffExpired,
+  isAdminBookingHandoffTransaction,
+} from "@/lib/services/adminBookingHandoffState";
 import { DELIVERY_FILE_INCLUDE } from "@/lib/services/fileDelivery";
 import {
   applyPromotionForCheckoutTransaction,
@@ -30,7 +34,9 @@ const reconcilePendingTransactions = async () => {
       status: "pending",
       stripePaymentIntentId: { [Op.like]: "cs_%" },
     },
-    attributes: ["id", "status", "stripePaymentIntentId", "paidAt"],
+    // metadata is required to distinguish expiring admin handoff reservations
+    // from ordinary checkout sessions.
+    attributes: ["id", "status", "stripePaymentIntentId", "paidAt", "metadata"],
     order: [["updatedAt", "DESC"]],
     limit: 50,
   });
@@ -38,6 +44,26 @@ const reconcilePendingTransactions = async () => {
   await Promise.all(
     pendingTransactions.map(async (transaction) => {
       try {
+        if (
+          isAdminBookingHandoffTransaction(transaction) &&
+          isAdminBookingHandoffExpired(transaction)
+        ) {
+          await transaction.update({ status: "failed" });
+          await expirePromotionForCheckoutTransaction({
+            transactionId: transaction.id,
+          });
+          await Booking.update(
+            { cancelledAt: new Date(), status: "CANCELLED" },
+            {
+              where: {
+                transactionId: transaction.id,
+                status: { [Op.in]: ["DRAFT", "CANCELLED"] },
+              },
+            },
+          );
+          return;
+        }
+
         const session = await stripe.checkout.sessions.retrieve(
           transaction.stripePaymentIntentId,
         );

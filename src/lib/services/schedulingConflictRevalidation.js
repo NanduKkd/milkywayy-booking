@@ -9,6 +9,10 @@ import {
   getBookingLoadBreakdown,
 } from "@/lib/helpers/bookingUtils";
 import {
+  isAdminBookingHandoffExpired,
+  isAdminBookingHandoffTransaction,
+} from "@/lib/services/adminBookingHandoffState";
+import {
   expandPeriodsToSlotTimes,
   expandTimeRangeToSlotTimes,
   getEffectiveBlockForDate,
@@ -84,6 +88,13 @@ function isBookingBlocking(booking) {
 
   if (booking?.status === "DRAFT") {
     if (booking?.transaction) {
+      if (
+        isAdminBookingHandoffTransaction(booking.transaction) &&
+        isAdminBookingHandoffExpired(booking.transaction)
+      ) {
+        return false;
+      }
+
       return ["pending", "success"].includes(booking.transaction.status);
     }
 
