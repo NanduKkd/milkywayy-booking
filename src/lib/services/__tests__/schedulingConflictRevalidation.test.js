@@ -131,7 +131,7 @@ describe("schedulingConflictRevalidation", () => {
     });
   });
 
-  it("requires an override when a new block would affect active bookings or events", async () => {
+  it("blocks a new schedule block when it overlaps an active booking", async () => {
     Booking.findAll.mockResolvedValue([
       {
         id: 5,
@@ -173,22 +173,22 @@ describe("schedulingConflictRevalidation", () => {
     }
 
     expect(receivedError).toBeInstanceOf(SchedulingConflictError);
-    expect(receivedError.reasonCode).toBe("schedule_conflict_existing_records");
+    expect(receivedError.reasonCode).toBe(
+      "schedule_conflict_existing_bookings",
+    );
     expect(receivedError.conflicts[0].bookings).toHaveLength(1);
     expect(receivedError.conflicts[0].events).toHaveLength(1);
   });
 
-  it("allows an explicit override request for conflicting blocks", async () => {
-    Booking.findAll.mockResolvedValue([
+  it("allows an explicit override request for event-only block conflicts", async () => {
+    CalendarEvent.findAll.mockResolvedValue([
       {
-        id: 5,
-        bookingCode: "MWB-1005",
-        date: "2026-07-13",
-        startTime: "09:00",
-        duration: 1,
-        status: "CONFIRMED",
-        shootDetails: { services: ["Photography"] },
-        propertyDetails: { type: "Apartment", size: "1 Bed" },
+        id: 9,
+        title: "Studio hold",
+        businessDate: "2026-07-13",
+        period: "morning",
+        status: "ACTIVE",
+        consumesCapacity: false,
       },
     ]);
 
@@ -214,5 +214,53 @@ describe("schedulingConflictRevalidation", () => {
         ],
       }),
     );
+  });
+
+  it("rejects an exact time-range block that overlaps an active booking even with override enabled", async () => {
+    Booking.findAll.mockResolvedValue([
+      {
+        id: 5,
+        bookingCode: "MWB-1005",
+        date: "2026-07-13",
+        startTime: "09:00",
+        duration: 1,
+        status: "CONFIRMED",
+        shootDetails: { services: ["Photography"] },
+        propertyDetails: { type: "Apartment", size: "1 Bed" },
+      },
+    ]);
+
+    await expect(
+      revalidateSchedulingRequests({
+        dates: ["2026-07-13"],
+        requests: [
+          {
+            type: "block",
+            date: "2026-07-13",
+            timeBlocks: [
+              {
+                startTime: "10:00",
+                endTime: "10:30",
+              },
+            ],
+            allowOverride: true,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      name: "SchedulingConflictError",
+      reasonCode: "schedule_conflict_existing_bookings",
+      conflicts: [
+        expect.objectContaining({
+          date: "2026-07-13",
+          blockedTimeRanges: [{ startTime: "10:00", endTime: "10:30" }],
+          bookings: [
+            expect.objectContaining({
+              bookingCode: "MWB-1005",
+            }),
+          ],
+        }),
+      ],
+    });
   });
 });

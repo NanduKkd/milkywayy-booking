@@ -112,6 +112,12 @@ describe("adminSchedulingCalendar service", () => {
             blocks: {
               afternoon: "blocked",
             },
+            timeBlocks: [
+              {
+                startTime: "10:00",
+                endTime: "10:30",
+              },
+            ],
           },
         },
         systemSettings: {
@@ -195,6 +201,7 @@ describe("adminSchedulingCalendar service", () => {
         block: expect.objectContaining({
           fullDayBlocked: false,
           blockedPeriods: ["afternoon"],
+          blockedTimeRanges: [{ startTime: "10:00", endTime: "10:30" }],
         }),
         counts: {
           bookings: 0,
@@ -210,6 +217,7 @@ describe("adminSchedulingCalendar service", () => {
         block: expect.objectContaining({
           fullDayBlocked: false,
           blockedPeriods: ["evening"],
+          blockedTimeRanges: [],
         }),
         counts: {
           bookings: 1,
@@ -225,6 +233,7 @@ describe("adminSchedulingCalendar service", () => {
         block: expect.objectContaining({
           fullDayBlocked: false,
           blockedPeriods: [],
+          blockedTimeRanges: [],
         }),
       }),
       expect.objectContaining({
@@ -234,6 +243,7 @@ describe("adminSchedulingCalendar service", () => {
         block: expect.objectContaining({
           fullDayBlocked: true,
           blockedPeriods: ["morning", "afternoon", "evening"],
+          blockedTimeRanges: [],
         }),
       }),
     ]);

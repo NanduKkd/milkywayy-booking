@@ -37,6 +37,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { BUSINESS_DAY_TIME_OPTIONS } from "@/lib/services/schedulingAvailability";
 import { cn } from "@/lib/utils";
 
 const DUBAI_TIMEZONE = "Asia/Dubai";
@@ -164,6 +165,16 @@ function formatBlockedPeriods(blockedPeriods) {
     .join(", ");
 }
 
+function formatBlockedTimeRanges(blockedTimeRanges) {
+  if (!Array.isArray(blockedTimeRanges) || blockedTimeRanges.length === 0) {
+    return "No exact blocks";
+  }
+
+  return blockedTimeRanges
+    .map((timeRange) => `${timeRange.startTime} - ${timeRange.endTime}`)
+    .join(", ");
+}
+
 function formatConflictPeriods(periods) {
   if (!Array.isArray(periods) || periods.length === 0) {
     return "All periods";
@@ -186,6 +197,9 @@ function formatMoney(amount) {
 
 function buildDayAriaLabel(day, counts, eventsForDay) {
   const parts = [formatDateLabel(day.date)];
+  const blockedTimeRanges = Array.isArray(day.block?.blockedTimeRanges)
+    ? day.block.blockedTimeRanges
+    : [];
 
   if (!day.isWorkingDay) {
     parts.push("non-working day");
@@ -195,6 +209,13 @@ function buildDayAriaLabel(day, counts, eventsForDay) {
   } else if (day.block.blockedPeriods.length > 0) {
     parts.push(
       `blocked periods: ${day.block.blockedPeriods.map(labelizePeriod).join(", ")}`,
+    );
+  }
+  if (blockedTimeRanges.length > 0) {
+    parts.push(
+      `exact blocks: ${blockedTimeRanges
+        .map((timeRange) => `${timeRange.startTime}-${timeRange.endTime}`)
+        .join(", ")}`,
     );
   }
   if (counts.bookings > 0) {
@@ -220,6 +241,9 @@ function buildSelectedDaySummary(day) {
   if (!day) return [];
 
   const badges = [];
+  const blockedTimeRanges = Array.isArray(day.block?.blockedTimeRanges)
+    ? day.block.blockedTimeRanges
+    : [];
 
   badges.push({
     label: day.isWorkingDay ? "Working day" : "Non-working day",
@@ -233,7 +257,20 @@ function buildSelectedDaySummary(day) {
       label: `Blocked: ${formatBlockedPeriods(day.block.blockedPeriods)}`,
       variant: "outline",
     });
-  } else {
+  }
+
+  if (blockedTimeRanges.length > 0) {
+    badges.push({
+      label: `Exact blocks: ${formatBlockedTimeRanges(blockedTimeRanges)}`,
+      variant: "outline",
+    });
+  }
+
+  if (
+    !day.block.fullDayBlocked &&
+    day.block.blockedPeriods.length === 0 &&
+    blockedTimeRanges.length === 0
+  ) {
     badges.push({ label: "No active blocks", variant: "outline" });
   }
 
@@ -380,11 +417,16 @@ const EMPTY_CONFLICT_STATE = {
   actionLabel: "",
   conflicts: [],
   pendingTimeSlots: null,
+  reasonCode: "",
 };
 const EMPTY_EVENT_DIALOG_STATE = {
   open: false,
   mode: "create",
   eventId: null,
+};
+const DEFAULT_TIME_BLOCK_FORM = {
+  startTime: BUSINESS_DAY_TIME_OPTIONS[0] || "09:00",
+  endTime: BUSINESS_DAY_TIME_OPTIONS[1] || "09:30",
 };
 
 function buildEventFormState(dateKey, event = null) {
@@ -428,8 +470,15 @@ export default function SchedulingCalendarPage() {
   const [eventForm, setEventForm] = useState(() =>
     buildEventFormState(todayDateKey),
   );
+  const [timeBlockForm, setTimeBlockForm] = useState(DEFAULT_TIME_BLOCK_FORM);
   const hasLoadedOnceRef = useRef(false);
   const loadTrigger = `${monthKey}:${reloadVersion}`;
+
+  useEffect(() => {
+    if (selectedDateKey) {
+      setTimeBlockForm(DEFAULT_TIME_BLOCK_FORM);
+    }
+  }, [selectedDateKey]);
 
   useEffect(() => {
     let ignore = false;
@@ -539,6 +588,9 @@ export default function SchedulingCalendarPage() {
   const selectedBadges = buildSelectedDaySummary(selectedDay);
   const selectedBlockDefinitions = selectedDay?.block?.blockDefinitions || {};
   const selectedBlockedPeriods = selectedDay?.block?.blockedPeriods || [];
+  const selectedBlockedTimeRanges = selectedDay?.block?.blockedTimeRanges || [];
+  const conflictRequiresBookingResolution =
+    conflictState.reasonCode === "schedule_conflict_existing_bookings";
   const selectedDateIndex = days.findIndex(
     (day) => day.date === selectedDateKey,
   );
@@ -598,6 +650,7 @@ export default function SchedulingCalendarPage() {
         actionLabel,
         conflicts: Array.isArray(payload?.conflicts) ? payload.conflicts : [],
         pendingTimeSlots: nextTimeSlots,
+        reasonCode: String(payload?.reasonCode || ""),
       });
       return false;
     }
@@ -671,6 +724,81 @@ export default function SchedulingCalendarPage() {
     } finally {
       setBlockSaving(false);
     }
+  };
+
+  const updateTimeBlockForm = (field, value) => {
+    setTimeBlockForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const getValidatedTimeBlock = () => {
+    const startIndex = BUSINESS_DAY_TIME_OPTIONS.indexOf(
+      timeBlockForm.startTime,
+    );
+    const endIndex = BUSINESS_DAY_TIME_OPTIONS.indexOf(timeBlockForm.endTime);
+
+    if (startIndex === -1 || endIndex === -1) {
+      throw new Error("Block times must use 30-minute increments");
+    }
+
+    if (endIndex <= startIndex) {
+      throw new Error("Block end time must be after the start time");
+    }
+
+    return {
+      startTime: timeBlockForm.startTime,
+      endTime: timeBlockForm.endTime,
+    };
+  };
+
+  const handleAddExactBlock = async () => {
+    let nextTimeBlock;
+
+    try {
+      nextTimeBlock = getValidatedTimeBlock();
+    } catch (error) {
+      toast.error(error.message || "Invalid time block");
+      return;
+    }
+
+    await handleBlockMutation("add exact block", (existing) => {
+      const timeBlocks = Array.isArray(existing.timeBlocks)
+        ? [...existing.timeBlocks]
+        : [];
+      const alreadyExists = timeBlocks.some(
+        (timeBlock) =>
+          timeBlock?.startTime === nextTimeBlock.startTime &&
+          timeBlock?.endTime === nextTimeBlock.endTime,
+      );
+
+      if (!alreadyExists) {
+        timeBlocks.push(nextTimeBlock);
+      }
+
+      return {
+        ...existing,
+        fullDayBlocked: false,
+        timeBlocks,
+      };
+    });
+  };
+
+  const handleRemoveExactBlock = async (timeRange) => {
+    await handleBlockMutation("remove exact block", (existing) => ({
+      ...existing,
+      timeBlocks: (Array.isArray(existing.timeBlocks)
+        ? existing.timeBlocks
+        : []
+      ).filter(
+        (item) =>
+          !(
+            item?.startTime === timeRange.startTime &&
+            item?.endTime === timeRange.endTime
+          ),
+      ),
+    }));
   };
 
   const resetEventDialog = () => {
@@ -1069,6 +1197,14 @@ export default function SchedulingCalendarPage() {
                             {formatBlockedPeriods(day.block.blockedPeriods)}
                           </p>
                         ) : null}
+                        {!day?.block?.fullDayBlocked &&
+                        day?.block?.blockedTimeRanges?.length > 0 ? (
+                          <p className="text-amber-100">
+                            {formatBlockedTimeRanges(
+                              day.block.blockedTimeRanges,
+                            )}
+                          </p>
+                        ) : null}
                         {day && !day.isWorkingDay ? (
                           <p className="text-slate-300">Non-working day</p>
                         ) : null}
@@ -1170,9 +1306,23 @@ export default function SchedulingCalendarPage() {
                     <p className="mt-1 text-sm">
                       {selectedDay?.block?.fullDayBlocked
                         ? "Full day blocked"
-                        : formatBlockedPeriods(
-                            selectedDay?.block?.blockedPeriods || [],
-                          )}
+                        : [
+                            formatBlockedPeriods(
+                              selectedDay?.block?.blockedPeriods || [],
+                            ),
+                            selectedDay?.block?.blockedTimeRanges?.length > 0
+                              ? formatBlockedTimeRanges(
+                                  selectedDay?.block?.blockedTimeRanges || [],
+                                )
+                              : "",
+                          ]
+                            .filter(
+                              (value) =>
+                                value &&
+                                value !== "No blocked periods" &&
+                                value !== "No exact blocks",
+                            )
+                            .join(" • ") || "No active blocks"}
                     </p>
                   </div>
                   <div>
@@ -1196,8 +1346,10 @@ export default function SchedulingCalendarPage() {
                       Availability blocks
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Reuse Time Slots overrides for this date. Blocking warns
-                      before affecting existing bookings or events.
+                      Reuse Time Slots overrides for this date. Exact blocks use
+                      30-minute `from` and `to` times. Active bookings must be
+                      resolved in Bookings before an overlapping block can be
+                      saved.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1222,13 +1374,15 @@ export default function SchedulingCalendarPage() {
                       disabled={
                         blockSaving ||
                         (!selectedDay?.block?.fullDayBlocked &&
-                          selectedBlockedPeriods.length === 0)
+                          selectedBlockedPeriods.length === 0 &&
+                          selectedBlockedTimeRanges.length === 0)
                       }
                       onClick={() =>
                         handleBlockMutation("clear day blocks", (existing) => ({
                           ...existing,
                           fullDayBlocked: false,
                           blocks: {},
+                          timeBlocks: [],
                         }))
                       }
                     >
@@ -1303,9 +1457,110 @@ export default function SchedulingCalendarPage() {
                 {selectedDay?.block?.fullDayBlocked ? (
                   <p className="mt-3 text-sm text-muted-foreground">
                     Full-day block is active. Clear the day block before editing
-                    individual periods.
+                    individual periods or exact time ranges.
                   </p>
                 ) : null}
+
+                <div className="mt-4 rounded-2xl border border-white/10 p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <p className="font-medium">Exact time block</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Block a precise interval in 30-minute increments, such
+                        as `10:00`-`10:30` or `10:00`-`12:30`.
+                      </p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                      <div className="space-y-2">
+                        <Label htmlFor="block-start-time">From</Label>
+                        <Input
+                          id="block-start-time"
+                          type="time"
+                          step="1800"
+                          min={BUSINESS_DAY_TIME_OPTIONS[0]}
+                          max={
+                            BUSINESS_DAY_TIME_OPTIONS[
+                              BUSINESS_DAY_TIME_OPTIONS.length - 2
+                            ]
+                          }
+                          value={timeBlockForm.startTime}
+                          disabled={
+                            blockSaving || selectedDay?.block?.fullDayBlocked
+                          }
+                          onChange={(event) =>
+                            updateTimeBlockForm("startTime", event.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="block-end-time">To</Label>
+                        <Input
+                          id="block-end-time"
+                          type="time"
+                          step="1800"
+                          min={BUSINESS_DAY_TIME_OPTIONS[1]}
+                          max={
+                            BUSINESS_DAY_TIME_OPTIONS[
+                              BUSINESS_DAY_TIME_OPTIONS.length - 1
+                            ]
+                          }
+                          value={timeBlockForm.endTime}
+                          disabled={
+                            blockSaving || selectedDay?.block?.fullDayBlocked
+                          }
+                          onChange={(event) =>
+                            updateTimeBlockForm("endTime", event.target.value)
+                          }
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        className="self-end"
+                        disabled={
+                          blockSaving || selectedDay?.block?.fullDayBlocked
+                        }
+                        onClick={handleAddExactBlock}
+                      >
+                        Add exact block
+                      </Button>
+                    </div>
+                  </div>
+
+                  {selectedBlockedTimeRanges.length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      {selectedBlockedTimeRanges.map((timeRange) => (
+                        <div
+                          key={`${timeRange.startTime}-${timeRange.endTime}`}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/60 px-3 py-2"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              {timeRange.startTime} - {timeRange.endTime}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Exact availability block
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={
+                              blockSaving || selectedDay?.block?.fullDayBlocked
+                            }
+                            onClick={() => handleRemoveExactBlock(timeRange)}
+                          >
+                            Remove block
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      No exact time blocks for this date.
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-3">
@@ -1933,21 +2188,29 @@ export default function SchedulingCalendarPage() {
           <DialogHeader>
             <DialogTitle>Review block conflict</DialogTitle>
             <DialogDescription>
-              Existing bookings and events will remain, but availability for the
-              selected periods will be blocked if you continue.
+              {conflictRequiresBookingResolution
+                ? "This block overlaps an active booking. Resolve the booking in Bookings before retrying the block."
+                : "Existing events will remain, but availability for the selected periods will be blocked if you continue."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              This block overlaps scheduled records. Existing bookings and
-              events will remain, but future availability for the affected
-              periods will be blocked if you continue.
+              {conflictRequiresBookingResolution
+                ? "Active bookings cannot be cancelled, moved, or overridden from Calendar blocking. Use the Bookings section to resolve the overlap, then retry."
+                : "This block overlaps existing calendar entries. The entries will remain, but future availability for the affected periods will be blocked if you continue."}
             </p>
 
             {conflictState.conflicts.map((conflict) => (
               <div
-                key={`${conflict.date}-${conflict.blockedPeriods?.join("-") || "all"}`}
+                key={`${conflict.date}-${conflict.blockedPeriods?.join("-") || "all"}-${
+                  conflict.blockedTimeRanges
+                    ?.map(
+                      (timeRange) =>
+                        `${timeRange.startTime}-${timeRange.endTime}`,
+                    )
+                    .join("-") || "none"
+                }`}
                 className="rounded-2xl border border-white/10 p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1955,9 +2218,20 @@ export default function SchedulingCalendarPage() {
                     <p className="font-medium">
                       {formatDateLabel(conflict.date)}
                     </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Periods: {formatConflictPeriods(conflict.blockedPeriods)}
-                    </p>
+                    {Array.isArray(conflict.blockedPeriods) &&
+                    conflict.blockedPeriods.length > 0 ? (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Periods:{" "}
+                        {formatConflictPeriods(conflict.blockedPeriods)}
+                      </p>
+                    ) : null}
+                    {Array.isArray(conflict.blockedTimeRanges) &&
+                    conflict.blockedTimeRanges.length > 0 ? (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Times:{" "}
+                        {formatBlockedTimeRanges(conflict.blockedTimeRanges)}
+                      </p>
+                    ) : null}
                   </div>
                   <Badge variant="outline" className="rounded-full">
                     {(conflict.bookings?.length || 0) +
@@ -2015,15 +2289,21 @@ export default function SchedulingCalendarPage() {
                 disabled={blockSaving}
                 onClick={() => setConflictState(EMPTY_CONFLICT_STATE)}
               >
-                Cancel
+                {conflictRequiresBookingResolution ? "Close" : "Cancel"}
               </Button>
-              <Button
-                type="button"
-                disabled={blockSaving}
-                onClick={handleConflictOverrideSave}
-              >
-                Save block anyway
-              </Button>
+              {conflictRequiresBookingResolution ? (
+                <Button asChild type="button">
+                  <a href="/admin/bookings">Open Bookings</a>
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  disabled={blockSaving}
+                  onClick={handleConflictOverrideSave}
+                >
+                  Save block anyway
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>

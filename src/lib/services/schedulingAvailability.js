@@ -5,6 +5,17 @@ export const PERIOD_TO_HOURLY = {
   afternoon: ["13:00", "13:30", "14:00", "14:30", "15:00", "15:30"],
   evening: ["17:00", "17:30", "18:00", "18:30", "19:00", "19:30"],
 };
+export const BUSINESS_DAY_START_TIME = "09:00";
+export const BUSINESS_DAY_END_TIME = "20:00";
+export const BUSINESS_DAY_TIME_OPTIONS = Array.from(
+  { length: 23 },
+  (_, index) => {
+    const totalMinutes = 9 * 60 + index * 30;
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+    const minutes = String(totalMinutes % 60).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  },
+);
 
 export const DEFAULT_WORKING_DAYS = {
   Monday: true,
@@ -65,6 +76,121 @@ function cloneDefaultConfig() {
       },
     },
   };
+}
+
+function timeStringToMinutes(timeStr) {
+  const match = /^(\d{2}):(\d{2})$/.exec(String(timeStr || "").trim());
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
+  }
+
+  return hours * 60 + minutes;
+}
+
+function minutesToTimeString(totalMinutes) {
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+  const minutes = String(totalMinutes % 60).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+export function isHalfHourIncrement(timeStr) {
+  const minutes = timeStringToMinutes(timeStr);
+  return minutes != null && minutes % 30 === 0;
+}
+
+export function normalizeBlockTimeRange(timeRange) {
+  const startTime = String(timeRange?.startTime || "").trim();
+  const endTime = String(timeRange?.endTime || "").trim();
+
+  if (!isHalfHourIncrement(startTime) || !isHalfHourIncrement(endTime)) {
+    return null;
+  }
+
+  const startMinutes = timeStringToMinutes(startTime);
+  const endMinutes = timeStringToMinutes(endTime);
+  const businessDayStart = timeStringToMinutes(BUSINESS_DAY_START_TIME);
+  const businessDayEnd = timeStringToMinutes(BUSINESS_DAY_END_TIME);
+
+  if (
+    startMinutes == null ||
+    endMinutes == null ||
+    startMinutes < businessDayStart ||
+    endMinutes > businessDayEnd ||
+    endMinutes <= startMinutes
+  ) {
+    return null;
+  }
+
+  return {
+    startTime,
+    endTime,
+  };
+}
+
+export function normalizeBlockTimeRanges(timeRanges) {
+  const seen = new Set();
+
+  return (Array.isArray(timeRanges) ? timeRanges : [])
+    .map(normalizeBlockTimeRange)
+    .filter(Boolean)
+    .sort((left, right) => {
+      if (left.startTime !== right.startTime) {
+        return left.startTime.localeCompare(right.startTime);
+      }
+
+      return left.endTime.localeCompare(right.endTime);
+    })
+    .filter((timeRange) => {
+      const key = `${timeRange.startTime}-${timeRange.endTime}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+export function expandPeriodsToSlotTimes(periods = []) {
+  const blockedSlots = new Set();
+
+  periods.forEach((period) => {
+    (PERIOD_TO_HOURLY[period] || []).forEach((slot) => {
+      blockedSlots.add(slot);
+    });
+  });
+
+  return [...blockedSlots];
+}
+
+export function expandTimeRangeToSlotTimes(timeRange) {
+  const normalizedRange = normalizeBlockTimeRange(timeRange);
+  if (!normalizedRange) return [];
+
+  const startMinutes = timeStringToMinutes(normalizedRange.startTime);
+  const endMinutes = timeStringToMinutes(normalizedRange.endTime);
+  const blockedSlots = [];
+
+  for (
+    let cursor = startMinutes;
+    cursor != null && endMinutes != null && cursor < endMinutes;
+    cursor += 30
+  ) {
+    blockedSlots.push(minutesToTimeString(cursor));
+  }
+
+  return blockedSlots.filter((slot) =>
+    PERIODS.some((period) => (PERIOD_TO_HOURLY[period] || []).includes(slot)),
+  );
 }
 
 export function parseDateOnly(dateStr) {
@@ -150,6 +276,10 @@ export function getEffectiveBlockForDate(dateStr, configValue) {
   const isWorkingDay = Boolean(workingDays[dayName]);
   const override = config.dateOverrides?.[dateStr] || {};
   const blockedPeriods = new Set();
+  const blockedTimeRanges =
+    override.fullDayBlocked === true
+      ? []
+      : normalizeBlockTimeRanges(override.timeBlocks);
 
   if (!isWorkingDay) {
     PERIODS.forEach((period) => {
@@ -189,6 +319,7 @@ export function getEffectiveBlockForDate(dateStr, configValue) {
       override.fullDayBlocked === true ||
       resolvedBlockedPeriods.length === PERIODS.length,
     blockedPeriods: resolvedBlockedPeriods,
+    blockedTimeRanges,
     blockDefinitions,
   };
 }
@@ -197,13 +328,18 @@ export function getBlockedSlotTimesForDate(dateStr, configValue) {
   const block = getEffectiveBlockForDate(dateStr, configValue);
   const blockedSlots = new Set();
 
-  block.blockedPeriods.forEach((period) => {
-    (PERIOD_TO_HOURLY[period] || []).forEach((slot) => {
+  expandPeriodsToSlotTimes(block.blockedPeriods).forEach((slot) => {
+    blockedSlots.add(slot);
+  });
+  block.blockedTimeRanges.forEach((timeRange) => {
+    expandTimeRangeToSlotTimes(timeRange).forEach((slot) => {
       blockedSlots.add(slot);
     });
   });
 
-  return blockedSlots;
+  return new Set(
+    BUSINESS_DAY_TIME_OPTIONS.filter((slot) => blockedSlots.has(slot)),
+  );
 }
 
 function toDateKey(date) {

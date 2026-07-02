@@ -1,5 +1,6 @@
 import {
   enumerateDateRange,
+  expandTimeRangeToSlotTimes,
   getBlockedSlotTimesForDate,
   getEffectiveBlockForDate,
   getRollingWindowBounds,
@@ -59,6 +60,12 @@ describe("schedulingAvailability", () => {
           blocks: {
             morning: "blocked",
           },
+          timeBlocks: [
+            {
+              startTime: "14:00",
+              endTime: "15:00",
+            },
+          ],
         },
         "2026-07-05": {
           fullDayBlocked: true,
@@ -72,6 +79,7 @@ describe("schedulingAvailability", () => {
         isWorkingDay: true,
         fullDayBlocked: false,
         blockedPeriods: ["morning", "evening"],
+        blockedTimeRanges: [{ startTime: "14:00", endTime: "15:00" }],
       }),
     );
 
@@ -92,11 +100,19 @@ describe("schedulingAvailability", () => {
           blocks: {
             afternoon: "blocked",
           },
+          timeBlocks: [
+            {
+              startTime: "10:00",
+              endTime: "11:00",
+            },
+          ],
         },
       },
     });
 
     expect([...blockedSlots]).toEqual([
+      "10:00",
+      "10:30",
       "13:00",
       "13:30",
       "14:00",
@@ -104,6 +120,15 @@ describe("schedulingAvailability", () => {
       "15:00",
       "15:30",
     ]);
+  });
+
+  it("normalizes exact block ranges onto 30-minute customer slots", () => {
+    expect(
+      expandTimeRangeToSlotTimes({
+        startTime: "10:00",
+        endTime: "12:30",
+      }),
+    ).toEqual(["10:00", "10:30", "11:00", "11:30"]);
   });
 
   it("shares date range and rolling-window calculations", () => {

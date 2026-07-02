@@ -261,7 +261,7 @@ describe("Admin TimeSlots API Route", () => {
     const data = await response.json();
 
     expect(response.status).toBe(409);
-    expect(data.reasonCode).toBe("schedule_conflict_existing_records");
+    expect(data.reasonCode).toBe("schedule_conflict_existing_bookings");
     expect(data.conflicts[0].bookings).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -321,7 +321,7 @@ describe("Admin TimeSlots API Route", () => {
     expect(existingEntry.save).toHaveBeenCalledTimes(1);
   });
 
-  it("allows an explicit override save for conflicting blocks", async () => {
+  it("persists exact time-range blocks when no scheduled records conflict", async () => {
     const existingEntry = {
       value: {
         version: 2,
@@ -338,15 +338,67 @@ describe("Admin TimeSlots API Route", () => {
     };
 
     DynamicConfig.findOrCreate.mockResolvedValue([existingEntry, false]);
-    Booking.findAll.mockResolvedValue([
+    Booking.findAll.mockResolvedValue([]);
+
+    const request = {
+      json: jest.fn().mockResolvedValue({
+        timeSlots: {
+          version: 2,
+          weeklyRules: {},
+          dateOverrides: {
+            "2026-07-14": {
+              timeBlocks: [
+                {
+                  startTime: "10:00",
+                  endTime: "10:30",
+                },
+              ],
+            },
+          },
+          slotRules: [],
+          systemSettings: {
+            rollingWindowDays: 90,
+            workingDays: {},
+            blockDefinitions: {},
+          },
+        },
+      }),
+    };
+
+    const response = await PUT(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({ success: true });
+    expect(existingEntry.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows an explicit override save for event-only block conflicts", async () => {
+    const existingEntry = {
+      value: {
+        version: 2,
+        weeklyRules: {},
+        dateOverrides: {},
+        slotRules: [],
+        systemSettings: {
+          rollingWindowDays: 90,
+          workingDays: {},
+          blockDefinitions: {},
+        },
+      },
+      save: jest.fn(),
+    };
+
+    DynamicConfig.findOrCreate.mockResolvedValue([existingEntry, false]);
+    Booking.findAll.mockResolvedValue([]);
+    CalendarEvent.findAll.mockResolvedValue([
       {
-        id: 1,
-        bookingCode: "BK-001",
-        date: "2026-07-14",
-        slot: 1,
-        startTime: "09:00",
-        duration: 1,
-        status: "CONFIRMED",
+        id: 7,
+        title: "Prep hold",
+        businessDate: "2026-07-14",
+        period: "morning",
+        status: "ACTIVE",
+        consumesCapacity: false,
       },
     ]);
 
@@ -379,5 +431,70 @@ describe("Admin TimeSlots API Route", () => {
     expect(response.status).toBe(200);
     expect(data).toEqual({ success: true });
     expect(existingEntry.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects booking-overlapping exact time-range blocks even when override is requested", async () => {
+    const existingEntry = {
+      value: {
+        version: 2,
+        weeklyRules: {},
+        dateOverrides: {},
+        slotRules: [],
+        systemSettings: {
+          rollingWindowDays: 90,
+          workingDays: {},
+          blockDefinitions: {},
+        },
+      },
+      save: jest.fn(),
+    };
+
+    DynamicConfig.findOrCreate.mockResolvedValue([existingEntry, false]);
+    Booking.findAll.mockResolvedValue([
+      {
+        id: 1,
+        bookingCode: "BK-001",
+        date: "2026-07-14",
+        slot: 1,
+        startTime: "09:00",
+        duration: 1,
+        status: "CONFIRMED",
+        shootDetails: { services: ["Photography"] },
+        propertyDetails: { type: "Apartment", size: "1 Bed" },
+      },
+    ]);
+
+    const request = {
+      json: jest.fn().mockResolvedValue({
+        allowConflictOverride: true,
+        timeSlots: {
+          version: 2,
+          weeklyRules: {},
+          dateOverrides: {
+            "2026-07-14": {
+              timeBlocks: [
+                {
+                  startTime: "10:00",
+                  endTime: "10:30",
+                },
+              ],
+            },
+          },
+          slotRules: [],
+          systemSettings: {
+            rollingWindowDays: 90,
+            workingDays: {},
+            blockDefinitions: {},
+          },
+        },
+      }),
+    };
+
+    const response = await PUT(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(data.reasonCode).toBe("schedule_conflict_existing_bookings");
+    expect(existingEntry.save).not.toHaveBeenCalled();
   });
 });

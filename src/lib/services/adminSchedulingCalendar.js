@@ -395,6 +395,7 @@ export async function listAdminSchedulingCalendarRange({
         block: {
           fullDayBlocked: block.fullDayBlocked,
           blockedPeriods: block.blockedPeriods,
+          blockedTimeRanges: block.blockedTimeRanges,
           blockDefinitions: block.blockDefinitions,
         },
         counts,
@@ -419,7 +420,9 @@ export async function listAdminSchedulingCalendarRange({
         .length,
       totalPartiallyBlockedDays: days.filter(
         (day) =>
-          !day.block.fullDayBlocked && day.block.blockedPeriods.length > 0,
+          !day.block.fullDayBlocked &&
+          (day.block.blockedPeriods.length > 0 ||
+            day.block.blockedTimeRanges.length > 0),
       ).length,
     },
   };

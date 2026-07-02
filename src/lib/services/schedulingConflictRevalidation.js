@@ -9,7 +9,10 @@ import {
   getBookingLoadBreakdown,
 } from "@/lib/helpers/bookingUtils";
 import {
+  expandPeriodsToSlotTimes,
+  expandTimeRangeToSlotTimes,
   getEffectiveBlockForDate,
+  normalizeBlockTimeRange,
   normalizeTimeSlotConfig,
   PERIODS,
 } from "@/lib/services/schedulingAvailability";
@@ -139,9 +142,24 @@ function getEventPeriods(event) {
   return ["evening"];
 }
 
-function periodsOverlap(left, right) {
-  const leftPeriods = new Set(left || []);
-  return (right || []).some((period) => leftPeriods.has(period));
+function slotTimesOverlap(left, right) {
+  const leftSlots = new Set(left || []);
+  return (right || []).some((slot) => leftSlots.has(slot));
+}
+
+function getBookingBlockedSlots(booking) {
+  return expandPeriodsToSlotTimes(getBookingPeriods(booking));
+}
+
+function getEventBlockedSlots(event) {
+  if (event?.startTime && event?.endTime) {
+    return expandTimeRangeToSlotTimes({
+      startTime: event.startTime,
+      endTime: event.endTime,
+    });
+  }
+
+  return expandPeriodsToSlotTimes(getEventPeriods(event));
 }
 
 function buildBookingConflictRecord(booking) {
@@ -172,13 +190,20 @@ function buildConflictMessage(
   date,
   bookings,
   events,
-  { blockedPeriods = null } = {},
+  { blockedPeriods = null, blockedTimeRanges = null } = {},
 ) {
   const parts = [];
   if (blockedPeriods?.length) {
     parts.push(
       `blocked periods (${blockedPeriods
         .map((period) => period.charAt(0).toUpperCase() + period.slice(1))
+        .join(", ")})`,
+    );
+  }
+  if (blockedTimeRanges?.length) {
+    parts.push(
+      `blocked times (${blockedTimeRanges
+        .map((timeRange) => `${timeRange.startTime}-${timeRange.endTime}`)
         .join(", ")})`,
     );
   }
@@ -293,6 +318,7 @@ function normalizeRequest(request) {
       type,
       date,
       periods,
+      blockedSlots: expandPeriodsToSlotTimes(periods),
     };
   }
 
@@ -308,6 +334,7 @@ function normalizeRequest(request) {
       type,
       date,
       periods,
+      blockedSlots: getEventBlockedSlots(request),
       consumesCapacity: Boolean(request.consumesCapacity),
     };
   }
@@ -322,9 +349,21 @@ function normalizeRequest(request) {
               : false,
           );
 
-    if (periods.length === 0) {
+    const timeBlocks = (
+      Array.isArray(request.timeBlocks) ? request.timeBlocks : []
+    )
+      .map((timeRange) => normalizeBlockTimeRange(timeRange))
+      .filter(Boolean);
+    const blockedSlots = new Set(expandPeriodsToSlotTimes(periods));
+    timeBlocks.forEach((timeRange) => {
+      expandTimeRangeToSlotTimes(timeRange).forEach((slot) => {
+        blockedSlots.add(slot);
+      });
+    });
+
+    if (blockedSlots.size === 0) {
       throw new Error(
-        `Scheduling block request for ${date} must include blocked periods`,
+        `Scheduling block request for ${date} must include blocked periods or time ranges`,
       );
     }
 
@@ -332,6 +371,8 @@ function normalizeRequest(request) {
       type,
       date,
       periods,
+      timeBlocks,
+      blockedSlots: [...blockedSlots],
       allowOverride: Boolean(request.allowOverride),
     };
   }
@@ -353,7 +394,10 @@ function getConflictingBookings(bookings, request, excludeBookingIds) {
       return false;
     }
 
-    return periodsOverlap(getBookingPeriods(booking), request.periods);
+    return slotTimesOverlap(
+      getBookingBlockedSlots(booking),
+      request.blockedSlots,
+    );
   });
 }
 
@@ -379,7 +423,7 @@ function getConflictingEvents(
       return false;
     }
 
-    return periodsOverlap(getEventPeriods(event), request.periods);
+    return slotTimesOverlap(getEventBlockedSlots(event), request.blockedSlots);
   });
 }
 
@@ -395,14 +439,29 @@ function assertRequestConflicts({
   const blockedPeriods = block.blockedPeriods.filter((period) =>
     request.periods.includes(period),
   );
+  const blockedTimeRanges = block.blockedTimeRanges.filter((timeRange) =>
+    slotTimesOverlap(
+      expandTimeRangeToSlotTimes(timeRange),
+      request.blockedSlots,
+    ),
+  );
+  const blockedSlots = new Set(expandPeriodsToSlotTimes(blockedPeriods));
+  blockedTimeRanges.forEach((timeRange) => {
+    expandTimeRangeToSlotTimes(timeRange).forEach((slot) => {
+      blockedSlots.add(slot);
+    });
+  });
 
   if (
     request.type === "booking" ||
     (request.type === "event" && request.consumesCapacity)
   ) {
-    if (blockedPeriods.length > 0) {
+    if (blockedSlots.size > 0) {
       throw new SchedulingConflictError(
-        buildConflictMessage(request.date, [], [], { blockedPeriods }),
+        buildConflictMessage(request.date, [], [], {
+          blockedPeriods,
+          blockedTimeRanges,
+        }),
         {
           reasonCode: "schedule_conflict_blocked_period",
           conflicts: [
@@ -410,6 +469,7 @@ function assertRequestConflicts({
               type: request.type,
               date: request.date,
               blockedPeriods,
+              blockedTimeRanges,
             },
           ],
         },
@@ -453,9 +513,12 @@ function assertRequestConflicts({
   }
 
   if (request.type === "event") {
-    if (blockedPeriods.length > 0) {
+    if (blockedSlots.size > 0) {
       throw new SchedulingConflictError(
-        buildConflictMessage(request.date, [], [], { blockedPeriods }),
+        buildConflictMessage(request.date, [], [], {
+          blockedPeriods,
+          blockedTimeRanges,
+        }),
         {
           reasonCode: "schedule_conflict_blocked_period",
           conflicts: [
@@ -463,6 +526,7 @@ function assertRequestConflicts({
               type: request.type,
               date: request.date,
               blockedPeriods,
+              blockedTimeRanges,
             },
           ],
         },
@@ -485,10 +549,7 @@ function assertRequestConflicts({
       { includeNonCapacityEvents: true },
     );
 
-    if (
-      !request.allowOverride &&
-      (conflictingBookings.length > 0 || conflictingEvents.length > 0)
-    ) {
+    if (conflictingBookings.length > 0) {
       throw new SchedulingConflictError(
         buildConflictMessage(
           request.date,
@@ -496,13 +557,33 @@ function assertRequestConflicts({
           conflictingEvents,
         ),
         {
+          reasonCode: "schedule_conflict_existing_bookings",
+          conflicts: [
+            {
+              type: request.type,
+              date: request.date,
+              blockedPeriods: request.periods,
+              blockedTimeRanges: request.timeBlocks,
+              bookings: conflictingBookings.map(buildBookingConflictRecord),
+              events: conflictingEvents.map(buildEventConflictRecord),
+            },
+          ],
+        },
+      );
+    }
+
+    if (!request.allowOverride && conflictingEvents.length > 0) {
+      throw new SchedulingConflictError(
+        buildConflictMessage(request.date, [], conflictingEvents),
+        {
           reasonCode: "schedule_conflict_existing_records",
           conflicts: [
             {
               type: request.type,
               date: request.date,
-              periods: request.periods,
-              bookings: conflictingBookings.map(buildBookingConflictRecord),
+              blockedPeriods: request.periods,
+              blockedTimeRanges: request.timeBlocks,
+              bookings: [],
               events: conflictingEvents.map(buildEventConflictRecord),
             },
           ],

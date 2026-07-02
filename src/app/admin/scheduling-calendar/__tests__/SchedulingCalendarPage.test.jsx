@@ -46,17 +46,20 @@ const julyPayload = {
           ? {
               fullDayBlocked: false,
               blockedPeriods: ["afternoon"],
+              blockedTimeRanges: [{ startTime: "10:00", endTime: "10:30" }],
               blockDefinitions: {},
             }
           : day === 5
             ? {
                 fullDayBlocked: true,
                 blockedPeriods: ["morning", "afternoon", "evening"],
+                blockedTimeRanges: [],
                 blockDefinitions: {},
               }
             : {
                 fullDayBlocked: false,
                 blockedPeriods: [],
+                blockedTimeRanges: [],
                 blockDefinitions: {},
               },
       counts:
@@ -216,6 +219,7 @@ const augustPayload = {
     block: {
       fullDayBlocked: false,
       blockedPeriods: [],
+      blockedTimeRanges: [],
       blockDefinitions: {},
     },
     counts: {
@@ -314,16 +318,27 @@ describe("SchedulingCalendarPage", () => {
           });
         }
 
+        if (
+          body.timeSlots?.dateOverrides?.["2026-07-02"]?.timeBlocks?.length > 0
+        ) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ success: true }),
+          });
+        }
+
         return Promise.resolve({
           ok: false,
           status: 409,
           json: async () => ({
             error: "Conflict",
-            reasonCode: "schedule_conflict_existing_records",
+            reasonCode: "schedule_conflict_existing_bookings",
             conflicts: [
               {
                 date: "2026-07-03",
                 blockedPeriods: ["morning", "afternoon", "evening"],
+                blockedTimeRanges: [],
                 bookings: [
                   {
                     id: 15,
@@ -591,7 +606,7 @@ describe("SchedulingCalendarPage", () => {
     expect(screen.getByRole("button", { name: /Next date/i })).toBeDisabled();
   });
 
-  it("warns before saving a conflicting block and supports an explicit override", async () => {
+  it("blocks booking-overlapping saves and directs the admin to Bookings", async () => {
     render(<SchedulingCalendarPage />);
 
     expect(
@@ -627,18 +642,13 @@ describe("SchedulingCalendarPage", () => {
       within(conflictDialog).getByText("Afternoon, Evening"),
     ).toBeInTheDocument();
 
-    await act(async () => {
-      fireEvent.click(
-        screen.getByRole("button", {
-          name: /Save block anyway/i,
-        }),
-      );
-    });
+    expect(
+      screen.getByRole("link", {
+        name: /Open Bookings/i,
+      }),
+    ).toHaveAttribute("href", "/admin/bookings");
 
-    await waitFor(() => {
-      expect(timeSlotPutBodies).toHaveLength(2);
-    });
-
+    expect(timeSlotPutBodies).toHaveLength(1);
     expect(timeSlotPutBodies[0]).toMatchObject({
       allowConflictOverride: false,
       timeSlots: expect.objectContaining({
@@ -649,14 +659,55 @@ describe("SchedulingCalendarPage", () => {
         }),
       }),
     });
-    expect(timeSlotPutBodies[1]).toMatchObject({
-      allowConflictOverride: true,
+  });
+
+  it("adds an exact 30-minute time block for the selected day", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Scheduling Calendar/i }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", {
+        name: /Thursday, July 2, 2026\..*1 active event/i,
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Thursday, July 2, 2026\..*1 active event/i,
+      }),
+    );
+
+    fireEvent.change(screen.getByLabelText("From"), {
+      target: { value: "10:30" },
+    });
+    fireEvent.change(screen.getByLabelText("To"), {
+      target: { value: "11:00" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Add exact block/i }));
     });
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole("dialog", { name: /Review block conflict/i }),
-      ).not.toBeInTheDocument();
+      expect(timeSlotPutBodies).toHaveLength(1);
+    });
+
+    expect(timeSlotPutBodies[0]).toMatchObject({
+      allowConflictOverride: false,
+      timeSlots: expect.objectContaining({
+        dateOverrides: expect.objectContaining({
+          "2026-07-02": expect.objectContaining({
+            timeBlocks: expect.arrayContaining([
+              expect.objectContaining({
+                startTime: "10:30",
+                endTime: "11:00",
+              }),
+            ]),
+          }),
+        }),
+      }),
     });
   });
 

@@ -396,6 +396,18 @@ function buildDateOverrideBlockRequests(
   dates.forEach((date) => {
     const previousOverride = previousOverrides[date] || {};
     const nextOverride = nextOverrides[date] || {};
+    const nextTimeBlocks = Array.isArray(nextOverride.timeBlocks)
+      ? nextOverride.timeBlocks
+      : [];
+    const previousTimeBlocks = new Set(
+      (Array.isArray(previousOverride.timeBlocks)
+        ? previousOverride.timeBlocks
+        : []
+      ).map(
+        (timeBlock) =>
+          `${timeBlock?.startTime || ""}-${timeBlock?.endTime || ""}`,
+      ),
+    );
 
     if (
       nextOverride.fullDayBlocked === true &&
@@ -421,6 +433,29 @@ function buildDateOverrideBlockRequests(
         type: "block",
         date,
         blockedPeriods: newlyBlockedPeriods,
+        timeBlocks: nextTimeBlocks.filter(
+          (timeBlock) =>
+            !previousTimeBlocks.has(
+              `${timeBlock?.startTime || ""}-${timeBlock?.endTime || ""}`,
+            ),
+        ),
+        allowOverride,
+      });
+      return;
+    }
+
+    const newlyAddedTimeBlocks = nextTimeBlocks.filter(
+      (timeBlock) =>
+        !previousTimeBlocks.has(
+          `${timeBlock?.startTime || ""}-${timeBlock?.endTime || ""}`,
+        ),
+    );
+
+    if (newlyAddedTimeBlocks.length > 0) {
+      requests.push({
+        type: "block",
+        date,
+        timeBlocks: newlyAddedTimeBlocks,
         allowOverride,
       });
     }
