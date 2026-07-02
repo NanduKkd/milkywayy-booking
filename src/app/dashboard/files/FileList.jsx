@@ -274,7 +274,7 @@ export default function FileList({
               </div>
 
               <div className="mt-4 divide-y space-y-3">
-                {[...files, ...files, ...files].map((file) => {
+                {files.map((file) => {
                   const Icon = getFileIcon(file.type);
                   const accepted =
                     file.status === DELIVERY_FILE_STATUS.ACCEPTED;
