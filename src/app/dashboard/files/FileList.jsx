@@ -223,7 +223,7 @@ export default function FileList({
           return (
             <section
               key={booking.id}
-              className="rounded-2xl border border-white/10 bg-[#101114]/70 p-5 md:p-6"
+              className="rounded-2xl border border-white/10 bg-card p-5 md:p-6"
             >
               <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-start md:justify-between">
                 <div>
@@ -273,8 +273,8 @@ export default function FileList({
                 )}
               </div>
 
-              <div className="mt-4 space-y-3">
-                {files.map((file) => {
+              <div className="mt-4 divide-y space-y-3">
+                {[...files, ...files, ...files].map((file) => {
                   const Icon = getFileIcon(file.type);
                   const accepted =
                     file.status === DELIVERY_FILE_STATUS.ACCEPTED;
@@ -294,7 +294,7 @@ export default function FileList({
                       data-highlighted={isHighlighted ? "true" : "false"}
                       data-testid={`delivery-file-card-${file.id}`}
                       className={[
-                        "rounded-xl border bg-white/[0.02] p-4 transition-colors",
+                        "p-4 transition-colors",
                         isHighlighted
                           ? "border-sky-300/70 bg-sky-400/[0.08] shadow-[0_0_0_1px_rgba(125,211,252,0.35)]"
                           : "border-white/10",

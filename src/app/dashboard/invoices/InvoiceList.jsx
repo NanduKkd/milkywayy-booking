@@ -29,7 +29,7 @@ export default function InvoiceList({ invoices }) {
         return (
           <div
             key={invoice.id}
-            className="grid gap-5 rounded-[28px] border border-white/10 bg-card/70 px-6 py-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-8"
+            className="grid gap-5 rounded-2xl border border-white/10 bg-card/70 px-6 py-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:px-8"
           >
             <div className="min-w-0">
               <div className="mb-2 text-lg font-semibold leading-tight text-white md:text-2xl">
