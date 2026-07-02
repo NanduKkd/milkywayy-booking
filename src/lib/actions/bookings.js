@@ -39,6 +39,13 @@ import {
   getTransactionGrossAmount,
 } from "@/lib/helpers/transactionPricing";
 import {
+  assertBookingPropertiesAvailable,
+  calculatePropertyPrice,
+  REVERSE_SLOT_MAPPING,
+  SLOT_MAPPING,
+  START_TIME_TO_SLOT,
+} from "@/lib/services/bookingPreparation";
+import {
   completeDeliveredBookingState,
   updateBookingWorkflowState,
 } from "@/lib/services/bookingWorkflow";
@@ -60,49 +67,15 @@ import {
 import {
   enumerateDateRange,
   getBlockedSlotTimesForDate,
-  isDateOutsideRollingWindow,
   normalizeTimeSlotConfig,
   PERIOD_TO_HOURLY,
 } from "@/lib/services/schedulingAvailability";
-import {
-  assertSchedulingRequestsAvailable,
-  loadSchedulingConflictContext,
-  SchedulingConflictError,
-} from "@/lib/services/schedulingConflictRevalidation";
 import { USER_ROLES } from "../config/app.config";
 
 let stripe;
 if (process.env.STRIPE_SECRET_KEY)
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 else stripe = {};
-
-const SLOT_MAPPING = {
-  morning: 1,
-  afternoon: 2,
-  evening: 3,
-};
-
-const START_TIME_TO_SLOT = {
-  "09:00": 1,
-  "13:00": 2,
-  "17:00": 3,
-  "10:00": 1, // legacy
-  "16:00": 3, // legacy
-};
-
-const REVERSE_SLOT_MAPPING = {
-  1: "morning",
-  2: "afternoon",
-  3: "evening",
-};
-
-const START_TIME_TO_PERIOD = {
-  "09:00": "morning",
-  "13:00": "afternoon",
-  "17:00": "evening",
-  "10:00": "morning", // legacy
-  "16:00": "evening", // legacy
-};
 
 const RESCHEDULE_CUTOFF_HOURS = 6;
 const PARTIAL_REFUND_CUTOFF_HOURS = 3;
@@ -419,13 +392,6 @@ const buildDummyVerifyStripeSessionResponse = () => {
   };
 };
 
-const isNightServiceFromProperty = (property) => {
-  const services = Array.isArray(property?.services) ? property.services : [];
-  if (!services.includes("Videography")) return false;
-  const sub = property?.videographySubService || "";
-  return sub.includes("Night Light") || sub.includes("Daylight + Night");
-};
-
 const isNightServiceFromBooking = (booking) => {
   const services = Array.isArray(booking?.shootDetails?.services)
     ? booking.shootDetails.services
@@ -648,186 +614,10 @@ const checkAvailability = async (
   properties,
   excludeBookingIds = [],
   { transaction = null } = {},
-) => {
-  const datesToCheck = [
-    ...new Set(
-      properties.map((property) => property.preferredDate).filter(Boolean),
-    ),
-  ];
-  const schedulingContext = await loadSchedulingConflictContext({
-    dates: datesToCheck,
+) =>
+  assertBookingPropertiesAvailable(properties, excludeBookingIds, {
     transaction,
   });
-  const timeSlotConfig = schedulingContext.timeSlotConfig;
-  const normalizedRequests = [];
-
-  for (const property of properties) {
-    if (!property.preferredDate) continue;
-    if (isDateOutsideRollingWindow(property.preferredDate, timeSlotConfig)) {
-      throw new Error(
-        `Selected date ${property.preferredDate} is outside the booking window.`,
-      );
-    }
-    const startTime = property.startTime || property.timeSlot;
-    if (!startTime) continue;
-
-    // Calculate slots required by weight model
-    const duration = calculateBookingDuration(
-      {
-        id: property.services || [],
-        videographySubService: property.videographySubService || "",
-      },
-      {
-        type: property.propertyType,
-        size: property.propertySize,
-        videographySubService: property.videographySubService || "",
-      },
-      {
-        slotCapacity: timeSlotConfig?.systemSettings?.slotCapacity,
-        weightModel: timeSlotConfig?.systemSettings?.weightModel,
-      },
-    );
-
-    const startPeriod = START_TIME_TO_PERIOD[startTime] || startTime;
-    const hasServiceContext =
-      Array.isArray(property.services) && property.services.length > 0;
-    const isNightCompatible = hasServiceContext
-      ? isNightServiceFromProperty(property)
-      : startPeriod === "evening";
-    if (hasServiceContext && isNightCompatible && startPeriod !== "evening") {
-      throw new Error(
-        `Night service bookings must use Evening slot on ${property.preferredDate}.`,
-      );
-    }
-    if (
-      hasServiceContext &&
-      !isNightCompatible &&
-      !["morning", "afternoon"].includes(startPeriod)
-    ) {
-      throw new Error(
-        `Only Morning/Afternoon are available for non-night services on ${property.preferredDate}.`,
-      );
-    }
-
-    const requestedSlots = getTimeSlots(startTime, duration, {
-      isNightService: isNightCompatible,
-    });
-    if (requestedSlots.length === 0) continue;
-
-    normalizedRequests.push({
-      type: "booking",
-      date: property.preferredDate,
-      startTime,
-      durationHours: duration,
-      isNightService: isNightCompatible,
-    });
-  }
-
-  try {
-    assertSchedulingRequestsAvailable({
-      context: schedulingContext,
-      requests: normalizedRequests,
-      excludeBookingIds,
-    });
-  } catch (error) {
-    if (error instanceof SchedulingConflictError) {
-      const conflictDate =
-        error.conflicts?.[0]?.date || normalizedRequests[0]?.date;
-
-      if (error.reasonCode === "schedule_conflict_blocked_period") {
-        throw new Error(
-          `Selected time on ${conflictDate} is blocked by admin calendar rules.`,
-        );
-      }
-
-      throw new Error(
-        `Selected time on ${conflictDate} is no longer available.`,
-      );
-    }
-
-    throw error;
-  }
-
-  return {
-    timeSlotConfig,
-  };
-};
-
-const calculatePropertyPrice = (property, pricingConfig) => {
-  if (!property.propertyType || !property.propertySize || !property.services)
-    return 0;
-  const typeConfig = pricingConfig[property.propertyType];
-  if (!typeConfig) return 0;
-
-  const sizeConfig = typeConfig.sizes.find(
-    (s) => s.label === property.propertySize,
-  );
-  if (!sizeConfig) return 0;
-
-  const resolveVideographyPriceConfig = (servicePriceConfig, subService) => {
-    if (
-      !subService ||
-      !servicePriceConfig ||
-      typeof servicePriceConfig !== "object"
-    ) {
-      return servicePriceConfig;
-    }
-
-    if (subService.includes(".")) {
-      const [mainService, category] = subService.split(".");
-      const nested = servicePriceConfig?.[mainService]?.[category];
-      if (nested !== undefined) return nested;
-      const mainConfig = servicePriceConfig?.[mainService];
-      if (
-        mainConfig &&
-        typeof mainConfig === "object" &&
-        !Array.isArray(mainConfig) &&
-        "price" in mainConfig
-      ) {
-        return mainConfig;
-      }
-    }
-
-    const direct = servicePriceConfig?.[subService];
-    if (direct !== undefined) return direct;
-
-    return servicePriceConfig;
-  };
-  const videographySelections = String(property.videographySubService || "")
-    .split("|")
-    .map((v) => v.trim())
-    .filter(Boolean);
-
-  return property.services.reduce((total, service) => {
-    const priceConfig = sizeConfig.prices[service];
-
-    // Handle videography sub-services
-    if (
-      service === "Videography" &&
-      property.videographySubService &&
-      typeof priceConfig === "object"
-    ) {
-      const videographyTotal = videographySelections.reduce(
-        (sum, selection) => {
-          const cfg = resolveVideographyPriceConfig(priceConfig, selection);
-          const val =
-            typeof cfg === "object"
-              ? Number(cfg?.price || 0)
-              : Number(cfg || 0);
-          return sum + (Number.isFinite(val) ? val : 0);
-        },
-        0,
-      );
-      return total + videographyTotal;
-    }
-
-    const price =
-      typeof priceConfig === "object"
-        ? priceConfig.price || 0
-        : priceConfig || 0;
-    return total + price;
-  }, 0);
-};
 
 const getBookingsHandler = async (userId) => {
   try {

@@ -8,9 +8,11 @@ import {
   Clock3,
   MapPinned,
   Pencil,
+  Plus,
   RefreshCcw,
   RotateCcw,
   ShieldAlert,
+  Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -37,6 +39,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  PRICING_CONFIG,
+  PROPERTY_TYPE_ORDER,
+  SERVICE_ORDER,
+  VIDEOGRAPHY_SUB_CATEGORIES,
+  VIDEOGRAPHY_SUB_SERVICES,
+} from "@/lib/config/pricing";
 import { BUSINESS_DAY_TIME_OPTIONS } from "@/lib/services/schedulingAvailability";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +57,21 @@ const UPCOMING_FILTERS = [
   { value: "bookings", label: "Bookings" },
   { value: "events", label: "Events" },
 ];
+const PREPARATION_START_TIME_OPTIONS = [
+  { value: "09:00", label: "Morning · 09:00" },
+  { value: "13:00", label: "Afternoon · 13:00" },
+  { value: "17:00", label: "Evening · 17:00" },
+];
+const VIDEOGRAPHY_PREPARATION_OPTIONS = [
+  VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM,
+  `${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.${VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.DAYLIGHT}`,
+  `${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.${VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.NIGHT_LIGHT}`,
+  `${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.${VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.DAYLIGHT_NIGHT}`,
+];
+const BOOKING_PROPERTY_TYPES = PROPERTY_TYPE_ORDER.filter(
+  (propertyType) => PRICING_CONFIG[propertyType],
+);
+const BOOKING_SERVICE_OPTIONS = SERVICE_ORDER.filter(Boolean);
 
 function getDatePartsInTimeZone(date, timeZone) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -436,6 +460,22 @@ const DEFAULT_TIME_BLOCK_FORM = {
   startTime: BUSINESS_DAY_TIME_OPTIONS[0] || "09:00",
   endTime: BUSINESS_DAY_TIME_OPTIONS[1] || "09:30",
 };
+const EMPTY_PREPARATION_CUSTOMER = {
+  accountType: "INDIVIDUAL",
+  fullName: "",
+  companyName: "",
+  phone: "+971",
+  billingAddress: "",
+  email: "",
+  trn: "",
+};
+const EMPTY_PREPARATION_PREVIEW = null;
+
+function createPreparedPropertyLocalId() {
+  return (
+    globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)
+  );
+}
 
 function buildEventFormState(dateKey, event = null) {
   return {
@@ -448,6 +488,41 @@ function buildEventFormState(dateKey, event = null) {
     propertyLabel: event?.propertySummary?.label || "",
     contactLabel: event?.contactSummary?.label || "",
   };
+}
+
+function createEmptyPreparedProperty(dateKey = "") {
+  return {
+    localId: createPreparedPropertyLocalId(),
+    propertyType: "",
+    propertySize: "",
+    services: [],
+    videographySubService: "",
+    preferredDate: dateKey || "",
+    startTime: "09:00",
+    building: "",
+    community: "",
+    unitNumber: "",
+  };
+}
+
+function getPreparedPropertySizeOptions(propertyType) {
+  return PRICING_CONFIG[propertyType]?.sizes?.map((size) => size.label) || [];
+}
+
+function formatVideographyPreparationLabel(value) {
+  return String(value || "").replace(".", " - ");
+}
+
+function formatPreparationCustomerLabel(customer) {
+  if (!customer) return "No customer selected";
+  return (
+    customer.displayName ||
+    customer.companyName ||
+    customer.fullName ||
+    customer.email ||
+    customer.phone ||
+    "Unnamed customer"
+  );
 }
 
 export default function SchedulingCalendarPage() {
@@ -475,6 +550,24 @@ export default function SchedulingCalendarPage() {
     buildEventFormState(todayDateKey),
   );
   const [timeBlockForm, setTimeBlockForm] = useState(DEFAULT_TIME_BLOCK_FORM);
+  const [bookingPreparationOpen, setBookingPreparationOpen] = useState(false);
+  const [bookingPreparationMode, setBookingPreparationMode] =
+    useState("existing");
+  const [bookingPreparationCustomer, setBookingPreparationCustomer] = useState(
+    EMPTY_PREPARATION_CUSTOMER,
+  );
+  const [bookingPreparationProperties, setBookingPreparationProperties] =
+    useState(() => [createEmptyPreparedProperty(todayDateKey)]);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [customerSearchResults, setCustomerSearchResults] = useState([]);
+  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
+  const [selectedExistingCustomer, setSelectedExistingCustomer] =
+    useState(null);
+  const [bookingPreparationSaving, setBookingPreparationSaving] =
+    useState(false);
+  const [bookingPreparationPreview, setBookingPreparationPreview] = useState(
+    EMPTY_PREPARATION_PREVIEW,
+  );
   const hasLoadedOnceRef = useRef(false);
   const loadTrigger = `${monthKey}:${reloadVersion}`;
 
@@ -483,6 +576,20 @@ export default function SchedulingCalendarPage() {
       setTimeBlockForm(DEFAULT_TIME_BLOCK_FORM);
     }
   }, [selectedDateKey]);
+
+  useEffect(() => {
+    if (!bookingPreparationOpen) {
+      return;
+    }
+
+    setBookingPreparationProperties((current) =>
+      current.map((property, index) =>
+        index === 0 && !property.preferredDate
+          ? { ...property, preferredDate: selectedDateKey || todayDateKey }
+          : property,
+      ),
+    );
+  }, [bookingPreparationOpen, selectedDateKey, todayDateKey]);
 
   useEffect(() => {
     let ignore = false;
@@ -944,6 +1051,174 @@ export default function SchedulingCalendarPage() {
         id: null,
         action: "",
       });
+    }
+  };
+
+  const resetBookingPreparationDialog = () => {
+    setBookingPreparationOpen(false);
+    setBookingPreparationMode("existing");
+    setBookingPreparationCustomer(EMPTY_PREPARATION_CUSTOMER);
+    setBookingPreparationProperties([
+      createEmptyPreparedProperty(selectedDateKey || todayDateKey),
+    ]);
+    setCustomerSearchQuery("");
+    setCustomerSearchResults([]);
+    setSelectedExistingCustomer(null);
+    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+  };
+
+  const openBookingPreparationDialog = () => {
+    setBookingPreparationOpen(true);
+    setBookingPreparationMode("existing");
+    setBookingPreparationCustomer(EMPTY_PREPARATION_CUSTOMER);
+    setBookingPreparationProperties([
+      createEmptyPreparedProperty(selectedDateKey || todayDateKey),
+    ]);
+    setCustomerSearchQuery("");
+    setCustomerSearchResults([]);
+    setSelectedExistingCustomer(null);
+    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+  };
+
+  const updateBookingPreparationCustomer = (field, value) => {
+    setBookingPreparationCustomer((current) => ({
+      ...current,
+      [field]: value,
+    }));
+    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+  };
+
+  const updatePreparedProperty = (index, field, value) => {
+    setBookingPreparationProperties((current) =>
+      current.map((property, propertyIndex) => {
+        if (propertyIndex !== index) {
+          return property;
+        }
+
+        const nextProperty = {
+          ...property,
+          [field]: value,
+        };
+
+        if (field === "propertyType") {
+          nextProperty.propertySize = "";
+          nextProperty.services = [];
+          nextProperty.videographySubService = "";
+        }
+
+        if (field === "services" && !value.includes("Videography")) {
+          nextProperty.videographySubService = "";
+        }
+
+        return nextProperty;
+      }),
+    );
+    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+  };
+
+  const togglePreparedPropertyService = (index, service) => {
+    const property = bookingPreparationProperties[index];
+    const currentServices = Array.isArray(property?.services)
+      ? property.services
+      : [];
+    const nextServices = currentServices.includes(service)
+      ? currentServices.filter((currentService) => currentService !== service)
+      : [...currentServices, service];
+
+    updatePreparedProperty(index, "services", nextServices);
+  };
+
+  const addPreparedProperty = () => {
+    setBookingPreparationProperties((current) => [
+      ...current,
+      createEmptyPreparedProperty(selectedDateKey || todayDateKey),
+    ]);
+    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+  };
+
+  const removePreparedProperty = (index) => {
+    setBookingPreparationProperties((current) => {
+      if (current.length === 1) {
+        return current;
+      }
+
+      return current.filter((_, propertyIndex) => propertyIndex !== index);
+    });
+    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+  };
+
+  const searchExistingCustomers = async () => {
+    if (customerSearchQuery.trim().length < 2) {
+      toast.error("Enter at least two characters to search customers");
+      return;
+    }
+
+    setCustomerSearchLoading(true);
+
+    try {
+      const response = await fetch(
+        `/api/admin/scheduling-calendar/customers?query=${encodeURIComponent(customerSearchQuery.trim())}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload?.error || "Failed to search customers");
+      }
+
+      setCustomerSearchResults(
+        Array.isArray(payload?.customers) ? payload.customers : [],
+      );
+    } catch (error) {
+      toast.error(error.message || "Failed to search customers");
+    } finally {
+      setCustomerSearchLoading(false);
+    }
+  };
+
+  const submitBookingPreparation = async (submitEvent) => {
+    submitEvent.preventDefault();
+    setBookingPreparationSaving(true);
+
+    try {
+      const requestPayload =
+        bookingPreparationMode === "existing"
+          ? {
+              customerMode: "existing",
+              customerId: selectedExistingCustomer?.id,
+              properties: bookingPreparationProperties,
+            }
+          : {
+              customerMode: "new",
+              customer: bookingPreparationCustomer,
+              properties: bookingPreparationProperties,
+            };
+      const response = await fetch(
+        "/api/admin/scheduling-calendar/booking-preparation",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestPayload),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.error || "Failed to prepare booking handoff preview",
+        );
+      }
+
+      setBookingPreparationPreview(payload);
+      toast.success("Booking preparation validated");
+    } catch (error) {
+      toast.error(error.message || "Failed to prepare booking");
+    } finally {
+      setBookingPreparationSaving(false);
     }
   };
 
@@ -1574,10 +1849,19 @@ export default function SchedulingCalendarPage() {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold">Bookings</h2>
-                  <Badge variant="secondary" className="rounded-full">
-                    {selectedBookings.length}
-                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-semibold">Bookings</h2>
+                    <Badge variant="secondary" className="rounded-full">
+                      {selectedBookings.length}
+                    </Badge>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={openBookingPreparationDialog}
+                  >
+                    Prepare booking
+                  </Button>
                 </div>
                 {selectedBookings.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
@@ -1991,6 +2275,558 @@ export default function SchedulingCalendarPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog
+        open={bookingPreparationOpen}
+        onOpenChange={(open) => {
+          if (!open && !bookingPreparationSaving) {
+            resetBookingPreparationDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Prepare admin booking</DialogTitle>
+            <DialogDescription>
+              Collect the customer and property details, then validate pricing
+              and availability before the secure handoff flow is added.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-6" onSubmit={submitBookingPreparation}>
+            <div className="rounded-2xl border border-white/10 p-4">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={
+                    bookingPreparationMode === "existing"
+                      ? "secondary"
+                      : "outline"
+                  }
+                  onClick={() => {
+                    setBookingPreparationMode("existing");
+                    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+                  }}
+                >
+                  Existing customer
+                </Button>
+                <Button
+                  type="button"
+                  variant={
+                    bookingPreparationMode === "new" ? "secondary" : "outline"
+                  }
+                  onClick={() => {
+                    setBookingPreparationMode("new");
+                    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+                  }}
+                >
+                  New customer
+                </Button>
+              </div>
+
+              {bookingPreparationMode === "existing" ? (
+                <div className="mt-4 space-y-4">
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <div className="space-y-2">
+                      <Label htmlFor="booking-preparation-search">
+                        Search customer
+                      </Label>
+                      <Input
+                        id="booking-preparation-search"
+                        value={customerSearchQuery}
+                        placeholder="Name, company, email, phone, or customer ID"
+                        onChange={(event) =>
+                          setCustomerSearchQuery(event.target.value)
+                        }
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      className="self-end"
+                      disabled={customerSearchLoading}
+                      onClick={searchExistingCustomers}
+                    >
+                      {customerSearchLoading ? "Searching..." : "Search"}
+                    </Button>
+                  </div>
+
+                  {customerSearchResults.length > 0 ? (
+                    <div className="space-y-2">
+                      {customerSearchResults.map((customer) => {
+                        const isSelected =
+                          selectedExistingCustomer?.id === customer.id;
+
+                        return (
+                          <button
+                            key={customer.id}
+                            type="button"
+                            className={cn(
+                              "w-full rounded-2xl border p-3 text-left transition-colors",
+                              isSelected
+                                ? "border-white/30 bg-background/70"
+                                : "border-white/10 bg-background/40 hover:bg-background/60",
+                            )}
+                            onClick={() => {
+                              setSelectedExistingCustomer(customer);
+                              setBookingPreparationPreview(
+                                EMPTY_PREPARATION_PREVIEW,
+                              );
+                            }}
+                          >
+                            <p className="font-medium">
+                              {formatPreparationCustomerLabel(customer)}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {[customer.email, customer.phone]
+                                .filter(Boolean)
+                                .join(" • ") || "No contact details"}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-2xl border border-dashed border-white/10 px-4 py-3 text-sm text-muted-foreground">
+                    Selected customer:{" "}
+                    {formatPreparationCustomerLabel(selectedExistingCustomer)}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="booking-preparation-account-type">
+                      Account type
+                    </Label>
+                    <select
+                      id="booking-preparation-account-type"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={bookingPreparationCustomer.accountType}
+                      onChange={(event) =>
+                        updateBookingPreparationCustomer(
+                          "accountType",
+                          event.target.value,
+                        )
+                      }
+                    >
+                      <option value="INDIVIDUAL">Individual</option>
+                      <option value="COMPANY">Company</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="booking-preparation-phone">Phone</Label>
+                    <Input
+                      id="booking-preparation-phone"
+                      value={bookingPreparationCustomer.phone}
+                      onChange={(event) =>
+                        updateBookingPreparationCustomer(
+                          "phone",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                  {bookingPreparationCustomer.accountType === "COMPANY" ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="booking-preparation-company">
+                        Company name
+                      </Label>
+                      <Input
+                        id="booking-preparation-company"
+                        value={bookingPreparationCustomer.companyName}
+                        onChange={(event) =>
+                          updateBookingPreparationCustomer(
+                            "companyName",
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="booking-preparation-full-name">
+                        Full name
+                      </Label>
+                      <Input
+                        id="booking-preparation-full-name"
+                        value={bookingPreparationCustomer.fullName}
+                        onChange={(event) =>
+                          updateBookingPreparationCustomer(
+                            "fullName",
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="booking-preparation-email">Email</Label>
+                    <Input
+                      id="booking-preparation-email"
+                      type="email"
+                      value={bookingPreparationCustomer.email}
+                      onChange={(event) =>
+                        updateBookingPreparationCustomer(
+                          "email",
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                  {bookingPreparationCustomer.accountType === "COMPANY" ? (
+                    <>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor="booking-preparation-billing-address">
+                          Billing address
+                        </Label>
+                        <Input
+                          id="booking-preparation-billing-address"
+                          value={bookingPreparationCustomer.billingAddress}
+                          onChange={(event) =>
+                            updateBookingPreparationCustomer(
+                              "billingAddress",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="booking-preparation-trn">TRN</Label>
+                        <Input
+                          id="booking-preparation-trn"
+                          value={bookingPreparationCustomer.trn}
+                          onChange={(event) =>
+                            updateBookingPreparationCustomer(
+                              "trn",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold">Prepared properties</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Use the same pricing and availability rules as the customer
+                    checkout flow.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addPreparedProperty}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add property
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {bookingPreparationProperties.map((property, index) => (
+                  <div
+                    key={property.localId}
+                    className="rounded-2xl border border-white/10 p-4"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium">Property {index + 1}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={bookingPreparationProperties.length === 1}
+                        onClick={() => removePreparedProperty(index)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove
+                      </Button>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`prepared-property-type-${index}`}>
+                          Property type
+                        </Label>
+                        <select
+                          id={`prepared-property-type-${index}`}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={property.propertyType}
+                          onChange={(event) =>
+                            updatePreparedProperty(
+                              index,
+                              "propertyType",
+                              event.target.value,
+                            )
+                          }
+                        >
+                          <option value="">Select property type</option>
+                          {BOOKING_PROPERTY_TYPES.map((propertyType) => (
+                            <option key={propertyType} value={propertyType}>
+                              {propertyType}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`prepared-property-size-${index}`}>
+                          Property size
+                        </Label>
+                        <select
+                          id={`prepared-property-size-${index}`}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={property.propertySize}
+                          onChange={(event) =>
+                            updatePreparedProperty(
+                              index,
+                              "propertySize",
+                              event.target.value,
+                            )
+                          }
+                        >
+                          <option value="">Select property size</option>
+                          {getPreparedPropertySizeOptions(
+                            property.propertyType,
+                          ).map((propertySize) => (
+                            <option key={propertySize} value={propertySize}>
+                              {propertySize}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-3">
+                      <Label>Services</Label>
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        {BOOKING_SERVICE_OPTIONS.map((service) => (
+                          <label
+                            key={service}
+                            className="flex items-center gap-2 rounded-xl border border-white/10 bg-background/40 px-3 py-2 text-sm"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={property.services.includes(service)}
+                              onChange={() =>
+                                togglePreparedPropertyService(index, service)
+                              }
+                            />
+                            <span>{service}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {property.services.includes("Videography") ? (
+                      <div className="mt-4 space-y-2">
+                        <Label htmlFor={`prepared-property-video-${index}`}>
+                          Videography option
+                        </Label>
+                        <select
+                          id={`prepared-property-video-${index}`}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={property.videographySubService}
+                          onChange={(event) =>
+                            updatePreparedProperty(
+                              index,
+                              "videographySubService",
+                              event.target.value,
+                            )
+                          }
+                        >
+                          <option value="">Select videography option</option>
+                          {VIDEOGRAPHY_PREPARATION_OPTIONS.map((option) => (
+                            <option key={option} value={option}>
+                              {formatVideographyPreparationLabel(option)}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`prepared-property-date-${index}`}>
+                          Preferred date
+                        </Label>
+                        <Input
+                          id={`prepared-property-date-${index}`}
+                          type="date"
+                          value={property.preferredDate}
+                          onChange={(event) =>
+                            updatePreparedProperty(
+                              index,
+                              "preferredDate",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`prepared-property-time-${index}`}>
+                          Start time
+                        </Label>
+                        <select
+                          id={`prepared-property-time-${index}`}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          value={property.startTime}
+                          onChange={(event) =>
+                            updatePreparedProperty(
+                              index,
+                              "startTime",
+                              event.target.value,
+                            )
+                          }
+                        >
+                          {PREPARATION_START_TIME_OPTIONS.map((timeOption) => (
+                            <option
+                              key={timeOption.value}
+                              value={timeOption.value}
+                            >
+                              {timeOption.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                      <div className="space-y-2">
+                        <Label htmlFor={`prepared-property-building-${index}`}>
+                          Building
+                        </Label>
+                        <Input
+                          id={`prepared-property-building-${index}`}
+                          value={property.building}
+                          onChange={(event) =>
+                            updatePreparedProperty(
+                              index,
+                              "building",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`prepared-property-community-${index}`}>
+                          Community
+                        </Label>
+                        <Input
+                          id={`prepared-property-community-${index}`}
+                          value={property.community}
+                          onChange={(event) =>
+                            updatePreparedProperty(
+                              index,
+                              "community",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`prepared-property-unit-${index}`}>
+                          Unit number
+                        </Label>
+                        <Input
+                          id={`prepared-property-unit-${index}`}
+                          value={property.unitNumber}
+                          onChange={(event) =>
+                            updatePreparedProperty(
+                              index,
+                              "unitNumber",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {bookingPreparationPreview ? (
+              <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-semibold">
+                      Prepared handoff summary
+                    </h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {formatPreparationCustomerLabel(
+                        bookingPreparationPreview.customer,
+                      )}
+                      {bookingPreparationPreview.customer?.phone
+                        ? ` • ${bookingPreparationPreview.customer.phone}`
+                        : ""}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="rounded-full">
+                    AED {Number(bookingPreparationPreview.totalAmount || 0)}
+                  </Badge>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {bookingPreparationPreview.properties.map(
+                    (property, index) => (
+                      <div
+                        key={`${property.preferredDate}-${property.startTime}-${property.label}-${property.locationLabel || index}`}
+                        className="rounded-xl border border-white/10 bg-background/60 p-3"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium">
+                              {property.label || `Property ${index + 1}`}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {property.locationLabel || "Location pending"}
+                            </p>
+                          </div>
+                          <Badge variant="outline">
+                            AED {Number(property.total || 0)}
+                          </Badge>
+                        </div>
+                        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                          <p className="text-muted-foreground">
+                            {property.serviceLabel}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {property.preferredDate} • {property.startTime}
+                            {property.arrivalWindow
+                              ? ` • Arrival ${property.arrivalWindow}`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={bookingPreparationSaving}
+                onClick={resetBookingPreparationDialog}
+              >
+                Close
+              </Button>
+              <Button type="submit" disabled={bookingPreparationSaving}>
+                {bookingPreparationSaving
+                  ? "Validating..."
+                  : "Validate preparation"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={eventDialogState.open}

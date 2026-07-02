@@ -455,6 +455,81 @@ describe("SchedulingCalendarPage", () => {
         }
       }
 
+      if (url.startsWith("/api/admin/scheduling-calendar/customers?query=")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            customers: [
+              {
+                id: 7,
+                accountType: "INDIVIDUAL",
+                fullName: "Ava Agent",
+                companyName: null,
+                email: "ava@example.com",
+                phone: "+971500000000",
+                displayName: "Ava Agent",
+              },
+            ],
+          }),
+        });
+      }
+
+      if (url === "/api/admin/scheduling-calendar/booking-preparation") {
+        const body = JSON.parse(init?.body || "{}");
+        const selectedCustomer =
+          body.customerMode === "existing"
+            ? {
+                id: 7,
+                accountType: "INDIVIDUAL",
+                fullName: "Ava Agent",
+                companyName: null,
+                email: "ava@example.com",
+                phone: "+971500000000",
+                displayName: "Ava Agent",
+              }
+            : {
+                id: null,
+                accountType: body.customer.accountType,
+                fullName: body.customer.fullName || null,
+                companyName: body.customer.companyName || null,
+                email: body.customer.email || null,
+                phone: body.customer.phone || null,
+                displayName:
+                  body.customer.companyName ||
+                  body.customer.fullName ||
+                  body.customer.phone,
+              };
+
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            customerMode: body.customerMode,
+            customer: selectedCustomer,
+            requiresRegistration: body.customerMode === "new",
+            totalAmount: 1450,
+            properties: body.properties.map((property) => ({
+              label: `${property.propertySize} ${property.propertyType}`,
+              locationLabel: [
+                property.unitNumber,
+                property.building,
+                property.community,
+              ]
+                .filter(Boolean)
+                .join(", "),
+              serviceLabel: property.services.includes("Videography")
+                ? `Photography, Videography (${property.videographySubService})`
+                : property.services.join(", "),
+              preferredDate: property.preferredDate,
+              startTime: property.startTime,
+              arrivalWindow: "09:00 - 09:30",
+              total: 1450,
+            })),
+          }),
+        });
+      }
+
       return Promise.reject(new Error(`Unhandled fetch: ${url}`));
     });
   });
@@ -788,5 +863,69 @@ describe("SchedulingCalendarPage", () => {
       expect(screen.queryByText("Event cancelled")).not.toBeInTheDocument();
     });
     expect(screen.getAllByText("ACTIVE")).not.toHaveLength(0);
+  });
+
+  it("prepares a validated multi-property booking summary for an existing customer", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Scheduling Calendar/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Prepare booking/i }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /Prepare admin booking/i,
+    });
+
+    fireEvent.change(within(dialog).getByLabelText("Search customer"), {
+      target: { value: "ava" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: /^Search$/i }));
+
+    expect(
+      await within(dialog).findByRole("button", { name: /Ava Agent/i }),
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Ava Agent/i }));
+
+    fireEvent.change(within(dialog).getByLabelText("Property type"), {
+      target: { value: "Apartment" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Property size"), {
+      target: { value: "2 Bed" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Photography"));
+    fireEvent.click(within(dialog).getByLabelText("Videography"));
+    fireEvent.change(within(dialog).getByLabelText("Videography option"), {
+      target: { value: "Short Form" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Building"), {
+      target: { value: "Marina Gate" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Community"), {
+      target: { value: "Dubai Marina" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Unit number"), {
+      target: { value: "1504" },
+    });
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /Validate preparation/i }),
+    );
+
+    expect(
+      await within(dialog).findByRole("heading", {
+        name: /Prepared handoff summary/i,
+      }),
+    ).toBeInTheDocument();
+    expect(within(dialog).getAllByText("Ava Agent").length).toBeGreaterThan(0);
+    expect(within(dialog).getByText("2 Bed Apartment")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("1504, Marina Gate, Dubai Marina"),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Photography, Videography (Short Form)"),
+    ).toBeInTheDocument();
+    expect(within(dialog).getAllByText("AED 1450").length).toBeGreaterThan(0);
   });
 });
