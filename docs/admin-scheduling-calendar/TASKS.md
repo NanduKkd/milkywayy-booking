@@ -1,6 +1,6 @@
 # Admin scheduling calendar task tracker
 
-- Last updated: 2026-07-02
+- Last updated: 2026-07-03
 - Overall implementation status: `IN_PROGRESS`
 - Current milestone: `M3 - Verification and rollout`
 
@@ -11,7 +11,7 @@
 | M0 - Scheduling contract | `DONE` | 2 | 2 | 1-2 days |
 | M1 - Data and shared availability | `DONE` | 4 | 4 | 3-4 days |
 | M2 - Calendar and entry flows | `DONE` | 7 | 7 | Estimate requires revision |
-| M3 - Verification and rollout | `NOT_STARTED` | 0 | 4 | 3-4 days |
+| M3 - Verification and rollout | `IN_PROGRESS` | 1 | 4 | 3-4 days |
 
 ## M0 - Scheduling contract
 
@@ -45,7 +45,7 @@
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| CAL-301 | Add availability and precedence tests | `NOT_STARTED` | Engineering | M2 | Working-day, exact-block, capacity, non-blocking-event, booking, and timezone cases pass | Pending |
+| CAL-301 | Add availability and precedence tests | `DONE` | Engineering | M2 | Working-day, exact-block, capacity, non-blocking-event, booking, and timezone cases pass | `src/lib/services/schedulingAvailability.js`, `src/lib/services/__tests__/schedulingAvailability.test.js`, `src/lib/actions/__tests__/bookings.test.js`, `npm test -- --runInBand src/lib/services/__tests__/schedulingAvailability.test.js src/lib/actions/__tests__/bookings.test.js`, `npx biome check src/lib/services/schedulingAvailability.js src/lib/services/__tests__/schedulingAvailability.test.js src/lib/actions/__tests__/bookings.test.js` |
 | CAL-302 | Add concurrency and authorization tests | `NOT_STARTED` | Engineering | CAL-301 | Double-booking and unauthorized mutation cases fail safely | Pending |
 | CAL-303 | Run booking and Time Slots regression suite | `NOT_STARTED` | Engineering | CAL-301 | Existing scheduling behavior has no undocumented regression | Pending |
 | CAL-304 | Roll out schema and Calendar UI | `NOT_STARTED` | Engineering / Operations | CAL-302, CAL-303 | Migration, smoke-test, monitoring, and rollback evidence is recorded | Pending |

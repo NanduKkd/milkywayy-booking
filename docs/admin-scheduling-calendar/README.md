@@ -1,6 +1,6 @@
 # Admin scheduling calendar delivery plan
 
-- Last updated: 2026-07-02
+- Last updated: 2026-07-03
 - Planning status: `IN_PROGRESS`
 - Implementation status: `IN_PROGRESS`
 - Target: provide one booking-centric admin calendar backed by the existing availability rules.

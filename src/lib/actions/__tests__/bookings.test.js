@@ -32,6 +32,13 @@ const mockTransaction = {
   },
 };
 
+function toLocalDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function buildFutureWorkingDate() {
   const date = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
@@ -39,7 +46,17 @@ function buildFutureWorkingDate() {
     date.setDate(date.getDate() + 1);
   }
 
-  return date.toISOString().slice(0, 10);
+  return toLocalDateKey(date);
+}
+
+function buildFutureSundayDate() {
+  const date = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  while (date.getDay() !== 0) {
+    date.setDate(date.getDate() + 1);
+  }
+
+  return toLocalDateKey(date);
 }
 
 // Mock dependencies that cause side effects or DB connections
@@ -133,6 +150,7 @@ jest.mock("stripe", () => {
 describe("Booking Actions", () => {
   const mockUserId = "user-123";
   const mockFutureDate = buildFutureWorkingDate();
+  const mockFutureSundayDate = buildFutureSundayDate();
   const mockProperties = [
     {
       propertyType: "Apartment",
@@ -255,6 +273,40 @@ describe("Booking Actions", () => {
       expect(result.message).toMatch(/blocked by admin calendar rules/i);
     });
 
+    it("should fail if the requested date falls on a non-working weekday", async () => {
+      const result = await createBookings([
+        {
+          ...mockProperties[0],
+          preferredDate: mockFutureSundayDate,
+        },
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/blocked by admin calendar rules/i);
+    });
+
+    it("should fail if an exact admin time block overlaps the requested slot", async () => {
+      DynamicConfig.findOne.mockResolvedValue({
+        value: {
+          dateOverrides: {
+            [mockFutureDate]: {
+              timeBlocks: [
+                {
+                  startTime: "10:00",
+                  endTime: "10:30",
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const result = await createBookings(mockProperties);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/blocked by admin calendar rules/i);
+    });
+
     it("should allow booking creation when an informational calendar event overlaps the slot", async () => {
       Booking.create.mockResolvedValue({
         id: 2,
@@ -278,6 +330,31 @@ describe("Booking Actions", () => {
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual([{ id: 2, bookingCode: "MWB-1002" }]);
+    });
+
+    it("should fail when an existing booking spans into the requested next period", async () => {
+      Booking.findAll.mockResolvedValue([
+        {
+          userId: "other-user",
+          status: "CONFIRMED",
+          date: mockFutureDate,
+          startTime: "09:00",
+          duration: 2,
+          shootDetails: { services: ["Photography"] },
+          propertyDetails: { type: "Apartment", size: "1 Bed" },
+        },
+      ]);
+
+      const result = await createBookings([
+        {
+          ...mockProperties[0],
+          startTime: "13:00",
+          duration: 1,
+        },
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/no longer available/i);
     });
 
     it("should return error if not authenticated", async () => {

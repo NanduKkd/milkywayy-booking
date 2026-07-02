@@ -7,6 +7,7 @@ export const PERIOD_TO_HOURLY = {
 };
 export const BUSINESS_DAY_START_TIME = "09:00";
 export const BUSINESS_DAY_END_TIME = "20:00";
+export const BUSINESS_TIMEZONE = "Asia/Dubai";
 export const BUSINESS_DAY_TIME_OPTIONS = Array.from(
   { length: 23 },
   (_, index) => {
@@ -342,10 +343,34 @@ export function getBlockedSlotTimesForDate(dateStr, configValue) {
   );
 }
 
+function getDatePartsInTimeZone(date, timeZone) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .formatToParts(date)
+    .reduce((accumulator, part) => {
+      if (part.type !== "literal") {
+        accumulator[part.type] = part.value;
+      }
+      return accumulator;
+    }, {});
+}
+
 function toDateKey(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const parts = getDatePartsInTimeZone(date, BUSINESS_TIMEZONE);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function addDaysToDateKey(dateStr, daysToAdd) {
+  const cursor = parseDateOnly(dateStr);
+  cursor.setUTCDate(cursor.getUTCDate() + daysToAdd);
+
+  const year = cursor.getUTCFullYear();
+  const month = String(cursor.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(cursor.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -355,13 +380,12 @@ export function getRollingWindowBounds(configValue, now = new Date()) {
     parseInt(config?.systemSettings?.rollingWindowDays, 10) || 90,
     1,
   );
-  const min = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const max = new Date(min);
-  max.setDate(max.getDate() + (rollingWindowDays - 1));
+  const minDate = toDateKey(now);
+  const maxDate = addDaysToDateKey(minDate, rollingWindowDays - 1);
 
   return {
-    minDate: toDateKey(min),
-    maxDate: toDateKey(max),
+    minDate,
+    maxDate,
     rollingWindowDays,
   };
 }

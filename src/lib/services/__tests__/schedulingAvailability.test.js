@@ -131,6 +131,30 @@ describe("schedulingAvailability", () => {
     ).toEqual(["10:00", "10:30", "11:00", "11:30"]);
   });
 
+  it("treats an explicit full-day block as overriding exact time ranges on the same date", () => {
+    const config = normalizeTimeSlotConfig({
+      dateOverrides: {
+        "2026-07-05": {
+          fullDayBlocked: true,
+          timeBlocks: [
+            {
+              startTime: "10:00",
+              endTime: "11:00",
+            },
+          ],
+        },
+      },
+    });
+
+    expect(getEffectiveBlockForDate("2026-07-05", config)).toEqual(
+      expect.objectContaining({
+        fullDayBlocked: true,
+        blockedPeriods: ["morning", "afternoon", "evening"],
+        blockedTimeRanges: [],
+      }),
+    );
+  });
+
   it("shares date range and rolling-window calculations", () => {
     expect(enumerateDateRange("2026-07-01", "2026-07-03")).toEqual([
       "2026-07-01",
@@ -174,5 +198,22 @@ describe("schedulingAvailability", () => {
         new Date("2026-07-02T10:30:00.000Z"),
       ),
     ).toBe(false);
+  });
+
+  it("anchors rolling-window bounds to Dubai business dates across year boundaries", () => {
+    const now = new Date("2026-12-31T19:00:00.000Z");
+    const config = {
+      systemSettings: {
+        rollingWindowDays: 3,
+      },
+    };
+
+    expect(getRollingWindowBounds(config, now)).toEqual({
+      minDate: "2026-12-31",
+      maxDate: "2027-01-02",
+      rollingWindowDays: 3,
+    });
+    expect(isDateOutsideRollingWindow("2027-01-02", config, now)).toBe(false);
+    expect(isDateOutsideRollingWindow("2027-01-03", config, now)).toBe(true);
   });
 });
