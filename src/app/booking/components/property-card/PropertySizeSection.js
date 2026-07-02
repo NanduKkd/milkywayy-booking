@@ -26,6 +26,7 @@ export function PropertySizeSection({
   control,
   errorMessage,
   index,
+  onSelectionComplete,
   packageInfo,
   pricingConfig,
   propertyType,
@@ -39,15 +40,15 @@ export function PropertySizeSection({
 
   return (
     <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-      <label className="block text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
+      <p className="block text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">
         {isCommercial ? "Step 1 — Property Scale" : "PROPERTY SIZE"}
-      </label>
+      </p>
 
-      {isCommercial ? (
-        <p className="mb-3 text-2xs text-muted-foreground/60">
-          Select property scale. Then choose services.
-        </p>
-      ) : null}
+      {isCommercial
+        ? <p className="mb-3 text-2xs text-muted-foreground/60">
+            Select property scale. Then choose services.
+          </p>
+        : null}
 
       <Controller
         name={`properties.${index}.propertySize`}
@@ -66,11 +67,17 @@ export function PropertySizeSection({
                 const meta = COMMERCIAL_TIER_META[sizeObj.label];
 
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={sizeObj.label}
                     onClick={() => {
+                      if (field.value === sizeObj.label) {
+                        return;
+                      }
+
                       updatePropertyField(index, "propertySize", sizeObj.label);
                       setValue(`properties.${index}.services`, ["Photography"]);
+                      onSelectionComplete?.();
                     }}
                     className={cn(
                       "relative cursor-pointer rounded-xl border transition-all duration-300 p-3 text-left flex flex-col items-start justify-center gap-1.5 min-h-[74px]",
@@ -88,7 +95,9 @@ export function PropertySizeSection({
                     <div
                       className={cn(
                         "font-semibold text-sm md:text-base",
-                        isSelected ? "text-foreground" : " text-muted-foreground",
+                        isSelected
+                          ? "text-foreground"
+                          : " text-muted-foreground",
                       )}
                     >
                       {sizeObj.label === "Elite" ? "Executive" : sizeObj.label}
@@ -97,7 +106,7 @@ export function PropertySizeSection({
                     <div className="text-2xs md:text-xs text-muted-foreground leading-snug">
                       {meta?.subtitle}
                     </div>
-                  </div>
+                  </button>
                 );
               }
 
@@ -109,8 +118,13 @@ export function PropertySizeSection({
                   selectedClassName="bg-foreground text-background"
                   unselectedClassName="bg-secondary text-muted-foreground hover:bg-muted hover:text-foreground"
                   onClick={() => {
+                    if (field.value === sizeObj.label) {
+                      return;
+                    }
+
                     updatePropertyField(index, "propertySize", sizeObj.label);
                     setValue(`properties.${index}.services`, ["Photography"]);
+                    onSelectionComplete?.();
                   }}
                 >
                   {sizeObj.label}
@@ -127,7 +141,9 @@ export function PropertySizeSection({
             <div className="flex items-center gap-1">
               <Camera className="w-4 h-4" />
               <span>
-                <span className={getPackageInfoLabelClassName(packageInfo.photos)}>
+                <span
+                  className={getPackageInfoLabelClassName(packageInfo.photos)}
+                >
                   Photos:
                 </span>{" "}
                 {packageInfo.photos}
@@ -137,7 +153,9 @@ export function PropertySizeSection({
             <div className="flex items-center gap-1">
               <Video className="w-4 h-4" />
               <span>
-                <span className={getPackageInfoLabelClassName(packageInfo.reel)}>
+                <span
+                  className={getPackageInfoLabelClassName(packageInfo.reel)}
+                >
                   Reel:
                 </span>{" "}
                 {packageInfo.reel}
@@ -148,7 +166,9 @@ export function PropertySizeSection({
               <Video className="w-4 h-4" />
               <span>
                 <span
-                  className={getPackageInfoLabelClassName(packageInfo.walkthrough)}
+                  className={getPackageInfoLabelClassName(
+                    packageInfo.walkthrough,
+                  )}
                 >
                   Walkthrough:
                 </span>{" "}
@@ -159,7 +179,9 @@ export function PropertySizeSection({
             <div className="flex items-center gap-1">
               <Globe className="w-3 h-3" />
               <span>
-                <span className={getPackageInfoLabelClassName(packageInfo.tour)}>
+                <span
+                  className={getPackageInfoLabelClassName(packageInfo.tour)}
+                >
                   360 Tour:
                 </span>{" "}
                 {packageInfo.tour}
@@ -169,7 +191,9 @@ export function PropertySizeSection({
         </div>
       )}
 
-      {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+      {errorMessage && (
+        <p className="text-red-500 text-xs mt-1">{errorMessage}</p>
+      )}
     </div>
   );
 }
