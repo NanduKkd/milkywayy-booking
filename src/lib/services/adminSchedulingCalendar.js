@@ -253,6 +253,13 @@ function buildEventCalendarItem(event) {
           email: event.updatedByUser.email || "",
         }
       : null,
+    cancelledByUser: event.cancelledByUser
+      ? {
+          id: Number(event.cancelledByUser.id),
+          fullName: event.cancelledByUser.fullName || "",
+          email: event.cancelledByUser.email || "",
+        }
+      : null,
     cancelledAt: event.cancelledAt || null,
     cancellationReason: event.cancellationReason || null,
   };
@@ -317,6 +324,12 @@ export async function listAdminSchedulingCalendarRange({
         {
           model: models.User,
           as: "updatedByUser",
+          attributes: ["id", "fullName", "email"],
+          required: false,
+        },
+        {
+          model: models.User,
+          as: "cancelledByUser",
           attributes: ["id", "fullName", "email"],
           required: false,
         },

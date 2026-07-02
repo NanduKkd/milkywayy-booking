@@ -229,13 +229,55 @@ const augustPayload = {
   events: [],
 };
 
+function clonePayload(payload) {
+  return JSON.parse(JSON.stringify(payload));
+}
+
+function recalculateCalendarPayload(payload) {
+  const nextPayload = clonePayload(payload);
+
+  nextPayload.days = nextPayload.days.map((day) => {
+    const dayEvents = nextPayload.events.filter(
+      (event) => event.date === day.date,
+    );
+
+    return {
+      ...day,
+      counts: {
+        ...day.counts,
+        events: dayEvents.length,
+        activeEvents: dayEvents.filter((event) => event.status === "ACTIVE")
+          .length,
+        capacityConsumingEvents: dayEvents.filter(
+          (event) => event.status === "ACTIVE" && event.consumesCapacity,
+        ).length,
+      },
+    };
+  });
+
+  nextPayload.summary = {
+    ...nextPayload.summary,
+    totalEvents: nextPayload.events.length,
+    totalActiveEvents: nextPayload.events.filter(
+      (event) => event.status === "ACTIVE",
+    ).length,
+    totalCapacityConsumingEvents: nextPayload.events.filter(
+      (event) => event.status === "ACTIVE" && event.consumesCapacity,
+    ).length,
+  };
+
+  return nextPayload;
+}
+
 describe("SchedulingCalendarPage", () => {
   let timeSlotPutBodies;
+  let currentJulyPayload;
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-07-15T08:00:00.000Z"));
     timeSlotPutBodies = [];
+    currentJulyPayload = clonePayload(julyPayload);
     global.fetch = jest.fn((input, init) => {
       const url = String(input);
 
@@ -249,7 +291,7 @@ describe("SchedulingCalendarPage", () => {
 
         return Promise.resolve({
           ok: true,
-          json: async () => julyPayload,
+          json: async () => recalculateCalendarPayload(currentJulyPayload),
         });
       }
 
@@ -294,6 +336,98 @@ describe("SchedulingCalendarPage", () => {
             ],
           }),
         });
+      }
+
+      if (url === "/api/admin/scheduling-calendar/events") {
+        const body = JSON.parse(init?.body || "{}");
+        const newEvent = {
+          id: 99,
+          title: body.title,
+          description: body.description || "",
+          date: body.date,
+          status: "ACTIVE",
+          period: body.period || "afternoon",
+          startTime: body.startTime || null,
+          endTime: body.endTime || null,
+          consumesCapacity: Boolean(body.consumesCapacity),
+          reservedCapacityUnits: body.consumesCapacity
+            ? Number(body.reservedCapacityUnits || 1)
+            : 0,
+          propertySummary: body.propertySummary || null,
+          contactSummary: body.contactSummary || null,
+          createdByUser: null,
+          updatedByUser: null,
+          cancelledByUser: null,
+          cancelledAt: null,
+          cancellationReason: null,
+        };
+
+        currentJulyPayload.events.push(newEvent);
+
+        return Promise.resolve({
+          ok: true,
+          status: 201,
+          json: async () => newEvent,
+        });
+      }
+
+      if (url === "/api/admin/scheduling-calendar/events/99") {
+        const method = init?.method;
+        const body = JSON.parse(init?.body || "{}");
+        const existingEvent = currentJulyPayload.events.find(
+          (event) => event.id === 99,
+        );
+
+        if (method === "PUT") {
+          Object.assign(existingEvent, {
+            title: body.title,
+            description: body.description || "",
+            date: body.date,
+            period: body.period || "afternoon",
+            startTime: body.startTime || null,
+            endTime: body.endTime || null,
+            consumesCapacity: Boolean(body.consumesCapacity),
+            reservedCapacityUnits: body.consumesCapacity
+              ? Number(body.reservedCapacityUnits || 1)
+              : 0,
+            propertySummary: body.propertySummary || null,
+            contactSummary: body.contactSummary || null,
+          });
+
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => existingEvent,
+          });
+        }
+
+        if (method === "PATCH" && body.action === "cancel") {
+          Object.assign(existingEvent, {
+            status: "CANCELLED",
+            cancelledAt: "2026-07-15T08:30:00.000Z",
+            cancellationReason: null,
+          });
+
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => existingEvent,
+          });
+        }
+
+        if (method === "PATCH" && body.action === "restore") {
+          Object.assign(existingEvent, {
+            status: "ACTIVE",
+            cancelledAt: null,
+            cancellationReason: null,
+          });
+
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => existingEvent,
+          });
+        }
       }
 
       return Promise.reject(new Error(`Unhandled fetch: ${url}`));
@@ -524,5 +658,71 @@ describe("SchedulingCalendarPage", () => {
         screen.queryByRole("dialog", { name: /Review block conflict/i }),
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("creates, edits, cancels, and restores a calendar-only event from the selected day", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Scheduling Calendar/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Create event/i }));
+
+    const createDialog = await screen.findByRole("dialog", {
+      name: /Create calendar event/i,
+    });
+
+    fireEvent.change(within(createDialog).getByLabelText("Title"), {
+      target: { value: "Walkthrough hold" },
+    });
+    fireEvent.change(within(createDialog).getByLabelText("Property summary"), {
+      target: { value: "Dubai Hills villa" },
+    });
+    fireEvent.click(
+      within(createDialog).getByLabelText("Reserve scheduling capacity"),
+    );
+    fireEvent.change(
+      within(createDialog).getByLabelText("Reserved capacity units"),
+      {
+        target: { value: "1.5" },
+      },
+    );
+
+    fireEvent.click(
+      within(createDialog).getByRole("button", { name: /Create event/i }),
+    );
+
+    expect(await screen.findAllByText("Walkthrough hold")).toHaveLength(2);
+    expect(screen.getByText(/Reserves 1.5 capacity/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Edit event/i }));
+
+    const editDialog = await screen.findByRole("dialog", {
+      name: /Edit calendar event/i,
+    });
+    fireEvent.change(within(editDialog).getByLabelText("Title"), {
+      target: { value: "Updated walkthrough hold" },
+    });
+
+    fireEvent.click(
+      within(editDialog).getByRole("button", { name: /Save changes/i }),
+    );
+
+    expect(await screen.findAllByText("Updated walkthrough hold")).toHaveLength(
+      2,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Cancel event/i }));
+
+    expect(await screen.findByText("Capacity released")).toBeInTheDocument();
+    expect(screen.getAllByText("CANCELLED")).not.toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Restore event/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Capacity released")).not.toBeInTheDocument();
+    });
+    expect(screen.getAllByText("ACTIVE")).not.toHaveLength(0);
   });
 });

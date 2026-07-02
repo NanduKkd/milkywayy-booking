@@ -1,12 +1,15 @@
 "use client";
 
 import {
+  Ban,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock3,
   MapPinned,
+  Pencil,
   RefreshCcw,
+  RotateCcw,
   ShieldAlert,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,9 +21,12 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -30,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 const DUBAI_TIMEZONE = "Asia/Dubai";
@@ -374,6 +381,28 @@ const EMPTY_CONFLICT_STATE = {
   conflicts: [],
   pendingTimeSlots: null,
 };
+const EMPTY_EVENT_DIALOG_STATE = {
+  open: false,
+  mode: "create",
+  eventId: null,
+};
+
+function buildEventFormState(dateKey, event = null) {
+  return {
+    title: event?.title || "",
+    description: event?.description || "",
+    date: event?.date || dateKey || "",
+    period: event?.period || "",
+    startTime: event?.startTime || "",
+    endTime: event?.endTime || "",
+    propertyLabel: event?.propertySummary?.label || "",
+    contactLabel: event?.contactSummary?.label || "",
+    consumesCapacity: Boolean(event?.consumesCapacity),
+    reservedCapacityUnits: event?.consumesCapacity
+      ? String(event?.reservedCapacityUnits || 1)
+      : "0",
+  };
+}
 
 export default function SchedulingCalendarPage() {
   const todayDateKey = useMemo(() => getTodayDateKeyInDubai(), []);
@@ -386,8 +415,19 @@ export default function SchedulingCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [blockSaving, setBlockSaving] = useState(false);
+  const [eventSaving, setEventSaving] = useState(false);
+  const [eventActionState, setEventActionState] = useState({
+    id: null,
+    action: "",
+  });
   const [reloadVersion, setReloadVersion] = useState(0);
   const [conflictState, setConflictState] = useState(EMPTY_CONFLICT_STATE);
+  const [eventDialogState, setEventDialogState] = useState(
+    EMPTY_EVENT_DIALOG_STATE,
+  );
+  const [eventForm, setEventForm] = useState(() =>
+    buildEventFormState(todayDateKey),
+  );
   const hasLoadedOnceRef = useRef(false);
   const loadTrigger = `${monthKey}:${reloadVersion}`;
 
@@ -630,6 +670,143 @@ export default function SchedulingCalendarPage() {
       toast.error(error.message || "Failed to save block override");
     } finally {
       setBlockSaving(false);
+    }
+  };
+
+  const resetEventDialog = () => {
+    setEventDialogState(EMPTY_EVENT_DIALOG_STATE);
+    setEventForm(buildEventFormState(selectedDateKey || todayDateKey));
+  };
+
+  const openCreateEventDialog = () => {
+    setEventForm(buildEventFormState(selectedDateKey || todayDateKey));
+    setEventDialogState({
+      open: true,
+      mode: "create",
+      eventId: null,
+    });
+  };
+
+  const openEditEventDialog = (event) => {
+    setEventForm(buildEventFormState(selectedDateKey || todayDateKey, event));
+    setEventDialogState({
+      open: true,
+      mode: "edit",
+      eventId: event.id,
+    });
+  };
+
+  const handleEventFormChange = (field, value) => {
+    setEventForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const refreshCalendarForDate = (dateKey) => {
+    if (!dateKey) {
+      setReloadVersion((current) => current + 1);
+      return;
+    }
+
+    setSelectedDateKey(dateKey);
+    setMonthKey(getMonthKeyFromDateKey(dateKey));
+    setReloadVersion((current) => current + 1);
+  };
+
+  const submitEventForm = async (submitEvent) => {
+    submitEvent.preventDefault();
+    setEventSaving(true);
+
+    try {
+      const requestPayload = {
+        title: eventForm.title,
+        description: eventForm.description,
+        date: eventForm.date,
+        period: eventForm.period || null,
+        startTime: eventForm.startTime || null,
+        endTime: eventForm.endTime || null,
+        propertySummary: eventForm.propertyLabel.trim()
+          ? { label: eventForm.propertyLabel.trim() }
+          : null,
+        contactSummary: eventForm.contactLabel.trim()
+          ? { label: eventForm.contactLabel.trim() }
+          : null,
+        consumesCapacity: eventForm.consumesCapacity,
+        reservedCapacityUnits: eventForm.consumesCapacity
+          ? eventForm.reservedCapacityUnits || "1"
+          : "0",
+      };
+      const endpoint =
+        eventDialogState.mode === "create"
+          ? "/api/admin/scheduling-calendar/events"
+          : `/api/admin/scheduling-calendar/events/${eventDialogState.eventId}`;
+      const method = eventDialogState.mode === "create" ? "POST" : "PUT";
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestPayload),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ||
+            `Failed to ${eventDialogState.mode === "create" ? "create" : "update"} event`,
+        );
+      }
+
+      toast.success(
+        eventDialogState.mode === "create"
+          ? "Calendar event created"
+          : "Calendar event updated",
+      );
+      resetEventDialog();
+      refreshCalendarForDate(payload?.date || requestPayload.date);
+    } catch (error) {
+      toast.error(error.message || "Failed to save calendar event");
+    } finally {
+      setEventSaving(false);
+    }
+  };
+
+  const handleEventStatusAction = async (event, action) => {
+    setEventActionState({
+      id: event.id,
+      action,
+    });
+
+    try {
+      const response = await fetch(
+        `/api/admin/scheduling-calendar/events/${event.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.error ||
+            `Failed to ${action === "cancel" ? "cancel" : "restore"} event`,
+        );
+      }
+
+      toast.success(
+        action === "cancel"
+          ? "Calendar event cancelled"
+          : "Calendar event restored",
+      );
+      refreshCalendarForDate(payload?.date || event.date);
+    } catch (error) {
+      toast.error(error.message || "Failed to update event status");
+    } finally {
+      setEventActionState({
+        id: null,
+        action: "",
+      });
     }
   };
 
@@ -1227,10 +1404,20 @@ export default function SchedulingCalendarPage() {
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-semibold">Calendar events</h2>
-                  <Badge variant="outline" className="rounded-full">
-                    {selectedEvents.length}
-                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-lg font-semibold">Calendar events</h2>
+                    <Badge variant="outline" className="rounded-full">
+                      {selectedEvents.length}
+                    </Badge>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!selectedDateKey}
+                    onClick={openCreateEventDialog}
+                  >
+                    Create event
+                  </Button>
                 </div>
                 {selectedEvents.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
@@ -1255,6 +1442,53 @@ export default function SchedulingCalendarPage() {
                             ) : null}
                           </div>
                           <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={
+                                eventSaving ||
+                                (eventActionState.id === event.id &&
+                                  eventActionState.action.length > 0)
+                              }
+                              onClick={() => openEditEventDialog(event)}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit event
+                            </Button>
+                            {event.status === "ACTIVE" ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={
+                                  eventSaving ||
+                                  eventActionState.id === event.id
+                                }
+                                onClick={() =>
+                                  handleEventStatusAction(event, "cancel")
+                                }
+                              >
+                                <Ban className="mr-2 h-4 w-4" />
+                                Cancel event
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={
+                                  eventSaving ||
+                                  eventActionState.id === event.id
+                                }
+                                onClick={() =>
+                                  handleEventStatusAction(event, "restore")
+                                }
+                              >
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Restore event
+                              </Button>
+                            )}
                             <Badge
                               variant={getEventStatusVariant(event.status)}
                             >
@@ -1296,6 +1530,18 @@ export default function SchedulingCalendarPage() {
                             </p>
                           </div>
                         </div>
+
+                        {event.status === "CANCELLED" ? (
+                          <div className="mt-3 rounded-xl border border-rose-400/20 bg-rose-500/5 p-3 text-sm">
+                            <p className="font-medium text-rose-100">
+                              Capacity released
+                            </p>
+                            <p className="mt-1 text-muted-foreground">
+                              {event.cancellationReason ||
+                                "This event is cancelled and does not reserve capacity."}
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -1472,6 +1718,208 @@ export default function SchedulingCalendarPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog
+        open={eventDialogState.open}
+        onOpenChange={(open) => {
+          if (!open && !eventSaving) {
+            resetEventDialog();
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {eventDialogState.mode === "create"
+                ? "Create calendar event"
+                : "Edit calendar event"}
+            </DialogTitle>
+            <DialogDescription>
+              Add a calendar-only event without creating invoices, payments, or
+              customer workflow records.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-5" onSubmit={submitEventForm}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="calendar-event-title">Title</Label>
+                <Input
+                  id="calendar-event-title"
+                  value={eventForm.title}
+                  maxLength={160}
+                  onChange={(event) =>
+                    handleEventFormChange("title", event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calendar-event-date">Date</Label>
+                <Input
+                  id="calendar-event-date"
+                  type="date"
+                  value={eventForm.date}
+                  onChange={(event) =>
+                    handleEventFormChange("date", event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calendar-event-period">Period</Label>
+                <select
+                  id="calendar-event-period"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  value={eventForm.period}
+                  onChange={(event) =>
+                    handleEventFormChange("period", event.target.value)
+                  }
+                >
+                  <option value="">Infer from time</option>
+                  <option value="morning">Morning</option>
+                  <option value="afternoon">Afternoon</option>
+                  <option value="evening">Evening</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calendar-event-start-time">Start time</Label>
+                <Input
+                  id="calendar-event-start-time"
+                  type="time"
+                  value={eventForm.startTime}
+                  onChange={(event) =>
+                    handleEventFormChange("startTime", event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calendar-event-end-time">End time</Label>
+                <Input
+                  id="calendar-event-end-time"
+                  type="time"
+                  value={eventForm.endTime}
+                  onChange={(event) =>
+                    handleEventFormChange("endTime", event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calendar-event-property">
+                  Property summary
+                </Label>
+                <Input
+                  id="calendar-event-property"
+                  value={eventForm.propertyLabel}
+                  maxLength={200}
+                  onChange={(event) =>
+                    handleEventFormChange("propertyLabel", event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="calendar-event-contact">Contact summary</Label>
+                <Input
+                  id="calendar-event-contact"
+                  value={eventForm.contactLabel}
+                  maxLength={200}
+                  onChange={(event) =>
+                    handleEventFormChange("contactLabel", event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="calendar-event-description">Description</Label>
+                <Textarea
+                  id="calendar-event-description"
+                  value={eventForm.description}
+                  maxLength={2000}
+                  onChange={(event) =>
+                    handleEventFormChange("description", event.target.value)
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
+              <div className="flex items-start gap-3">
+                <input
+                  id="calendar-event-consumes-capacity"
+                  type="checkbox"
+                  checked={eventForm.consumesCapacity}
+                  onChange={(event) =>
+                    setEventForm((current) => ({
+                      ...current,
+                      consumesCapacity: event.target.checked,
+                      reservedCapacityUnits: event.target.checked
+                        ? current.reservedCapacityUnits === "0"
+                          ? "1"
+                          : current.reservedCapacityUnits
+                        : "0",
+                    }))
+                  }
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="calendar-event-consumes-capacity">
+                    Reserve scheduling capacity
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Leave this off for informational notes that should not
+                    affect customer availability.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="calendar-event-capacity-units">
+                  Reserved capacity units
+                </Label>
+                <Input
+                  id="calendar-event-capacity-units"
+                  type="number"
+                  min="0"
+                  step="0.25"
+                  disabled={!eventForm.consumesCapacity}
+                  value={
+                    eventForm.consumesCapacity
+                      ? eventForm.reservedCapacityUnits
+                      : "0"
+                  }
+                  onChange={(event) =>
+                    handleEventFormChange(
+                      "reservedCapacityUnits",
+                      event.target.value,
+                    )
+                  }
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={eventSaving}
+                onClick={resetEventDialog}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={eventSaving}>
+                {eventSaving
+                  ? "Saving..."
+                  : eventDialogState.mode === "create"
+                    ? "Create event"
+                    : "Save changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(conflictState.pendingTimeSlots)}
