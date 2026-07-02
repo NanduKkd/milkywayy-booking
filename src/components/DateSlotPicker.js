@@ -25,6 +25,7 @@ import {
   getDynamicTwilightSlotLabel,
 } from "@/lib/helpers/bookingUtils";
 import { cn } from "@/lib/utils";
+import { PUBLIC_CONTACT } from "@/lib/config/publicContact";
 
 const TIME_SLOTS = [
   { value: "09:00", period: "morning", label: "Morning", startTime: "09:00", endTime: "12:00", arrivalTimes: "09:00 - 09:30" },
@@ -486,7 +487,7 @@ export default function DateSlotPicker({
                       })}
                       <div className="text-xs text-foreground/50 mt-4">Booking confirmation & arrival notifications are sent via WhatsApp.</div>
                       <div className="text-xs text-foreground/30 mt-2">Need a different arrival time?</div>
-                      <div className="text-xs text-foreground/30 -mt-1">WhatsApp us - we&apos;ll adjust if available.</div>
+                      <div className="text-xs text-foreground/30 -mt-1"><a href={PUBLIC_CONTACT.telLink} className="underline hover:text-accent transition-colors">WhatsApp us</a> - we&apos;ll adjust if available.</div>
                     </div>
                   </div>}
             </div>

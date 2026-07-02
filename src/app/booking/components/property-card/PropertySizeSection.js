@@ -70,12 +70,12 @@ export function PropertySizeSection({
                     key={sizeObj.label}
                     onClick={() => {
                       updatePropertyField(index, "propertySize", sizeObj.label);
-                      setValue(`properties.${index}.services`, []);
+                      setValue(`properties.${index}.services`, ["Photography"]);
                     }}
                     className={cn(
                       "relative cursor-pointer rounded-xl border transition-all duration-300 p-3 text-left flex flex-col items-start justify-center gap-1.5 min-h-[74px]",
                       isSelected
-                        ? "border-foreground/20 bg-secondary/60 shadow-sm"
+                        ? "border-white/30 bg-white/[0.07] shadow-sm"
                         : "border-border/40 bg-secondary/20 hover:bg-secondary/40 hover:border-border/60",
                     )}
                   >
@@ -110,7 +110,7 @@ export function PropertySizeSection({
                   unselectedClassName="bg-secondary text-muted-foreground hover:bg-muted hover:text-foreground"
                   onClick={() => {
                     updatePropertyField(index, "propertySize", sizeObj.label);
-                    setValue(`properties.${index}.services`, []);
+                    setValue(`properties.${index}.services`, ["Photography"]);
                   }}
                 >
                   {sizeObj.label}
