@@ -1,5 +1,21 @@
-import { fireEvent, render, screen, waitFor, within } from "@/test-utils";
+import { act, fireEvent, render, screen, waitFor, within } from "@/test-utils";
 import SchedulingCalendarPage from "../SchedulingCalendarPage";
+
+const baseTimeSlotsConfig = {
+  version: 2,
+  weeklyRules: {},
+  dateOverrides: {},
+  slotRules: [],
+  systemSettings: {
+    rollingWindowDays: 90,
+    workingDays: {},
+    blockDefinitions: {
+      morning: { startTime: "09:00", endTime: "12:00" },
+      afternoon: { startTime: "13:00", endTime: "16:00" },
+      evening: { startTime: "17:00", endTime: "20:00" },
+    },
+  },
+};
 
 const julyPayload = {
   range: {
@@ -214,13 +230,23 @@ const augustPayload = {
 };
 
 describe("SchedulingCalendarPage", () => {
+  let timeSlotPutBodies;
+
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date("2026-07-15T08:00:00.000Z"));
-    global.fetch = jest.fn((input) => {
+    timeSlotPutBodies = [];
+    global.fetch = jest.fn((input, init) => {
       const url = String(input);
 
       if (url.includes("start=2026-07-01") && url.includes("end=2026-07-31")) {
+        if (url.includes("/api/admin/timeslots")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ config: baseTimeSlotsConfig }),
+          });
+        }
+
         return Promise.resolve({
           ok: true,
           json: async () => julyPayload,
@@ -231,6 +257,42 @@ describe("SchedulingCalendarPage", () => {
         return Promise.resolve({
           ok: true,
           json: async () => augustPayload,
+        });
+      }
+
+      if (url === "/api/admin/timeslots") {
+        const body = JSON.parse(init?.body || "{}");
+        timeSlotPutBodies.push(body);
+
+        if (body.allowConflictOverride === true) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({ success: true }),
+          });
+        }
+
+        return Promise.resolve({
+          ok: false,
+          status: 409,
+          json: async () => ({
+            error: "Conflict",
+            reasonCode: "schedule_conflict_existing_records",
+            conflicts: [
+              {
+                date: "2026-07-03",
+                blockedPeriods: ["morning", "afternoon", "evening"],
+                bookings: [
+                  {
+                    id: 15,
+                    bookingCode: "MWB-1015",
+                    periods: ["afternoon", "evening"],
+                  },
+                ],
+                events: [],
+              },
+            ],
+          }),
         });
       }
 
@@ -393,5 +455,74 @@ describe("SchedulingCalendarPage", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Next date/i })).toBeDisabled();
+  });
+
+  it("warns before saving a conflicting block and supports an explicit override", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Scheduling Calendar/i }),
+    ).toBeInTheDocument();
+
+    expect(
+      await screen.findByRole("button", {
+        name: /Friday, July 3, 2026\..*1 booking/i,
+      }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Friday, July 3, 2026\..*1 booking/i,
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Block full day/i,
+      }),
+    );
+
+    const conflictDialog = await screen.findByRole("dialog", {
+      name: /Review block conflict/i,
+    });
+    expect(conflictDialog).toBeInTheDocument();
+    expect(
+      within(conflictDialog).getAllByText("MWB-1015").length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(conflictDialog).getByText("Afternoon, Evening"),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", {
+          name: /Save block anyway/i,
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(timeSlotPutBodies).toHaveLength(2);
+    });
+
+    expect(timeSlotPutBodies[0]).toMatchObject({
+      allowConflictOverride: false,
+      timeSlots: expect.objectContaining({
+        dateOverrides: expect.objectContaining({
+          "2026-07-03": expect.objectContaining({
+            fullDayBlocked: true,
+          }),
+        }),
+      }),
+    });
+    expect(timeSlotPutBodies[1]).toMatchObject({
+      allowConflictOverride: true,
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: /Review block conflict/i }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

@@ -3,6 +3,7 @@ import { sequelize } from "../../../../../lib/db/db";
 import Booking from "../../../../../lib/db/models/booking";
 import CalendarEvent from "../../../../../lib/db/models/calendarevent";
 import DynamicConfig from "../../../../../lib/db/models/dynamicconfig";
+import { auth } from "../../../../../lib/helpers/auth";
 import { GET, PUT } from "../route";
 
 const mockTransaction = {
@@ -35,6 +36,12 @@ jest.mock("../../../../../lib/db/models/dynamicconfig", () => ({
 
 jest.mock("../../../../../lib/db/models/transaction", () => ({}));
 
+jest.mock("../../../../../lib/helpers/auth", () => ({
+  auth: jest.fn(),
+}));
+
+jest.mock("../../../../../lib/db/relations", () => ({}));
+
 jest.mock("../../../../../lib/db/db", () => ({
   sequelize: {
     query: jest.fn(),
@@ -45,7 +52,28 @@ jest.mock("../../../../../lib/db/db", () => ({
 describe("Admin TimeSlots API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    auth.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
     CalendarEvent.findAll.mockResolvedValue([]);
+  });
+
+  it("rejects anonymous and non-superadmin access", async () => {
+    auth.mockResolvedValueOnce(null);
+
+    const unauthorizedGetResponse = await GET({
+      url: "http://localhost:3000/api/admin/timeslots",
+    });
+
+    expect(unauthorizedGetResponse.status).toBe(401);
+    expect(DynamicConfig.findOne).not.toHaveBeenCalled();
+
+    auth.mockResolvedValueOnce({ id: 2, role: "CUSTOMER" });
+
+    const forbiddenPutResponse = await PUT({
+      json: jest.fn(),
+    });
+
+    expect(forbiddenPutResponse.status).toBe(403);
+    expect(DynamicConfig.findOrCreate).not.toHaveBeenCalled();
   });
 
   it("returns config and bookedMap with booked slots", async () => {
@@ -290,6 +318,66 @@ describe("Admin TimeSlots API Route", () => {
     expect(response.status).toBe(200);
     expect(data).toEqual({ success: true });
     expect(sequelize.transaction).toHaveBeenCalledTimes(1);
+    expect(existingEntry.save).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows an explicit override save for conflicting blocks", async () => {
+    const existingEntry = {
+      value: {
+        version: 2,
+        weeklyRules: {},
+        dateOverrides: {},
+        slotRules: [],
+        systemSettings: {
+          rollingWindowDays: 90,
+          workingDays: {},
+          blockDefinitions: {},
+        },
+      },
+      save: jest.fn(),
+    };
+
+    DynamicConfig.findOrCreate.mockResolvedValue([existingEntry, false]);
+    Booking.findAll.mockResolvedValue([
+      {
+        id: 1,
+        bookingCode: "BK-001",
+        date: "2026-07-14",
+        slot: 1,
+        startTime: "09:00",
+        duration: 1,
+        status: "CONFIRMED",
+      },
+    ]);
+
+    const request = {
+      json: jest.fn().mockResolvedValue({
+        allowConflictOverride: true,
+        timeSlots: {
+          version: 2,
+          weeklyRules: {},
+          dateOverrides: {
+            "2026-07-14": {
+              blocks: {
+                morning: "blocked",
+              },
+            },
+          },
+          slotRules: [],
+          systemSettings: {
+            rollingWindowDays: 90,
+            workingDays: {},
+            blockDefinitions: {},
+          },
+        },
+      }),
+    };
+
+    const response = await PUT(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({ success: true });
     expect(existingEntry.save).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { Op } from "sequelize";
+import { USER_ROLES } from "@/lib/config/app.config";
 import { sequelize } from "@/lib/db/db";
+import "@/lib/db/relations";
 import Booking from "@/lib/db/models/booking";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
+import { auth } from "@/lib/helpers/auth";
 import {
   getBookingArrivalWindowFromDetails,
   getBookingBlockedPeriods,
@@ -241,6 +244,9 @@ const addMinutesToTime = (timeStr, minutesToAdd = 30) => {
 
 export async function GET(request) {
   try {
+    const authError = await authorizeTimeSlotsRequest();
+    if (authError) return authError;
+
     const today = new Date();
     const url = new URL(request.url);
     const startParam = url.searchParams.get("start");
@@ -377,7 +383,11 @@ function labelizePeriod(period) {
   return period.charAt(0).toUpperCase() + period.slice(1);
 }
 
-function buildDateOverrideBlockRequests(previousConfig, nextConfig) {
+function buildDateOverrideBlockRequests(
+  previousConfig,
+  nextConfig,
+  { allowOverride = false } = {},
+) {
   const previousOverrides = previousConfig?.dateOverrides || {};
   const nextOverrides = nextConfig?.dateOverrides || {};
   const dates = [...new Set(Object.keys(nextOverrides))].sort();
@@ -395,6 +405,7 @@ function buildDateOverrideBlockRequests(previousConfig, nextConfig) {
         type: "block",
         date,
         fullDayBlocked: true,
+        allowOverride,
       });
       return;
     }
@@ -410,6 +421,7 @@ function buildDateOverrideBlockRequests(previousConfig, nextConfig) {
         type: "block",
         date,
         blockedPeriods: newlyBlockedPeriods,
+        allowOverride,
       });
     }
   });
@@ -417,10 +429,28 @@ function buildDateOverrideBlockRequests(previousConfig, nextConfig) {
   return requests;
 }
 
+async function authorizeTimeSlotsRequest() {
+  const session = await auth();
+
+  if (!session?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (session.role !== USER_ROLES.SUPERADMIN) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return null;
+}
+
 export async function PUT(request) {
   try {
+    const authError = await authorizeTimeSlotsRequest();
+    if (authError) return authError;
+
     const body = await request.json();
     const timeSlots = normalizeConfig(body?.timeSlots);
+    const allowConflictOverride = body?.allowConflictOverride === true;
 
     if (!timeSlots || typeof timeSlots !== "object") {
       return NextResponse.json(
@@ -442,6 +472,9 @@ export async function PUT(request) {
       const blockRequests = buildDateOverrideBlockRequests(
         previousConfig,
         timeSlots,
+        {
+          allowOverride: allowConflictOverride,
+        },
       );
 
       if (blockRequests.length > 0) {

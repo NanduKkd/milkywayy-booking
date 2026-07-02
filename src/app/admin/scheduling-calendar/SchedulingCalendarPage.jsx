@@ -14,6 +14,13 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -148,6 +155,14 @@ function formatBlockedPeriods(blockedPeriods) {
     )
     .map(labelizePeriod)
     .join(", ");
+}
+
+function formatConflictPeriods(periods) {
+  if (!Array.isArray(periods) || periods.length === 0) {
+    return "All periods";
+  }
+
+  return periods.map(labelizePeriod).join(", ");
 }
 
 function formatMoney(amount) {
@@ -341,6 +356,25 @@ function buildUpcomingScheduleEntries({
   });
 }
 
+function updateDateOverride(timeSlotsConfig, dateKey, updater) {
+  const currentOverride = timeSlotsConfig?.dateOverrides?.[dateKey] || {};
+  const nextOverride = updater(currentOverride);
+
+  return {
+    ...timeSlotsConfig,
+    dateOverrides: {
+      ...(timeSlotsConfig?.dateOverrides || {}),
+      [dateKey]: nextOverride,
+    },
+  };
+}
+
+const EMPTY_CONFLICT_STATE = {
+  actionLabel: "",
+  conflicts: [],
+  pendingTimeSlots: null,
+};
+
 export default function SchedulingCalendarPage() {
   const todayDateKey = useMemo(() => getTodayDateKeyInDubai(), []);
   const [monthKey, setMonthKey] = useState(
@@ -351,10 +385,15 @@ export default function SchedulingCalendarPage() {
   const [calendarData, setCalendarData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [blockSaving, setBlockSaving] = useState(false);
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [conflictState, setConflictState] = useState(EMPTY_CONFLICT_STATE);
   const hasLoadedOnceRef = useRef(false);
+  const loadTrigger = `${monthKey}:${reloadVersion}`;
 
   useEffect(() => {
     let ignore = false;
+    const [activeMonthKey] = loadTrigger.split(":");
 
     const loadCalendar = async () => {
       const isRefresh = hasLoadedOnceRef.current;
@@ -365,7 +404,7 @@ export default function SchedulingCalendarPage() {
       }
 
       try {
-        const { start, end } = getMonthRange(monthKey);
+        const { start, end } = getMonthRange(activeMonthKey);
         const response = await fetch(
           `/api/admin/scheduling-calendar?start=${start}&end=${end}`,
           {
@@ -396,7 +435,7 @@ export default function SchedulingCalendarPage() {
             return current;
           }
 
-          if (getMonthKeyFromDateKey(todayDateKey) === monthKey) {
+          if (getMonthKeyFromDateKey(todayDateKey) === activeMonthKey) {
             return todayDateKey;
           }
 
@@ -419,7 +458,7 @@ export default function SchedulingCalendarPage() {
     return () => {
       ignore = true;
     };
-  }, [monthKey, todayDateKey]);
+  }, [loadTrigger, todayDateKey]);
 
   const days = calendarData?.days || [];
   const bookings = calendarData?.bookings || [];
@@ -458,6 +497,8 @@ export default function SchedulingCalendarPage() {
   const selectedBookings = bookingsByDate.get(selectedDateKey) || [];
   const selectedEvents = eventsByDate.get(selectedDateKey) || [];
   const selectedBadges = buildSelectedDaySummary(selectedDay);
+  const selectedBlockDefinitions = selectedDay?.block?.blockDefinitions || {};
+  const selectedBlockedPeriods = selectedDay?.block?.blockedPeriods || [];
   const selectedDateIndex = days.findIndex(
     (day) => day.date === selectedDateKey,
   );
@@ -497,6 +538,100 @@ export default function SchedulingCalendarPage() {
     }),
     [upcomingEntries],
   );
+
+  const persistBlockConfig = async (
+    nextTimeSlots,
+    { actionLabel, allowConflictOverride = false },
+  ) => {
+    const response = await fetch("/api/admin/timeslots", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        timeSlots: nextTimeSlots,
+        allowConflictOverride,
+      }),
+    });
+
+    if (response.status === 409) {
+      const payload = await response.json().catch(() => ({}));
+      setConflictState({
+        actionLabel,
+        conflicts: Array.isArray(payload?.conflicts) ? payload.conflicts : [],
+        pendingTimeSlots: nextTimeSlots,
+      });
+      return false;
+    }
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload?.error || `Failed to ${actionLabel}`);
+    }
+
+    setConflictState(EMPTY_CONFLICT_STATE);
+    setReloadVersion((current) => current + 1);
+    toast.success(actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1));
+    return true;
+  };
+
+  const handleBlockMutation = async (actionLabel, overrideUpdater) => {
+    if (!selectedDateKey || !calendarData?.range) {
+      return;
+    }
+
+    setBlockSaving(true);
+
+    try {
+      const configResponse = await fetch(
+        `/api/admin/timeslots?start=${calendarData.range.startDate}&end=${calendarData.range.endDate}`,
+        {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        },
+      );
+
+      if (!configResponse.ok) {
+        const payload = await configResponse.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to load time slot config");
+      }
+
+      const payload = await configResponse.json();
+      const nextTimeSlots = updateDateOverride(
+        payload?.config || {},
+        selectedDateKey,
+        overrideUpdater,
+      );
+
+      await persistBlockConfig(nextTimeSlots, { actionLabel });
+    } catch (error) {
+      toast.error(error.message || `Failed to ${actionLabel}`);
+    } finally {
+      setBlockSaving(false);
+    }
+  };
+
+  const handleConflictOverrideSave = async () => {
+    if (!conflictState.pendingTimeSlots) {
+      return;
+    }
+
+    setBlockSaving(true);
+
+    try {
+      const saved = await persistBlockConfig(conflictState.pendingTimeSlots, {
+        actionLabel: conflictState.actionLabel || "save block override",
+        allowConflictOverride: true,
+      });
+
+      if (saved) {
+        setConflictState(EMPTY_CONFLICT_STATE);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to save block override");
+    } finally {
+      setBlockSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -877,6 +1012,125 @@ export default function SchedulingCalendarPage() {
                 </div>
               </div>
 
+              <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      Availability blocks
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Reuse Time Slots overrides for this date. Blocking warns
+                      before affecting existing bookings or events.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      disabled={
+                        blockSaving || selectedDay?.block?.fullDayBlocked
+                      }
+                      onClick={() =>
+                        handleBlockMutation("block full day", (existing) => ({
+                          ...existing,
+                          fullDayBlocked: true,
+                        }))
+                      }
+                    >
+                      Block full day
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={
+                        blockSaving ||
+                        (!selectedDay?.block?.fullDayBlocked &&
+                          selectedBlockedPeriods.length === 0)
+                      }
+                      onClick={() =>
+                        handleBlockMutation("clear day blocks", (existing) => ({
+                          ...existing,
+                          fullDayBlocked: false,
+                          blocks: {},
+                        }))
+                      }
+                    >
+                      Clear blocks
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  {PERIOD_ORDER.map((period) => {
+                    const isBlocked = selectedBlockedPeriods.includes(period);
+                    const definition = selectedBlockDefinitions?.[period] || {};
+
+                    return (
+                      <div
+                        key={period}
+                        className="rounded-2xl border border-white/10 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium">
+                              {labelizePeriod(period)}
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {definition.startTime || "--:--"} -{" "}
+                              {definition.endTime || "--:--"}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={isBlocked ? "destructive" : "outline"}
+                            className="rounded-full"
+                          >
+                            {isBlocked ? "Blocked" : "Open"}
+                          </Badge>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="mt-4 w-full"
+                          disabled={
+                            blockSaving || selectedDay?.block?.fullDayBlocked
+                          }
+                          onClick={() =>
+                            handleBlockMutation(
+                              isBlocked
+                                ? `unblock ${labelizePeriod(period).toLowerCase()}`
+                                : `block ${labelizePeriod(period).toLowerCase()}`,
+                              (existing) => {
+                                const blocks = { ...(existing.blocks || {}) };
+
+                                if (blocks[period] === "blocked") {
+                                  delete blocks[period];
+                                } else {
+                                  blocks[period] = "blocked";
+                                }
+
+                                return {
+                                  ...existing,
+                                  blocks,
+                                };
+                              },
+                            )
+                          }
+                        >
+                          {isBlocked ? "Unblock period" : "Block period"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {selectedDay?.block?.fullDayBlocked ? (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Full-day block is active. Clear the day block before editing
+                    individual periods.
+                  </p>
+                ) : null}
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="text-lg font-semibold">Bookings</h2>
@@ -1218,6 +1472,114 @@ export default function SchedulingCalendarPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(conflictState.pendingTimeSlots)}
+        onOpenChange={(open) => {
+          if (!open && !blockSaving) {
+            setConflictState(EMPTY_CONFLICT_STATE);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Review block conflict</DialogTitle>
+            <DialogDescription>
+              Existing bookings and events will remain, but availability for the
+              selected periods will be blocked if you continue.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This block overlaps scheduled records. Existing bookings and
+              events will remain, but future availability for the affected
+              periods will be blocked if you continue.
+            </p>
+
+            {conflictState.conflicts.map((conflict) => (
+              <div
+                key={`${conflict.date}-${conflict.blockedPeriods?.join("-") || "all"}`}
+                className="rounded-2xl border border-white/10 p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium">
+                      {formatDateLabel(conflict.date)}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Periods: {formatConflictPeriods(conflict.blockedPeriods)}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="rounded-full">
+                    {(conflict.bookings?.length || 0) +
+                      (conflict.events?.length || 0)}{" "}
+                    affected
+                  </Badge>
+                </div>
+
+                {Array.isArray(conflict.bookings) &&
+                conflict.bookings.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm font-medium">Bookings</p>
+                    {conflict.bookings.map((booking) => (
+                      <div
+                        key={`booking-${booking.id}`}
+                        className="rounded-xl bg-background/60 px-3 py-2 text-sm"
+                      >
+                        <p className="font-medium">
+                          {booking.bookingCode || `Booking #${booking.id}`}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {formatConflictPeriods(booking.periods)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {Array.isArray(conflict.events) &&
+                conflict.events.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    <p className="text-sm font-medium">Events</p>
+                    {conflict.events.map((event) => (
+                      <div
+                        key={`event-${event.id}`}
+                        className="rounded-xl bg-background/60 px-3 py-2 text-sm"
+                      >
+                        <p className="font-medium">
+                          {event.title || `Event #${event.id}`}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {formatConflictPeriods(event.periods)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={blockSaving}
+                onClick={() => setConflictState(EMPTY_CONFLICT_STATE)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={blockSaving}
+                onClick={handleConflictOverrideSave}
+              >
+                Save block anyway
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
