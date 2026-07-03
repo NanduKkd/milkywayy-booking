@@ -2,7 +2,6 @@
 
 import {
   Ban,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -17,9 +16,23 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminEmptyState,
+  AdminFilterChip,
+  AdminFilterRow,
+  AdminInlineMessage,
+  AdminPage,
+  AdminPageHeader,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -74,6 +87,11 @@ const BOOKING_PROPERTY_TYPES = PROPERTY_TYPE_ORDER.filter(
   (propertyType) => PRICING_CONFIG[propertyType],
 );
 const BOOKING_SERVICE_OPTIONS = SERVICE_ORDER.filter(Boolean);
+const ADMIN_OUTLINE_BUTTON_CLASS =
+  "border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]";
+const CALENDAR_PANEL_CLASS = "admin-panel rounded-[1.9rem]";
+const CALENDAR_SUBPANEL_CLASS =
+  "admin-panel-subtle rounded-[1.45rem] border border-[hsl(var(--admin-border)/0.76)] p-4";
 
 function getDatePartsInTimeZone(date, timeZone) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -541,6 +559,7 @@ export default function SchedulingCalendarPage() {
   const [upcomingFilter, setUpcomingFilter] = useState("all");
   const [calendarData, setCalendarData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [blockSaving, setBlockSaving] = useState(false);
   const [eventSaving, setEventSaving] = useState(false);
@@ -615,6 +634,7 @@ export default function SchedulingCalendarPage() {
       } else {
         setLoading(true);
       }
+      setLoadError(null);
 
       try {
         const { start, end } = getMonthRange(activeMonthKey);
@@ -641,6 +661,7 @@ export default function SchedulingCalendarPage() {
         }
 
         setCalendarData(payload);
+        setLoadError(null);
         hasLoadedOnceRef.current = true;
 
         setSelectedDateKey((current) => {
@@ -656,6 +677,7 @@ export default function SchedulingCalendarPage() {
         });
       } catch (error) {
         if (!ignore) {
+          setLoadError(error.message || "Failed to load scheduling calendar");
           toast.error(error.message || "Failed to load scheduling calendar");
         }
       } finally {
@@ -754,6 +776,24 @@ export default function SchedulingCalendarPage() {
     }),
     [upcomingEntries],
   );
+  const calendarStatusTone = loadError
+    ? "danger"
+    : loading
+      ? "info"
+      : refreshing
+        ? "warning"
+        : "neutral";
+  const calendarStatusLabel = loadError
+    ? "Sync failed"
+    : loading
+      ? "Loading live range"
+      : refreshing
+        ? "Refreshing"
+        : `${days.length} visible days`;
+
+  const handleRefreshCalendar = () => {
+    setReloadVersion((current) => current + 1);
+  };
 
   const persistBlockConfig = async (
     nextTimeSlots,
@@ -1325,105 +1365,106 @@ export default function SchedulingCalendarPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted-foreground">
-            Scheduling
-          </p>
-          <div className="flex items-center gap-3">
-            <CalendarDays className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-                Scheduling Calendar
-              </h1>
-              <p className="text-sm text-muted-foreground md:text-base">
-                Review bookings, calendar events, and availability blocks in one
-                Dubai-time calendar view.
-              </p>
-            </div>
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Scheduling"
+        title="Scheduling Calendar"
+        description="Review live bookings, calendar events, and availability blocks in one Dubai-time scheduling view without changing the current operational flows."
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminBadge tone="neutral">Timezone: Dubai business day</AdminBadge>
+            <AdminBadge tone={calendarStatusTone}>
+              {calendarStatusLabel}
+            </AdminBadge>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRefreshCalendar}
+              disabled={loading || refreshing}
+              className={ADMIN_OUTLINE_BUTTON_CLASS}
+            >
+              <RefreshCcw
+                className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")}
+              />
+              Refresh calendar
+            </Button>
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="outline" className="rounded-full px-3 py-1">
-            Timezone: Dubai business day
-          </Badge>
-          {refreshing ? (
-            <Badge variant="secondary" className="rounded-full px-3 py-1">
-              <RefreshCcw className="mr-1 h-3.5 w-3.5 animate-spin" />
-              Refreshing
-            </Badge>
-          ) : null}
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-2xl border-white/10 bg-card/70">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Bookings in view
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Bookings in view</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
               {calendarData?.summary?.totalBookings ?? 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Scheduled live bookings bounded to the loaded calendar range.
             </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border-white/10 bg-card/70">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Active events
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Active events</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
               {calendarData?.summary?.totalActiveEvents ?? 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Calendar-only holds and notes that remain active in this view.
             </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border-white/10 bg-card/70">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Fully blocked days
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Fully blocked days</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
               {calendarData?.summary?.totalFullyBlockedDays ?? 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Dates currently unavailable for every business-day period.
             </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-2xl border-white/10 bg-card/70">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Partial blocks
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-semibold">
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Partial blocks</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
               {calendarData?.summary?.totalPartiallyBlockedDays ?? 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Dates using period or exact-time overrides from Time Slots.
             </p>
-          </CardContent>
-        </Card>
+          </AdminCardContent>
+        </AdminCard>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-        <Card className="rounded-3xl border-white/10 bg-card/80">
-          <CardHeader className="space-y-4">
+        <AdminCard className={CALENDAR_PANEL_CLASS}>
+          <AdminCardHeader className="space-y-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle className="text-2xl">{monthLabel}</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <AdminCardTitle className="text-2xl">
+                  {monthLabel}
+                </AdminCardTitle>
+                <AdminCardDescription className="mt-1">
                   Live status for bookings, events, and Time Slots blocks.
-                </p>
+                </AdminCardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   size="icon"
+                  className={ADMIN_OUTLINE_BUTTON_CLASS}
                   aria-label="Previous month"
                   onClick={() =>
                     setMonthKey((current) => shiftMonthKey(current, -1))
@@ -1434,6 +1475,7 @@ export default function SchedulingCalendarPage() {
                 <Button
                   type="button"
                   variant="outline"
+                  className={ADMIN_OUTLINE_BUTTON_CLASS}
                   onClick={() => {
                     setMonthKey(getMonthKeyFromDateKey(todayDateKey));
                     setSelectedDateKey(todayDateKey);
@@ -1445,6 +1487,7 @@ export default function SchedulingCalendarPage() {
                   type="button"
                   variant="outline"
                   size="icon"
+                  className={ADMIN_OUTLINE_BUTTON_CLASS}
                   aria-label="Next month"
                   onClick={() =>
                     setMonthKey((current) => shiftMonthKey(current, 1))
@@ -1479,19 +1522,32 @@ export default function SchedulingCalendarPage() {
                 Non-working day
               </Badge>
             </fieldset>
-          </CardHeader>
+          </AdminCardHeader>
 
-          <CardContent className="space-y-4">
+          <AdminCardContent className="space-y-4">
             <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
               {DAY_HEADERS.map((label) => (
                 <div key={label}>{label}</div>
               ))}
             </div>
 
-            {loading ? (
-              <div className="rounded-2xl border border-dashed border-white/10 px-4 py-12 text-center text-sm text-muted-foreground">
-                Loading scheduling calendar...
-              </div>
+            {loadError ? (
+              <AdminInlineMessage
+                tone="danger"
+                title="Calendar could not be loaded"
+                description={loadError}
+              />
+            ) : loading ? (
+              <AdminInlineMessage
+                loading
+                title="Loading scheduling calendar"
+                description="Fetching the current month range, bookings, events, and Time Slots blocks."
+              />
+            ) : days.length === 0 ? (
+              <AdminEmptyState
+                title="No calendar days are available"
+                description="Refresh the current month range or load a different month to continue reviewing the schedule."
+              />
             ) : (
               <div className="grid grid-cols-7 gap-2">
                 {calendarDays.map((date) => {
@@ -1605,28 +1661,29 @@ export default function SchedulingCalendarPage() {
                 })}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </AdminCardContent>
+        </AdminCard>
 
         <div className="space-y-6">
-          <Card className="rounded-3xl border-white/10 bg-card/80">
-            <CardHeader className="space-y-3">
+          <AdminCard className={CALENDAR_PANEL_CLASS}>
+            <AdminCardHeader className="space-y-3">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <CardTitle className="text-2xl">
+                  <AdminCardTitle className="text-2xl">
                     {selectedDateKey
                       ? formatDateLabel(selectedDateKey)
                       : "Select a date"}
-                  </CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  </AdminCardTitle>
+                  <AdminCardDescription className="mt-1">
                     Selected-day schedule, block state, and live entries.
-                  </p>
+                  </AdminCardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
+                    className={ADMIN_OUTLINE_BUTTON_CLASS}
                     aria-label="Previous date"
                     disabled={!previousDateKey}
                     onClick={() =>
@@ -1638,6 +1695,7 @@ export default function SchedulingCalendarPage() {
                   <Button
                     type="button"
                     variant="outline"
+                    className={ADMIN_OUTLINE_BUTTON_CLASS}
                     onClick={() => {
                       if (dayMap.has(todayDateKey)) {
                         setSelectedDateKey(todayDateKey);
@@ -1654,6 +1712,7 @@ export default function SchedulingCalendarPage() {
                     type="button"
                     variant="outline"
                     size="icon"
+                    className={ADMIN_OUTLINE_BUTTON_CLASS}
                     aria-label="Next date"
                     disabled={!nextDateKey}
                     onClick={() =>
@@ -1676,10 +1735,10 @@ export default function SchedulingCalendarPage() {
                   </Badge>
                 ))}
               </div>
-            </CardHeader>
+            </AdminCardHeader>
 
-            <CardContent className="space-y-5">
-              <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
+            <AdminCardContent className="space-y-5">
+              <div className={CALENDAR_SUBPANEL_CLASS}>
                 <div className="flex items-center gap-2 text-sm font-medium">
                   <ShieldAlert className="h-4 w-4 text-amber-300" />
                   Availability summary
@@ -1725,7 +1784,7 @@ export default function SchedulingCalendarPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
+              <div className={CALENDAR_SUBPANEL_CLASS}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">
@@ -2206,175 +2265,194 @@ export default function SchedulingCalendarPage() {
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </AdminCardContent>
+          </AdminCard>
 
-          <Card className="rounded-3xl border-white/10 bg-card/80">
-            <CardHeader className="space-y-3">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <CardTitle className="text-2xl">Upcoming schedule</CardTitle>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Entries from{" "}
-                    {formatDateLabel(selectedDateKey, {
-                      month: "short",
-                      day: "numeric",
-                    })}{" "}
-                    through{" "}
-                    {formatDateLabel(calendarData?.range?.endDate, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                    .
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {UPCOMING_FILTERS.map((filter) => (
-                    <Button
+          <AdminTablePanel
+            title="Upcoming schedule"
+            description={`Entries from ${formatDateLabel(selectedDateKey, {
+              month: "short",
+              day: "numeric",
+            })} through ${formatDateLabel(calendarData?.range?.endDate, {
+              month: "short",
+              day: "numeric",
+            })}.`}
+            className="rounded-[1.9rem]"
+            actions={
+              <AdminFilterRow>
+                {UPCOMING_FILTERS.map((filter) => {
+                  const filterCount = upcomingCounts[filter.value] || 0;
+
+                  return (
+                    <AdminFilterChip
                       key={filter.value}
-                      type="button"
-                      variant={
-                        upcomingFilter === filter.value
-                          ? "secondary"
-                          : "outline"
-                      }
-                      className="rounded-full"
+                      active={upcomingFilter === filter.value}
                       onClick={() => setUpcomingFilter(filter.value)}
+                      aria-label={`${filter.label} (${filterCount})`}
+                      aria-pressed={upcomingFilter === filter.value}
                     >
-                      {filter.label} ({upcomingCounts[filter.value] || 0})
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-hidden rounded-2xl border border-white/10">
-                <Table aria-label="Upcoming schedule">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Entry</TableHead>
-                      <TableHead>Schedule</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">View</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredUpcomingEntries.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={5}
-                          className="py-8 text-center text-muted-foreground"
-                        >
-                          No upcoming entries in the current calendar range.
+                      <span>{filter.label}</span>
+                      <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[0.72rem] text-[hsl(var(--admin-foreground))]">
+                        {filterCount}
+                      </span>
+                    </AdminFilterChip>
+                  );
+                })}
+              </AdminFilterRow>
+            }
+          >
+            <Table aria-label="Upcoming schedule" className="min-w-[760px]">
+              <TableHeader className="bg-white/[0.03] [&_tr]:border-white/8">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Date
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Entry
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Schedule
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-right text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    View
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="[&_tr:last-child]:border-white/8">
+                {loadError ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-6">
+                      <AdminInlineMessage
+                        tone="danger"
+                        title="Upcoming schedule is unavailable"
+                        description={loadError}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-6">
+                      <AdminInlineMessage
+                        loading
+                        title="Loading upcoming entries"
+                        description="Preparing the bounded bookings and events list for the selected calendar range."
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredUpcomingEntries.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="py-6">
+                      <AdminEmptyState
+                        title="No upcoming entries in this range"
+                        description="Change the row filter or select a different date to inspect another part of the loaded calendar."
+                      />
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUpcomingEntries.map((entry) => {
+                    const isSelected = entry.date === selectedDateKey;
+
+                    return (
+                      <TableRow
+                        key={entry.id}
+                        className={cn(
+                          "cursor-pointer border-white/8 text-[hsl(var(--admin-foreground))] hover:bg-white/[0.03]",
+                          isSelected && "bg-primary/5",
+                        )}
+                        onClick={() => setSelectedDateKey(entry.date)}
+                      >
+                        <TableCell className="font-medium">
+                          <div>
+                            {formatDateLabel(entry.date, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatWeekdayLabel(entry.date)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {entry.kind === "booking" ? (
+                            <div className="space-y-1">
+                              <p className="font-medium">
+                                {entry.booking.bookingCode}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {entry.booking.customer?.fullName ||
+                                  "Unnamed customer"}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <p className="font-medium">{entry.event.title}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {entry.event.propertySummary?.label ||
+                                  entry.event.description ||
+                                  "Calendar event"}
+                              </p>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatUpcomingEntrySchedule(entry)}
+                        </TableCell>
+                        <TableCell>
+                          {entry.kind === "booking" ? (
+                            <div className="flex flex-wrap gap-2">
+                              <Badge
+                                variant={getBookingStatusVariant(
+                                  entry.booking.status,
+                                )}
+                              >
+                                {entry.booking.status}
+                              </Badge>
+                              {entry.booking.paymentStatus ? (
+                                <Badge variant="outline">
+                                  {entry.booking.paymentStatus}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              <Badge
+                                variant={getEventStatusVariant(
+                                  entry.event.status,
+                                )}
+                              >
+                                {entry.event.status}
+                              </Badge>
+                              <Badge variant="outline">
+                                {entry.event.isAllDay
+                                  ? "All day"
+                                  : "Informational"}
+                              </Badge>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedDateKey(entry.date);
+                            }}
+                          >
+                            View day
+                          </Button>
                         </TableCell>
                       </TableRow>
-                    ) : (
-                      filteredUpcomingEntries.map((entry) => {
-                        const isSelected = entry.date === selectedDateKey;
-
-                        return (
-                          <TableRow
-                            key={entry.id}
-                            className={cn(
-                              "cursor-pointer",
-                              isSelected && "bg-primary/5",
-                            )}
-                            onClick={() => setSelectedDateKey(entry.date)}
-                          >
-                            <TableCell className="font-medium">
-                              <div>
-                                {formatDateLabel(entry.date, {
-                                  month: "short",
-                                  day: "numeric",
-                                })}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {formatWeekdayLabel(entry.date)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {entry.kind === "booking" ? (
-                                <div className="space-y-1">
-                                  <p className="font-medium">
-                                    {entry.booking.bookingCode}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {entry.booking.customer?.fullName ||
-                                      "Unnamed customer"}
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="space-y-1">
-                                  <p className="font-medium">
-                                    {entry.event.title}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {entry.event.propertySummary?.label ||
-                                      entry.event.description ||
-                                      "Calendar event"}
-                                  </p>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {formatUpcomingEntrySchedule(entry)}
-                            </TableCell>
-                            <TableCell>
-                              {entry.kind === "booking" ? (
-                                <div className="flex flex-wrap gap-2">
-                                  <Badge
-                                    variant={getBookingStatusVariant(
-                                      entry.booking.status,
-                                    )}
-                                  >
-                                    {entry.booking.status}
-                                  </Badge>
-                                  {entry.booking.paymentStatus ? (
-                                    <Badge variant="outline">
-                                      {entry.booking.paymentStatus}
-                                    </Badge>
-                                  ) : null}
-                                </div>
-                              ) : (
-                                <div className="flex flex-wrap gap-2">
-                                  <Badge
-                                    variant={getEventStatusVariant(
-                                      entry.event.status,
-                                    )}
-                                  >
-                                    {entry.event.status}
-                                  </Badge>
-                                  <Badge variant="outline">
-                                    {entry.event.isAllDay
-                                      ? "All day"
-                                      : "Informational"}
-                                  </Badge>
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setSelectedDateKey(entry.date);
-                                }}
-                              >
-                                View day
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </AdminTablePanel>
         </div>
       </div>
 
@@ -3282,6 +3360,6 @@ export default function SchedulingCalendarPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPage>
   );
 }
