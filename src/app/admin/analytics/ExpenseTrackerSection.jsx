@@ -1,30 +1,21 @@
 "use client";
 
-import {
-  AlertCircle,
-  Pencil,
-  Plus,
-  ReceiptText,
-  Trash2,
-} from "lucide-react";
+import { Pencil, Plus, ReceiptText, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminDialogContent,
+  AdminEmptyState,
+  AdminInlineMessage,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -111,17 +102,20 @@ function normalizeListPayload(payload) {
 
 function LoadingState() {
   return (
-    <div aria-label="Loading expense tracker" className="space-y-4 animate-pulse">
+    <section
+      aria-label="Loading expense tracker"
+      className="space-y-4 animate-pulse"
+    >
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
+        {["expense-kpi-1", "expense-kpi-2", "expense-kpi-3"].map((key) => (
           <div
-            key={index}
+            key={key}
             className="h-28 rounded-2xl border border-white/10 bg-white/[0.04]"
           />
         ))}
       </div>
       <div className="h-72 rounded-2xl border border-white/10 bg-white/[0.04]" />
-    </div>
+    </section>
   );
 }
 
@@ -140,15 +134,11 @@ function ExpenseDialog({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            Save a finance expense with the same month filter used by the live
-            reports.
-          </DialogDescription>
-        </DialogHeader>
-
+      <AdminDialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-xl"
+        description="Save a finance expense with the same month filter used by the live reports."
+        title={title}
+      >
         <form
           className="space-y-4"
           onSubmit={(event) => {
@@ -157,8 +147,8 @@ function ExpenseDialog({
           }}
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="space-y-2 text-sm text-muted-foreground">
-              Amount (AED)
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>Amount (AED)</p>
               <Input
                 aria-label="Expense amount"
                 inputMode="decimal"
@@ -174,10 +164,10 @@ function ExpenseDialog({
                 type="number"
                 value={state.amount}
               />
-            </label>
+            </div>
 
-            <label className="space-y-2 text-sm text-muted-foreground">
-              Expense date
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>Expense date</p>
               <Input
                 aria-label="Expense date"
                 max={state.rangeEnd}
@@ -192,7 +182,7 @@ function ExpenseDialog({
                 type="date"
                 value={state.expenseDate}
               />
-            </label>
+            </div>
           </div>
 
           <label className="space-y-2 text-sm text-muted-foreground">
@@ -217,8 +207,8 @@ function ExpenseDialog({
             </select>
           </label>
 
-          <label className="space-y-2 text-sm text-muted-foreground">
-            Description
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>Description</p>
             <Textarea
               aria-label="Expense description"
               maxLength={2000}
@@ -231,7 +221,7 @@ function ExpenseDialog({
               placeholder="Optional notes for this expense"
               value={state.description}
             />
-          </label>
+          </div>
 
           <DialogFooter>
             <Button onClick={onClose} type="button" variant="outline">
@@ -242,7 +232,7 @@ function ExpenseDialog({
             </Button>
           </DialogFooter>
         </form>
-      </DialogContent>
+      </AdminDialogContent>
     </Dialog>
   );
 }
@@ -258,31 +248,28 @@ function DeleteExpenseDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Delete expense</DialogTitle>
-          <DialogDescription>
-            This removes the expense from live reporting by soft deletion and
-            requires a reason for the audit trail.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-sm font-medium text-foreground">
+      <AdminDialogContent
+        className="sm:max-w-lg"
+        description="This removes the expense from live reporting by soft deletion and requires a reason for the audit trail."
+        title="Delete expense"
+      >
+        <div className="admin-panel-subtle rounded-2xl border border-[hsl(var(--admin-border)/0.72)] p-4">
+          <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
             {expense?.categoryLabel || expense?.category || "Expense"}
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {formatBusinessDate(expense?.expenseDate)} · {formatCurrency(expense?.amount)}
+          <p className="mt-1 text-sm text-[hsl(var(--admin-muted))]">
+            {formatBusinessDate(expense?.expenseDate)} ·{" "}
+            {formatCurrency(expense?.amount)}
           </p>
           {expense?.description ? (
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 text-sm text-[hsl(var(--admin-muted))]">
               {expense.description}
             </p>
           ) : null}
         </div>
 
-        <label className="space-y-2 text-sm text-muted-foreground">
-          Delete reason
+        <div className="space-y-2 text-sm text-muted-foreground">
+          <p>Delete reason</p>
           <Textarea
             aria-label="Delete reason"
             maxLength={500}
@@ -291,7 +278,7 @@ function DeleteExpenseDialog({
             required
             value={reason}
           />
-        </label>
+        </div>
 
         <DialogFooter>
           <Button onClick={onClose} type="button" variant="outline">
@@ -306,7 +293,7 @@ function DeleteExpenseDialog({
             {submitting ? "Deleting..." : "Confirm delete"}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AdminDialogContent>
     </Dialog>
   );
 }
@@ -336,6 +323,8 @@ export default function ExpenseTrackerSection({
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    void reloadToken;
+
     const controller = new AbortController();
 
     async function loadExpenses() {
@@ -481,7 +470,9 @@ export default function ExpenseTrackerSection({
         throw new Error(payload?.error || "Failed to save expense");
       }
 
-      toast.success(dialogMode === "edit" ? "Expense updated" : "Expense created");
+      toast.success(
+        dialogMode === "edit" ? "Expense updated" : "Expense created",
+      );
       closeDialogs();
       onDataChanged?.();
     } catch (requestError) {
@@ -553,63 +544,62 @@ export default function ExpenseTrackerSection({
       {loading ? <LoadingState /> : null}
 
       {!loading && error ? (
-        <Card className="rounded-2xl border-red-400/20 bg-red-500/10">
-          <CardHeader>
-            <div className="flex items-center gap-2 text-red-200">
-              <AlertCircle className="h-5 w-5" />
-              <CardTitle className="text-xl">Expense tracker unavailable</CardTitle>
-            </div>
-            <CardDescription className="text-red-100/80">
-              {error}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={onDataChanged} type="button" variant="outline">
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <AdminInlineMessage
+            description={error}
+            title="Expense tracker unavailable"
+            tone="danger"
+          />
+          <Button onClick={onDataChanged} type="button" variant="outline">
+            Retry
+          </Button>
+        </div>
       ) : null}
 
       {!loading && !error ? (
         <>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <Card className="rounded-2xl border-white/10 bg-card/70">
-              <CardHeader>
-                <CardDescription>Total tracked expenses</CardDescription>
-                <CardTitle className="text-2xl">
+            <AdminCard>
+              <AdminCardHeader>
+                <AdminCardDescription>
+                  Total tracked expenses
+                </AdminCardDescription>
+                <AdminCardTitle className="text-2xl">
                   {formatCurrency(totalExpenses)}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  {formatCount(expenses.length)} expense entries in {selectedMonthLabel}
+                </AdminCardTitle>
+              </AdminCardHeader>
+              <AdminCardContent>
+                <p className="text-xs text-[hsl(var(--admin-muted))]">
+                  {formatCount(expenses.length)} expense entries in{" "}
+                  {selectedMonthLabel}
                 </p>
-              </CardContent>
-            </Card>
+              </AdminCardContent>
+            </AdminCard>
 
-            <Card className="rounded-2xl border-white/10 bg-card/70 lg:col-span-2">
-              <CardHeader>
+            <AdminCard className="lg:col-span-2">
+              <AdminCardHeader>
                 <div className="flex items-center gap-2">
                   <ReceiptText className="h-4 w-4 text-emerald-300" />
-                  <CardTitle className="text-xl">Category Breakdown</CardTitle>
+                  <AdminCardTitle className="text-xl">
+                    Category Breakdown
+                  </AdminCardTitle>
                 </div>
-                <CardDescription>
+                <AdminCardDescription>
                   Expense totals grouped by the configured finance categories.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
+                </AdminCardDescription>
+              </AdminCardHeader>
+              <AdminCardContent className="space-y-3">
                 {categoryBreakdown.length > 0 ? (
                   categoryBreakdown.map((category) => (
                     <div
                       key={category.key}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                      className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
                     >
                       <div>
-                        <p className="text-sm font-medium text-foreground">
+                        <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
                           {category.label}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
                           {formatCount(category.count)} entries
                         </p>
                       </div>
@@ -619,82 +609,77 @@ export default function ExpenseTrackerSection({
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-[hsl(var(--admin-muted))]">
                     No expenses have been tracked for this month yet.
                   </p>
                 )}
-              </CardContent>
-            </Card>
+              </AdminCardContent>
+            </AdminCard>
           </div>
 
-          <Card className="rounded-2xl border-white/10 bg-card/70">
-            <CardHeader>
-              <CardTitle className="text-xl">Tracked Expenses</CardTitle>
-              <CardDescription>
-                Add, revise, or remove monthly expense entries with audit-safe
-                soft deletion.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {expenses.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+          <AdminTablePanel
+            description="Add, revise, or remove monthly expense entries with audit-safe soft deletion."
+            title="Tracked Expenses"
+          >
+            {expenses.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expenses.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell className="font-medium">
+                        {formatBusinessDate(expense.expenseDate)}
+                      </TableCell>
+                      <TableCell>
+                        {expense.categoryLabel || expense.category}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {expense.description || "No description"}
+                      </TableCell>
+                      <TableCell>{formatCurrency(expense.amount)}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            aria-label={`Edit expense ${expense.id}`}
+                            onClick={() => openEditDialog(expense)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button
+                            aria-label={`Delete expense ${expense.id}`}
+                            onClick={() => openDeleteDialog(expense)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {expenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell className="font-medium">
-                          {formatBusinessDate(expense.expenseDate)}
-                        </TableCell>
-                        <TableCell>{expense.categoryLabel || expense.category}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {expense.description || "No description"}
-                        </TableCell>
-                        <TableCell>{formatCurrency(expense.amount)}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              aria-label={`Edit expense ${expense.id}`}
-                              onClick={() => openEditDialog(expense)}
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <Pencil className="h-4 w-4" />
-                              Edit
-                            </Button>
-                            <Button
-                              aria-label={`Delete expense ${expense.id}`}
-                              onClick={() => openDeleteDialog(expense)}
-                              size="sm"
-                              type="button"
-                              variant="outline"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              Delete
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    No expenses have been added for {selectedMonthLabel}.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <AdminEmptyState
+                description={`No expenses have been added for ${selectedMonthLabel}.`}
+                title="No tracked expenses yet"
+              />
+            )}
+          </AdminTablePanel>
         </>
       ) : null}
 

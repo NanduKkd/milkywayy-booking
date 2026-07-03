@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertCircle,
   BarChart3,
   CalendarDays,
   Download,
@@ -11,22 +10,22 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import {
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminDialogContent,
+  AdminEmptyState,
+  AdminInlineMessage,
+  AdminPage,
+  AdminPageHeader,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -298,19 +297,19 @@ function TrendChart({ buckets = [], title, valueKey = "netRevenue" }) {
 
 function ReportKpiCard({ label, value, comparison, isCount = false }) {
   return (
-    <Card className="rounded-2xl border-white/10 bg-card/70">
-      <CardHeader className="pb-3">
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl">
+    <AdminCard>
+      <AdminCardHeader className="pb-3">
+        <AdminCardDescription>{label}</AdminCardDescription>
+        <AdminCardTitle className="text-2xl">
           {isCount ? formatCount(value) : formatCurrency(value)}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xs text-muted-foreground">
+        </AdminCardTitle>
+      </AdminCardHeader>
+      <AdminCardContent>
+        <p className="text-xs text-[hsl(var(--admin-muted))]">
           {formatDelta(comparison, isCount ? formatCount : formatCurrency)}
         </p>
-      </CardContent>
-    </Card>
+      </AdminCardContent>
+    </AdminCard>
   );
 }
 
@@ -322,15 +321,15 @@ function DashboardKpiCard({
   value,
 }) {
   return (
-    <Card className="rounded-2xl border-white/10 bg-card/70">
-      <CardHeader className="pb-3">
-        <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-2xl">
+    <AdminCard>
+      <AdminCardHeader className="pb-3">
+        <AdminCardDescription>{label}</AdminCardDescription>
+        <AdminCardTitle className="text-2xl">
           {isCount ? formatCount(value) : formatCurrency(value)}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-xs text-muted-foreground">
+        </AdminCardTitle>
+      </AdminCardHeader>
+      <AdminCardContent className="space-y-3">
+        <p className="text-xs text-[hsl(var(--admin-muted))]">
           {formatDelta(comparison, isCount ? formatCount : formatCurrency)}
         </p>
         <Button
@@ -343,8 +342,8 @@ function DashboardKpiCard({
           <Eye className="h-4 w-4" />
           View details
         </Button>
-      </CardContent>
-    </Card>
+      </AdminCardContent>
+    </AdminCard>
   );
 }
 
@@ -724,27 +723,24 @@ function DashboardDrilldownDialog({
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-6xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            Live drill-down rows for {rangeLabel} in {REPORT_TIMEZONE}.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <AdminDialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-6xl"
+        description={`Live drill-down rows for ${rangeLabel} in ${REPORT_TIMEZONE}.`}
+        title={title}
+      >
+        <div className="admin-panel-subtle rounded-[1.5rem] border border-[hsl(var(--admin-border)/0.76)] p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
                 Total
               </p>
-              <p className="mt-2 text-2xl font-semibold text-foreground">
+              <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
                 {total?.kind === "count"
                   ? formatCount(total?.value)
                   : formatCurrency(total?.value)}
               </p>
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-[hsl(var(--admin-muted))]">
               {pagination ? (
                 <p>
                   Page {pagination.page} of {Math.max(pagination.totalPages, 1)}{" "}
@@ -760,34 +756,31 @@ function DashboardDrilldownDialog({
             aria-label="Loading dashboard drill-down"
             className="space-y-3"
           >
-            <div className="h-12 rounded-xl border border-white/10 bg-white/[0.04]" />
-            <div className="h-72 rounded-xl border border-white/10 bg-white/[0.04]" />
+            <div className="h-12 rounded-xl border border-[hsl(var(--admin-border)/0.7)] bg-white/[0.04]" />
+            <div className="h-72 rounded-xl border border-[hsl(var(--admin-border)/0.7)] bg-white/[0.04]" />
           </section>
         ) : null}
 
         {!loading && error ? (
-          <Card className="rounded-2xl border-red-400/20 bg-red-500/10">
-            <CardHeader>
-              <div className="flex items-center gap-2 text-red-200">
-                <AlertCircle className="h-5 w-5" />
-                <CardTitle className="text-xl">
-                  Drill-down unavailable
-                </CardTitle>
-              </div>
-              <CardDescription className="text-red-100/80">
-                {error}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button onClick={onRetry} type="button" variant="outline">
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <AdminInlineMessage
+              description={error}
+              title="Drill-down unavailable"
+              tone="danger"
+            />
+            <Button onClick={onRetry} type="button" variant="outline">
+              Retry
+            </Button>
+          </div>
         ) : null}
 
         {!loading && !error ? (
-          <DrilldownTable metricKey={metricKey} rows={rows} />
+          <AdminTablePanel
+            description="Range-bound rows returned by the live analytics service."
+            title={title}
+          >
+            <DrilldownTable metricKey={metricKey} rows={rows} />
+          </AdminTablePanel>
         ) : null}
 
         {!loading && !error && pagination ? (
@@ -812,7 +805,7 @@ function DashboardDrilldownDialog({
             </Button>
           </div>
         ) : null}
-      </DialogContent>
+      </AdminDialogContent>
     </Dialog>
   );
 }
@@ -1060,93 +1053,81 @@ export default function FinancialReportsPage({ mode = "full" }) {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className="border-emerald-400/30 bg-emerald-400/10 text-emerald-200"
+    <AdminPage>
+      <AdminPageHeader
+        actions={
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
+            <label
+              className="flex flex-col gap-2 text-sm text-[hsl(var(--admin-muted))]"
+              htmlFor="financial-report-month"
             >
-              Live finance data
-            </Badge>
-            <Badge
+              Report month
+              <Input
+                aria-label="Report month"
+                className="admin-input h-11 w-full min-w-48 rounded-2xl sm:w-52"
+                id="financial-report-month"
+                onChange={(event) => setMonthValue(event.target.value)}
+                type="month"
+                value={monthValue}
+              />
+            </label>
+            {dashboardOnly ? (
+              <Button asChild className="rounded-xl" variant="outline">
+                <Link href="/admin/analytics">
+                  <BarChart3 className="h-4 w-4" />
+                  Open Reports
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild className="rounded-xl" variant="outline">
+                  <a aria-label="Export CSV" download href={csvExportHref}>
+                    <Download className="h-4 w-4" />
+                    Export CSV
+                  </a>
+                </Button>
+                <Button asChild className="rounded-xl" variant="outline">
+                  <a aria-label="Export Excel" download href={excelExportHref}>
+                    <Download className="h-4 w-4" />
+                    Export Excel
+                  </a>
+                </Button>
+                <Button asChild className="rounded-xl" variant="outline">
+                  <a aria-label="Export PDF" download href={pdfExportHref}>
+                    <Download className="h-4 w-4" />
+                    Export PDF
+                  </a>
+                </Button>
+              </>
+            )}
+            <Button
+              className="rounded-xl"
+              onClick={() => setReloadToken((value) => value + 1)}
+              type="button"
               variant="outline"
-              className="border-white/10 text-muted-foreground"
             >
-              {REPORT_TIMEZONE}
-            </Badge>
-          </div>
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              {dashboardOnly ? "Operations" : "Accounts"}
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              {dashboardOnly ? "Admin Dashboard" : "Admin Analytics"}
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              {dashboardOnly
-                ? `Live KPI cards, revenue movement, schedule activity, and recent bookings for ${selectedMonthLabel}.`
-                : `Dashboard KPIs, financial reports, exports, and tracked expenses for ${selectedMonthLabel}.`}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
-          <label
-            className="flex flex-col gap-2 text-sm text-muted-foreground"
-            htmlFor="financial-report-month"
-          >
-            Report month
-            <Input
-              aria-label="Report month"
-              className="w-full min-w-48 rounded-xl border-white/10 bg-card/70 sm:w-52"
-              id="financial-report-month"
-              onChange={(event) => setMonthValue(event.target.value)}
-              type="month"
-              value={monthValue}
-            />
-          </label>
-          {dashboardOnly ? (
-            <Button asChild className="rounded-xl" variant="outline">
-              <Link href="/admin/analytics">
-                <BarChart3 className="h-4 w-4" />
-                Open Reports
-              </Link>
+              <RefreshCcw className="h-4 w-4" />
+              Refresh
             </Button>
-          ) : (
-            <>
-              <Button asChild className="rounded-xl" variant="outline">
-                <a aria-label="Export CSV" download href={csvExportHref}>
-                  <Download className="h-4 w-4" />
-                  Export CSV
-                </a>
-              </Button>
-              <Button asChild className="rounded-xl" variant="outline">
-                <a aria-label="Export Excel" download href={excelExportHref}>
-                  <Download className="h-4 w-4" />
-                  Export Excel
-                </a>
-              </Button>
-              <Button asChild className="rounded-xl" variant="outline">
-                <a aria-label="Export PDF" download href={pdfExportHref}>
-                  <Download className="h-4 w-4" />
-                  Export PDF
-                </a>
-              </Button>
-            </>
-          )}
-          <Button
-            className="rounded-xl"
-            onClick={() => setReloadToken((value) => value + 1)}
-            type="button"
-            variant="outline"
-          >
-            <RefreshCcw className="h-4 w-4" />
-            Refresh
-          </Button>
+          </div>
+        }
+        description={
+          dashboardOnly
+            ? `Live KPI cards, revenue movement, schedule activity, and recent bookings for ${selectedMonthLabel}.`
+            : `Dashboard KPIs, financial reports, exports, and tracked expenses for ${selectedMonthLabel}.`
+        }
+        eyebrow={dashboardOnly ? "Operations" : "Accounts"}
+        title={dashboardOnly ? "Admin Dashboard" : "Admin Analytics"}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <AdminBadge tone="success">Live finance data</AdminBadge>
+          <AdminBadge>{REPORT_TIMEZONE}</AdminBadge>
+          <div className="admin-panel-subtle inline-flex items-center gap-2 rounded-full border border-[hsl(var(--admin-border)/0.75)] px-3 py-1.5 text-xs text-[hsl(var(--admin-muted))]">
+            <CalendarDays className="h-3.5 w-3.5 text-[hsl(var(--admin-accent))]" />
+            <span>{formatDateRange(rangeStart, rangeEnd)}</span>
+          </div>
         </div>
-      </div>
+      </AdminPageHeader>
 
       <section
         aria-labelledby="dashboard-analytics-heading"
@@ -1168,12 +1149,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
               share the same active month filter.
             </p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-card/60 px-4 py-3 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-emerald-300" />
-              <span>{formatDateRange(rangeStart, rangeEnd)}</span>
-            </div>
-          </div>
+          <AdminBadge>{formatDateRange(rangeStart, rangeEnd)}</AdminBadge>
         </div>
 
         {dashboardLoading ? (
@@ -1181,40 +1157,27 @@ export default function FinancialReportsPage({ mode = "full" }) {
         ) : null}
 
         {!dashboardLoading && dashboardError ? (
-          <Card className="rounded-2xl border-red-400/20 bg-red-500/10">
-            <CardHeader>
-              <div className="flex items-center gap-2 text-red-200">
-                <AlertCircle className="h-5 w-5" />
-                <CardTitle className="text-xl">Dashboard unavailable</CardTitle>
-              </div>
-              <CardDescription className="text-red-100/80">
-                {dashboardError}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={() => setReloadToken((value) => value + 1)}
-                type="button"
-                variant="outline"
-              >
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <AdminInlineMessage
+              description={dashboardError}
+              title="Dashboard unavailable"
+              tone="danger"
+            />
+            <Button
+              onClick={() => setReloadToken((value) => value + 1)}
+              type="button"
+              variant="outline"
+            >
+              Retry
+            </Button>
+          </div>
         ) : null}
 
         {!dashboardLoading && !dashboardError && dashboardEmpty ? (
-          <Card className="rounded-2xl border-dashed border-white/15 bg-card/60">
-            <CardHeader>
-              <CardTitle className="text-xl">
-                No dashboard activity in this range
-              </CardTitle>
-              <CardDescription>
-                Live dashboard analytics returned no revenue, expenses, or
-                operational booking activity for {selectedMonthLabel}.
-              </CardDescription>
-            </CardHeader>
-          </Card>
+          <AdminEmptyState
+            description={`Live dashboard analytics returned no revenue, expenses, or operational booking activity for ${selectedMonthLabel}.`}
+            title="No dashboard activity in this range"
+          />
         ) : null}
 
         {!dashboardLoading && !dashboardError && dashboard ? (
@@ -1233,34 +1196,36 @@ export default function FinancialReportsPage({ mode = "full" }) {
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
+              <AdminCard>
+                <AdminCardHeader>
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-4 w-4 text-emerald-300" />
-                    <CardTitle className="text-xl">Revenue Trend</CardTitle>
+                    <AdminCardTitle className="text-xl">
+                      Revenue Trend
+                    </AdminCardTitle>
                   </div>
-                  <CardDescription>
+                  <AdminCardDescription>
                     Dashboard revenue movement for {selectedMonthLabel}.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
+                  </AdminCardDescription>
+                </AdminCardHeader>
+                <AdminCardContent>
                   <TrendChart
                     buckets={dashboard.revenueTrend?.buckets}
                     title={`Dashboard ${dashboard.revenueTrend?.granularity || "day"} buckets`}
                   />
-                </CardContent>
-              </Card>
+                </AdminCardContent>
+              </AdminCard>
 
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
+              <AdminCard>
+                <AdminCardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <CardTitle className="text-xl">
+                      <AdminCardTitle className="text-xl">
                         Revenue by Service
-                      </CardTitle>
-                      <CardDescription>
+                      </AdminCardTitle>
+                      <AdminCardDescription>
                         Paid-service contribution from the same dashboard range.
-                      </CardDescription>
+                      </AdminCardDescription>
                     </div>
                     <Button
                       className="rounded-xl"
@@ -1272,15 +1237,15 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       View rows
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
+                </AdminCardHeader>
+                <AdminCardContent className="space-y-3">
                   {(dashboard.revenueByService || []).length > 0 ? (
                     dashboard.revenueByService.map((service) => (
                       <div
                         key={service.key}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                        className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
                       >
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm text-[hsl(var(--admin-muted))]">
                           {service.label}
                         </span>
                         <span className="text-sm font-medium">
@@ -1289,25 +1254,25 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-[hsl(var(--admin-muted))]">
                       No attributable paid service revenue for this range.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </AdminCardContent>
+              </AdminCard>
             </div>
 
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr,0.85fr]">
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
+              <AdminCard>
+                <AdminCardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <CardTitle className="text-xl">
+                      <AdminCardTitle className="text-xl">
                         Schedule Summary
-                      </CardTitle>
-                      <CardDescription>
+                      </AdminCardTitle>
+                      <AdminCardDescription>
                         Operational booking volume for the same bounded range.
-                      </CardDescription>
+                      </AdminCardDescription>
                     </div>
                     <Button
                       className="rounded-xl"
@@ -1319,42 +1284,42 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       View rows
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                </AdminCardHeader>
+                <AdminCardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
                         Total
                       </p>
-                      <p className="mt-2 text-2xl font-semibold">
+                      <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
                         {formatCount(dashboard.scheduleSummary?.totals?.total)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
                         Pending
                       </p>
-                      <p className="mt-2 text-2xl font-semibold">
+                      <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
                         {formatCount(
                           dashboard.scheduleSummary?.totals?.pending,
                         )}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
                         Completed
                       </p>
-                      <p className="mt-2 text-2xl font-semibold">
+                      <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
                         {formatCount(
                           dashboard.scheduleSummary?.totals?.completed,
                         )}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4">
+                      <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
                         Cancelled
                       </p>
-                      <p className="mt-2 text-2xl font-semibold">
+                      <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
                         {formatCount(
                           dashboard.scheduleSummary?.totals?.cancelled,
                         )}
@@ -1368,13 +1333,13 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       dashboard.scheduleSummary.recentDayDetails.map((day) => (
                         <div
                           key={day.bucketStartBusinessDate}
-                          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                          className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
                         >
                           <div>
-                            <p className="font-medium text-foreground">
+                            <p className="font-medium text-[hsl(var(--admin-foreground))]">
                               {formatBusinessDate(day.bucketStartBusinessDate)}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-[hsl(var(--admin-muted))]">
                               {formatCount(day.total)} bookings ·{" "}
                               {formatCount(day.pending)} pending ·{" "}
                               {formatCount(day.completed)} completed ·{" "}
@@ -1387,22 +1352,24 @@ export default function FinancialReportsPage({ mode = "full" }) {
                         </div>
                       ))
                     ) : (
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-[hsl(var(--admin-muted))]">
                         No scheduled bookings intersect this range.
                       </p>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </AdminCardContent>
+              </AdminCard>
 
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
+              <AdminCard>
+                <AdminCardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <CardTitle className="text-xl">Recent Bookings</CardTitle>
-                      <CardDescription>
+                      <AdminCardTitle className="text-xl">
+                        Recent Bookings
+                      </AdminCardTitle>
+                      <AdminCardDescription>
                         Most recently created non-draft bookings in range.
-                      </CardDescription>
+                      </AdminCardDescription>
                     </div>
                     <Button
                       className="rounded-xl"
@@ -1414,20 +1381,20 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       View rows
                     </Button>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
+                </AdminCardHeader>
+                <AdminCardContent className="space-y-3">
                   {(dashboard.recentBookings || []).length > 0 ? (
                     dashboard.recentBookings.map((booking) => (
                       <div
                         key={booking.id}
-                        className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                        className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
-                            <p className="font-medium text-foreground">
+                            <p className="font-medium text-[hsl(var(--admin-foreground))]">
                               {booking.bookingCode || `Booking #${booking.id}`}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-[hsl(var(--admin-muted))]">
                               {booking.customer?.fullName ||
                                 booking.customer?.email ||
                                 "No customer"}
@@ -1437,7 +1404,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
                             {formatCurrency(booking.total)}
                           </span>
                         </div>
-                        <p className="mt-2 text-xs text-muted-foreground">
+                        <p className="mt-2 text-xs text-[hsl(var(--admin-muted))]">
                           Created {formatDateTime(booking.createdAt)} ·
                           Scheduled {formatBusinessDate(booking.date)} ·{" "}
                           {booking.workflowStatus ||
@@ -1447,12 +1414,12 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-[hsl(var(--admin-muted))]">
                       No recent bookings intersect this range.
                     </p>
                   )}
-                </CardContent>
-              </Card>
+                </AdminCardContent>
+              </AdminCard>
             </div>
           </>
         ) : null}
@@ -1485,41 +1452,26 @@ export default function FinancialReportsPage({ mode = "full" }) {
             ) : null}
 
             {!loading && error ? (
-              <Card className="rounded-2xl border-red-400/20 bg-red-500/10">
-                <CardHeader>
-                  <div className="flex items-center gap-2 text-red-200">
-                    <AlertCircle className="h-5 w-5" />
-                    <CardTitle className="text-xl">
-                      Financial report unavailable
-                    </CardTitle>
-                  </div>
-                  <CardDescription className="text-red-100/80">
-                    {error}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    onClick={() => setReloadToken((value) => value + 1)}
-                    type="button"
-                  >
-                    Retry
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="space-y-4">
+                <AdminInlineMessage
+                  description={error}
+                  title="Financial report unavailable"
+                  tone="danger"
+                />
+                <Button
+                  onClick={() => setReloadToken((value) => value + 1)}
+                  type="button"
+                >
+                  Retry
+                </Button>
+              </div>
             ) : null}
 
             {!loading && !error && reportEmpty ? (
-              <Card className="rounded-2xl border-dashed border-white/15 bg-card/60">
-                <CardHeader>
-                  <CardTitle className="text-xl">
-                    No financial activity in this range
-                  </CardTitle>
-                  <CardDescription>
-                    Live reporting returned no payments, refunds, expenses, or
-                    tracked bookings for {selectedMonthLabel}.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+              <AdminEmptyState
+                description={`Live reporting returned no payments, refunds, expenses, or tracked bookings for ${selectedMonthLabel}.`}
+                title="No financial activity in this range"
+              />
             ) : null}
 
             {!loading && !error && report ? (
@@ -1549,36 +1501,38 @@ export default function FinancialReportsPage({ mode = "full" }) {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
-                  <Card className="rounded-2xl border-white/10 bg-card/70">
-                    <CardHeader>
+                  <AdminCard>
+                    <AdminCardHeader>
                       <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-emerald-300" />
-                        <CardTitle className="text-xl">
+                        <AdminCardTitle className="text-xl">
                           Weekly Net Revenue
-                        </CardTitle>
+                        </AdminCardTitle>
                       </div>
-                      <CardDescription>
+                      <AdminCardDescription>
                         Live weekly buckets for {selectedMonthLabel}.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                      </AdminCardDescription>
+                    </AdminCardHeader>
+                    <AdminCardContent>
                       <TrendChart
                         buckets={report.weeklyTrend?.buckets}
                         title="Week-by-week net revenue"
                       />
-                    </CardContent>
-                  </Card>
+                    </AdminCardContent>
+                  </AdminCard>
 
-                  <Card className="rounded-2xl border-white/10 bg-card/70">
-                    <CardHeader>
-                      <CardTitle className="text-xl">Profit and Loss</CardTitle>
-                      <CardDescription>
+                  <AdminCard>
+                    <AdminCardHeader>
+                      <AdminCardTitle className="text-xl">
+                        Profit and Loss
+                      </AdminCardTitle>
+                      <AdminCardDescription>
                         Cash-based view for the selected month.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                      </AdminCardDescription>
+                    </AdminCardHeader>
+                    <AdminCardContent className="space-y-4">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
+                        <span className="text-[hsl(var(--admin-muted))]">
                           Net revenue
                         </span>
                         <span className="font-medium">
@@ -1586,85 +1540,82 @@ export default function FinancialReportsPage({ mode = "full" }) {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Expenses</span>
+                        <span className="text-[hsl(var(--admin-muted))]">
+                          Expenses
+                        </span>
                         <span className="font-medium">
                           {formatCurrency(report.profitAndLoss?.expenses)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
+                        <span className="text-[hsl(var(--admin-muted))]">
                           Net profit
                         </span>
                         <span className="font-medium">
                           {formatCurrency(report.profitAndLoss?.netProfit)}
                         </span>
                       </div>
-                      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/70">
+                      <div className="rounded-2xl border border-[hsl(var(--admin-success)/0.24)] bg-[hsl(var(--admin-success)/0.12)] p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-success)/0.82)]">
                           Margin
                         </p>
-                        <p className="mt-2 text-3xl font-semibold text-emerald-100">
+                        <p className="mt-2 text-3xl font-semibold text-[hsl(var(--admin-success))]">
                           {formatPercent(report.profitAndLoss?.margin)}
                         </p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </AdminCardContent>
+                  </AdminCard>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
-                  <Card className="rounded-2xl border-white/10 bg-card/70">
-                    <CardHeader>
-                      <CardTitle className="text-xl">
-                        Monthly Comparison
-                      </CardTitle>
-                      <CardDescription>
-                        Six business months ending in {selectedMonthLabel}.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Month</TableHead>
-                            <TableHead>Net Revenue</TableHead>
-                            <TableHead>Expenses</TableHead>
-                            <TableHead>Net Profit</TableHead>
-                            <TableHead>Completed</TableHead>
+                  <AdminTablePanel
+                    description={`Six business months ending in ${selectedMonthLabel}.`}
+                    title="Monthly Comparison"
+                  >
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Month</TableHead>
+                          <TableHead>Net Revenue</TableHead>
+                          <TableHead>Expenses</TableHead>
+                          <TableHead>Net Profit</TableHead>
+                          <TableHead>Completed</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(report.monthlyComparison || []).map((row) => (
+                          <TableRow key={row.monthStartBusinessDate}>
+                            <TableCell className="font-medium">
+                              {row.monthLabel}
+                            </TableCell>
+                            <TableCell>
+                              {formatCurrency(row.netRevenue)}
+                            </TableCell>
+                            <TableCell>
+                              {formatCurrency(row.expenses)}
+                            </TableCell>
+                            <TableCell>
+                              {formatCurrency(row.netProfit)}
+                            </TableCell>
+                            <TableCell>
+                              {formatCount(row.completedBookings)}
+                            </TableCell>
                           </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(report.monthlyComparison || []).map((row) => (
-                            <TableRow key={row.monthStartBusinessDate}>
-                              <TableCell className="font-medium">
-                                {row.monthLabel}
-                              </TableCell>
-                              <TableCell>
-                                {formatCurrency(row.netRevenue)}
-                              </TableCell>
-                              <TableCell>
-                                {formatCurrency(row.expenses)}
-                              </TableCell>
-                              <TableCell>
-                                {formatCurrency(row.netProfit)}
-                              </TableCell>
-                              <TableCell>
-                                {formatCount(row.completedBookings)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </CardContent>
-                  </Card>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </AdminTablePanel>
 
-                  <Card className="rounded-2xl border-white/10 bg-card/70">
-                    <CardHeader>
-                      <CardTitle className="text-xl">Six-Month Trend</CardTitle>
-                      <CardDescription>
+                  <AdminCard>
+                    <AdminCardHeader>
+                      <AdminCardTitle className="text-xl">
+                        Six-Month Trend
+                      </AdminCardTitle>
+                      <AdminCardDescription>
                         Net revenue trajectory leading into the selected month.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                      </AdminCardDescription>
+                    </AdminCardHeader>
+                    <AdminCardContent>
                       <TrendChart
                         buckets={report.sixMonthTrend?.buckets?.map(
                           (bucket, index) => ({
@@ -1676,26 +1627,28 @@ export default function FinancialReportsPage({ mode = "full" }) {
                         )}
                         title="Month-over-month net revenue"
                       />
-                    </CardContent>
-                  </Card>
+                    </AdminCardContent>
+                  </AdminCard>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                  <Card className="rounded-2xl border-white/10 bg-card/70">
-                    <CardHeader>
-                      <CardTitle className="text-xl">Booking Status</CardTitle>
-                      <CardDescription>
+                  <AdminCard>
+                    <AdminCardHeader>
+                      <AdminCardTitle className="text-xl">
+                        Booking Status
+                      </AdminCardTitle>
+                      <AdminCardDescription>
                         Operational counts tied to the same live reporting
                         range.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                      </AdminCardDescription>
+                    </AdminCardHeader>
+                    <AdminCardContent className="space-y-3">
                       {(report.bookingStatus?.buckets || []).map((bucket) => (
                         <div
                           key={bucket.key}
-                          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                          className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
                         >
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-sm text-[hsl(var(--admin-muted))]">
                             {bucket.label}
                           </span>
                           <span className="text-sm font-medium">
@@ -1703,26 +1656,26 @@ export default function FinancialReportsPage({ mode = "full" }) {
                           </span>
                         </div>
                       ))}
-                    </CardContent>
-                  </Card>
+                    </AdminCardContent>
+                  </AdminCard>
 
-                  <Card className="rounded-2xl border-white/10 bg-card/70">
-                    <CardHeader>
-                      <CardTitle className="text-xl">
+                  <AdminCard>
+                    <AdminCardHeader>
+                      <AdminCardTitle className="text-xl">
                         Revenue by Service
-                      </CardTitle>
-                      <CardDescription>
+                      </AdminCardTitle>
+                      <AdminCardDescription>
                         Paid-service contribution from the same live dataset.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                      </AdminCardDescription>
+                    </AdminCardHeader>
+                    <AdminCardContent className="space-y-3">
                       {(report.revenueByService || []).length > 0 ? (
                         report.revenueByService.map((service) => (
                           <div
                             key={service.key}
-                            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                            className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
                           >
-                            <span className="text-sm text-muted-foreground">
+                            <span className="text-sm text-[hsl(var(--admin-muted))]">
                               {service.label}
                             </span>
                             <span className="text-sm font-medium">
@@ -1731,12 +1684,12 @@ export default function FinancialReportsPage({ mode = "full" }) {
                           </div>
                         ))
                       ) : (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-[hsl(var(--admin-muted))]">
                           No attributable paid service revenue for this range.
                         </p>
                       )}
-                    </CardContent>
-                  </Card>
+                    </AdminCardContent>
+                  </AdminCard>
                 </div>
               </>
             ) : null}
@@ -1775,6 +1728,6 @@ export default function FinancialReportsPage({ mode = "full" }) {
         rows={drilldownState.rows}
         total={drilldownState.total}
       />
-    </div>
+    </AdminPage>
   );
 }
