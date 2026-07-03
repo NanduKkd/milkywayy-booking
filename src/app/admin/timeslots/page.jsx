@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   ChevronLeft,
@@ -8,20 +7,28 @@ import {
   Clock3,
   Save,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminDialogContent,
+  AdminInlineMessage,
+  AdminPage,
+  AdminPageHeader,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
+import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const DAYS_OF_WEEK = [
   "Monday",
@@ -119,6 +126,47 @@ const labelizePeriod = (period) => {
   return period.charAt(0).toUpperCase() + period.slice(1);
 };
 
+const ADMIN_PRIMARY_BUTTON_CLASS =
+  "rounded-full border border-[hsl(var(--admin-highlight)/0.45)] bg-[hsl(var(--admin-highlight)/0.18)] px-5 text-[hsl(var(--admin-foreground))] hover:bg-[hsl(var(--admin-highlight)/0.26)] hover:text-[hsl(var(--admin-foreground))]";
+const ADMIN_OUTLINE_BUTTON_CLASS =
+  "rounded-full border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]";
+const INPUT_CLASS =
+  "admin-input h-11 rounded-2xl border-[hsl(var(--admin-border)/0.9)]";
+const TABLE_HEAD_CLASS =
+  "border-white/8 bg-white/[0.03] text-xs font-medium uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]";
+const TABLE_CELL_CLASS = "border-white/8 text-[hsl(var(--admin-foreground))]";
+
+function getStateTone(state) {
+  if (state === "available") return "success";
+  if (state === "booked") return "danger";
+  return "neutral";
+}
+
+function countActiveServices(config) {
+  return Object.values(
+    config?.systemSettings?.weightModel?.serviceWeights || {},
+  ).filter((service) => Boolean(service?.active)).length;
+}
+
+function countBlockedDates(config) {
+  return Object.values(config?.dateOverrides || {}).filter((override) => {
+    if (override?.fullDayBlocked) {
+      return true;
+    }
+
+    return Object.values(override?.blocks || {}).some(
+      (value) => value === "blocked",
+    );
+  }).length;
+}
+
+function countBookedPeriods(bookedMap) {
+  return Object.values(bookedMap || {}).reduce(
+    (total, periods) => total + periods.length,
+    0,
+  );
+}
+
 export default function TimeSlotsManager() {
   const [config, setConfig] = useState(null);
   const [bookedMap, setBookedMap] = useState({});
@@ -145,42 +193,45 @@ export default function TimeSlotsManager() {
     [currentMonth],
   );
 
-  const loadConfig = async ({ preserveLayout = false } = {}) => {
-    if (preserveLayout) {
-      setCalendarRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    try {
-      const { start, end } = getMonthRange(currentMonth);
-      const res = await fetch(
-        `/api/admin/timeslots?start=${start}&end=${end}`,
-        {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          cache: "no-store",
-        },
-      );
-      if (!res.ok) throw new Error("Failed to load time slot config");
-      const data = await res.json();
-      setConfig(data.config);
-      setBookedMap(data.bookedMap || {});
-      setBookedDetailsMap(data.bookedDetailsMap || {});
-    } catch (error) {
-      toast.error("Failed to load time slot config");
-    } finally {
+  const loadConfig = useCallback(
+    async ({ preserveLayout = false } = {}) => {
       if (preserveLayout) {
-        setCalendarRefreshing(false);
+        setCalendarRefreshing(true);
       } else {
-        setLoading(false);
+        setLoading(true);
       }
-      hasLoadedOnceRef.current = true;
-    }
-  };
+      try {
+        const { start, end } = getMonthRange(currentMonth);
+        const res = await fetch(
+          `/api/admin/timeslots?start=${start}&end=${end}`,
+          {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+            cache: "no-store",
+          },
+        );
+        if (!res.ok) throw new Error("Failed to load time slot config");
+        const data = await res.json();
+        setConfig(data.config);
+        setBookedMap(data.bookedMap || {});
+        setBookedDetailsMap(data.bookedDetailsMap || {});
+      } catch (_error) {
+        toast.error("Failed to load time slot config");
+      } finally {
+        if (preserveLayout) {
+          setCalendarRefreshing(false);
+        } else {
+          setLoading(false);
+        }
+        hasLoadedOnceRef.current = true;
+      }
+    },
+    [currentMonth],
+  );
 
   useEffect(() => {
     loadConfig({ preserveLayout: hasLoadedOnceRef.current });
-  }, [currentMonth]);
+  }, [loadConfig]);
 
   const saveConfig = async () => {
     if (!config) return;
@@ -193,7 +244,7 @@ export default function TimeSlotsManager() {
       });
       if (!res.ok) throw new Error("Failed to save config");
       toast.success("Time slot settings saved");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to save time slot settings");
     } finally {
       setSaving(false);
@@ -316,81 +367,171 @@ export default function TimeSlotsManager() {
     ? bookedDetailsMap?.[selectedDateKey] || {}
     : {};
 
+  const workingDaysCount = DAYS_OF_WEEK.filter(
+    (day) => config?.systemSettings?.workingDays?.[day],
+  ).length;
+  const activeServicesCount = countActiveServices(config);
+  const blockedDatesCount = countBlockedDates(config);
+  const bookedPeriodsCount = countBookedPeriods(bookedMap);
+
   if (loading || !config) {
     return (
-      <div className="container mx-auto p-6">
-        <p className="text-sm text-muted-foreground">
-          Loading timeslot settings...
-        </p>
-      </div>
+      <AdminPage>
+        <AdminPageHeader
+          eyebrow="Operations"
+          title="Time Slots"
+          description="Manage day availability, slot weighting, and booking block rules."
+        />
+        <AdminInlineMessage
+          loading
+          tone="info"
+          title="Loading time slot settings"
+          description="Fetching the live scheduling configuration and booked calendar state."
+        />
+      </AdminPage>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Calendar & Time Slot Rules</h1>
-          <p className="text-muted-foreground">
-            Manage daily availability, block definitions, and
-            service/property-specific slot rules.
-          </p>
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Operations"
+        title="Time Slots"
+        description="Adjust rolling availability, service and property weights, and day-specific blocking without changing the existing scheduling logic."
+        actions={
+          <Button
+            onClick={saveConfig}
+            disabled={saving}
+            className={cn(
+              ADMIN_PRIMARY_BUTTON_CLASS,
+              "flex items-center gap-2 px-5",
+            )}
+          >
+            <Save className="h-4 w-4" />
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        }
+      >
+        <div className="flex flex-wrap gap-2">
+          <AdminBadge tone="success">Available</AdminBadge>
+          <AdminBadge tone="danger">Booked</AdminBadge>
+          <AdminBadge tone="neutral">Blocked</AdminBadge>
         </div>
-        <Button
-          onClick={saveConfig}
-          disabled={saving}
-          className="flex items-center gap-2"
-        >
-          <Save className="w-4 h-4" />
-          {saving ? "Saving..." : "Save Changes"}
-        </Button>
+      </AdminPageHeader>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Rolling window</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {config.systemSettings?.rollingWindowDays || 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
+            Days currently open for booking validation.
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Working days</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {workingDaysCount}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
+            Active weekdays available to schedule against.
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Active services</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {activeServicesCount}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
+            Weighted service types participating in slot capacity.
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Booked periods in view</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {bookedPeriodsCount}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
+            {blockedDatesCount} dates currently carry manual blocks or closures.
+          </AdminCardContent>
+        </AdminCard>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>System Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label>Rolling Window Length (days)</Label>
-              <Input
-                type="number"
-                min="1"
-                value={config.systemSettings.rollingWindowDays}
-                onChange={(e) =>
-                  updateConfig((prev) => ({
-                    ...prev,
-                    systemSettings: {
-                      ...prev.systemSettings,
-                      rollingWindowDays: parseInt(e.target.value, 10) || 1,
-                    },
-                  }))
-                }
-                className="w-32"
-              />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <AdminCard>
+          <AdminCardHeader>
+            <AdminCardTitle>System settings</AdminCardTitle>
+            <AdminCardDescription>
+              Configure the booking window, day capacity reference, and weekly
+              working schedule.
+            </AdminCardDescription>
+          </AdminCardHeader>
+          <AdminCardContent className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="rolling-window-days">
+                  Rolling window length
+                </Label>
+                <Input
+                  id="rolling-window-days"
+                  type="number"
+                  min="1"
+                  value={config.systemSettings.rollingWindowDays}
+                  onChange={(e) =>
+                    updateConfig((prev) => ({
+                      ...prev,
+                      systemSettings: {
+                        ...prev.systemSettings,
+                        rollingWindowDays: parseInt(e.target.value, 10) || 1,
+                      },
+                    }))
+                  }
+                  className={cn(INPUT_CLASS, "w-full sm:w-40")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="day-slot-capacity">Day slot capacity</Label>
+                <Input
+                  id="day-slot-capacity"
+                  type="number"
+                  value={6}
+                  readOnly
+                  className={cn(INPUT_CLASS, "w-full sm:w-40")}
+                />
+                <p className="text-xs leading-6 text-[hsl(var(--admin-muted))]">
+                  Formula: property weight + service weight sum. Totals at or
+                  below capacity consume one slot; higher totals consume two.
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Day Slot Capacity (Fixed)</Label>
-              <Input type="number" value={6} readOnly className="w-32" />
-              <p className="text-xs text-muted-foreground">
-                Formula: totalWeight = propertyWeight + serviceWeightSum, then
-                totalWeight {"<="} slotCapacity ? 1 : 2
-              </p>
-            </div>
-
-            <Separator />
+            <Separator className="admin-divider" />
 
             <div className="space-y-3">
-              <Label>Working Days</Label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Label>Working days</Label>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {DAYS_OF_WEEK.map((day) => (
                   <div
                     key={day}
-                    className="flex items-center justify-between border rounded-md px-3 py-2"
+                    className="admin-panel-muted flex items-center justify-between rounded-[1.1rem] border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
                   >
-                    <span className="text-sm">{day.slice(0, 3)}</span>
+                    <div>
+                      <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
+                        {day}
+                      </p>
+                      <p className="text-xs text-[hsl(var(--admin-muted))]">
+                        {day.slice(0, 3)} operations window
+                      </p>
+                    </div>
                     <Switch
                       checked={Boolean(
                         config.systemSettings.workingDays?.[day],
@@ -412,19 +553,37 @@ export default function TimeSlotsManager() {
                 ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </AdminCardContent>
+        </AdminCard>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Block Definitions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <AdminCard>
+          <AdminCardHeader>
+            <AdminCardTitle>Block definitions</AdminCardTitle>
+            <AdminCardDescription>
+              Set the live morning, afternoon, and evening time ranges used by
+              the calendar and conflict checks.
+            </AdminCardDescription>
+          </AdminCardHeader>
+          <AdminCardContent className="space-y-4">
             {PERIODS.map((period) => (
-              <div key={period} className="space-y-2 border rounded-md p-3">
-                <Label className="font-medium">{labelizePeriod(period)}</Label>
-                <div className="grid grid-cols-2 gap-3">
+              <div
+                key={period}
+                className="admin-panel-muted rounded-[1.3rem] border border-[hsl(var(--admin-border)/0.72)] p-4"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
+                      {labelizePeriod(period)}
+                    </p>
+                    <p className="text-xs text-[hsl(var(--admin-muted))]">
+                      Configured block window for {period} scheduling.
+                    </p>
+                  </div>
+                  <AdminBadge tone="info">{labelizePeriod(period)}</AdminBadge>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
                   <Input
+                    aria-label={`${labelizePeriod(period)} start time`}
                     type="time"
                     value={
                       config.systemSettings.blockDefinitions?.[period]
@@ -447,8 +606,10 @@ export default function TimeSlotsManager() {
                         },
                       }))
                     }
+                    className={INPUT_CLASS}
                   />
                   <Input
+                    aria-label={`${labelizePeriod(period)} end time`}
                     type="time"
                     value={
                       config.systemSettings.blockDefinitions?.[period]
@@ -471,218 +632,253 @@ export default function TimeSlotsManager() {
                         },
                       }))
                     }
+                    className={INPUT_CLASS}
                   />
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </AdminCardContent>
+        </AdminCard>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Services</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Configure service types and their weight values.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="border rounded-md overflow-hidden">
-            <div className="grid grid-cols-[1fr_120px_80px] gap-2 px-4 py-3 text-xs text-muted-foreground border-b">
-              <span>Service Name</span>
-              <span>Weight</span>
-              <span>Active</span>
-            </div>
-            {SERVICE_WEIGHT_ORDER.map((service) => {
-              const cfg = config.systemSettings?.weightModel?.serviceWeights?.[
-                service
-              ] || {
-                weight: 0,
-                active: false,
-              };
-              return (
-                <div
-                  key={service}
-                  className="grid grid-cols-[1fr_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center"
-                >
-                  <span className="text-sm">{service}</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={cfg.weight ?? 0}
-                    onChange={(e) =>
-                      updateServiceWeight(service, {
-                        weight: Number(e.target.value) || 0,
-                      })
-                    }
-                    className="h-8"
-                  />
-                  <div className="flex justify-start">
-                    <Switch
-                      checked={Boolean(cfg.active)}
-                      onCheckedChange={(checked) =>
-                        updateServiceWeight(service, { active: checked })
-                      }
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Property Settings</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Configure property sizes and commercial scales with weight values.
-            Property Weight + Service Weight Sum = Total Load.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {PROPERTY_WEIGHT_GROUPS.map((group) => (
-              <Card key={group.type}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg">{group.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="border rounded-md overflow-hidden">
-                    <div className="grid grid-cols-[1fr_120px] gap-2 px-4 py-3 text-xs text-muted-foreground border-b">
-                      <span>Size</span>
-                      <span>Weight</span>
+      <AdminCard>
+        <AdminCardHeader>
+          <AdminCardTitle>Service weights</AdminCardTitle>
+          <AdminCardDescription>
+            Manage which services contribute to slot load and how much capacity
+            each one consumes.
+          </AdminCardDescription>
+        </AdminCardHeader>
+        <AdminCardContent>
+          <AdminTablePanel>
+            <div className="grid min-w-[640px] grid-cols-[minmax(220px,1fr)_140px_120px]">
+              <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
+                Service name
+              </div>
+              <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>Weight</div>
+              <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>Active</div>
+              {SERVICE_WEIGHT_ORDER.map((service) => {
+                const cfg = config.systemSettings?.weightModel
+                  ?.serviceWeights?.[service] || {
+                  weight: 0,
+                  active: false,
+                };
+                return (
+                  <div key={service} className="contents">
+                    <div className={cn(TABLE_CELL_CLASS, "px-5 py-4 text-sm")}>
+                      {service}
                     </div>
-                    {group.sizes.map((size) => (
-                      <div
-                        key={size}
-                        className="grid grid-cols-[1fr_120px] gap-2 px-4 py-3 border-b last:border-b-0 items-center"
-                      >
-                        <span className="text-sm">{size}</span>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.5"
-                          value={
-                            config.systemSettings?.weightModel
-                              ?.propertyWeights?.[group.type]?.[size] ?? 0
-                          }
-                          onChange={(e) =>
-                            updatePropertyWeight(
-                              group.type,
-                              size,
-                              e.target.value,
-                            )
-                          }
-                          className="h-8"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Commercial</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Commercial scales are used as property weight references.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="border rounded-md overflow-hidden">
-                <div className="grid grid-cols-[1fr_120px_80px] gap-2 px-4 py-3 text-xs text-muted-foreground border-b">
-                  <span>Scale</span>
-                  <span>Weight</span>
-                  <span>Active</span>
-                </div>
-                {COMMERCIAL_SCALES.map((scale) => {
-                  const value =
-                    config.systemSettings?.weightModel?.propertyWeights
-                      ?.Commercial?.[scale] ?? 0;
-                  return (
-                    <div
-                      key={scale}
-                      className="grid grid-cols-[1fr_120px_80px] gap-2 px-4 py-3 border-b last:border-b-0 items-center"
-                    >
-                      <span className="text-sm">{scale}</span>
+                    <div className={cn(TABLE_CELL_CLASS, "px-5 py-3")}>
                       <Input
+                        aria-label={`${service} weight`}
                         type="number"
                         min="0"
                         step="0.5"
-                        value={value}
+                        value={cfg.weight ?? 0}
                         onChange={(e) =>
-                          updatePropertyWeight(
-                            "Commercial",
-                            scale,
-                            e.target.value,
-                          )
+                          updateServiceWeight(service, {
+                            weight: Number(e.target.value) || 0,
+                          })
                         }
-                        className="h-8"
+                        className={cn(INPUT_CLASS, "h-10")}
                       />
-                      <div className="flex justify-start">
-                        <Switch
-                          checked={value > 0}
-                          onCheckedChange={(checked) =>
-                            !checked &&
-                            updatePropertyWeight("Commercial", scale, 0)
-                          }
-                        />
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="w-5 h-5" />
-                Calendar
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Click a day to block full day or block specific periods.
-              </p>
+                    <div className={cn(TABLE_CELL_CLASS, "px-5 py-4")}>
+                      <Switch
+                        checked={Boolean(cfg.active)}
+                        onCheckedChange={(checked) =>
+                          updateServiceWeight(service, { active: checked })
+                        }
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-center gap-2">
+          </AdminTablePanel>
+        </AdminCardContent>
+      </AdminCard>
+
+      <AdminCard>
+        <AdminCardHeader>
+          <AdminCardTitle>Property settings</AdminCardTitle>
+          <AdminCardDescription>
+            Preserve the current configuration fields while aligning apartments,
+            villas, and commercial references to the shared admin system.
+          </AdminCardDescription>
+        </AdminCardHeader>
+        <AdminCardContent className="space-y-6">
+          <div className="grid gap-6 xl:grid-cols-2">
+            {PROPERTY_WEIGHT_GROUPS.map((group) => (
+              <AdminCard key={group.type} tone="muted">
+                <AdminCardHeader className="pb-4">
+                  <AdminCardTitle className="text-lg">
+                    {group.label}
+                  </AdminCardTitle>
+                  <AdminCardDescription>
+                    Property weights for {group.type.toLowerCase()} scheduling.
+                  </AdminCardDescription>
+                </AdminCardHeader>
+                <AdminCardContent>
+                  <AdminTablePanel>
+                    <div className="grid min-w-[360px] grid-cols-[minmax(180px,1fr)_140px]">
+                      <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
+                        Size
+                      </div>
+                      <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
+                        Weight
+                      </div>
+                      {group.sizes.map((size) => (
+                        <div key={size} className="contents">
+                          <div
+                            className={cn(
+                              TABLE_CELL_CLASS,
+                              "px-5 py-4 text-sm",
+                            )}
+                          >
+                            {size}
+                          </div>
+                          <div className={cn(TABLE_CELL_CLASS, "px-5 py-3")}>
+                            <Input
+                              aria-label={`${group.label} ${size} weight`}
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={
+                                config.systemSettings?.weightModel
+                                  ?.propertyWeights?.[group.type]?.[size] ?? 0
+                              }
+                              onChange={(e) =>
+                                updatePropertyWeight(
+                                  group.type,
+                                  size,
+                                  e.target.value,
+                                )
+                              }
+                              className={cn(INPUT_CLASS, "h-10")}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </AdminTablePanel>
+                </AdminCardContent>
+              </AdminCard>
+            ))}
+          </div>
+
+          <AdminCard tone="muted">
+            <AdminCardHeader className="pb-4">
+              <AdminCardTitle className="text-lg">Commercial</AdminCardTitle>
+              <AdminCardDescription>
+                Commercial scales continue to act as property-weight references.
+              </AdminCardDescription>
+            </AdminCardHeader>
+            <AdminCardContent>
+              <AdminTablePanel>
+                <div className="grid min-w-[480px] grid-cols-[minmax(180px,1fr)_140px_120px]">
+                  <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>Scale</div>
+                  <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
+                    Weight
+                  </div>
+                  <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
+                    Active
+                  </div>
+                  {COMMERCIAL_SCALES.map((scale) => {
+                    const value =
+                      config.systemSettings?.weightModel?.propertyWeights
+                        ?.Commercial?.[scale] ?? 0;
+                    return (
+                      <div key={scale} className="contents">
+                        <div
+                          className={cn(TABLE_CELL_CLASS, "px-5 py-4 text-sm")}
+                        >
+                          {scale}
+                        </div>
+                        <div className={cn(TABLE_CELL_CLASS, "px-5 py-3")}>
+                          <Input
+                            aria-label={`${scale} commercial weight`}
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={value}
+                            onChange={(e) =>
+                              updatePropertyWeight(
+                                "Commercial",
+                                scale,
+                                e.target.value,
+                              )
+                            }
+                            className={cn(INPUT_CLASS, "h-10")}
+                          />
+                        </div>
+                        <div className={cn(TABLE_CELL_CLASS, "px-5 py-4")}>
+                          <Switch
+                            checked={value > 0}
+                            onCheckedChange={(checked) =>
+                              !checked &&
+                              updatePropertyWeight("Commercial", scale, 0)
+                            }
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </AdminTablePanel>
+            </AdminCardContent>
+          </AdminCard>
+        </AdminCardContent>
+      </AdminCard>
+
+      <AdminCard>
+        <AdminCardHeader className="gap-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <AdminCardTitle className="flex items-center gap-2 text-2xl">
+                <CalendarDays className="h-5 w-5" />
+                Calendar
+              </AdminCardTitle>
+              <AdminCardDescription>
+                Click a day to review bookings, then block the full day or
+                selected periods without altering the existing conflict rules.
+              </AdminCardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="icon"
+                className={ADMIN_OUTLINE_BUTTON_CLASS}
                 onClick={() =>
                   setCurrentMonth(
                     (prev) =>
                       new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
                   )
                 }
+                aria-label="Previous month"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="min-w-[160px] text-center font-medium">
+              <div className="min-w-[160px] text-center text-sm font-semibold text-[hsl(var(--admin-foreground))]">
                 {monthLabel}
               </div>
               <Button
                 variant="outline"
                 size="icon"
+                className={ADMIN_OUTLINE_BUTTON_CLASS}
                 onClick={() =>
                   setCurrentMonth(
                     (prev) =>
                       new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
                   )
                 }
+                aria-label="Next month"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
+                className={ADMIN_OUTLINE_BUTTON_CLASS}
                 onClick={() =>
                   setCurrentMonth(
                     new Date(
@@ -697,89 +893,108 @@ export default function TimeSlotsManager() {
               </Button>
             </div>
           </div>
-          {calendarRefreshing && (
-            <p className="text-xs text-muted-foreground pt-1">
-              Refreshing calendar...
-            </p>
-          )}
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
-              Available
-            </Badge>
-            <Badge className="bg-red-500/20 text-red-500 border-red-500/30">
-              Booked
-            </Badge>
-            <Badge className="bg-zinc-500/20 text-zinc-400 border-zinc-500/30">
-              Blocked
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 border rounded-md overflow-hidden">
-            {DAY_HEADERS.map((header) => (
-              <div
-                key={header}
-                className="p-3 text-center border-b bg-muted/30 text-sm font-medium"
-              >
-                {header}
-              </div>
-            ))}
-            {calendarDays.map((day, idx) => {
-              const key = toDateKey(day);
-              const isInCurrentMonth =
-                day.getMonth() === currentMonth.getMonth();
-              const periodStates = PERIODS.map((period) =>
-                getPeriodState(day, key, period),
-              );
-              const selected = selectedDateKey === key;
-
-              return (
-                <button
-                  key={`${key}_${idx}`}
-                  type="button"
-                  onClick={() => openDayDialog(day)}
-                  className={`min-h-[110px] p-2 border-t border-l text-left transition-colors ${isInCurrentMonth ? "hover:bg-muted/20" : "bg-muted/20 text-muted-foreground"} ${selected ? "ring-2 ring-primary" : ""}`}
+          {calendarRefreshing ? (
+            <AdminInlineMessage
+              loading
+              tone="info"
+              title="Refreshing calendar"
+              description="Updating booked periods and block state for the selected month."
+            />
+          ) : null}
+        </AdminCardHeader>
+        <AdminCardContent>
+          <div className="admin-panel-muted overflow-hidden rounded-[1.5rem] border border-[hsl(var(--admin-border)/0.72)]">
+            <div className="grid grid-cols-7">
+              {DAY_HEADERS.map((header) => (
+                <div
+                  key={header}
+                  className="border-b border-white/8 bg-white/[0.04] px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
                 >
-                  <div className="text-sm font-medium mb-2">
-                    {day.getDate()}
-                  </div>
-                  <div className="space-y-1">
-                    {periodStates.map((state, i) => (
-                      <div
-                        key={`${key}_${PERIODS[i]}`}
-                        className={`h-2 rounded ${state === "available" ? "bg-green-500" : state === "booked" ? "bg-red-500" : "bg-zinc-400"}`}
-                      />
-                    ))}
-                  </div>
-                </button>
-              );
-            })}
+                  {header}
+                </div>
+              ))}
+              {calendarDays.map((day) => {
+                const key = toDateKey(day);
+                const isInCurrentMonth =
+                  day.getMonth() === currentMonth.getMonth();
+                const periodStates = PERIODS.map((period) =>
+                  getPeriodState(day, key, period),
+                );
+                const selected = selectedDateKey === key;
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => openDayDialog(day)}
+                    className={cn(
+                      "min-h-[120px] border-l border-t border-white/8 px-3 py-3 text-left transition hover:bg-white/[0.04]",
+                      !isInCurrentMonth &&
+                        "bg-white/[0.03] text-[hsl(var(--admin-muted))]",
+                      selected &&
+                        "ring-1 ring-inset ring-[hsl(var(--admin-highlight)/0.75)]",
+                    )}
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">
+                        {day.getDate()}
+                      </span>
+                      {bookedMap?.[key]?.length ? (
+                        <AdminBadge
+                          tone="danger"
+                          className="px-2 py-0.5 text-[0.62rem]"
+                        >
+                          {bookedMap[key].length} booked
+                        </AdminBadge>
+                      ) : null}
+                    </div>
+                    <div className="space-y-2">
+                      {periodStates.map((state, index) => (
+                        <div
+                          key={`${key}_${PERIODS[index]}`}
+                          className={cn(
+                            "rounded-full px-2 py-1 text-[0.68rem] font-medium",
+                            state === "available" &&
+                              "bg-[hsl(var(--admin-success)/0.18)] text-[hsl(var(--admin-success))]",
+                            state === "booked" &&
+                              "bg-[hsl(var(--admin-danger)/0.18)] text-[hsl(var(--admin-danger))]",
+                            state === "blocked" &&
+                              "bg-white/[0.06] text-[hsl(var(--admin-muted))]",
+                          )}
+                        >
+                          {labelizePeriod(PERIODS[index])}
+                        </div>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </AdminCardContent>
+      </AdminCard>
 
       <Dialog open={isDayDialogOpen} onOpenChange={setIsDayDialogOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedDateObj
-                ? selectedDateObj.toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })
-                : "Day Details"}
-            </DialogTitle>
-          </DialogHeader>
-
+        <AdminDialogContent
+          className="max-w-2xl"
+          title={
+            selectedDateObj
+              ? selectedDateObj.toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })
+              : "Day details"
+          }
+          description="Review period availability, existing bookings, and block overrides for the selected day."
+        >
           <div className="space-y-3">
             {PERIODS.map((period) => {
               const state =
                 selectedDateObj && selectedDateKey
                   ? getPeriodState(selectedDateObj, selectedDateKey, period)
                   : "blocked";
-
               const blockDef =
                 config.systemSettings.blockDefinitions?.[period] || {};
               const periodBookingDetails =
@@ -788,7 +1003,8 @@ export default function TimeSlotsManager() {
                 period === "evening" &&
                 periodBookingDetails.length > 0 &&
                 periodBookingDetails.every(
-                  (detail) => detail.slotLabel === periodBookingDetails[0]?.slotLabel,
+                  (detail) =>
+                    detail.slotLabel === periodBookingDetails[0]?.slotLabel,
                 )
                   ? periodBookingDetails[0]?.slotLabel || labelizePeriod(period)
                   : labelizePeriod(period);
@@ -796,55 +1012,31 @@ export default function TimeSlotsManager() {
               return (
                 <div
                   key={period}
-                  className="border rounded-md p-3 flex items-center justify-between gap-3"
+                  className="admin-panel-muted rounded-[1.35rem] border border-[hsl(var(--admin-border)/0.72)] p-4"
                 >
-                  <div className="flex-1">
-                    <p className="font-medium">{displayPeriodLabel}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {blockDef.startTime || "--:--"} -{" "}
-                      {blockDef.endTime || "--:--"}
-                    </p>
-                    {state === "booked" && periodBookingDetails.length > 0 && (
-                      <div className="mt-2 space-y-2">
-                        {periodBookingDetails.map((detail, idx) => (
-                          <div
-                            key={`${period}_${detail.bookingCode}_${idx}`}
-                            className="rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
-                          >
-                            <p>Booking: {detail.bookingCode}</p>
-                            <p>Property: {detail.propertyLabel}</p>
-                            {detail.serviceLabel && (
-                              <p>Services: {detail.serviceLabel}</p>
-                            )}
-                            {detail.slotLabel &&
-                              detail.slotLabel !== displayPeriodLabel && (
-                                <p>Slot: {detail.slotLabel}</p>
-                              )}
-                            <p>Arrival: {detail.arrival}</p>
-                          </div>
-                        ))}
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
+                          {displayPeriodLabel}
+                        </p>
+                        <AdminBadge tone={getStateTone(state)}>
+                          {state === "available"
+                            ? "Available"
+                            : state === "booked"
+                              ? "Booked"
+                              : "Blocked"}
+                        </AdminBadge>
                       </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Badge
-                      className={
-                        state === "available"
-                          ? "bg-green-500/20 text-green-500 border-green-500/30"
-                          : state === "booked"
-                            ? "bg-red-500/20 text-red-500 border-red-500/30"
-                            : "bg-zinc-500/20 text-zinc-400 border-zinc-500/30"
-                      }
-                    >
-                      {state === "available"
-                        ? "Available"
-                        : state === "booked"
-                          ? "Booked"
-                          : "Blocked"}
-                    </Badge>
+                      <p className="text-sm text-[hsl(var(--admin-muted))]">
+                        {blockDef.startTime || "--:--"} -{" "}
+                        {blockDef.endTime || "--:--"}
+                      </p>
+                    </div>
                     <Button
                       type="button"
                       variant="outline"
+                      className={ADMIN_OUTLINE_BUTTON_CLASS}
                       onClick={() => toggleBlockForPeriod(period)}
                     >
                       {selectedOverride?.blocks?.[period] === "blocked"
@@ -852,24 +1044,53 @@ export default function TimeSlotsManager() {
                         : "Block"}
                     </Button>
                   </div>
+                  {state === "booked" && periodBookingDetails.length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      {periodBookingDetails.map((detail, index) => (
+                        <div
+                          key={`${period}_${detail.bookingCode}_${index}`}
+                          className="rounded-[1.05rem] border border-white/8 bg-black/10 px-3 py-3 text-sm text-[hsl(var(--admin-muted))]"
+                        >
+                          <p>Booking: {detail.bookingCode}</p>
+                          <p>Property: {detail.propertyLabel}</p>
+                          {detail.serviceLabel ? (
+                            <p>Services: {detail.serviceLabel}</p>
+                          ) : null}
+                          {detail.slotLabel &&
+                          detail.slotLabel !== displayPeriodLabel ? (
+                            <p>Slot: {detail.slotLabel}</p>
+                          ) : null}
+                          <p>Arrival: {detail.arrival}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
           </div>
 
-          <Separator />
+          <Separator className="admin-divider" />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" onClick={blockFullDay}>
-              <Clock3 className="w-4 h-4 mr-2" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button
+              variant="outline"
+              className={ADMIN_OUTLINE_BUTTON_CLASS}
+              onClick={blockFullDay}
+            >
+              <Clock3 className="mr-2 h-4 w-4" />
               Block Full Day
             </Button>
-            <Button variant="outline" onClick={unblockDay}>
+            <Button
+              variant="outline"
+              className={ADMIN_OUTLINE_BUTTON_CLASS}
+              onClick={unblockDay}
+            >
               Unblock Day
             </Button>
           </div>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
-    </div>
+    </AdminPage>
   );
 }
