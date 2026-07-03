@@ -14,7 +14,7 @@ defined in [README.md](./README.md).
 | M0 - Finalize the UI contract | `DONE` | 3 | 3 | 1 day |
 | M1 - Shell, tokens, and shared styling | `DONE` | 3 | 3 | 2-3 days |
 | M2 - Full admin page styling | `DONE` | 11 | 11 | 7-10 days |
-| M3 - Enhancements and release checks | `IN_PROGRESS` | 2 | 5 | 3-5 days |
+| M3 - Enhancements and release checks | `IN_PROGRESS` | 3 | 5 | 3-5 days |
 
 ## M0 - Finalize the UI contract
 
@@ -54,7 +54,7 @@ defined in [README.md](./README.md).
 |---|---|---|---|---|---|---|
 | UI-301 | Add focused shared-component and navigation tests | `DONE` | Engineering | M2 | Grouped navigation, mobile drawer, filters, totals, and shared behaviors have focused coverage | Expanded `src/components/admin/__tests__/AdminSidebarNav.test.jsx` for active paths, callbacks, and mobile styling; extended `src/components/admin/__tests__/AdminPrimitives.test.jsx` for `AdminInlineMessage` alert and loading states; verified with `npm test`. |
 | UI-302 | Verify preserved operational workflows | `DONE` | Engineering | M2 | Booking, invoice, promotion, calendar, configuration, portfolio, and review smoke checks are recorded | Recorded in [VERIFICATION-REPORT.md](./VERIFICATION-REPORT.md) |
-| UI-303 | Verify narrow-screen usability | `NOT_STARTED` | Engineering | M2 | Drawer reaches every route and table actions remain reachable by horizontal scrolling | Pending |
+| UI-303 | Verify narrow-screen usability | `DONE` | Engineering | M2 | Drawer reaches every route and table actions remain reachable by horizontal scrolling | Verified in mobile drawer test suite and manual shell audit; recorded in [VERIFICATION-REPORT.md](./VERIFICATION-REPORT.md) |
 | UI-304 | Complete owner visual review | `NOT_STARTED` | Owner | UI-301 to UI-303 | Owner accepts the complete refreshed admin surface | Pending |
 | UI-305 | Release the refreshed admin | `NOT_STARTED` | Engineering | UI-304 | One coordinated release is completed and immediate regressions are monitored | Pending |
 
