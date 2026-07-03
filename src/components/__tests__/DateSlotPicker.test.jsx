@@ -80,8 +80,7 @@ describe('DateSlotPicker', () => {
     expect(screen.queryByText('Evening')).not.toBeInTheDocument();
   });
 
-  it('disables slots that overlap with blocked slots', async () => {
-    // Non-night bookings now guard only the selected period.
+  it('disables start slots whose blocked periods overlap the requested duration', async () => {
     render(
       <DateSlotPicker 
         date="2026-01-05" 
@@ -103,7 +102,7 @@ describe('DateSlotPicker', () => {
     const afternoonButton = screen.getByText('Afternoon').closest('button');
 
     expect(afternoonButton).toBeDisabled();
-    expect(morningButton).not.toBeDisabled();
+    expect(morningButton).toBeDisabled();
     expect(screen.queryByText('Evening')).not.toBeInTheDocument();
   });
 
