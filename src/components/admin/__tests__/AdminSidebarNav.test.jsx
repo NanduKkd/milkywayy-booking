@@ -18,9 +18,17 @@ describe("AdminSidebarNav", () => {
     mockUsePathname.mockReturnValue("/admin/promotions");
   });
 
-  it("shows Promotions and Calendar in primary navigation and removes Discounts and Coupons", () => {
+  it("groups the live admin routes and labels /admin/users as Customers", () => {
     render(<AdminSidebarNav />);
 
+    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.getByText("Finance")).toBeInTheDocument();
+    expect(screen.getByText("Operations")).toBeInTheDocument();
+    expect(screen.getByText("Content")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Customers/i })).toHaveAttribute(
+      "href",
+      "/admin/users",
+    );
     expect(screen.getByRole("link", { name: /Reports/i })).toHaveAttribute(
       "href",
       "/admin/analytics",

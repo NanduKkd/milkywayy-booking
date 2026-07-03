@@ -17,9 +17,6 @@ export default function AdminLayout({ children }) {
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminHeader />
-          <div className="px-4 py-4 lg:hidden">
-            <AdminSidebarNav mobile />
-          </div>
           <main className="flex-1 p-4 md:p-6 lg:p-8">
             <div className="mx-auto w-full max-w-7xl">{children}</div>
           </main>

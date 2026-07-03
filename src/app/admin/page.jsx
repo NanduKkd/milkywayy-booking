@@ -22,8 +22,8 @@ export default function AdminDashboard() {
     },
     {
       href: "/admin/users",
-      title: "Users",
-      description: "Manage users and customers.",
+      title: "Customers",
+      description: "Manage current customer accounts and records.",
     },
     {
       href: "/admin/invoices",

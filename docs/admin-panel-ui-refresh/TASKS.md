@@ -12,7 +12,7 @@ defined in [README.md](./README.md).
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
 | M0 - Finalize the UI contract | `DONE` | 3 | 3 | 1 day |
-| M1 - Shell, tokens, and shared styling | `IN_PROGRESS` | 1 | 3 | 2-3 days |
+| M1 - Shell, tokens, and shared styling | `IN_PROGRESS` | 2 | 3 | 2-3 days |
 | M2 - Full admin page styling | `NOT_STARTED` | 0 | 11 | 7-10 days |
 | M3 - Enhancements and release checks | `NOT_STARTED` | 0 | 5 | 3-5 days |
 
@@ -29,7 +29,7 @@ defined in [README.md](./README.md).
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
 | UI-101 | Consolidate dark admin tokens and shared primitives | `DONE` | Engineering | UI-003 | Typography, spacing, colors, badges, cards, filters, tables, headers, dialogs, and states are reusable | Added admin-scoped tokens and shared classes in `src/app/globals.css`; created reusable primitives in `src/components/admin/AdminPrimitives.jsx`; adopted the new shell/card foundation in `src/app/admin/layout.js`, `src/components/AdminHeader.js`, `src/components/admin/AdminSidebarNav.js`, and `src/app/admin/page.jsx`; verified with `npx jest src/components/admin/__tests__/AdminPrimitives.test.jsx src/components/admin/__tests__/AdminSidebarNav.test.jsx src/app/admin/__tests__/page.test.jsx --runInBand` and `npx biome check src/app/globals.css src/app/admin/layout.js src/app/admin/page.jsx src/components/AdminHeader.js src/components/admin/AdminSidebarNav.js src/components/admin/AdminPrimitives.jsx src/components/admin/__tests__/AdminPrimitives.test.jsx src/components/ui/badge.js`. |
-| UI-102 | Implement grouped desktop navigation and mobile drawer | `NOT_STARTED` | Engineering | UI-101 | Workspace, Finance, Operations, and Content groups expose every current route; Users is labeled Customers | Pending |
+| UI-102 | Implement grouped desktop navigation and mobile drawer | `DONE` | Engineering | UI-101 | Workspace, Finance, Operations, and Content groups expose every current route; Users is labeled Customers | Grouped the shared route registry in `src/components/admin/adminNavConfig.js`; updated `src/components/admin/AdminSidebarNav.js` to render grouped desktop/mobile navigation with Customers mapped to `/admin/users`; moved mobile navigation into a header-triggered drawer in `src/components/AdminHeader.js` and `src/app/admin/layout.js`; aligned the admin landing route card label in `src/app/admin/page.jsx`; verified with `npx jest src/components/admin/__tests__/AdminSidebarNav.test.jsx src/components/__tests__/AdminHeader.test.jsx src/app/admin/__tests__/page.test.jsx --runInBand` and `npx biome check src/app/admin/layout.js src/app/admin/page.jsx src/components/AdminHeader.js src/components/admin/AdminSidebarNav.js src/components/admin/adminNavConfig.js src/components/admin/__tests__/AdminSidebarNav.test.jsx src/components/__tests__/AdminHeader.test.jsx`. |
 | UI-103 | Align header and login styling | `NOT_STARTED` | Engineering | UI-101 | Current header identity/logout and current login flow use the shared visual language | Pending |
 
 ## M2 - Full admin page styling
