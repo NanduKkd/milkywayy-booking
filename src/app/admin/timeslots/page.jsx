@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  RefreshCcw,
   Save,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -172,6 +173,7 @@ export default function TimeSlotsManager() {
   const [bookedMap, setBookedMap] = useState({});
   const [bookedDetailsMap, setBookedDetailsMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [calendarRefreshing, setCalendarRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(
@@ -200,6 +202,7 @@ export default function TimeSlotsManager() {
       } else {
         setLoading(true);
       }
+      setLoadError(null);
       try {
         const { start, end } = getMonthRange(currentMonth);
         const res = await fetch(
@@ -215,8 +218,13 @@ export default function TimeSlotsManager() {
         setConfig(data.config);
         setBookedMap(data.bookedMap || {});
         setBookedDetailsMap(data.bookedDetailsMap || {});
-      } catch (_error) {
-        toast.error("Failed to load time slot config");
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load time slot config";
+        setLoadError(message);
+        toast.error(message);
       } finally {
         if (preserveLayout) {
           setCalendarRefreshing(false);
@@ -374,7 +382,7 @@ export default function TimeSlotsManager() {
   const blockedDatesCount = countBlockedDates(config);
   const bookedPeriodsCount = countBookedPeriods(bookedMap);
 
-  if (loading || !config) {
+  if (!config) {
     return (
       <AdminPage>
         <AdminPageHeader
@@ -382,12 +390,33 @@ export default function TimeSlotsManager() {
           title="Time Slots"
           description="Manage day availability, slot weighting, and booking block rules."
         />
-        <AdminInlineMessage
-          loading
-          tone="info"
-          title="Loading time slot settings"
-          description="Fetching the live scheduling configuration and booked calendar state."
-        />
+        {loading ? (
+          <AdminInlineMessage
+            loading
+            tone="info"
+            title="Loading time slot settings"
+            description="Fetching the live scheduling configuration and booked calendar state."
+          />
+        ) : (
+          <div className="space-y-4">
+            <AdminInlineMessage
+              tone="danger"
+              title="Unable to load time slot settings"
+              description={
+                loadError ||
+                "The live scheduling configuration could not be loaded."
+              }
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => loadConfig()}
+            >
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
+          </div>
+        )}
       </AdminPage>
     );
   }
@@ -418,6 +447,21 @@ export default function TimeSlotsManager() {
           <AdminBadge tone="neutral">Blocked</AdminBadge>
         </div>
       </AdminPageHeader>
+
+      {loadError ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <AdminInlineMessage
+            tone="danger"
+            title="Calendar data may be stale"
+            description={loadError}
+            className="flex-1"
+          />
+          <Button type="button" variant="outline" onClick={() => loadConfig()}>
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Retry load
+          </Button>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <AdminCard tone="subtle">

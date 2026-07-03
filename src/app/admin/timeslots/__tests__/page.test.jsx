@@ -133,4 +133,28 @@ describe("Admin Time Slots Page", () => {
 
     expect(payload.timeSlots.systemSettings.rollingWindowDays).toBe(120);
   });
+
+  it("shows a retryable error state when the initial load fails", async () => {
+    global.fetch
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "load failed" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+    render(<TimeSlotsPage />);
+
+    expect(
+      await screen.findByText("Unable to load time slot settings"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+
+    expect(
+      await screen.findByText("Booked periods in view"),
+    ).toBeInTheDocument();
+  });
 });

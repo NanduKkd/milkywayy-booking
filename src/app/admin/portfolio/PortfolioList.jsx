@@ -20,6 +20,7 @@ import {
   AdminCardDescription,
   AdminCardHeader,
   AdminCardTitle,
+  AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
   AdminFilterChip,
@@ -147,6 +148,8 @@ export default function PortfolioList({ initialItems }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [activeFilter, setActiveFilter] = useState(PORTFOLIO_FILTER_ALL);
+  const [pendingActionKey, setPendingActionKey] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const filteredItems = filterPortfolioItems(items, activeFilter);
   const totalItems = items.length;
@@ -187,6 +190,7 @@ export default function PortfolioList({ initialItems }) {
   };
 
   const toggleVisibility = async (item) => {
+    setPendingActionKey(`visibility:${item.id}`);
     try {
       const res = await fetch(`/api/admin/our-works/${item.id}`, {
         method: "PUT",
@@ -207,23 +211,30 @@ export default function PortfolioList({ initialItems }) {
       toast.success(`Entry ${updatedItem.isVisible ? "published" : "hidden"}`);
     } catch (_error) {
       toast.error("Error updating visibility");
+    } finally {
+      setPendingActionKey(null);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this entry?")) return;
-
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setPendingActionKey(`delete:${deleteTarget.id}`);
     try {
-      const res = await fetch(`/api/admin/our-works/${id}`, {
+      const res = await fetch(`/api/admin/our-works/${deleteTarget.id}`, {
         method: "DELETE",
       });
 
       if (!res.ok) throw new Error("Failed to delete entry");
 
-      setItems((currentItems) => currentItems.filter((item) => item.id !== id));
+      setItems((currentItems) =>
+        currentItems.filter((item) => item.id !== deleteTarget.id),
+      );
+      setDeleteTarget(null);
       toast.success("Entry deleted successfully");
     } catch (_error) {
       toast.error("Error deleting entry");
+    } finally {
+      setPendingActionKey(null);
     }
   };
 
@@ -391,128 +402,139 @@ export default function PortfolioList({ initialItems }) {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredItems.map((item, index) => (
-                      <Draggable
-                        key={item.id}
-                        draggableId={item.id.toString()}
-                        index={index}
-                      >
-                        {(provided) => (
-                          <TableRow
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                          >
-                            <TableCell
-                              {...provided.dragHandleProps}
-                              className={`${TABLE_CELL_CLASS} align-top`}
+                    filteredItems.map((item, index) => {
+                      const visibilityPending =
+                        pendingActionKey === `visibility:${item.id}`;
+                      const deletePending =
+                        pendingActionKey === `delete:${item.id}`;
+                      const rowBusy = visibilityPending || deletePending;
+
+                      return (
+                        <Draggable
+                          key={item.id}
+                          draggableId={item.id.toString()}
+                          index={index}
+                        >
+                          {(provided) => (
+                            <TableRow
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
                             >
-                              <div className="flex items-center gap-3">
-                                <GripVertical
-                                  className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
-                                  size={18}
-                                  aria-hidden="true"
-                                />
-                                <div className="space-y-1">
-                                  <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                                    {(item.order ?? index) + 1}
+                              <TableCell
+                                {...provided.dragHandleProps}
+                                className={`${TABLE_CELL_CLASS} align-top`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <GripVertical
+                                    className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
+                                    size={18}
+                                    aria-hidden="true"
+                                  />
+                                  <div className="space-y-1">
+                                    <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
+                                      {(item.order ?? index) + 1}
+                                    </div>
+                                    <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
+                                      Drag
+                                    </p>
                                   </div>
-                                  <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
-                                    Drag
-                                  </p>
                                 </div>
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className={`${TABLE_CELL_CLASS} align-top`}
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-medium">
-                                  {item.title}
-                                </span>
-                                <span className="text-xs text-[hsl(var(--admin-muted))]">
-                                  {item.subtitle || "No subtitle provided"}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className={`${TABLE_CELL_CLASS} align-top`}
-                            >
-                              <AdminBadge
-                                tone={PORTFOLIO_TYPE_META[item.type]?.tone}
+                              </TableCell>
+                              <TableCell
+                                className={`${TABLE_CELL_CLASS} align-top`}
                               >
-                                {PORTFOLIO_TYPE_META[item.type]?.label ||
-                                  item.type}
-                              </AdminBadge>
-                            </TableCell>
-                            <TableCell
-                              className={`${TABLE_CELL_CLASS} align-top`}
-                            >
-                              <AdminBadge
-                                tone={item.isVisible ? "success" : "neutral"}
+                                <div className="flex flex-col">
+                                  <span className="font-medium">
+                                    {item.title}
+                                  </span>
+                                  <span className="text-xs text-[hsl(var(--admin-muted))]">
+                                    {item.subtitle || "No subtitle provided"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell
+                                className={`${TABLE_CELL_CLASS} align-top`}
                               >
-                                {item.isVisible ? "Visible" : "Hidden"}
-                              </AdminBadge>
-                            </TableCell>
-                            <TableCell
-                              className={`${TABLE_CELL_CLASS} align-top`}
-                            >
-                              <div className="flex items-center gap-2 text-sm text-[hsl(var(--admin-muted))]">
-                                <ArrowDownUp className="h-4 w-4" />
-                                <span>
-                                  {Array.isArray(item.mediaContent)
-                                    ? `${item.mediaContent.length} files`
-                                    : "1 link"}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className={`${TABLE_CELL_CLASS} align-top text-right`}
-                            >
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={ADMIN_GHOST_ICON_BUTTON_CLASS}
-                                  onClick={() => openEditModal(item)}
-                                  title="Edit"
-                                  aria-label={`Edit ${item.title}`}
+                                <AdminBadge
+                                  tone={PORTFOLIO_TYPE_META[item.type]?.tone}
                                 >
-                                  <Edit2 size={18} />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={ADMIN_GHOST_ICON_BUTTON_CLASS}
-                                  onClick={() => toggleVisibility(item)}
-                                  title={item.isVisible ? "Hide" : "Show"}
-                                  aria-label={
-                                    item.isVisible
-                                      ? `Hide ${item.title}`
-                                      : `Show ${item.title}`
-                                  }
+                                  {PORTFOLIO_TYPE_META[item.type]?.label ||
+                                    item.type}
+                                </AdminBadge>
+                              </TableCell>
+                              <TableCell
+                                className={`${TABLE_CELL_CLASS} align-top`}
+                              >
+                                <AdminBadge
+                                  tone={item.isVisible ? "success" : "neutral"}
                                 >
-                                  {item.isVisible ? (
-                                    <EyeOff size={18} />
-                                  ) : (
-                                    <Eye size={18} />
-                                  )}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={`${ADMIN_GHOST_ICON_BUTTON_CLASS} text-[hsl(var(--admin-danger))] hover:border-[hsl(var(--admin-danger)/0.28)] hover:bg-[hsl(var(--admin-danger)/0.12)] hover:text-[hsl(var(--admin-danger))]`}
-                                  onClick={() => handleDelete(item.id)}
-                                  title="Delete"
-                                  aria-label={`Delete ${item.title}`}
-                                >
-                                  <Trash2 size={18} />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </Draggable>
-                    ))
+                                  {item.isVisible ? "Visible" : "Hidden"}
+                                </AdminBadge>
+                              </TableCell>
+                              <TableCell
+                                className={`${TABLE_CELL_CLASS} align-top`}
+                              >
+                                <div className="flex items-center gap-2 text-sm text-[hsl(var(--admin-muted))]">
+                                  <ArrowDownUp className="h-4 w-4" />
+                                  <span>
+                                    {Array.isArray(item.mediaContent)
+                                      ? `${item.mediaContent.length} files`
+                                      : "1 link"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell
+                                className={`${TABLE_CELL_CLASS} align-top text-right`}
+                              >
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={ADMIN_GHOST_ICON_BUTTON_CLASS}
+                                    onClick={() => openEditModal(item)}
+                                    disabled={rowBusy}
+                                    title="Edit"
+                                    aria-label={`Edit ${item.title}`}
+                                  >
+                                    <Edit2 size={18} />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={ADMIN_GHOST_ICON_BUTTON_CLASS}
+                                    onClick={() => toggleVisibility(item)}
+                                    disabled={rowBusy}
+                                    title={item.isVisible ? "Hide" : "Show"}
+                                    aria-label={
+                                      item.isVisible
+                                        ? `Hide ${item.title}`
+                                        : `Show ${item.title}`
+                                    }
+                                  >
+                                    {item.isVisible ? (
+                                      <EyeOff size={18} />
+                                    ) : (
+                                      <Eye size={18} />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={`${ADMIN_GHOST_ICON_BUTTON_CLASS} text-[hsl(var(--admin-danger))] hover:border-[hsl(var(--admin-danger)/0.28)] hover:bg-[hsl(var(--admin-danger)/0.12)] hover:text-[hsl(var(--admin-danger))]`}
+                                    onClick={() => setDeleteTarget(item)}
+                                    disabled={rowBusy}
+                                    title="Delete"
+                                    aria-label={`Delete ${item.title}`}
+                                  >
+                                    <Trash2 size={18} />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </Draggable>
+                      );
+                    })
                   )}
                   {provided.placeholder}
                 </TableBody>
@@ -521,6 +543,32 @@ export default function PortfolioList({ initialItems }) {
           </Table>
         </DragDropContext>
       </AdminTablePanel>
+
+      <AdminConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !pendingActionKey?.startsWith("delete:")) {
+            setDeleteTarget(null);
+          }
+        }}
+        title="Delete portfolio entry"
+        description="This permanently removes the selected portfolio entry from the live content library."
+        confirmLabel="Delete entry"
+        confirmPendingLabel="Deleting..."
+        confirmPending={
+          Boolean(deleteTarget) &&
+          pendingActionKey === `delete:${deleteTarget.id}`
+        }
+        onConfirm={confirmDelete}
+      >
+        {deleteTarget ? (
+          <AdminInlineMessage
+            tone="warning"
+            title={deleteTarget.title}
+            description="Uploads, visibility state, and ordering for this entry will be removed."
+          />
+        ) : null}
+      </AdminConfirmDialog>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import {
   AdminCardDescription,
   AdminCardHeader,
   AdminCardTitle,
+  AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
   AdminInlineMessage,
@@ -159,6 +160,7 @@ function ReviewGroupTable({
   onToggleFeatured,
   onToggleVisibility,
   onDelete,
+  getItemBusyState,
 }) {
   return (
     <AdminTablePanel
@@ -201,146 +203,162 @@ function ReviewGroupTable({
                     draggableId={item.id.toString()}
                     index={index}
                   >
-                    {(draggableProvided) => (
-                      <TableRow
-                        ref={draggableProvided.innerRef}
-                        {...draggableProvided.draggableProps}
-                      >
-                        <TableCell
-                          {...draggableProvided.dragHandleProps}
-                          className={`${TABLE_CELL_CLASS} align-top`}
+                    {(draggableProvided) => {
+                      const rowBusy = getItemBusyState?.(item) || false;
+
+                      return (
+                        <TableRow
+                          ref={draggableProvided.innerRef}
+                          {...draggableProvided.draggableProps}
                         >
-                          <div className="flex items-center gap-3">
-                            <GripVertical
-                              className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
-                              size={18}
-                              aria-hidden="true"
-                            />
-                            <div className="space-y-1">
-                              <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                                {(item.order ?? index) + 1}
+                          <TableCell
+                            {...draggableProvided.dragHandleProps}
+                            className={`${TABLE_CELL_CLASS} align-top`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <GripVertical
+                                className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
+                                size={18}
+                                aria-hidden="true"
+                              />
+                              <div className="space-y-1">
+                                <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
+                                  {(item.order ?? index) + 1}
+                                </div>
+                                <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
+                                  Drag
+                                </p>
                               </div>
-                              <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
-                                Drag
+                            </div>
+                          </TableCell>
+                          <TableCell
+                            className={`${TABLE_CELL_CLASS} align-top`}
+                          >
+                            <div className="space-y-1">
+                              <p className="font-medium">{item.name}</p>
+                              <p className="text-xs text-[hsl(var(--admin-muted))]">
+                                {[item.role, item.company]
+                                  .filter(Boolean)
+                                  .join(" at ") || "No role details provided"}
                               </p>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className={`${TABLE_CELL_CLASS} align-top`}>
-                          <div className="space-y-1">
-                            <p className="font-medium">{item.name}</p>
-                            <p className="text-xs text-[hsl(var(--admin-muted))]">
-                              {[item.role, item.company]
-                                .filter(Boolean)
-                                .join(" at ") || "No role details provided"}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell className={`${TABLE_CELL_CLASS} align-top`}>
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1">
-                              {Array.from({
-                                length: Number(item.rating) || 0,
-                              }).map((_, ratingIndex) => (
-                                <Star
-                                  key={`${item.id}_${ratingIndex}`}
-                                  className="h-3.5 w-3.5 fill-[hsl(var(--admin-warning))] text-[hsl(var(--admin-warning))]"
-                                />
-                              ))}
-                            </div>
-                            <span className="text-xs text-[hsl(var(--admin-muted))]">
-                              {Number(item.rating) || 0}/5
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className={`${TABLE_CELL_CLASS} align-top`}>
-                          <AdminBadge
-                            tone={item.isVisible ? "success" : "neutral"}
+                          </TableCell>
+                          <TableCell
+                            className={`${TABLE_CELL_CLASS} align-top`}
                           >
-                            {item.isVisible ? "Visible" : "Hidden"}
-                          </AdminBadge>
-                        </TableCell>
-                        <TableCell className={`${TABLE_CELL_CLASS} align-top`}>
-                          <div className="space-y-2">
-                            <AdminBadge tone="info">
-                              {item.source || "Unknown"}
-                            </AdminBadge>
-                            <div>
-                              <AdminBadge
-                                tone={item.featured ? "warning" : "neutral"}
-                              >
-                                {item.featured ? "Featured" : "Standard"}
-                              </AdminBadge>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1">
+                                {Array.from({
+                                  length: Number(item.rating) || 0,
+                                }).map((_, ratingIndex) => (
+                                  <Star
+                                    key={`${item.id}_${ratingIndex}`}
+                                    className="h-3.5 w-3.5 fill-[hsl(var(--admin-warning))] text-[hsl(var(--admin-warning))]"
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-xs text-[hsl(var(--admin-muted))]">
+                                {Number(item.rating) || 0}/5
+                              </span>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell
-                          className={`${TABLE_CELL_CLASS} align-top text-right`}
-                        >
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={ADMIN_GHOST_ICON_BUTTON_CLASS}
-                              onClick={() => onEdit(item)}
-                              title="Edit"
-                              aria-label={`Edit ${item.name}`}
+                          </TableCell>
+                          <TableCell
+                            className={`${TABLE_CELL_CLASS} align-top`}
+                          >
+                            <AdminBadge
+                              tone={item.isVisible ? "success" : "neutral"}
                             >
-                              <Edit2 size={18} />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={ADMIN_GHOST_ICON_BUTTON_CLASS}
-                              onClick={() => onToggleFeatured(item)}
-                              title={item.featured ? "Unfeature" : "Feature"}
-                              aria-label={
-                                item.featured
-                                  ? `Move ${item.name} to standard reviews`
-                                  : `Move ${item.name} to featured reviews`
-                              }
-                            >
-                              <Star
-                                size={18}
-                                className={
+                              {item.isVisible ? "Visible" : "Hidden"}
+                            </AdminBadge>
+                          </TableCell>
+                          <TableCell
+                            className={`${TABLE_CELL_CLASS} align-top`}
+                          >
+                            <div className="space-y-2">
+                              <AdminBadge tone="info">
+                                {item.source || "Unknown"}
+                              </AdminBadge>
+                              <div>
+                                <AdminBadge
+                                  tone={item.featured ? "warning" : "neutral"}
+                                >
+                                  {item.featured ? "Featured" : "Standard"}
+                                </AdminBadge>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell
+                            className={`${TABLE_CELL_CLASS} align-top text-right`}
+                          >
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={ADMIN_GHOST_ICON_BUTTON_CLASS}
+                                onClick={() => onEdit(item)}
+                                disabled={rowBusy}
+                                title="Edit"
+                                aria-label={`Edit ${item.name}`}
+                              >
+                                <Edit2 size={18} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={ADMIN_GHOST_ICON_BUTTON_CLASS}
+                                onClick={() => onToggleFeatured(item)}
+                                disabled={rowBusy}
+                                title={item.featured ? "Unfeature" : "Feature"}
+                                aria-label={
                                   item.featured
-                                    ? "fill-[hsl(var(--admin-warning))] text-[hsl(var(--admin-warning))]"
-                                    : ""
+                                    ? `Move ${item.name} to standard reviews`
+                                    : `Move ${item.name} to featured reviews`
                                 }
-                              />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={ADMIN_GHOST_ICON_BUTTON_CLASS}
-                              onClick={() => onToggleVisibility(item)}
-                              title={item.isVisible ? "Hide" : "Show"}
-                              aria-label={
-                                item.isVisible
-                                  ? `Hide ${item.name}`
-                                  : `Show ${item.name}`
-                              }
-                            >
-                              {item.isVisible ? (
-                                <EyeOff size={18} />
-                              ) : (
-                                <Eye size={18} />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className={ADMIN_DANGER_ICON_BUTTON_CLASS}
-                              onClick={() => onDelete(item.id)}
-                              title="Delete"
-                              aria-label={`Delete ${item.name}`}
-                            >
-                              <Trash2 size={18} />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
+                              >
+                                <Star
+                                  size={18}
+                                  className={
+                                    item.featured
+                                      ? "fill-[hsl(var(--admin-warning))] text-[hsl(var(--admin-warning))]"
+                                      : ""
+                                  }
+                                />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={ADMIN_GHOST_ICON_BUTTON_CLASS}
+                                onClick={() => onToggleVisibility(item)}
+                                disabled={rowBusy}
+                                title={item.isVisible ? "Hide" : "Show"}
+                                aria-label={
+                                  item.isVisible
+                                    ? `Hide ${item.name}`
+                                    : `Show ${item.name}`
+                                }
+                              >
+                                {item.isVisible ? (
+                                  <EyeOff size={18} />
+                                ) : (
+                                  <Eye size={18} />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={ADMIN_DANGER_ICON_BUTTON_CLASS}
+                                onClick={() => onDelete(item)}
+                                disabled={rowBusy}
+                                title="Delete"
+                                aria-label={`Delete ${item.name}`}
+                              >
+                                <Trash2 size={18} />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }}
                   </Draggable>
                 ))
               )}
@@ -357,6 +375,8 @@ export default function ReviewList({ initialItems }) {
   const [items, setItems] = useState(() => normalizeReviewItems(initialItems));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [pendingActionKey, setPendingActionKey] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { featuredItems, standardItems } = useMemo(
     () => buildReviewGroups(items),
@@ -365,26 +385,32 @@ export default function ReviewList({ initialItems }) {
   const visibleItems = items.filter((item) => item.isVisible).length;
   const hiddenItems = items.length - visibleItems;
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this review?")) return;
-
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setPendingActionKey(`delete:${deleteTarget.id}`);
     try {
-      const res = await fetch(`/api/admin/reviews/${id}`, {
+      const res = await fetch(`/api/admin/reviews/${deleteTarget.id}`, {
         method: "DELETE",
       });
 
       if (!res.ok) throw new Error("Failed to delete review");
 
       setItems((currentItems) =>
-        normalizeReviewItems(currentItems.filter((item) => item.id !== id)),
+        normalizeReviewItems(
+          currentItems.filter((item) => item.id !== deleteTarget.id),
+        ),
       );
+      setDeleteTarget(null);
       toast.success("Review deleted successfully");
     } catch (_error) {
       toast.error("Error deleting review");
+    } finally {
+      setPendingActionKey(null);
     }
   };
 
   const toggleVisibility = async (item) => {
+    setPendingActionKey(`visibility:${item.id}`);
     try {
       const res = await fetch(`/api/admin/reviews/${item.id}`, {
         method: "PUT",
@@ -405,10 +431,13 @@ export default function ReviewList({ initialItems }) {
       toast.success(`Review ${updatedItem.isVisible ? "published" : "hidden"}`);
     } catch (_error) {
       toast.error("Error updating visibility");
+    } finally {
+      setPendingActionKey(null);
     }
   };
 
   const toggleFeatured = async (item) => {
+    setPendingActionKey(`featured:${item.id}`);
     try {
       const nextFeaturedValue = !item.featured;
       const res = await fetch(`/api/admin/reviews/${item.id}`, {
@@ -435,6 +464,8 @@ export default function ReviewList({ initialItems }) {
       );
     } catch (_error) {
       toast.error("Error updating featured status");
+    } finally {
+      setPendingActionKey(null);
     }
   };
 
@@ -497,6 +528,11 @@ export default function ReviewList({ initialItems }) {
     setEditingItem(null);
     setIsModalOpen(true);
   };
+
+  const getItemBusyState = (item) =>
+    pendingActionKey === `delete:${item.id}` ||
+    pendingActionKey === `featured:${item.id}` ||
+    pendingActionKey === `visibility:${item.id}`;
 
   return (
     <div className="space-y-6">
@@ -606,11 +642,38 @@ export default function ReviewList({ initialItems }) {
               onEdit={openEditModal}
               onToggleFeatured={toggleFeatured}
               onToggleVisibility={toggleVisibility}
-              onDelete={handleDelete}
+              onDelete={setDeleteTarget}
+              getItemBusyState={getItemBusyState}
             />
           ))}
         </div>
       </DragDropContext>
+
+      <AdminConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !pendingActionKey?.startsWith("delete:")) {
+            setDeleteTarget(null);
+          }
+        }}
+        title="Delete review"
+        description="This permanently removes the selected testimonial from the live review dataset."
+        confirmLabel="Delete review"
+        confirmPendingLabel="Deleting..."
+        confirmPending={
+          Boolean(deleteTarget) &&
+          pendingActionKey === `delete:${deleteTarget.id}`
+        }
+        onConfirm={confirmDelete}
+      >
+        {deleteTarget ? (
+          <AdminInlineMessage
+            tone="warning"
+            title={deleteTarget.name}
+            description="Its visibility, featured placement, and drag order will be removed."
+          />
+        ) : null}
+      </AdminConfirmDialog>
     </div>
   );
 }

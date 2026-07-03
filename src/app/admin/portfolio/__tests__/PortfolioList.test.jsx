@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "../../../../test-utils";
+import { fireEvent, render, screen, waitFor } from "../../../../test-utils";
 import PortfolioList, {
   filterPortfolioItems,
   normalizePortfolioItems,
@@ -71,7 +71,6 @@ describe("PortfolioList helpers", () => {
 describe("PortfolioList", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    window.confirm = jest.fn(() => true);
     global.fetch = jest.fn();
   });
 
@@ -88,5 +87,27 @@ describe("PortfolioList", () => {
     expect(screen.getByText("Photography Two")).toBeInTheDocument();
     expect(screen.queryByText("Long Form One")).not.toBeInTheDocument();
     expect(filterPortfolioItems(initialItems, "IMAGE")).toHaveLength(2);
+  });
+
+  it("confirms deletion in the shared dialog before removing an entry", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    render(<PortfolioList initialItems={initialItems} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /delete photography one/i }),
+    );
+
+    expect(screen.getByText("Delete portfolio entry")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /delete entry/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/admin/our-works/1", {
+        method: "DELETE",
+      });
+    });
   });
 });

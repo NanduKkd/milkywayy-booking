@@ -20,6 +20,7 @@ import {
   AdminCardDescription,
   AdminCardHeader,
   AdminCardTitle,
+  AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
   AdminInlineMessage,
@@ -596,6 +597,7 @@ export default function PromotionManager({
   const [assignmentPendingUserId, setAssignmentPendingUserId] = useState(null);
   const [errorMessage, setErrorMessage] = useState(loadError);
   const [pendingKey, setPendingKey] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
 
   useEffect(() => {
     setPromotions(sortPromotions(initialPromotions || []));
@@ -749,18 +751,22 @@ export default function PromotionManager({
 
     if (!result.success) {
       setErrorMessage(result.message);
-      return;
+      return false;
     }
 
     upsertPromotion(result.data);
+    return true;
   };
 
   const handleDeactivate = async (promotion) => {
-    if (!window.confirm(`Deactivate "${promotion.name}"?`)) {
-      return;
-    }
+    const didDeactivate = await handleStatusChange(
+      promotion,
+      deactivateAdminPromotion,
+    );
 
-    await handleStatusChange(promotion, deactivateAdminPromotion);
+    if (didDeactivate) {
+      setDeactivateTarget(null);
+    }
   };
 
   const handleAssignCustomer = async (customer) => {
@@ -959,7 +965,7 @@ export default function PromotionManager({
               onPause={(promotion) =>
                 handleStatusChange(promotion, pauseAdminPromotion)
               }
-              onDeactivate={handleDeactivate}
+              onDeactivate={setDeactivateTarget}
               pendingKey={pendingKey}
               tab={activeTabConfig}
             />
@@ -1494,6 +1500,36 @@ export default function PromotionManager({
           </DialogFooter>
         </AdminDialogContent>
       </Dialog>
+
+      <AdminConfirmDialog
+        open={Boolean(deactivateTarget)}
+        onOpenChange={(open) => {
+          if (!open && !pendingKey?.startsWith("promotion:")) {
+            setDeactivateTarget(null);
+          }
+        }}
+        title="Deactivate promotion"
+        description="This removes the selected promotion from active use until an operator explicitly reactivates it."
+        confirmLabel="Deactivate promotion"
+        confirmPendingLabel="Deactivating..."
+        confirmPending={
+          Boolean(deactivateTarget) &&
+          pendingKey === `promotion:${deactivateTarget.id}`
+        }
+        onConfirm={() => {
+          if (deactivateTarget) {
+            void handleDeactivate(deactivateTarget);
+          }
+        }}
+      >
+        {deactivateTarget ? (
+          <AdminInlineMessage
+            tone="warning"
+            title={deactivateTarget.name}
+            description="Live checkout and automatic evaluation will stop applying this promotion until it is reactivated."
+          />
+        ) : null}
+      </AdminConfirmDialog>
     </AdminPage>
   );
 }

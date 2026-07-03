@@ -85,7 +85,6 @@ describe("ReviewList helpers", () => {
 describe("ReviewList", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    window.confirm = jest.fn(() => true);
     global.fetch = jest.fn();
   });
 
@@ -127,6 +126,30 @@ describe("ReviewList", () => {
           body: JSON.stringify({ featured: true, order: 2 }),
         }),
       );
+    });
+  });
+
+  it("confirms deletion in the shared dialog before removing a review", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    render(<ReviewList initialItems={initialItems} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /delete omar highlight/i }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Delete review" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /delete review/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith("/api/admin/reviews/1", {
+        method: "DELETE",
+      });
     });
   });
 });

@@ -3,6 +3,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { render } from "../../../test-utils";
 import {
   AdminBadge,
+  AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
   AdminFilterChip,
@@ -70,5 +71,30 @@ describe("AdminPrimitives", () => {
 
     expect(screen.getByText("Confirm removal")).toBeInTheDocument();
     expect(screen.getByText("Dialog body")).toBeInTheDocument();
+  });
+
+  it("renders the shared confirmation dialog actions", () => {
+    render(
+      <AdminConfirmDialog
+        open
+        title="Delete entry"
+        description="Use the shared confirmation pattern for destructive admin actions."
+        confirmLabel="Delete entry"
+        cancelLabel="Keep entry"
+      >
+        <p>Confirmation body</p>
+      </AdminConfirmDialog>,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Delete entry" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Confirmation body")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Keep entry" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete entry" }),
+    ).toBeInTheDocument();
   });
 });

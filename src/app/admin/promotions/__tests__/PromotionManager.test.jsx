@@ -97,7 +97,6 @@ const mockPromotions = [
 describe("PromotionManager", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    window.confirm = jest.fn(() => true);
   });
 
   afterEach(() => {
@@ -259,9 +258,14 @@ describe("PromotionManager", () => {
     fireEvent.click(
       within(screen.getByRole("tabpanel")).getByTitle("Deactivate promotion"),
     );
+    expect(
+      screen.getByRole("heading", { name: "Deactivate promotion" }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: /^Deactivate promotion$/i }),
+    );
 
     await waitFor(() => {
-      expect(window.confirm).toHaveBeenCalled();
       expect(deactivateAdminPromotion).toHaveBeenCalledWith(101);
     });
   });

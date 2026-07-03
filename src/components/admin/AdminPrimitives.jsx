@@ -3,6 +3,7 @@
 import { cva } from "class-variance-authority";
 import { AlertCircle, CircleOff, Loader2, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -11,8 +12,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -313,5 +316,56 @@ export function AdminDialogContent({
       ) : null}
       {children}
     </DialogContent>
+  );
+}
+
+export function AdminConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  confirmLabel = "Confirm",
+  confirmPendingLabel = "Working...",
+  cancelLabel = "Cancel",
+  confirmTone = "danger",
+  confirmDisabled = false,
+  confirmPending = false,
+  onConfirm,
+  children,
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <AdminDialogContent
+        title={title}
+        description={description}
+        className="sm:max-w-lg"
+      >
+        {children ? <div className="space-y-4">{children}</div> : null}
+        <DialogFooter className="gap-3 sm:gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange?.(false)}
+            disabled={confirmPending}
+            className="rounded-full border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
+          >
+            {cancelLabel}
+          </Button>
+          <Button
+            type="button"
+            onClick={onConfirm}
+            disabled={confirmDisabled || confirmPending}
+            className={cn(
+              "rounded-full px-5 text-[hsl(var(--admin-foreground))]",
+              confirmTone === "danger"
+                ? "border border-[hsl(var(--admin-danger)/0.4)] bg-[hsl(var(--admin-danger)/0.18)] hover:bg-[hsl(var(--admin-danger)/0.26)] hover:text-[hsl(var(--admin-foreground))]"
+                : "border border-[hsl(var(--admin-highlight)/0.45)] bg-[hsl(var(--admin-highlight)/0.18)] hover:bg-[hsl(var(--admin-highlight)/0.26)] hover:text-[hsl(var(--admin-foreground))]",
+            )}
+          >
+            {confirmPending ? confirmPendingLabel : confirmLabel}
+          </Button>
+        </DialogFooter>
+      </AdminDialogContent>
+    </Dialog>
   );
 }
