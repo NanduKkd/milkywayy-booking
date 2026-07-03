@@ -1,6 +1,15 @@
 import { redirect } from "next/navigation";
+import {
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminPage,
+  AdminPageHeader,
+} from "@/components/admin/AdminPrimitives";
 import UserTable from "@/components/UserTable";
-import { sequelize } from "@/lib/db";
 import models from "@/lib/db/models";
 import { getSessionUser } from "@/lib/helpers/auth";
 
@@ -19,15 +28,15 @@ async function getUsers(page = 1, limit = 10) {
         "updatedAt",
       ],
       order: [["createdAt", "DESC"]],
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: parseInt(limit, 10),
+      offset: parseInt(offset, 10),
     });
 
     return {
-      users: users.map((i) => i.toJSON()),
+      users: users.map((user) => user.toJSON()),
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total: count,
         totalPages: Math.ceil(count / limit),
       },
@@ -37,8 +46,8 @@ async function getUsers(page = 1, limit = 10) {
     return {
       users: [],
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total: 0,
         totalPages: 0,
       },
@@ -51,24 +60,79 @@ export default async function UserManagement({ searchParams }) {
 
   if (!session) {
     redirect("/admin/login");
+    return null;
   }
 
   const resolvedSearchParams = await searchParams;
-  const page = parseInt(resolvedSearchParams?.page) || 1;
-  const limit = parseInt(resolvedSearchParams?.limit) || 10;
+  const page = parseInt(resolvedSearchParams?.page, 10) || 1;
+  const limit = parseInt(resolvedSearchParams?.limit, 10) || 10;
 
   const { users, pagination } = await getUsers(page, limit);
+  const visibleStart =
+    pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
+  const visibleEnd =
+    pagination.total === 0 ? 0 : visibleStart + Math.max(users.length - 1, 0);
+  const visibleStaffAccounts = users.filter(
+    (user) => user.role && user.role !== "CUSTOMER",
+  ).length;
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">User Management</h1>
-        <p className="text-gray-600 mt-2">
-          Manage and view all users in system
-        </p>
-      </div>
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Workspace / Customers"
+        title="Customers"
+        description="Review the live account directory, keep customer contact details visible, and preserve the current internal-role workflows on `/admin/users`."
+      >
+        <div className="flex flex-wrap gap-3">
+          <AdminBadge tone="info">Live directory</AdminBadge>
+          <AdminBadge tone="neutral">Route preserved</AdminBadge>
+        </div>
+      </AdminPageHeader>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Total records</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {pagination.total}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              All accounts currently returned by the live `/admin/users` route.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Visible now</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {visibleStart}-{visibleEnd}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Page {pagination.page} of {Math.max(pagination.totalPages, 1)} at{" "}
+              {pagination.limit} records per page.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Staff roles in view</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {visibleStaffAccounts}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Current page rows that still carry internal workflow roles.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+      </section>
 
       <UserTable users={users} pagination={pagination} />
-    </div>
+    </AdminPage>
   );
 }

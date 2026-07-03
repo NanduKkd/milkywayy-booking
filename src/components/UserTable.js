@@ -1,12 +1,19 @@
 "use client";
+
+import { UserPlus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
+import {
+  AdminBadge,
+  AdminEmptyState,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
   PaginationContent,
+  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -28,27 +35,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const getRoleBadgeVariant = (role) => {
+const getRoleBadgeTone = (role) => {
   switch (role) {
     case "SUPERADMIN":
-      return "destructive";
+      return "danger";
     case "TRANSPORT":
-      return "secondary"; // Or custom yellow
+      return "warning";
     case "SHOOT":
-      return "default"; // Or custom green
+      return "success";
+    case "CUSTOMER":
+      return "info";
     default:
-      return "outline";
-  }
-};
-
-const getRoleBadgeClass = (role) => {
-  switch (role) {
-    case "TRANSPORT":
-      return "bg-yellow-500 hover:bg-yellow-600 text-white border-transparent";
-    case "SHOOT":
-      return "bg-green-500 hover:bg-green-600 text-white border-transparent";
-    default:
-      return "";
+      return "neutral";
   }
 };
 
@@ -56,8 +54,25 @@ const getLimitFromParams = (searchParams) => {
   const limitParam = searchParams.get("limit");
   if (!limitParam) return 10;
   const limitNum = Number(limitParam);
-  if (isNaN(limitNum)) return 10;
+  if (Number.isNaN(limitNum)) return 10;
   return limitNum;
+};
+
+const formatJoinedDate = (value) => {
+  if (!value) {
+    return "Unknown";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 };
 
 export default function UserTable({ users, pagination }) {
@@ -65,11 +80,19 @@ export default function UserTable({ users, pagination }) {
   const searchParams = useSearchParams();
 
   const [limit, limitOptions] = useMemo(() => {
-    const limit = getLimitFromParams(searchParams) + "";
-    const options = new Set(["10", "20", "50", limit]);
+    const currentLimit = `${getLimitFromParams(searchParams)}`;
+    const options = new Set(["10", "20", "50", currentLimit]);
 
-    return [limit, [...options]];
+    return [currentLimit, [...options]];
   }, [searchParams]);
+
+  const totalPages = pagination.totalPages;
+  const currentPage = pagination.page;
+  const visibleStart =
+    pagination.total === 0 ? 0 : (currentPage - 1) * pagination.limit + 1;
+  const visibleEnd =
+    pagination.total === 0 ? 0 : visibleStart + Math.max(users.length - 1, 0);
+  const hasPages = totalPages > 0;
 
   const handlePageChange = (page) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -77,20 +100,16 @@ export default function UserTable({ users, pagination }) {
     router.push(`?${params.toString()}`);
   };
 
-  const handleLimitChange = (limit) => {
+  const handleLimitChange = (nextLimit) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("limit", limit.toString());
+    params.set("limit", nextLimit.toString());
     router.push(`?${params.toString()}`);
   };
 
-  // Simple pagination logic for now
   const renderPaginationItems = () => {
     const items = [];
-    const totalPages = pagination.totalPages;
-    const currentPage = pagination.page;
 
     for (let i = 1; i <= totalPages; i++) {
-      // Show first, last, current, and neighbors
       if (
         i === 1 ||
         i === totalPages ||
@@ -101,90 +120,137 @@ export default function UserTable({ users, pagination }) {
             <PaginationLink
               isActive={currentPage === i}
               onClick={() => handlePageChange(i)}
+              className={
+                currentPage === i
+                  ? "rounded-full border-[hsl(var(--admin-highlight)/0.35)] bg-[hsl(var(--admin-highlight)/0.12)] text-[hsl(var(--admin-foreground))]"
+                  : "rounded-full border border-white/10 bg-white/[0.03] text-[hsl(var(--admin-foreground))] hover:bg-white/[0.06]"
+              }
             >
               {i}
             </PaginationLink>
           </PaginationItem>,
         );
-      } else if (
-        (i === currentPage - 2 && currentPage > 3) ||
-        (i === currentPage + 2 && currentPage < totalPages - 2)
-      ) {
-        // Ellipsis logic could be added here, but skipping for simplicity or adding a dot
-        // items.push(<PaginationEllipsis key={`ellipsis-${i}`} />);
+      } else if (i === currentPage - 2 || i === currentPage + 2) {
+        items.push(
+          <PaginationItem key={`ellipsis-${i}`}>
+            <PaginationEllipsis className="text-[hsl(var(--admin-muted))]" />
+          </PaginationItem>,
+        );
       }
     }
+
     return items;
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Users</h2>
-        <Button onClick={() => router.push("/admin/users/create")}>
-          + New User
-        </Button>
-      </div>
-      <div className="rounded-md border">
-        <Table>
+    <div className="space-y-4">
+      <AdminTablePanel
+        title="Account directory"
+        description="The current customer route still exposes the shared user directory. Existing create, pagination, and role management flows stay available."
+        actions={
+          <Button
+            onClick={() => router.push("/admin/users/create")}
+            className="h-11 rounded-full bg-[hsl(var(--admin-highlight))] px-5 text-[hsl(var(--admin-background-deep))] hover:bg-[hsl(var(--admin-highlight-soft))]"
+          >
+            <UserPlus className="h-4 w-4" />
+            Create user
+          </Button>
+        }
+      >
+        <Table className="min-w-[880px]">
           <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>NAME</TableHead>
-              <TableHead>PHONE</TableHead>
-              <TableHead>EMAIL</TableHead>
-              <TableHead>ROLE</TableHead>
-              <TableHead>ACTIONS</TableHead>
+            <TableRow className="border-white/8 hover:bg-transparent">
+              <TableHead className="h-12 whitespace-nowrap px-5 text-xs uppercase tracking-[0.24em] text-[hsl(var(--admin-muted))]">
+                ID
+              </TableHead>
+              <TableHead className="whitespace-nowrap px-5 text-xs uppercase tracking-[0.24em] text-[hsl(var(--admin-muted))]">
+                Name
+              </TableHead>
+              <TableHead className="whitespace-nowrap px-5 text-xs uppercase tracking-[0.24em] text-[hsl(var(--admin-muted))]">
+                Contact
+              </TableHead>
+              <TableHead className="whitespace-nowrap px-5 text-xs uppercase tracking-[0.24em] text-[hsl(var(--admin-muted))]">
+                Role
+              </TableHead>
+              <TableHead className="whitespace-nowrap px-5 text-xs uppercase tracking-[0.24em] text-[hsl(var(--admin-muted))]">
+                Joined
+              </TableHead>
+              <TableHead className="whitespace-nowrap px-5 text-xs uppercase tracking-[0.24em] text-[hsl(var(--admin-muted))]">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.length === 0
-              ? <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No users found
+              ? <TableRow className="border-white/8 hover:bg-transparent">
+                  <TableCell colSpan={6} className="p-0">
+                    <AdminEmptyState
+                      title="No users found"
+                      description="Adjust the page size or create a new account to repopulate the current directory."
+                    />
                   </TableCell>
                 </TableRow>
               : users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-mono text-sm">
+                  <TableRow
+                    key={user.id}
+                    className="border-white/8 hover:bg-white/[0.03]"
+                  >
+                    <TableCell className="whitespace-nowrap px-5 font-mono text-sm text-[hsl(var(--admin-muted))]">
                       #{user.id}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src="" alt={user.fullName || `User ${user.id}`} />
-                          <AvatarFallback className="text-xs">
-                            {user.fullName 
+                    <TableCell className="px-5">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border border-white/10 bg-[hsl(var(--admin-background-deep)/0.92)]">
+                          <AvatarImage
+                            src=""
+                            alt={user.fullName || `User ${user.id}`}
+                          />
+                          <AvatarFallback className="bg-transparent text-xs text-[hsl(var(--admin-foreground))]">
+                            {user.fullName
                               ? user.fullName.slice(0, 2).toUpperCase()
-                              : `U${user.id.toString().slice(-2)}`
-                            }
+                              : `U${user.id.toString().slice(-2)}`}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">
-                          {user.fullName || `User ${user.id}`}
-                        </span>
+                        <div className="space-y-1">
+                          <span className="block font-medium text-[hsl(var(--admin-foreground))]">
+                            {user.fullName || `User ${user.id}`}
+                          </span>
+                          <span className="block text-xs text-[hsl(var(--admin-muted))]">
+                            Record #{user.id}
+                          </span>
+                        </div>
                       </div>
                     </TableCell>
-                    <TableCell>{user.phone || "N/A"}</TableCell>
-                    <TableCell>{user.email || "N/A"}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={getRoleBadgeVariant(user.role)}
-                        className={getRoleBadgeClass(user.role)}
-                      >
-                        {user.role}
-                      </Badge>
+                    <TableCell className="px-5">
+                      <div className="space-y-1">
+                        <p className="text-sm text-[hsl(var(--admin-foreground))]">
+                          {user.email || "No email"}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {user.phone || "No phone number"}
+                        </p>
+                      </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="px-5">
+                      <AdminBadge tone={getRoleBadgeTone(user.role)}>
+                        {user.role}
+                      </AdminBadge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-5 text-sm text-[hsl(var(--admin-muted))]">
+                      {formatJoinedDate(user.createdAt)}
+                    </TableCell>
+                    <TableCell className="px-5">
                       <div className="flex gap-2">
                         <button
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          type="button"
+                          className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-[hsl(var(--admin-highlight))] transition hover:border-[hsl(var(--admin-highlight)/0.42)] hover:bg-[hsl(var(--admin-highlight)/0.08)]"
                           onClick={() => console.log("Edit user:", user.id)}
                         >
                           Edit
                         </button>
                         <button
-                          className="text-red-600 hover:text-red-800 text-sm font-medium"
+                          type="button"
+                          className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-[hsl(var(--admin-danger))] transition hover:border-[hsl(var(--admin-danger)/0.42)] hover:bg-[hsl(var(--admin-danger)/0.08)]"
                           onClick={() => console.log("Delete user:", user.id)}
                         >
                           Delete
@@ -195,54 +261,61 @@ export default function UserTable({ users, pagination }) {
                 ))}
           </TableBody>
         </Table>
-      </div>
+      </AdminTablePanel>
 
-      <div className="flex justify-center items-center gap-5 mt-4">
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                onClick={() =>
-                  handlePageChange(Math.max(1, pagination.page - 1))
-                }
-                className={
-                  pagination.page === 1
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
-              />
-            </PaginationItem>
-            {renderPaginationItems()}
-            <PaginationItem>
-              <PaginationNext
-                onClick={() =>
-                  handlePageChange(
-                    Math.min(pagination.totalPages, pagination.page + 1),
-                  )
-                }
-                className={
-                  pagination.page === pagination.totalPages
-                    ? "pointer-events-none opacity-50"
-                    : "cursor-pointer"
-                }
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+      <div className="admin-panel-subtle flex flex-col gap-4 rounded-[1.4rem] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
+            Showing {visibleStart}-{visibleEnd} of {pagination.total} accounts
+          </p>
+          <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+            Page {currentPage} of {Math.max(totalPages, 1)}
+          </p>
+        </div>
 
-        <div className="w-36">
-          <Select value={limit} onValueChange={(val) => handleLimitChange(val)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Per Page" />
-            </SelectTrigger>
-            <SelectContent>
-              {limitOptions.map((opt) => (
-                <SelectItem key={opt} value={opt}>
-                  {opt}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Pagination className="mx-0 w-auto justify-start">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                  className={
+                    !hasPages || currentPage === 1
+                      ? "pointer-events-none rounded-full border-white/10 bg-white/[0.03] opacity-50"
+                      : "cursor-pointer rounded-full border border-white/10 bg-white/[0.03] text-[hsl(var(--admin-foreground))] hover:bg-white/[0.06]"
+                  }
+                />
+              </PaginationItem>
+              {renderPaginationItems()}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() =>
+                    handlePageChange(Math.min(totalPages, currentPage + 1))
+                  }
+                  className={
+                    !hasPages || currentPage === totalPages
+                      ? "pointer-events-none rounded-full border-white/10 bg-white/[0.03] opacity-50"
+                      : "cursor-pointer rounded-full border border-white/10 bg-white/[0.03] text-[hsl(var(--admin-foreground))] hover:bg-white/[0.06]"
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+
+          <div className="w-40">
+            <Select value={limit} onValueChange={handleLimitChange}>
+              <SelectTrigger className="admin-input h-10 rounded-full border-white/10 bg-[hsl(var(--admin-background-deep)/0.66)] text-[hsl(var(--admin-foreground))]">
+                <SelectValue placeholder="Per page" />
+              </SelectTrigger>
+              <SelectContent>
+                {limitOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option} per page
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
     </div>
