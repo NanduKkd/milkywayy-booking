@@ -24,8 +24,22 @@ const formSchema = z.object({
   isVisible: z.boolean().default(true),
 });
 
-export default function ReviewForm({ onSuccess, initialData }) {
+const INPUT_CLASS =
+  "admin-input h-11 rounded-2xl border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] px-4 text-[hsl(var(--admin-foreground))]";
+const TEXTAREA_CLASS =
+  "admin-input min-h-32 rounded-[1.35rem] border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] px-4 py-3 text-[hsl(var(--admin-foreground))]";
+const TOGGLE_PANEL_CLASS =
+  "admin-panel-muted flex items-center justify-between rounded-[1.3rem] border border-[hsl(var(--admin-border)/0.72)] px-4 py-4";
+const SUBMIT_BUTTON_CLASS =
+  "rounded-full border border-[hsl(var(--admin-highlight)/0.45)] bg-[hsl(var(--admin-highlight)/0.18)] px-5 text-[hsl(var(--admin-foreground))] hover:bg-[hsl(var(--admin-highlight)/0.26)] hover:text-[hsl(var(--admin-foreground))]";
+
+export default function ReviewForm({
+  onSuccess,
+  initialData,
+  nextOrderByFeatured,
+}) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasManualOrder, setHasManualOrder] = useState(Boolean(initialData));
 
   const {
     register,
@@ -43,7 +57,7 @@ export default function ReviewForm({ onSuccess, initialData }) {
       rating: 5,
       source: "Google",
       featured: false,
-      order: 0,
+      order: nextOrderByFeatured?.standard ?? 0,
       isVisible: true,
     },
   });
@@ -75,109 +89,228 @@ export default function ReviewForm({ onSuccess, initialData }) {
     }
   };
 
+  const registerOrderField = register("order", {
+    onChange: () => setHasManualOrder(true),
+  });
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="name">Client Name</Label>
+          <Label
+            htmlFor="name"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
+          >
+            Client name
+          </Label>
           <Input
             id="name"
+            className={INPUT_CLASS}
             placeholder="Sarah Al-Mansouri"
             {...register("name")}
           />
-          {errors.name && (
-            <p className="text-sm text-destructive">{errors.name.message}</p>
-          )}
+          {errors.name ? (
+            <p className="text-sm text-[hsl(var(--admin-danger))]">
+              {errors.name.message}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="company">Company</Label>
+          <Label
+            htmlFor="company"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
+          >
+            Company
+          </Label>
           <Input
             id="company"
+            className={INPUT_CLASS}
             placeholder="Emaar Properties"
             {...register("company")}
           />
-          {errors.company && (
-            <p className="text-sm text-destructive">{errors.company.message}</p>
-          )}
+          {errors.company ? (
+            <p className="text-sm text-[hsl(var(--admin-danger))]">
+              {errors.company.message}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+        <div className="space-y-2">
+          <Label
+            htmlFor="role"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
+          >
+            Role
+          </Label>
+          <Input
+            id="role"
+            className={INPUT_CLASS}
+            placeholder="Senior Agent"
+            {...register("role")}
+          />
+          {errors.role ? (
+            <p className="text-sm text-[hsl(var(--admin-danger))]">
+              {errors.role.message}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <Label
+            htmlFor="source"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
+          >
+            Source
+          </Label>
+          <Input
+            id="source"
+            className={INPUT_CLASS}
+            placeholder="Google"
+            {...register("source")}
+          />
+          {errors.source ? (
+            <p className="text-sm text-[hsl(var(--admin-danger))]">
+              {errors.source.message}
+            </p>
+          ) : null}
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="role">Role</Label>
-        <Input id="role" placeholder="Senior Agent" {...register("role")} />
-        {errors.role && (
-          <p className="text-sm text-destructive">{errors.role.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="quote">Review Quote</Label>
+        <Label
+          htmlFor="quote"
+          className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
+        >
+          Review quote
+        </Label>
         <Textarea
           id="quote"
-          rows={4}
+          rows={5}
+          className={TEXTAREA_CLASS}
           placeholder="Share the client review text..."
           {...register("quote")}
         />
-        {errors.quote && (
-          <p className="text-sm text-destructive">{errors.quote.message}</p>
-        )}
+        {errors.quote ? (
+          <p className="text-sm text-[hsl(var(--admin-danger))]">
+            {errors.quote.message}
+          </p>
+        ) : null}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="rating">Rating (1-5)</Label>
+          <Label
+            htmlFor="rating"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
+          >
+            Rating (1-5)
+          </Label>
           <Input
             id="rating"
             type="number"
             min="1"
             max="5"
+            className={INPUT_CLASS}
             {...register("rating")}
           />
-          {errors.rating && (
-            <p className="text-sm text-destructive">{errors.rating.message}</p>
-          )}
+          {errors.rating ? (
+            <p className="text-sm text-[hsl(var(--admin-danger))]">
+              {errors.rating.message}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="source">Source</Label>
-          <Input id="source" placeholder="Google" {...register("source")} />
-          {errors.source && (
-            <p className="text-sm text-destructive">{errors.source.message}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="order">Display Order</Label>
-          <Input id="order" type="number" {...register("order")} />
-          {errors.order && (
-            <p className="text-sm text-destructive">{errors.order.message}</p>
-          )}
+          <Label
+            htmlFor="order"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
+          >
+            Within-group order
+          </Label>
+          <Input
+            id="order"
+            type="number"
+            className={INPUT_CLASS}
+            {...registerOrderField}
+          />
+          <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+            Drag ordering on the main list is the fastest way to adjust the live
+            sequence for Featured or Standard reviews.
+          </p>
+          {errors.order ? (
+            <p className="text-sm text-[hsl(var(--admin-danger))]">
+              {errors.order.message}
+            </p>
+          ) : null}
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6 rounded-md border p-4">
-        <div className="flex items-center justify-between md:w-1/2">
-          <Label htmlFor="featured">Featured Review</Label>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className={TOGGLE_PANEL_CLASS}>
+          <div className="space-y-1">
+            <Label
+              htmlFor="featured"
+              className="text-sm font-semibold text-[hsl(var(--admin-foreground))]"
+            >
+              Featured review
+            </Label>
+            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+              Featured reviews always render before the standard group.
+            </p>
+          </div>
           <Switch
             id="featured"
             checked={watch("featured")}
-            onCheckedChange={(checked) => setValue("featured", checked)}
+            onCheckedChange={(checked) => {
+              setValue("featured", checked, { shouldDirty: true });
+
+              if (!initialData && !hasManualOrder && nextOrderByFeatured) {
+                setValue(
+                  "order",
+                  checked
+                    ? nextOrderByFeatured.featured
+                    : nextOrderByFeatured.standard,
+                  { shouldDirty: true },
+                );
+              }
+            }}
           />
         </div>
 
-        <div className="flex items-center justify-between md:w-1/2">
-          <Label htmlFor="isVisible">Visible on Site</Label>
+        <div className={TOGGLE_PANEL_CLASS}>
+          <div className="space-y-1">
+            <Label
+              htmlFor="isVisible"
+              className="text-sm font-semibold text-[hsl(var(--admin-foreground))]"
+            >
+              Visible on site
+            </Label>
+            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+              Hidden reviews stay editable in admin but disappear from the
+              public landing page.
+            </p>
+          </div>
           <Switch
             id="isVisible"
             checked={watch("isVisible")}
-            onCheckedChange={(checked) => setValue("isVisible", checked)}
+            onCheckedChange={(checked) =>
+              setValue("isVisible", checked, { shouldDirty: true })
+            }
           />
         </div>
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      <Button
+        type="submit"
+        className={`${SUBMIT_BUTTON_CLASS} w-full`}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : null}
         {initialData ? "Update Review" : "Create Review"}
       </Button>
     </form>

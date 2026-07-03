@@ -1,4 +1,10 @@
 import { redirect } from "next/navigation";
+import {
+  AdminBadge,
+  AdminInlineMessage,
+  AdminPage,
+  AdminPageHeader,
+} from "@/components/admin/AdminPrimitives";
 import { getSessionUser } from "@/lib/helpers/auth";
 import ReviewList from "./ReviewList";
 
@@ -11,12 +17,29 @@ async function getReviews() {
       },
     );
 
-    if (!res.ok) throw new Error("Failed to fetch reviews");
+    if (!res.ok) {
+      let message = "Failed to fetch reviews";
 
-    return await res.json();
+      try {
+        const payload = await res.json();
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch {}
+
+      throw new Error(message);
+    }
+
+    return {
+      items: await res.json(),
+      error: null,
+    };
   } catch (error) {
     console.error("Error fetching reviews:", error);
-    return [];
+    return {
+      items: [],
+      error: error instanceof Error ? error.message : "Failed to fetch reviews",
+    };
   }
 }
 
@@ -27,18 +50,28 @@ export default async function ReviewsManagement() {
     redirect("/admin/login");
   }
 
-  const items = await getReviews();
+  const { items, error } = await getReviews();
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Reviews Management</h1>
-        <p className="text-gray-600 mt-2">
-          Manage testimonial reviews shown on the landing page
-        </p>
-      </div>
+    <AdminPage className="px-4 py-6 sm:px-6 lg:px-8">
+      <AdminPageHeader
+        eyebrow="Content"
+        title="Reviews"
+        description="Manage the live testimonial set shown on the landing page. Featured reviews stay ahead of standard reviews, and drag ordering now persists within each group without changing the current CRUD or visibility workflow."
+        actions={
+          <AdminBadge tone="info">Grouped ordering stays live</AdminBadge>
+        }
+      />
+
+      {error ? (
+        <AdminInlineMessage
+          tone="danger"
+          title="Unable to load every review"
+          description={error}
+        />
+      ) : null}
 
       <ReviewList initialItems={items} />
-    </div>
+    </AdminPage>
   );
 }

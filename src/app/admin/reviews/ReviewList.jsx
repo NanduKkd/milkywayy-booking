@@ -1,17 +1,32 @@
 "use client";
 
-import { Edit2, Eye, EyeOff, Plus, Star, Trash2 } from "lucide-react";
+import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
+import {
+  Edit2,
+  Eye,
+  EyeOff,
+  GripVertical,
+  MessageSquareQuote,
+  Plus,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminDialogContent,
+  AdminEmptyState,
+  AdminInlineMessage,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -22,24 +37,333 @@ import {
 } from "@/components/ui/table";
 import ReviewForm from "./ReviewForm";
 
+const ADMIN_PRIMARY_BUTTON_CLASS =
+  "rounded-full border border-[hsl(var(--admin-highlight)/0.45)] bg-[hsl(var(--admin-highlight)/0.18)] px-5 text-[hsl(var(--admin-foreground))] hover:bg-[hsl(var(--admin-highlight)/0.26)] hover:text-[hsl(var(--admin-foreground))]";
+const ADMIN_GHOST_ICON_BUTTON_CLASS =
+  "rounded-full border border-transparent text-[hsl(var(--admin-muted))] hover:border-[hsl(var(--admin-border)/0.9)] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]";
+const ADMIN_DANGER_ICON_BUTTON_CLASS = `${ADMIN_GHOST_ICON_BUTTON_CLASS} text-[hsl(var(--admin-danger))] hover:border-[hsl(var(--admin-danger)/0.28)] hover:bg-[hsl(var(--admin-danger)/0.12)] hover:text-[hsl(var(--admin-danger))]`;
+const TABLE_HEAD_CLASS =
+  "border-white/8 bg-white/[0.03] text-xs font-medium uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]";
+const TABLE_CELL_CLASS = "border-white/8 text-[hsl(var(--admin-foreground))]";
+const REVIEW_GROUPS = [
+  {
+    key: "featured",
+    title: "Featured reviews",
+    description:
+      "These reviews stay pinned ahead of standard entries across the live landing page.",
+    emptyTitle: "No featured reviews found",
+    emptyDescription:
+      "Feature a review or create a new one to populate the priority testimonial group.",
+    badgeTone: "warning",
+  },
+  {
+    key: "standard",
+    title: "Standard reviews",
+    description:
+      "Standard reviews still respect drag order, but always render after featured entries.",
+    emptyTitle: "No standard reviews found",
+    emptyDescription:
+      "Create a review or unfeature an existing testimonial to populate the standard list.",
+    badgeTone: "neutral",
+  },
+];
+
+function normalizeGroup(items) {
+  return [...(items || [])].sort((left, right) => {
+    const leftOrder = Number(left?.order ?? 0);
+    const rightOrder = Number(right?.order ?? 0);
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return Number(left?.id ?? 0) - Number(right?.id ?? 0);
+  });
+}
+
+export function normalizeReviewItems(rawItems) {
+  const items = [...(rawItems || [])];
+  const featuredItems = normalizeGroup(items.filter((item) => item?.featured));
+  const standardItems = normalizeGroup(items.filter((item) => !item?.featured));
+
+  return [...featuredItems, ...standardItems];
+}
+
+export function buildReviewGroups(rawItems) {
+  const normalizedItems = normalizeReviewItems(rawItems);
+
+  return {
+    featuredItems: normalizedItems.filter((item) => item.featured),
+    standardItems: normalizedItems.filter((item) => !item.featured),
+  };
+}
+
+export function reorderReviewItems(
+  items,
+  sourceGroup,
+  sourceIndex,
+  destinationIndex,
+) {
+  if (
+    sourceIndex === destinationIndex ||
+    sourceIndex < 0 ||
+    destinationIndex < 0
+  ) {
+    return normalizeReviewItems(items);
+  }
+
+  const { featuredItems, standardItems } = buildReviewGroups(items);
+  const currentGroupItems =
+    sourceGroup === "featured"
+      ? Array.from(featuredItems)
+      : Array.from(standardItems);
+  const [movedItem] = currentGroupItems.splice(sourceIndex, 1);
+
+  if (!movedItem) {
+    return normalizeReviewItems(items);
+  }
+
+  currentGroupItems.splice(destinationIndex, 0, movedItem);
+
+  const normalizedFeaturedItems =
+    sourceGroup === "featured" ? currentGroupItems : featuredItems;
+  const normalizedStandardItems =
+    sourceGroup === "standard" ? currentGroupItems : standardItems;
+
+  return [
+    ...normalizedFeaturedItems.map((item, index) => ({
+      ...item,
+      order: index,
+    })),
+    ...normalizedStandardItems.map((item, index) => ({
+      ...item,
+      order: index,
+    })),
+  ];
+}
+
+function getNextReviewOrder(items, featured) {
+  const { featuredItems, standardItems } = buildReviewGroups(items);
+  return featured ? featuredItems.length : standardItems.length;
+}
+
+function ReviewGroupTable({
+  groupKey,
+  title,
+  description,
+  emptyTitle,
+  emptyDescription,
+  badgeTone,
+  items,
+  onEdit,
+  onToggleFeatured,
+  onToggleVisibility,
+  onDelete,
+}) {
+  return (
+    <AdminTablePanel
+      title={title}
+      description={description}
+      actions={<AdminBadge tone={badgeTone}>{items.length} live</AdminBadge>}
+    >
+      <Table className="min-w-[860px]">
+        <TableHeader>
+          <TableRow>
+            <TableHead className={`${TABLE_HEAD_CLASS} w-[72px]`}>
+              Order
+            </TableHead>
+            <TableHead className={TABLE_HEAD_CLASS}>Client</TableHead>
+            <TableHead className={TABLE_HEAD_CLASS}>Rating</TableHead>
+            <TableHead className={TABLE_HEAD_CLASS}>Visibility</TableHead>
+            <TableHead className={TABLE_HEAD_CLASS}>Source</TableHead>
+            <TableHead className={`${TABLE_HEAD_CLASS} text-right`}>
+              Actions
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <Droppable droppableId={groupKey}>
+          {(provided) => (
+            <TableBody {...provided.droppableProps} ref={provided.innerRef}>
+              {items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className={TABLE_CELL_CLASS}>
+                    <AdminEmptyState
+                      icon={MessageSquareQuote}
+                      title={emptyTitle}
+                      description={emptyDescription}
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item, index) => (
+                  <Draggable
+                    key={item.id}
+                    draggableId={item.id.toString()}
+                    index={index}
+                  >
+                    {(draggableProvided) => (
+                      <TableRow
+                        ref={draggableProvided.innerRef}
+                        {...draggableProvided.draggableProps}
+                      >
+                        <TableCell
+                          {...draggableProvided.dragHandleProps}
+                          className={`${TABLE_CELL_CLASS} align-top`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <GripVertical
+                              className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
+                              size={18}
+                              aria-hidden="true"
+                            />
+                            <div className="space-y-1">
+                              <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
+                                {(item.order ?? index) + 1}
+                              </div>
+                              <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
+                                Drag
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className={`${TABLE_CELL_CLASS} align-top`}>
+                          <div className="space-y-1">
+                            <p className="font-medium">{item.name}</p>
+                            <p className="text-xs text-[hsl(var(--admin-muted))]">
+                              {[item.role, item.company]
+                                .filter(Boolean)
+                                .join(" at ") || "No role details provided"}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className={`${TABLE_CELL_CLASS} align-top`}>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              {Array.from({
+                                length: Number(item.rating) || 0,
+                              }).map((_, ratingIndex) => (
+                                <Star
+                                  key={`${item.id}_${ratingIndex}`}
+                                  className="h-3.5 w-3.5 fill-[hsl(var(--admin-warning))] text-[hsl(var(--admin-warning))]"
+                                />
+                              ))}
+                            </div>
+                            <span className="text-xs text-[hsl(var(--admin-muted))]">
+                              {Number(item.rating) || 0}/5
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className={`${TABLE_CELL_CLASS} align-top`}>
+                          <AdminBadge
+                            tone={item.isVisible ? "success" : "neutral"}
+                          >
+                            {item.isVisible ? "Visible" : "Hidden"}
+                          </AdminBadge>
+                        </TableCell>
+                        <TableCell className={`${TABLE_CELL_CLASS} align-top`}>
+                          <div className="space-y-2">
+                            <AdminBadge tone="info">
+                              {item.source || "Unknown"}
+                            </AdminBadge>
+                            <div>
+                              <AdminBadge
+                                tone={item.featured ? "warning" : "neutral"}
+                              >
+                                {item.featured ? "Featured" : "Standard"}
+                              </AdminBadge>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell
+                          className={`${TABLE_CELL_CLASS} align-top text-right`}
+                        >
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={ADMIN_GHOST_ICON_BUTTON_CLASS}
+                              onClick={() => onEdit(item)}
+                              title="Edit"
+                              aria-label={`Edit ${item.name}`}
+                            >
+                              <Edit2 size={18} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={ADMIN_GHOST_ICON_BUTTON_CLASS}
+                              onClick={() => onToggleFeatured(item)}
+                              title={item.featured ? "Unfeature" : "Feature"}
+                              aria-label={
+                                item.featured
+                                  ? `Move ${item.name} to standard reviews`
+                                  : `Move ${item.name} to featured reviews`
+                              }
+                            >
+                              <Star
+                                size={18}
+                                className={
+                                  item.featured
+                                    ? "fill-[hsl(var(--admin-warning))] text-[hsl(var(--admin-warning))]"
+                                    : ""
+                                }
+                              />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={ADMIN_GHOST_ICON_BUTTON_CLASS}
+                              onClick={() => onToggleVisibility(item)}
+                              title={item.isVisible ? "Hide" : "Show"}
+                              aria-label={
+                                item.isVisible
+                                  ? `Hide ${item.name}`
+                                  : `Show ${item.name}`
+                              }
+                            >
+                              {item.isVisible ? (
+                                <EyeOff size={18} />
+                              ) : (
+                                <Eye size={18} />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={ADMIN_DANGER_ICON_BUTTON_CLASS}
+                              onClick={() => onDelete(item.id)}
+                              title="Delete"
+                              aria-label={`Delete ${item.name}`}
+                            >
+                              <Trash2 size={18} />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Draggable>
+                ))
+              )}
+              {provided.placeholder}
+            </TableBody>
+          )}
+        </Droppable>
+      </Table>
+    </AdminTablePanel>
+  );
+}
+
 export default function ReviewList({ initialItems }) {
-  const [items, setItems] = useState(initialItems || []);
+  const [items, setItems] = useState(() => normalizeReviewItems(initialItems));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
-  const sortedItems = useMemo(
-    () =>
-      [...items].sort((a, b) => {
-        if (a.featured === b.featured) {
-          if ((a.order || 0) === (b.order || 0)) {
-            return b.id - a.id;
-          }
-          return (a.order || 0) - (b.order || 0);
-        }
-        return a.featured ? -1 : 1;
-      }),
+  const { featuredItems, standardItems } = useMemo(
+    () => buildReviewGroups(items),
     [items],
   );
+  const visibleItems = items.filter((item) => item.isVisible).length;
+  const hiddenItems = items.length - visibleItems;
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this review?")) return;
@@ -51,7 +375,9 @@ export default function ReviewList({ initialItems }) {
 
       if (!res.ok) throw new Error("Failed to delete review");
 
-      setItems(items.filter((i) => i.id !== id));
+      setItems((currentItems) =>
+        normalizeReviewItems(currentItems.filter((item) => item.id !== id)),
+      );
       toast.success("Review deleted successfully");
     } catch (_error) {
       toast.error("Error deleting review");
@@ -69,7 +395,13 @@ export default function ReviewList({ initialItems }) {
       if (!res.ok) throw new Error("Failed to update visibility");
 
       const updatedItem = await res.json();
-      setItems(items.map((i) => (i.id === item.id ? updatedItem : i)));
+      setItems((currentItems) =>
+        normalizeReviewItems(
+          currentItems.map((currentItem) =>
+            currentItem.id === item.id ? updatedItem : currentItem,
+          ),
+        ),
+      );
       toast.success(`Review ${updatedItem.isVisible ? "published" : "hidden"}`);
     } catch (_error) {
       toast.error("Error updating visibility");
@@ -78,18 +410,28 @@ export default function ReviewList({ initialItems }) {
 
   const toggleFeatured = async (item) => {
     try {
+      const nextFeaturedValue = !item.featured;
       const res = await fetch(`/api/admin/reviews/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ featured: !item.featured }),
+        body: JSON.stringify({
+          featured: nextFeaturedValue,
+          order: getNextReviewOrder(items, nextFeaturedValue),
+        }),
       });
 
       if (!res.ok) throw new Error("Failed to update featured status");
 
       const updatedItem = await res.json();
-      setItems(items.map((i) => (i.id === item.id ? updatedItem : i)));
+      setItems((currentItems) =>
+        normalizeReviewItems(
+          currentItems.map((currentItem) =>
+            currentItem.id === item.id ? updatedItem : currentItem,
+          ),
+        ),
+      );
       toast.success(
-        updatedItem.featured ? "Marked as featured" : "Removed from featured",
+        updatedItem.featured ? "Marked as featured" : "Moved to standard",
       );
     } catch (_error) {
       toast.error("Error updating featured status");
@@ -98,13 +440,52 @@ export default function ReviewList({ initialItems }) {
 
   const handleFormSuccess = (savedItem) => {
     if (editingItem) {
-      setItems(items.map((i) => (i.id === savedItem.id ? savedItem : i)));
+      setItems((currentItems) =>
+        normalizeReviewItems(
+          currentItems.map((item) =>
+            item.id === savedItem.id ? savedItem : item,
+          ),
+        ),
+      );
     } else {
-      setItems([...items, savedItem]);
+      setItems((currentItems) =>
+        normalizeReviewItems([...currentItems, savedItem]),
+      );
     }
 
     setIsModalOpen(false);
     setEditingItem(null);
+  };
+
+  const handleDragEnd = async (result) => {
+    if (!result.destination) return;
+    if (result.source.droppableId !== result.destination.droppableId) return;
+
+    const previousItems = items;
+    const nextItems = reorderReviewItems(
+      items,
+      result.source.droppableId,
+      result.source.index,
+      result.destination.index,
+    );
+
+    setItems(nextItems);
+
+    try {
+      const res = await fetch("/api/admin/reviews/reorder", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          nextItems.map((item) => ({ id: item.id, order: item.order })),
+        ),
+      });
+
+      if (!res.ok) throw new Error("Failed to update review order");
+      toast.success("Review order updated");
+    } catch (_error) {
+      setItems(previousItems);
+      toast.error("Failed to sync order with server");
+    }
   };
 
   const openEditModal = (item) => {
@@ -118,133 +499,118 @@ export default function ReviewList({ initialItems }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={openCreateModal}>
-              <Plus className="mr-2 h-4 w-4" /> New Review
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingItem ? "Edit Review" : "Create New Review"}
-              </DialogTitle>
-            </DialogHeader>
-            <ReviewForm
-              onSuccess={handleFormSuccess}
-              initialData={editingItem}
-            />
-          </DialogContent>
-        </Dialog>
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Total reviews</AdminCardDescription>
+            <AdminCardTitle>{items.length}</AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+              The live landing page still uses the current review dataset and
+              visibility controls.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Visible on site</AdminCardDescription>
+            <AdminCardTitle>{visibleItems}</AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+              {hiddenItems} review{hiddenItems === 1 ? "" : "s"} currently stay
+              hidden from the public landing page.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Ordering groups</AdminCardDescription>
+            <AdminCardTitle>{featuredItems.length} featured</AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+              {standardItems.length} standard review
+              {standardItems.length === 1 ? "" : "s"} follow after the featured
+              set.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
       </div>
 
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Client</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Featured</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedItems.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
-                  No reviews found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              sortedItems.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{item.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {item.role} at {item.company}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: Number(item.rating) || 0 }).map(
-                        (_, index) => (
-                          <Star
-                            key={`${item.id}_${index}`}
-                            className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400"
-                          />
-                        ),
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={item.isVisible ? "default" : "secondary"}>
-                      {item.isVisible ? "Visible" : "Hidden"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={item.featured ? "default" : "outline"}>
-                      {item.featured ? "Featured" : "Standard"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditModal(item)}
-                        title="Edit"
-                      >
-                        <Edit2 size={18} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleFeatured(item)}
-                        title={item.featured ? "Unfeature" : "Feature"}
-                      >
-                        <Star
-                          size={18}
-                          className={
-                            item.featured
-                              ? "fill-yellow-400 text-yellow-400"
-                              : ""
-                          }
-                        />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleVisibility(item)}
-                        title={item.isVisible ? "Hide" : "Show"}
-                      >
-                        {item.isVisible ? (
-                          <EyeOff size={18} />
-                        ) : (
-                          <Eye size={18} />
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => handleDelete(item.id)}
-                        title="Delete"
-                      >
-                        <Trash2 size={18} />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <AdminTablePanel
+        title="Review operations"
+        description="Create, edit, hide, feature, and reorder testimonials without changing the current review schema or public rendering logic."
+        actions={
+          <Dialog
+            open={isModalOpen}
+            onOpenChange={(open) => {
+              setIsModalOpen(open);
+              if (!open) {
+                setEditingItem(null);
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button
+                className={ADMIN_PRIMARY_BUTTON_CLASS}
+                onClick={openCreateModal}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                New Review
+              </Button>
+            </DialogTrigger>
+            <AdminDialogContent
+              className="max-h-[90vh] max-w-2xl overflow-hidden p-0"
+              title={editingItem ? "Edit Review" : "Create New Review"}
+              description="Keep the current testimonial workflow intact while updating visibility, featured placement, rating, and within-group ordering."
+            >
+              <div className="max-h-[calc(90vh-120px)] overflow-y-auto px-6 pb-6">
+                <ReviewForm
+                  key={editingItem?.id ?? "new"}
+                  onSuccess={handleFormSuccess}
+                  initialData={editingItem}
+                  nextOrderByFeatured={{
+                    featured: featuredItems.length,
+                    standard: standardItems.length,
+                  }}
+                />
+              </div>
+            </AdminDialogContent>
+          </Dialog>
+        }
+      >
+        <div className="space-y-4 border-b border-white/8 px-5 py-4 sm:px-6">
+          <AdminInlineMessage
+            tone="info"
+            title="Drag ordering is scoped to each review group"
+            description="Featured and Standard reviews reorder independently. Moving a review between groups places it at the end of the destination group so the current ranking stays predictable."
+          />
+        </div>
+      </AdminTablePanel>
+
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="space-y-5">
+          {REVIEW_GROUPS.map((group) => (
+            <ReviewGroupTable
+              key={group.key}
+              groupKey={group.key}
+              title={group.title}
+              description={group.description}
+              emptyTitle={group.emptyTitle}
+              emptyDescription={group.emptyDescription}
+              badgeTone={group.badgeTone}
+              items={group.key === "featured" ? featuredItems : standardItems}
+              onEdit={openEditModal}
+              onToggleFeatured={toggleFeatured}
+              onToggleVisibility={toggleVisibility}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      </DragDropContext>
     </div>
   );
 }
