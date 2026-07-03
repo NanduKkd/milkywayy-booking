@@ -16,6 +16,13 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("@/lib/contexts/auth", () => ({
   useAuth: () => ({
+    authState: {
+      user: {
+        fullName: "Milky Way Ops",
+        email: "ops@milkywayy.com",
+        role: "SUPERADMIN",
+      },
+    },
     logout: mockLogout,
   }),
 }));
@@ -30,6 +37,9 @@ describe("AdminHeader", () => {
   it("opens a mobile drawer with grouped navigation", () => {
     render(<AdminHeader />);
 
+    expect(screen.getByText("Milky Way Ops")).toBeInTheDocument();
+    expect(screen.getByText("ops@milkywayy.com")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: /Open navigation/i }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -39,6 +49,7 @@ describe("AdminHeader", () => {
       "/admin/users",
     );
     expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.getAllByText("Milky Way Ops")).toHaveLength(2);
   });
 
   it("logs out and returns to admin login", async () => {
