@@ -1,6 +1,6 @@
 # Admin scheduling calendar operations
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-03
 
 ## Migration and rollout
 
@@ -28,6 +28,13 @@ availability evaluation.
 - Verify four-hour expiry, pending availability release, copy-link behavior, and
   replacement-link invalidation without duplicate reservations.
 - Confirm block warnings enumerate existing affected records without mutating them.
+
+Run `npm run verify:scheduling-calendar-rollout` before release review to
+refresh the tracked automated evidence in `ROLLOUT-VERIFICATION.md` and to
+prepare the ignored local worksheet
+`docs/private/ADMIN-SCHEDULING-CALENDAR-ROLLOUT.md` for migration execution,
+environment-specific smoke-test notes, monitoring confirmation, and rollback
+rehearsal details.
 
 ## Monitoring
 

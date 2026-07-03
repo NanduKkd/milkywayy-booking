@@ -17,6 +17,7 @@ creating a second scheduling, registration, pricing, or checkout authority.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): event, booking, and availability flows.
 - [DECISIONS.md](./DECISIONS.md): scheduling precedence and manual-entry decisions.
 - [OPERATIONS.md](./OPERATIONS.md): migration, rollout, and recovery.
+- [ROLLOUT-VERIFICATION.md](./ROLLOUT-VERIFICATION.md): tracked automated rollout evidence and the handoff to private deployment notes.
 - [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md): authorization and concurrency gates.
 
 ## Status model

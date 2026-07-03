@@ -34,6 +34,10 @@
 - Verify the WhatsApp checkbox defaults off and link copying does not send a message.
 - Verify pending reservations block conflicts but appear as booked only after payment.
 
+The tracked release evidence lives in `ROLLOUT-VERIFICATION.md`. Exact sampled
+booking identifiers, operator-specific signoff, and deployment timing remain in
+the ignored local worksheet `docs/private/ADMIN-SCHEDULING-CALENDAR-ROLLOUT.md`.
+
 ## Release blockers
 
 - Customer and admin availability disagree for the same request context.
