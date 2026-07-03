@@ -98,4 +98,27 @@ describe("Admin scheduling calendar booking preparation POST route", () => {
 
     consoleSpy.mockRestore();
   });
+
+  it("returns stale availability conflicts as 409", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+    previewAdminBookingPreparation.mockRejectedValue(
+      new Error("Selected time on 2026-07-21 is no longer available."),
+    );
+
+    const response = await POST({
+      json: jest.fn().mockResolvedValue({
+        customerMode: "existing",
+        customerId: 7,
+        properties: [],
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(NextResponse.json).toHaveBeenCalledWith(
+      { error: "Selected time on 2026-07-21 is no longer available." },
+      { status: 409 },
+    );
+
+    consoleSpy.mockRestore();
+  });
 });

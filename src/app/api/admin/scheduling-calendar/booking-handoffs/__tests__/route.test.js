@@ -96,4 +96,34 @@ describe("Admin booking handoff POST route", () => {
 
     consoleSpy.mockRestore();
   });
+
+  it("returns stale availability conflicts as 409", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+    createAdminBookingHandoff.mockRejectedValue(
+      new Error(
+        "Selected time on 2026-07-21 is blocked by admin calendar rules.",
+      ),
+    );
+
+    const response = await POST({
+      json: jest.fn().mockResolvedValue({
+        input: {
+          customerMode: "existing",
+          customerId: 12,
+          properties: [],
+        },
+      }),
+    });
+
+    expect(response.status).toBe(409);
+    expect(NextResponse.json).toHaveBeenCalledWith(
+      {
+        error:
+          "Selected time on 2026-07-21 is blocked by admin calendar rules.",
+      },
+      { status: 409 },
+    );
+
+    consoleSpy.mockRestore();
+  });
 });

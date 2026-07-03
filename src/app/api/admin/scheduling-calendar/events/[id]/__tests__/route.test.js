@@ -127,6 +127,33 @@ describe("Admin scheduling calendar event [id] route", () => {
     expect(restoreCalendarEvent).not.toHaveBeenCalled();
   });
 
+  it("rejects anonymous and non-superadmin event mutations", async () => {
+    auth.mockResolvedValueOnce(null);
+
+    const unauthorizedUpdateResponse = await PUT(
+      {
+        json: jest.fn(),
+      },
+      { params: Promise.resolve({ id: "15" }) },
+    );
+
+    expect(unauthorizedUpdateResponse.status).toBe(401);
+    expect(updateCalendarEvent).not.toHaveBeenCalled();
+
+    auth.mockResolvedValueOnce({ id: 2, role: "CUSTOMER" });
+
+    const forbiddenPatchResponse = await PATCH(
+      {
+        json: jest.fn(),
+      },
+      { params: Promise.resolve({ id: "15" }) },
+    );
+
+    expect(forbiddenPatchResponse.status).toBe(403);
+    expect(cancelCalendarEvent).not.toHaveBeenCalled();
+    expect(restoreCalendarEvent).not.toHaveBeenCalled();
+  });
+
   it("returns scheduling conflicts from restore as 409", async () => {
     const consoleSpy = jest.spyOn(console, "error").mockImplementation();
     restoreCalendarEvent.mockRejectedValue(

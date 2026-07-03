@@ -6,6 +6,15 @@ import {
   isAdminBookingHandoffValidationError,
 } from "@/lib/services/adminBookingHandoffs";
 
+function isSchedulingAvailabilityConflict(error) {
+  const message = String(error?.message || "");
+  return (
+    message.startsWith("Selected time on ") &&
+    (message.endsWith(" is no longer available.") ||
+      message.endsWith(" is blocked by admin calendar rules."))
+  );
+}
+
 export async function POST(request) {
   try {
     const session = await auth();
@@ -38,7 +47,11 @@ export async function POST(request) {
         error: error?.message || "Failed to create booking handoff",
       },
       {
-        status: isAdminBookingHandoffValidationError(error) ? 400 : 500,
+        status: isAdminBookingHandoffValidationError(error)
+          ? 400
+          : isSchedulingAvailabilityConflict(error)
+            ? 409
+            : 500,
       },
     );
   }

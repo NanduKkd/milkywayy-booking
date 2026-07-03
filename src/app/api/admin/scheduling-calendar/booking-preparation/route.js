@@ -6,6 +6,15 @@ import {
   previewAdminBookingPreparation,
 } from "@/lib/services/adminBookingPreparation";
 
+function isSchedulingAvailabilityConflict(error) {
+  const message = String(error?.message || "");
+  return (
+    message.startsWith("Selected time on ") &&
+    (message.endsWith(" is no longer available.") ||
+      message.endsWith(" is blocked by admin calendar rules."))
+  );
+}
+
 export async function POST(request) {
   try {
     const session = await auth();
@@ -36,7 +45,11 @@ export async function POST(request) {
         error: error?.message || "Failed to preview admin booking preparation",
       },
       {
-        status: isAdminBookingPreparationValidationError(error) ? 400 : 500,
+        status: isAdminBookingPreparationValidationError(error)
+          ? 400
+          : isSchedulingAvailabilityConflict(error)
+            ? 409
+            : 500,
       },
     );
   }
