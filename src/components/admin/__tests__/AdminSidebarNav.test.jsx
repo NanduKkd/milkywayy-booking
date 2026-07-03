@@ -48,4 +48,35 @@ describe("AdminSidebarNav", () => {
       screen.queryByRole("link", { name: /Coupons/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("marks the active link based on the current pathname", () => {
+    mockUsePathname.mockReturnValue("/admin/bookings");
+    render(<AdminSidebarNav />);
+
+    const bookingsLink = screen.getByRole("link", { name: /Bookings/i });
+    const customersLink = screen.getByRole("link", { name: /Customers/i });
+
+    expect(bookingsLink).toHaveAttribute("aria-current", "page");
+    expect(customersLink).not.toHaveAttribute("aria-current");
+  });
+
+  it("triggers onNavigate callback when a link is clicked", () => {
+    const mockOnNavigate = jest.fn();
+    render(<AdminSidebarNav onNavigate={mockOnNavigate} />);
+
+    const dashboardLink = screen.getByRole("link", { name: /Dashboard/i });
+    dashboardLink.click();
+
+    expect(mockOnNavigate).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies mobile container styling when mobile is true", () => {
+    mockUsePathname.mockReturnValue("/admin");
+    const { container } = render(<AdminSidebarNav mobile={true} />);
+
+    // Mobile navigation utilizes specific padding/rounded classes on list wrappers
+    const mobileContainer = container.querySelector(".admin-panel-subtle");
+    expect(mobileContainer).toBeInTheDocument();
+    expect(mobileContainer).toHaveClass("rounded-[1.6rem]", "px-2.5", "py-2.5");
+  });
 });

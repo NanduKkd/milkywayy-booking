@@ -7,6 +7,7 @@ import {
   AdminDialogContent,
   AdminEmptyState,
   AdminFilterChip,
+  AdminInlineMessage,
   AdminPageHeader,
   AdminSearchField,
   AdminTablePanel,
@@ -96,5 +97,30 @@ describe("AdminPrimitives", () => {
     expect(
       screen.getByRole("button", { name: "Delete entry" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders the shared inline message, including loading spinner", () => {
+    const { rerender } = render(
+      <AdminInlineMessage
+        title="Operation Successful"
+        description="The data was successfully synchronized."
+        tone="info"
+      />,
+    );
+
+    expect(screen.getByText("Operation Successful")).toBeInTheDocument();
+    expect(
+      screen.getByText("The data was successfully synchronized."),
+    ).toBeInTheDocument();
+
+    rerender(
+      <AdminInlineMessage
+        title="Loading content"
+        loading={true}
+        tone="neutral"
+      />,
+    );
+
+    expect(screen.getByText("Loading content")).toBeInTheDocument();
   });
 });

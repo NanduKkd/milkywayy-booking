@@ -1,85 +1,106 @@
 # Admin panel UI refresh architecture
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-03
 
 ## Boundary
 
-This feature owns presentation, route composition, and interaction layout. It
-does not own financial formulas, scheduling rules, permissions, or booking
-workflow behavior.
+This feature owns presentation, shell composition, list filtering, and content
+ordering controls. It does not own financial formulas, scheduling rules,
+promotion eligibility, authentication, or booking workflow behavior.
 
 ```mermaid
 flowchart LR
-    Route["Next.js admin route"] --> Guard["Server-side permission guard"]
-    Guard --> Page["Server or client page boundary"]
-    Page --> Query["Feature query/API"]
-    Page --> UI["Shared admin UI components"]
-    UI --> Existing["Existing domain actions and workflows"]
+    Route["Existing Next.js admin route"] --> Auth["Existing Super Admin check"]
+    Auth --> Page["Existing page and live data"]
+    Page --> UI["Shared dark admin components"]
+    UI --> Actions["Existing domain actions and workflows"]
 ```
 
-## Route structure
+## Route and navigation contract
 
-- Keep existing URL-based Next.js routes; do not reproduce the prototype's
-  in-memory page switcher.
-- The authenticated admin layout owns the sidebar, mobile navigation, header,
-  breadcrumb, and page content frame.
-- The login route uses a separate unauthenticated layout and never renders the
-  authenticated sidebar or logout action.
-- Navigation items come from a typed route registry containing section,
-  label, icon, href, and required permission.
+Existing URLs remain unchanged:
+
+- Workspace: `/admin`, `/admin/bookings`, `/admin/scheduling-calendar`, `/admin/users`.
+- Finance: `/admin/invoices`, `/admin/analytics`.
+- Operations: `/admin/promotions`, `/admin/timeslots`, `/admin/prices`.
+- Content: `/admin/portfolio`, `/admin/reviews`.
+- Authentication: `/admin/login` retains its current structure and receives styling only.
+
+`/admin/discounts` and `/admin/coupons` remain compatibility redirects to
+`/admin/promotions`. No Settings destination is shown. Desktop uses a persistent
+grouped sidebar; narrow screens use a menu-triggered drawer.
 
 ## Shared UI layer
 
-Create reusable components for:
+Create or consolidate reusable styling for:
 
-- page headers and actions;
-- KPI cards and comparison badges;
-- status and service badges;
-- tables, filter bars, totals, loading rows, and empty/error states;
-- responsive dialog/drawer details;
-- charts and legends;
-- confirmation and mutation feedback.
+- page headers, descriptions, and actions;
+- navigation groups, active states, header identity, and breadcrumbs;
+- cards, KPI values, badges, tabs, filters, and search fields;
+- tables, horizontal-scroll containers, totals, and empty/loading/error states;
+- dialogs, forms, confirmation controls, and mutation feedback;
+- charts and legends using live analytics data.
 
-Components accept live data through props and must not contain prototype sample
-records or financial calculations.
+Components accept live data through props and contain no prototype sample records
+or financial calculations.
 
 ## Page integration boundaries
 
-### Dashboard
+### Dashboard and Reports
 
-Consumes one bounded Dashboard response from `admin-analytics-finance` and a
-calendar summary from the same response or scheduling query. Drill-downs use
-paginated server results instead of loading all bookings into the browser.
+`/admin` consumes the bounded Dashboard response supplied by
+`admin-analytics-finance`. `/admin/analytics` retains detailed reports, expense
+management, drill-down, and export behavior. Shared calculations remain in the
+analytics service.
 
 ### Bookings
 
-The visual list and detail hierarchy change, but the existing workflow actions,
-delivery-file components, notification actions, invoice links, and revision
-state remain wired to their current domain services.
+Add All, Completed, Pending, and Cancelled filtering to the existing list. The
+current detail dialog, workflow updates, notifications, invoice links, uploads,
+versions, revisions, publishing, and completion controls remain wired to their
+existing services. No New Booking control is added.
+
+### Customers
+
+The `/admin/users` route and current customer operations remain unchanged. Only
+the visible label and presentation become Customers.
 
 ### Invoices
 
-Search state is URL-backed. The server filters by invoice number, booking
-reference, and customer identity and returns the total for the filtered result.
-Download URLs continue to use the existing secure invoice path.
+Search covers invoice number, booking reference, and customer identity. The
+visible footer total reflects the filtered result. Existing secure invoice
+download URLs remain unchanged.
 
-### Portfolio and Reviews
+### Promotions, Calendar, Time Slots, and Pricing
 
-Presentation wraps existing CRUD forms and mutations. Portfolio media filters
-operate over server data without replacing drag ordering. Review quote preview
-is added without removing feature, visibility, rating, or order controls.
+These pages receive shared styling without changes to their domain behavior.
+Promotions retains its three current tabs. Calendar, scheduling configuration,
+and pricing continue using their current services and validation.
+
+### Portfolio
+
+Add media-type filters for All Works, Photography, Short Form Video, Long Form
+Video, and 360 Virtual Tour. Existing create/edit/upload/delete/visibility and
+drag-order behavior remain available. Filtering must not corrupt the persisted
+global order.
+
+### Reviews
+
+Keep CRUD, visibility, rating, and featured controls. Add drag ordering within
+the Featured and Standard groups and persist the resulting `order` values.
+Featured reviews continue to sort before Standard reviews. Do not add a review
+preview column.
 
 ## Responsive behavior
 
 - Desktop uses a persistent grouped sidebar.
-- Mobile uses an explicit menu/drawer, not a clipped permanent sidebar or a
-  horizontally overflowing list of every route.
-- Wide tables provide a deliberate compact/card fallback or horizontal scroll
-  with pinned primary actions.
-- Dialogs become full-height drawers where viewport height is constrained.
+- Mobile uses a menu-triggered drawer.
+- Wide tables remain tables inside explicit horizontal-scroll containers.
+- Actions must remain reachable by scrolling; the UI must not silently clip columns.
+- Forms and dialogs may resize or scroll vertically without changing workflows.
 
-## Error and state handling
+## State handling
 
-Every query surface defines loading, empty, forbidden, failed, and retry states.
-Mutations use disabled/pending controls, stable confirmations, and success/error
-feedback. Optimistic updates are allowed only where rollback is reliable.
+Retain or add clear loading, empty, failed, and mutation-pending states where the
+affected page already performs asynchronous work. Optimistic reordering must
+restore the prior order if persistence fails.

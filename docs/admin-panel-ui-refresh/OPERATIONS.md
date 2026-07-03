@@ -1,40 +1,30 @@
 # Admin panel UI refresh operations
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-03
 
-## Rollout strategy
+## Release strategy
 
-1. Land shared components and tokens without changing routes.
-2. Separate the login layout and verify anonymous/authenticated redirects.
-3. Migrate the shell and navigation with permission awareness.
-4. Migrate pages one at a time: Invoices, Portfolio, Reviews, Bookings, then Dashboard.
-5. Enable the Dashboard only after the analytics API reconciliation gate passes.
-
-Each page migration must retain a small rollback boundary. Avoid one commit that
-replaces every admin page simultaneously.
+The refreshed admin ships as one coordinated release. Implementation may still
+use page-scoped commits so regressions are easier to identify, but no mixed old
+and new admin presentation is an intended production state.
 
 ## Pre-release checks
 
-- Record the known repository test/lint baseline.
-- Run scoped component, route, and domain regression tests for each migrated page.
-- Verify desktop, tablet, and mobile layouts with representative empty, loading,
-  error, and long-content data.
-- Smoke-test booking delivery, invoice download, portfolio ordering/upload, and
-  review mutations using non-production fixtures.
-- Verify permission-driven navigation for Super Admin, Admin, and Accounts.
+- Record the repository test/lint baseline before implementation.
+- Run focused tests for every touched admin page and shared component.
+- Smoke-test booking workflows, invoice downloads, promotion mutations, calendar actions, Time Slot and Pricing saves, Portfolio operations, and Review operations.
+- Verify Dashboard and Reports use live analytics and retain drill-down/export behavior.
+- Verify Portfolio filters do not alter global drag order.
+- Verify Review drag ordering persists within Featured and Standard groups.
+- Verify mobile navigation opens as a drawer and each wide table can be scrolled to its actions.
+- Hand the complete refreshed surface to the owner for final visual acceptance.
 
-## Monitoring
+## Monitoring and recovery
 
-Monitor admin route errors, API failures, client exceptions, failed mutations,
-unexpected authorization denials, and support reports of missing controls.
-Dashboard query latency is owned with `admin-analytics-finance`.
-
-## Rollback
-
-- Revert an affected page to its prior presentation while retaining compatible
-  shared components.
-- Roll back the shell independently if navigation or login access is impaired.
-- Do not roll back data migrations from other feature folders as part of a UI-only rollback.
+After release, monitor admin route errors, failed data loads, failed mutations,
+and reports of missing controls. If a release-blocking regression appears, revert
+the UI-refresh release while preserving unrelated data migrations and feature
+work.
 
 Exact live deployment and operator details belong in
 `docs/private/PRODUCTION-DEPLOYMENT.md`.
