@@ -1,8 +1,8 @@
 # Admin panel UI refresh task tracker
 
-- Last updated: 2026-06-30
-- Overall implementation status: `NOT_STARTED`
-- Current milestone: `M0 - Scope and design contract`
+- Last updated: 2026-07-03
+- Overall implementation status: `IN_PROGRESS`
+- Current milestone: `M1 - Shell, tokens, and shared styling`
 
 This is the authoritative progress tracker. Status values and update rules are
 defined in [README.md](./README.md).
@@ -11,52 +11,57 @@ defined in [README.md](./README.md).
 
 | Milestone | Status | Done | Total | Estimate |
 |---|---|---:|---:|---:|
-| M0 - Scope and design contract | `IN_PROGRESS` | 0 | 2 | 1-2 days |
-| M1 - Shell and shared UI foundation | `NOT_STARTED` | 0 | 4 | 2-3 days |
-| M2 - Page migrations | `NOT_STARTED` | 0 | 6 | 5-7 days |
-| M3 - Verification and rollout | `NOT_STARTED` | 0 | 4 | 2-3 days |
+| M0 - Finalize the UI contract | `DONE` | 3 | 3 | 1 day |
+| M1 - Shell, tokens, and shared styling | `IN_PROGRESS` | 1 | 3 | 2-3 days |
+| M2 - Full admin page styling | `NOT_STARTED` | 0 | 11 | 7-10 days |
+| M3 - Enhancements and release checks | `NOT_STARTED` | 0 | 5 | 3-5 days |
 
-## M0 - Scope and design contract
-
-| ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
-|---|---|---|---|---|---|---|
-| UI-001 | Approve page inventory and preservation requirements | `IN_REVIEW` | Product / Engineering | None | In-scope pages and preserved behavior are accepted | Pending |
-| UI-002 | Define responsive and accessibility acceptance matrix | `NOT_STARTED` | Engineering | UI-001 | Desktop, tablet, mobile, keyboard, focus, and screen-reader checks are listed | Pending |
-
-## M1 - Shell and shared UI foundation
+## M0 - Finalize the UI contract
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| UI-101 | Implement admin design tokens and shared primitives | `NOT_STARTED` | Engineering | UI-002 | Typography, spacing, colors, status badges, cards, tables, headers, and dialogs are reusable | Pending |
-| UI-102 | Replace admin shell and grouped navigation | `NOT_STARTED` | Engineering | UI-101, RBAC permission contract | Navigation is responsive, permission-aware, route-based, and keyboard accessible | Pending |
-| UI-103 | Implement breadcrumb and administrator identity header | `NOT_STARTED` | Engineering | UI-102 | Header derives section, page, user name, initials, and role from live state | Pending |
-| UI-104 | Separate and redesign the login layout | `NOT_STARTED` | Engineering | UI-101 | Anonymous users see no authenticated navigation; existing login/session behavior remains intact | Pending |
+| UI-001 | Approve current page inventory and preservation requirements | `DONE` | Owner / Engineering | None | Every current admin page is in scope and existing behavior takes priority | Approved in the 2026-07-03 planning review; README and ARCHITECTURE list the current route inventory. |
+| UI-002 | Approve visual and responsive constraints | `DONE` | Owner / Engineering | UI-001 | Inspirational prototype, dark-only theme, mobile drawer, horizontal tables, and owner visual review are recorded | Accepted as UI-D001, UI-D010, UI-D011, and UI-D016. |
+| UI-003 | Review the consolidated delivery contract | `DONE` | Owner | UI-001, UI-002 | Scope, exclusions, enhancements, estimates, and completion definition are accepted | Owner approved the consolidated contract on 2026-07-03. |
 
-## M2 - Page migrations
-
-| ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
-|---|---|---|---|---|---|---|
-| UI-201 | Build Dashboard presentation | `NOT_STARTED` | Engineering | UI-101, finance dashboard API | KPI, charts, schedule, recent bookings, quick links, loading, and error states use live data | Pending |
-| UI-202 | Restyle Bookings and preserve workflow tools | `NOT_STARTED` | Engineering | UI-101 | Filters and target detail layout coexist with workflow updates, notifications, invoices, uploads, versions, revisions, publishing, and completion | Pending |
-| UI-203 | Add invoice search and filtered totals | `NOT_STARTED` | Engineering | UI-101 | Search covers invoice number, booking reference, and customer; footer totals current results; downloads work | Pending |
-| UI-204 | Restyle Portfolio and add media filters | `NOT_STARTED` | Engineering | UI-101 | Filtering does not break create/edit/upload/reorder/visibility/delete behavior | Pending |
-| UI-205 | Restyle Reviews and add quote preview | `NOT_STARTED` | Engineering | UI-101 | Preview, CRUD, feature, visibility, rating, and ordering remain correct | Pending |
-| UI-206 | Add shared loading, empty, error, and confirmation states | `NOT_STARTED` | Engineering | UI-201 to UI-205 | Every in-scope data surface handles pending, empty, failed, and destructive states consistently | Pending |
-
-## M3 - Verification and rollout
+## M1 - Shell, tokens, and shared styling
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| UI-301 | Add component and navigation regression tests | `NOT_STARTED` | Engineering | M2 | In-scope components and routes have automated behavioral coverage | Pending |
-| UI-302 | Run responsive and accessibility verification | `NOT_STARTED` | Engineering | UI-301 | Acceptance matrix is complete with no release-blocking issues | Pending |
-| UI-303 | Verify preserved operational workflows manually | `NOT_STARTED` | Engineering / Operations | UI-301 | Booking delivery, invoice, portfolio, and review smoke tests are recorded | Pending |
-| UI-304 | Roll out and monitor the refreshed surface | `NOT_STARTED` | Engineering / Operations | UI-302, UI-303 | Rollout and rollback evidence is recorded without exposing live deployment details | Pending |
+| UI-101 | Consolidate dark admin tokens and shared primitives | `DONE` | Engineering | UI-003 | Typography, spacing, colors, badges, cards, filters, tables, headers, dialogs, and states are reusable | Added admin-scoped tokens and shared classes in `src/app/globals.css`; created reusable primitives in `src/components/admin/AdminPrimitives.jsx`; adopted the new shell/card foundation in `src/app/admin/layout.js`, `src/components/AdminHeader.js`, `src/components/admin/AdminSidebarNav.js`, and `src/app/admin/page.jsx`; verified with `npx jest src/components/admin/__tests__/AdminPrimitives.test.jsx src/components/admin/__tests__/AdminSidebarNav.test.jsx src/app/admin/__tests__/page.test.jsx --runInBand` and `npx biome check src/app/globals.css src/app/admin/layout.js src/app/admin/page.jsx src/components/AdminHeader.js src/components/admin/AdminSidebarNav.js src/components/admin/AdminPrimitives.jsx src/components/admin/__tests__/AdminPrimitives.test.jsx src/components/ui/badge.js`. |
+| UI-102 | Implement grouped desktop navigation and mobile drawer | `NOT_STARTED` | Engineering | UI-101 | Workspace, Finance, Operations, and Content groups expose every current route; Users is labeled Customers | Pending |
+| UI-103 | Align header and login styling | `NOT_STARTED` | Engineering | UI-101 | Current header identity/logout and current login flow use the shared visual language | Pending |
+
+## M2 - Full admin page styling
+
+| ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
+|---|---|---|---|---|---|---|
+| UI-201 | Build the live Dashboard presentation at `/admin` | `NOT_STARTED` | Engineering | UI-101, Dashboard analytics API | KPI, charts, schedule, recent bookings, drill-downs, loading, and errors use live analytics | Pending |
+| UI-202 | Refresh Bookings and add status filters | `NOT_STARTED` | Engineering | UI-101 | All/Completed/Pending/Cancelled filters work and every existing booking workflow control remains available | Pending |
+| UI-203 | Refresh Customers | `NOT_STARTED` | Engineering | UI-101 | `/admin/users` is labeled Customers and current customer operations remain intact | Pending |
+| UI-204 | Refresh Invoices and add search/totals | `NOT_STARTED` | Engineering | UI-101 | Search covers invoice number, booking reference, and customer; footer totals visible results; downloads work | Pending |
+| UI-205 | Refresh detailed Reports | `NOT_STARTED` | Engineering | UI-101, finance reports API | Existing filters, expenses, drill-downs, and exports remain intact at `/admin/analytics` | Pending |
+| UI-206 | Refresh Promotions | `NOT_STARTED` | Engineering | UI-101 | Generic, Personal, and Automatic tabs retain all current mutations and customer assignment | Pending |
+| UI-207 | Refresh Calendar | `NOT_STARTED` | Engineering | UI-101, current calendar feature | Current calendar, event, block, and booking-preparation behavior remains intact | Pending |
+| UI-208 | Refresh Time Slots and Pricing | `NOT_STARTED` | Engineering | UI-101 | Current configuration fields, validation, and save behavior remain intact | Pending |
+| UI-209 | Refresh Portfolio and add media filters | `NOT_STARTED` | Engineering | UI-101 | Media-type filters work without breaking CRUD, uploads, visibility, media ordering, or global drag order | Pending |
+| UI-210 | Refresh Reviews and add drag ordering | `NOT_STARTED` | Engineering | UI-101 | CRUD, visibility, rating, featured state, and drag ordering within Featured/Standard groups work; no preview column is added | Pending |
+| UI-211 | Standardize asynchronous and destructive states | `NOT_STARTED` | Engineering | UI-201 to UI-210 | Touched data surfaces have consistent loading, empty, failure, pending, and confirmation presentation | Pending |
+
+## M3 - Enhancements and release checks
+
+| ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
+|---|---|---|---|---|---|---|
+| UI-301 | Add focused shared-component and navigation tests | `NOT_STARTED` | Engineering | M2 | Grouped navigation, mobile drawer, filters, totals, and shared behaviors have focused coverage | Pending |
+| UI-302 | Verify preserved operational workflows | `NOT_STARTED` | Engineering | M2 | Booking, invoice, promotion, calendar, configuration, portfolio, and review smoke checks are recorded | Pending |
+| UI-303 | Verify narrow-screen usability | `NOT_STARTED` | Engineering | M2 | Drawer reaches every route and table actions remain reachable by horizontal scrolling | Pending |
+| UI-304 | Complete owner visual review | `NOT_STARTED` | Owner | UI-301 to UI-303 | Owner accepts the complete refreshed admin surface | Pending |
+| UI-305 | Release the refreshed admin | `NOT_STARTED` | Engineering | UI-304 | One coordinated release is completed and immediate regressions are monitored | Pending |
 
 ## Known baseline failures
 
-The following failures predate this feature and must not be represented as
-regressions introduced by it:
+Recheck these before implementation; they were recorded before this feature and
+must not be represented as regressions without confirming the current baseline:
 
 - `src/components/__tests__/DateSlotPicker.test.jsx`: blocked-slot expectation mismatch.
 - `src/app/admin/portfolio/__tests__/page.test.jsx`: missing `useRouter` mock.
-- `src/lib/actions/__tests__/coupons.test.js`: launch-credit behavior/message expectations are stale.

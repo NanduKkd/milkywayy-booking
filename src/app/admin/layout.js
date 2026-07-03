@@ -7,19 +7,17 @@ export const metadata = {
 
 export default function AdminLayout({ children }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
-        <aside className="hidden w-72 shrink-0 border-r border-white/10 bg-card/60 p-5 lg:block">
-          <div className="sticky top-5">
-            <p className="mb-4 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Admin Portal
-            </p>
+    <div className="admin-shell">
+      <div className="mx-auto flex min-h-screen w-full max-w-[1680px]">
+        <aside className="hidden w-72 shrink-0 p-5 lg:block xl:w-80">
+          <div className="admin-panel sticky top-5 rounded-[1.9rem] px-5 py-6">
+            <p className="admin-kicker mb-4">Admin Portal</p>
             <AdminSidebarNav />
           </div>
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <AdminHeader />
-          <div className="border-b border-white/10 px-4 py-3 lg:hidden">
+          <div className="px-4 py-4 lg:hidden">
             <AdminSidebarNav mobile />
           </div>
           <main className="flex-1 p-4 md:p-6 lg:p-8">

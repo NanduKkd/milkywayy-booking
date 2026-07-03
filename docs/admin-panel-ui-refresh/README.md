@@ -1,23 +1,23 @@
 # Admin panel UI refresh delivery plan
 
-- Last updated: 2026-06-30
-- Planning status: `IN_PROGRESS`
-- Implementation status: `NOT_STARTED`
-- Target: replace the current admin presentation with the approved prototype visual language without removing working operational behavior.
+- Last updated: 2026-07-03
+- Planning status: `DONE`
+- Implementation status: `IN_PROGRESS`
+- Target: make the complete current Super Admin interface visually consistent with the approved prototype direction while preserving working behavior.
 
 ## Purpose
 
-Deliver the new admin shell and page designs for Dashboard, Bookings, Invoices,
-Portfolio, Reviews, and Login. The prototype is a visual specification; existing
-production workflows remain authoritative.
+Refresh the styling of every current admin page with one dark visual system. The
+prototype is inspiration rather than a pixel specification. Existing routes,
+data, forms, and operational workflows remain authoritative.
 
 ## Document index
 
 - [TASKS.md](./TASKS.md): authoritative implementation tracker.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): UI boundaries, routing, and shared components.
 - [DECISIONS.md](./DECISIONS.md): accepted visual and compatibility decisions.
-- [OPERATIONS.md](./OPERATIONS.md): rollout and rollback plan.
-- [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md): authentication and regression gates.
+- [OPERATIONS.md](./OPERATIONS.md): release and rollback notes.
+- [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md): focused regression gates.
 
 ## Status model
 
@@ -26,47 +26,63 @@ production workflows remain authoritative.
 | `NOT_STARTED` | No implementation work has begun. |
 | `IN_PROGRESS` | Work is active and has an owner. |
 | `BLOCKED` | Work cannot proceed without a recorded decision or dependency. |
-| `IN_REVIEW` | Implementation is complete and awaiting verification. |
+| `IN_REVIEW` | Work is complete and awaiting verification. |
 | `DONE` | Acceptance criteria are satisfied and evidence is recorded. |
 | `DEFERRED` | Explicitly removed from this release. |
 
-## Initial scope
+## Release scope
 
-- New grouped admin sidebar, breadcrumb header, administrator identity, responsive navigation, and consistent dark visual system.
-- Dedicated unauthenticated login layout matching the new design.
-- New Dashboard presentation wired to analytics supplied by `admin-analytics-finance`.
-- New Bookings list, filters, and detail presentation while preserving all current delivery workflows.
-- Invoice search and filtered-total footer while preserving real invoice downloads.
-- Portfolio media filters and target styling while preserving upload, CRUD, ordering, and visibility behavior.
-- Review preview column and target styling while preserving CRUD, featured, ordering, rating, and visibility behavior.
-- Accessible responsive tables, dialogs, loading states, empty states, and error states.
+- Apply the grouped dark admin shell to all current authenticated routes:
+  - Workspace: Dashboard, Bookings, Calendar, and Customers.
+  - Finance: Invoices and Reports.
+  - Operations: Promotions, Time Slots, and Pricing.
+  - Content: Portfolio and Reviews.
+- Keep `/admin` as the live analytics Dashboard and `/admin/analytics` as the detailed Reports page.
+- Label the existing `/admin/users` destination as **Customers**; the route does not change.
+- Keep Generic Codes, Personal Auto-Apply, and Automatic Discounts as tabs inside the existing Promotions page. Legacy Discounts and Coupons routes continue to redirect there.
+- Style the current login page in the same visual language without restructuring its authentication flow.
+- Add Bookings status filters, Invoice search with filtered totals, and Portfolio media-type filters.
+- Preserve Portfolio drag ordering and add drag ordering for Reviews. Featured reviews remain ordered ahead of standard reviews, with drag ordering within each group.
+- Use a mobile navigation drawer. Wide data tables remain tables and scroll horizontally on narrow screens.
+- Preserve all existing forms, mutations, downloads, uploads, workflow controls, analytics, calendar behavior, configuration editing, and visibility controls.
 
 ## Explicit non-goals
 
-- Redesigning Time Slots or Pricing in this release.
-- Reimplementing analytics calculations in UI components.
-- Replacing existing booking workflow, upload, invoice, portfolio, or review services.
-- Copying hard-coded prototype data into production code.
+- Adding Admin, Accounts, Settings, or configurable permissions; this release supports the current Super Admin surface only.
+- A light or system theme.
+- Pixel-perfect reproduction of `adminPrototype.jsx`.
+- Adding unsupported prototype actions such as **New Booking**.
+- Adding a review-text preview column.
+- Replacing mobile tables with purpose-built record cards.
+- Formal WCAG certification, exhaustive browser certification, or automated visual approval.
+- Rewriting working domain services or copying prototype sample data into runtime code.
 
 ## Dependencies
 
-- `admin-analytics-finance` for Dashboard data contracts.
-- `admin-access-control` for permission-aware navigation and administrator identity.
-- `admin-scheduling-calendar` for the Calendar navigation destination.
+- `admin-analytics-finance` supplies live Dashboard and Reports data.
+- `admin-scheduling-calendar` supplies the current Calendar behavior.
+- `promotions-management` supplies the consolidated Promotions page.
+
+The deferred `admin-access-control` feature is not a dependency for this release.
 
 ## Delivery estimate
 
 | Milestone | Estimate |
 |---|---:|
-| M0 - Scope and design contract | 1-2 engineering days |
-| M1 - Shell and shared UI foundation | 2-3 engineering days |
-| M2 - Page migrations | 5-7 engineering days |
-| M3 - Responsive, accessibility, and regression verification | 2-3 engineering days |
+| M0 - Finalize the UI contract | 1 engineering day |
+| M1 - Shell, tokens, and shared styling | 2-3 engineering days |
+| M2 - Full admin page styling | 7-10 engineering days |
+| M3 - Search, filters, ordering, and release checks | 3-5 engineering days |
+
+The work ships as one release, although implementation may use page-scoped
+commits to keep review and debugging manageable.
 
 ## Completion definition
 
-- Every in-scope page matches the approved visual direction at desktop and mobile breakpoints.
-- Existing operational actions remain available and pass scoped regression tests.
-- Login is not rendered inside the authenticated admin shell.
-- Permission-aware navigation does not expose inaccessible sections.
-- No hard-coded prototype business data remains in runtime components.
+- Every current admin page uses the same dark shell and shared visual language.
+- `/admin` renders live Dashboard analytics; `/admin/analytics` remains Reports.
+- Requested search, filter, and ordering controls operate on live data.
+- Existing operational actions remain available and pass focused regression tests.
+- Mobile navigation uses a drawer and wide tables can be deliberately scrolled.
+- No unsupported prototype control or hard-coded prototype business data is introduced.
+- The owner completes final visual acceptance before release.

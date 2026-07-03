@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminPage,
+  AdminPageHeader,
+} from "@/components/admin/AdminPrimitives";
 import { Separator } from "@/components/ui/separator";
 
 export default function AdminDashboard() {
@@ -61,44 +70,51 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Operations
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Admin Dashboard
-        </h1>
-      </div>
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Operations"
+        title="Admin Dashboard"
+        description="Shared admin tokens are now centralized for headers, cards, filters, tables, badges, dialogs, and async states. The page links below stay as the current route inventory until the live dashboard migration lands."
+        actions={<AdminBadge tone="info">Shared Foundation</AdminBadge>}
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {links.map((item) => (
           <Link key={item.href} href={item.href}>
-            <Card className="h-full rounded-2xl border-white/10 bg-card/70 transition-colors hover:border-white/20 hover:bg-card">
-              <CardHeader>
-                <CardTitle className="text-lg">{item.title}</CardTitle>
-              </CardHeader>
-              <Separator className="bg-white/10" />
-              <CardContent className="pt-4 text-sm text-muted-foreground">
+            <AdminCard className="h-full transition-transform duration-200 hover:-translate-y-1">
+              <AdminCardHeader>
+                <AdminCardTitle className="text-lg">
+                  {item.title}
+                </AdminCardTitle>
+                <AdminCardDescription>
+                  Current route destination
+                </AdminCardDescription>
+              </AdminCardHeader>
+              <Separator className="admin-divider" />
+              <AdminCardContent className="pt-4 text-sm text-[hsl(var(--admin-muted))]">
                 <p>{item.description}</p>
-              </CardContent>
-            </Card>
+              </AdminCardContent>
+            </AdminCard>
           </Link>
         ))}
 
         {/* Keep these links explicit and discoverable in the same UI block */}
         <Link href="/admin/login">
-          <Card className="h-full rounded-2xl border-dashed border-white/15 bg-card/50 transition-colors hover:border-white/30 hover:bg-card/70">
-            <CardHeader>
-              <CardTitle>Admin Login</CardTitle>
-            </CardHeader>
-            <Separator className="bg-white/10" />
-            <CardContent className="pt-4 text-sm text-muted-foreground">
+          <AdminCard
+            tone="muted"
+            className="h-full border-dashed transition-transform duration-200 hover:-translate-y-1"
+          >
+            <AdminCardHeader>
+              <AdminCardTitle>Admin Login</AdminCardTitle>
+              <AdminCardDescription>Shared shell excluded</AdminCardDescription>
+            </AdminCardHeader>
+            <Separator className="admin-divider" />
+            <AdminCardContent className="pt-4 text-sm text-[hsl(var(--admin-muted))]">
               <p>Access the admin authentication view.</p>
-            </CardContent>
-          </Card>
+            </AdminCardContent>
+          </AdminCard>
         </Link>
       </div>
-    </div>
+    </AdminPage>
   );
 }
