@@ -1,27 +1,49 @@
-import { render, screen } from "../../../test-utils";
+import { render, screen } from "@testing-library/react";
 import AdminDashboard from "../page";
 
-describe("AdminDashboard", () => {
-  it("links operators to Promotions and Calendar instead of legacy Discounts or Coupons", () => {
-    render(<AdminDashboard />);
+const mockGetSessionUser = jest.fn();
 
-    expect(screen.getByRole("link", { name: /Reports/i })).toHaveAttribute(
-      "href",
-      "/admin/analytics",
+jest.mock("next/navigation", () => ({
+  redirect: jest.fn(),
+}));
+
+jest.mock("@/lib/helpers/auth", () => ({
+  getSessionUser: (...args) => mockGetSessionUser(...args),
+}));
+
+jest.mock("../analytics/FinancialReportsPage", () => ({
+  __esModule: true,
+  default: function MockFinancialReportsPage({ mode }) {
+    return <div data-mode={mode} data-testid="financial-reports-page" />;
+  },
+}));
+
+describe("AdminDashboard", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("redirects anonymous visitors to the admin login route", async () => {
+    const { redirect } = await import("next/navigation");
+
+    mockGetSessionUser.mockResolvedValue(null);
+
+    await AdminDashboard();
+
+    expect(redirect).toHaveBeenCalledWith("/admin/login");
+  });
+
+  it("renders the dashboard-only analytics view for super admins", async () => {
+    mockGetSessionUser.mockResolvedValue({
+      id: 1,
+      role: "SUPERADMIN",
+    });
+
+    render(await AdminDashboard());
+
+    expect(screen.getByTestId("financial-reports-page")).toHaveAttribute(
+      "data-mode",
+      "dashboard",
     );
-    expect(screen.getByRole("link", { name: /Promotions/i })).toHaveAttribute(
-      "href",
-      "/admin/promotions",
-    );
-    expect(screen.getByRole("link", { name: /Calendar/i })).toHaveAttribute(
-      "href",
-      "/admin/scheduling-calendar",
-    );
-    expect(
-      screen.queryByRole("link", { name: /Discounts/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /Coupons/i }),
-    ).not.toBeInTheDocument();
   });
 });

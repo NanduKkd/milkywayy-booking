@@ -478,6 +478,41 @@ describe("FinancialReportsPage", () => {
     });
   });
 
+  it("renders a dashboard-only admin view without loading reports or expenses", async () => {
+    setupFetch({
+      expenseItems: [],
+    });
+
+    render(<FinancialReportsPage mode="dashboard" />);
+
+    expect(await screen.findByText("Admin Dashboard")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open Reports" })).toHaveAttribute(
+      "href",
+      "/admin/analytics",
+    );
+    expect(screen.queryByText("Financial Reports")).not.toBeInTheDocument();
+    expect(screen.queryByText("Expense Tracker")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Export CSV" }),
+    ).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/analytics/dashboard?"),
+        expect.objectContaining({ cache: "no-store" }),
+      );
+    });
+
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/admin/analytics/reports?"),
+      expect.anything(),
+    );
+    expect(global.fetch).not.toHaveBeenCalledWith(
+      expect.stringContaining("/api/admin/expenses?"),
+      expect.anything(),
+    );
+  });
+
   it("creates, edits, and deletes expenses from the tracker", async () => {
     setupFetch({
       expenseItems: [

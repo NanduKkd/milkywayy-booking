@@ -9,6 +9,7 @@ import {
   RefreshCcw,
   TrendingUp,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -369,7 +370,10 @@ function LoadingState({ label }) {
 function EmptyTableRow({ colSpan, message }) {
   return (
     <TableRow>
-      <TableCell className="text-center text-muted-foreground" colSpan={colSpan}>
+      <TableCell
+        className="text-center text-muted-foreground"
+        colSpan={colSpan}
+      >
         {message}
       </TableCell>
     </TableRow>
@@ -417,7 +421,9 @@ function LinkedBookingsCell({ bookings = [] }) {
             {booking.bookingCode || `Booking #${booking.id}`}
           </p>
           <p className="text-xs text-muted-foreground">
-            {booking.customer?.fullName || booking.customer?.email || booking.date}
+            {booking.customer?.fullName ||
+              booking.customer?.email ||
+              booking.date}
           </p>
         </div>
       ))}
@@ -450,7 +456,10 @@ function DrilldownTable({ metricKey, rows }) {
               </TableRow>
             ))
           ) : (
-            <EmptyTableRow colSpan={4} message="No payments matched this range." />
+            <EmptyTableRow
+              colSpan={4}
+              message="No payments matched this range."
+            />
           )}
         </TableBody>
       </Table>
@@ -481,7 +490,10 @@ function DrilldownTable({ metricKey, rows }) {
               </TableRow>
             ))
           ) : (
-            <EmptyTableRow colSpan={4} message="No refunds matched this range." />
+            <EmptyTableRow
+              colSpan={4}
+              message="No refunds matched this range."
+            />
           )}
         </TableBody>
       </Table>
@@ -502,7 +514,9 @@ function DrilldownTable({ metricKey, rows }) {
         <TableBody>
           {rows.length > 0 ? (
             rows.map((row) => (
-              <TableRow key={`${row.id}-${row.eventAt}-${row.type || row.entryType}`}>
+              <TableRow
+                key={`${row.id}-${row.eventAt}-${row.type || row.entryType}`}
+              >
                 <TableCell>{formatDateTime(row.eventAt)}</TableCell>
                 <TableCell className="capitalize">
                   {row.entryType || row.type || "entry"}
@@ -541,13 +555,18 @@ function DrilldownTable({ metricKey, rows }) {
             rows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell>{formatBusinessDate(row.expenseDate)}</TableCell>
-                <TableCell>{row.categoryLabel || row.category || "Unknown"}</TableCell>
+                <TableCell>
+                  {row.categoryLabel || row.category || "Unknown"}
+                </TableCell>
                 <TableCell>{row.description || "No description"}</TableCell>
                 <TableCell>{formatCurrency(row.amount)}</TableCell>
               </TableRow>
             ))
           ) : (
-            <EmptyTableRow colSpan={4} message="No expenses matched this range." />
+            <EmptyTableRow
+              colSpan={4}
+              message="No expenses matched this range."
+            />
           )}
         </TableBody>
       </Table>
@@ -572,7 +591,10 @@ function DrilldownTable({ metricKey, rows }) {
               <TableRow key={row.id}>
                 <TableCell>{row.serviceLabel}</TableCell>
                 <TableCell>
-                  <BookingCell bookingCode={row.bookingCode} id={row.bookingId} />
+                  <BookingCell
+                    bookingCode={row.bookingCode}
+                    id={row.bookingId}
+                  />
                 </TableCell>
                 <TableCell>
                   <CustomerCell customer={row.customer} />
@@ -620,7 +642,10 @@ function DrilldownTable({ metricKey, rows }) {
               </TableRow>
             ))
           ) : (
-            <EmptyTableRow colSpan={5} message="No scheduled bookings matched this range." />
+            <EmptyTableRow
+              colSpan={5}
+              message="No scheduled bookings matched this range."
+            />
           )}
         </TableBody>
       </Table>
@@ -655,7 +680,9 @@ function DrilldownTable({ metricKey, rows }) {
                 <CustomerCell customer={row.customer} />
               </TableCell>
               <TableCell>{formatBusinessDate(row.date)}</TableCell>
-              <TableCell>{row.workflowStatus || row.status || "Unknown"}</TableCell>
+              <TableCell>
+                {row.workflowStatus || row.status || "Unknown"}
+              </TableCell>
               <TableCell>
                 {metricKey === "completedBookings" ||
                 metricKey === "pendingBookings" ||
@@ -669,7 +696,10 @@ function DrilldownTable({ metricKey, rows }) {
             </TableRow>
           ))
         ) : (
-          <EmptyTableRow colSpan={5} message="No bookings matched this range." />
+          <EmptyTableRow
+            colSpan={5}
+            message="No bookings matched this range."
+          />
         )}
       </TableBody>
     </Table>
@@ -717,8 +747,8 @@ function DashboardDrilldownDialog({
             <div className="text-sm text-muted-foreground">
               {pagination ? (
                 <p>
-                  Page {pagination.page} of {Math.max(pagination.totalPages, 1)} ·{" "}
-                  {formatCount(pagination.totalRows)} rows
+                  Page {pagination.page} of {Math.max(pagination.totalPages, 1)}{" "}
+                  · {formatCount(pagination.totalRows)} rows
                 </p>
               ) : null}
             </div>
@@ -726,10 +756,13 @@ function DashboardDrilldownDialog({
         </div>
 
         {loading ? (
-          <div aria-label="Loading dashboard drill-down" className="space-y-3">
+          <section
+            aria-label="Loading dashboard drill-down"
+            className="space-y-3"
+          >
             <div className="h-12 rounded-xl border border-white/10 bg-white/[0.04]" />
             <div className="h-72 rounded-xl border border-white/10 bg-white/[0.04]" />
-          </div>
+          </section>
         ) : null}
 
         {!loading && error ? (
@@ -737,7 +770,9 @@ function DashboardDrilldownDialog({
             <CardHeader>
               <div className="flex items-center gap-2 text-red-200">
                 <AlertCircle className="h-5 w-5" />
-                <CardTitle className="text-xl">Drill-down unavailable</CardTitle>
+                <CardTitle className="text-xl">
+                  Drill-down unavailable
+                </CardTitle>
               </div>
               <CardDescription className="text-red-100/80">
                 {error}
@@ -751,7 +786,9 @@ function DashboardDrilldownDialog({
           </Card>
         ) : null}
 
-        {!loading && !error ? <DrilldownTable metricKey={metricKey} rows={rows} /> : null}
+        {!loading && !error ? (
+          <DrilldownTable metricKey={metricKey} rows={rows} />
+        ) : null}
 
         {!loading && !error && pagination ? (
           <div className="flex items-center justify-between gap-3">
@@ -780,7 +817,8 @@ function DashboardDrilldownDialog({
   );
 }
 
-export default function FinancialReportsPage() {
+export default function FinancialReportsPage({ mode = "full" }) {
+  const dashboardOnly = mode === "dashboard";
   const [monthValue, setMonthValue] = useState(getDefaultMonthValue);
   const [dashboard, setDashboard] = useState(null);
   const [dashboardError, setDashboardError] = useState(null);
@@ -853,6 +891,13 @@ export default function FinancialReportsPage() {
   }, [rangeEnd, rangeStart, reloadToken]);
 
   useEffect(() => {
+    if (dashboardOnly) {
+      setError(null);
+      setLoading(false);
+      setReport(null);
+      return undefined;
+    }
+
     void reloadToken;
 
     const controller = new AbortController();
@@ -896,12 +941,14 @@ export default function FinancialReportsPage() {
     loadReport();
 
     return () => controller.abort();
-  }, [rangeEnd, rangeStart, reloadToken]);
+  }, [dashboardOnly, rangeEnd, rangeStart, reloadToken]);
 
   useEffect(() => {
     if (!drilldownState.open || !drilldownState.metricKey) {
       return undefined;
     }
+
+    void drilldownState.requestKey;
 
     const controller = new AbortController();
 
@@ -1032,14 +1079,15 @@ export default function FinancialReportsPage() {
           </div>
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Accounts
+              {dashboardOnly ? "Operations" : "Accounts"}
             </p>
             <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              Admin Analytics
+              {dashboardOnly ? "Admin Dashboard" : "Admin Analytics"}
             </h1>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Dashboard KPIs, financial reports, exports, and tracked expenses
-              for {selectedMonthLabel}.
+              {dashboardOnly
+                ? `Live KPI cards, revenue movement, schedule activity, and recent bookings for ${selectedMonthLabel}.`
+                : `Dashboard KPIs, financial reports, exports, and tracked expenses for ${selectedMonthLabel}.`}
             </p>
           </div>
         </div>
@@ -1059,24 +1107,35 @@ export default function FinancialReportsPage() {
               value={monthValue}
             />
           </label>
-          <Button asChild className="rounded-xl" variant="outline">
-            <a aria-label="Export CSV" download href={csvExportHref}>
-              <Download className="h-4 w-4" />
-              Export CSV
-            </a>
-          </Button>
-          <Button asChild className="rounded-xl" variant="outline">
-            <a aria-label="Export Excel" download href={excelExportHref}>
-              <Download className="h-4 w-4" />
-              Export Excel
-            </a>
-          </Button>
-          <Button asChild className="rounded-xl" variant="outline">
-            <a aria-label="Export PDF" download href={pdfExportHref}>
-              <Download className="h-4 w-4" />
-              Export PDF
-            </a>
-          </Button>
+          {dashboardOnly ? (
+            <Button asChild className="rounded-xl" variant="outline">
+              <Link href="/admin/analytics">
+                <BarChart3 className="h-4 w-4" />
+                Open Reports
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild className="rounded-xl" variant="outline">
+                <a aria-label="Export CSV" download href={csvExportHref}>
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </a>
+              </Button>
+              <Button asChild className="rounded-xl" variant="outline">
+                <a aria-label="Export Excel" download href={excelExportHref}>
+                  <Download className="h-4 w-4" />
+                  Export Excel
+                </a>
+              </Button>
+              <Button asChild className="rounded-xl" variant="outline">
+                <a aria-label="Export PDF" download href={pdfExportHref}>
+                  <Download className="h-4 w-4" />
+                  Export PDF
+                </a>
+              </Button>
+            </>
+          )}
           <Button
             className="rounded-xl"
             onClick={() => setReloadToken((value) => value + 1)}
@@ -1089,7 +1148,10 @@ export default function FinancialReportsPage() {
         </div>
       </div>
 
-      <section aria-labelledby="dashboard-analytics-heading" className="space-y-6">
+      <section
+        aria-labelledby="dashboard-analytics-heading"
+        className="space-y-6"
+      >
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
@@ -1193,7 +1255,9 @@ export default function FinancialReportsPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <CardTitle className="text-xl">Revenue by Service</CardTitle>
+                      <CardTitle className="text-xl">
+                        Revenue by Service
+                      </CardTitle>
                       <CardDescription>
                         Paid-service contribution from the same dashboard range.
                       </CardDescription>
@@ -1238,7 +1302,9 @@ export default function FinancialReportsPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <CardTitle className="text-xl">Schedule Summary</CardTitle>
+                      <CardTitle className="text-xl">
+                        Schedule Summary
+                      </CardTitle>
                       <CardDescription>
                         Operational booking volume for the same bounded range.
                       </CardDescription>
@@ -1269,7 +1335,9 @@ export default function FinancialReportsPage() {
                         Pending
                       </p>
                       <p className="mt-2 text-2xl font-semibold">
-                        {formatCount(dashboard.scheduleSummary?.totals?.pending)}
+                        {formatCount(
+                          dashboard.scheduleSummary?.totals?.pending,
+                        )}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -1277,7 +1345,9 @@ export default function FinancialReportsPage() {
                         Completed
                       </p>
                       <p className="mt-2 text-2xl font-semibold">
-                        {formatCount(dashboard.scheduleSummary?.totals?.completed)}
+                        {formatCount(
+                          dashboard.scheduleSummary?.totals?.completed,
+                        )}
                       </p>
                     </div>
                     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -1285,13 +1355,16 @@ export default function FinancialReportsPage() {
                         Cancelled
                       </p>
                       <p className="mt-2 text-2xl font-semibold">
-                        {formatCount(dashboard.scheduleSummary?.totals?.cancelled)}
+                        {formatCount(
+                          dashboard.scheduleSummary?.totals?.cancelled,
+                        )}
                       </p>
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    {(dashboard.scheduleSummary?.recentDayDetails || []).length > 0 ? (
+                    {(dashboard.scheduleSummary?.recentDayDetails || [])
+                      .length > 0 ? (
                       dashboard.scheduleSummary.recentDayDetails.map((day) => (
                         <div
                           key={day.bucketStartBusinessDate}
@@ -1365,9 +1438,11 @@ export default function FinancialReportsPage() {
                           </span>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">
-                          Created {formatDateTime(booking.createdAt)} · Scheduled{" "}
-                          {formatBusinessDate(booking.date)} ·{" "}
-                          {booking.workflowStatus || booking.status || "Unknown"}
+                          Created {formatDateTime(booking.createdAt)} ·
+                          Scheduled {formatBusinessDate(booking.date)} ·{" "}
+                          {booking.workflowStatus ||
+                            booking.status ||
+                            "Unknown"}
                         </p>
                       </div>
                     ))
@@ -1383,273 +1458,299 @@ export default function FinancialReportsPage() {
         ) : null}
       </section>
 
-      <section aria-labelledby="financial-reports-heading" className="space-y-6">
-        <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Reports
-          </p>
-          <h2
-            className="text-2xl font-semibold tracking-tight"
-            id="financial-reports-heading"
+      {!dashboardOnly ? (
+        <>
+          <section
+            aria-labelledby="financial-reports-heading"
+            className="space-y-6"
           >
-            Financial Reports
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Revenue, refunds, expenses, profit, and month-over-month movement
-            for {selectedMonthLabel}.
-          </p>
-        </div>
-
-        {loading ? <LoadingState label="Loading financial reports" /> : null}
-
-        {!loading && error ? (
-          <Card className="rounded-2xl border-red-400/20 bg-red-500/10">
-            <CardHeader>
-              <div className="flex items-center gap-2 text-red-200">
-                <AlertCircle className="h-5 w-5" />
-                <CardTitle className="text-xl">
-                  Financial report unavailable
-                </CardTitle>
-              </div>
-              <CardDescription className="text-red-100/80">
-                {error}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button
-                onClick={() => setReloadToken((value) => value + 1)}
-                type="button"
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                Reports
+              </p>
+              <h2
+                className="text-2xl font-semibold tracking-tight"
+                id="financial-reports-heading"
               >
-                Retry
-              </Button>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {!loading && !error && reportEmpty ? (
-          <Card className="rounded-2xl border-dashed border-white/15 bg-card/60">
-            <CardHeader>
-              <CardTitle className="text-xl">
-                No financial activity in this range
-              </CardTitle>
-              <CardDescription>
-                Live reporting returned no payments, refunds, expenses, or
-                tracked bookings for {selectedMonthLabel}.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        ) : null}
-
-        {!loading && !error && report ? (
-          <>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <ReportKpiCard
-                comparison={report.comparison?.netRevenue}
-                label="Net Revenue"
-                value={report.kpis?.netRevenue}
-              />
-              <ReportKpiCard
-                comparison={report.comparison?.expenses}
-                label="Expenses"
-                value={report.kpis?.expenses}
-              />
-              <ReportKpiCard
-                comparison={report.comparison?.netProfit}
-                label="Net Profit"
-                value={report.kpis?.netProfit}
-              />
-              <ReportKpiCard
-                comparison={report.comparison?.completedBookings}
-                isCount
-                label="Completed Bookings"
-                value={report.kpis?.completedBookings}
-              />
+                Financial Reports
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                Revenue, refunds, expenses, profit, and month-over-month
+                movement for {selectedMonthLabel}.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
-              <Card className="rounded-2xl border-white/10 bg-card/70">
+            {loading ? (
+              <LoadingState label="Loading financial reports" />
+            ) : null}
+
+            {!loading && error ? (
+              <Card className="rounded-2xl border-red-400/20 bg-red-500/10">
                 <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-300" />
-                    <CardTitle className="text-xl">Weekly Net Revenue</CardTitle>
+                  <div className="flex items-center gap-2 text-red-200">
+                    <AlertCircle className="h-5 w-5" />
+                    <CardTitle className="text-xl">
+                      Financial report unavailable
+                    </CardTitle>
                   </div>
-                  <CardDescription>
-                    Live weekly buckets for {selectedMonthLabel}.
+                  <CardDescription className="text-red-100/80">
+                    {error}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <TrendChart
-                    buckets={report.weeklyTrend?.buckets}
-                    title="Week-by-week net revenue"
+                  <Button
+                    onClick={() => setReloadToken((value) => value + 1)}
+                    type="button"
+                  >
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {!loading && !error && reportEmpty ? (
+              <Card className="rounded-2xl border-dashed border-white/15 bg-card/60">
+                <CardHeader>
+                  <CardTitle className="text-xl">
+                    No financial activity in this range
+                  </CardTitle>
+                  <CardDescription>
+                    Live reporting returned no payments, refunds, expenses, or
+                    tracked bookings for {selectedMonthLabel}.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ) : null}
+
+            {!loading && !error && report ? (
+              <>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <ReportKpiCard
+                    comparison={report.comparison?.netRevenue}
+                    label="Net Revenue"
+                    value={report.kpis?.netRevenue}
                   />
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
-                  <CardTitle className="text-xl">Profit and Loss</CardTitle>
-                  <CardDescription>
-                    Cash-based view for the selected month.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Net revenue</span>
-                    <span className="font-medium">
-                      {formatCurrency(report.profitAndLoss?.netRevenue)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Expenses</span>
-                    <span className="font-medium">
-                      {formatCurrency(report.profitAndLoss?.expenses)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Net profit</span>
-                    <span className="font-medium">
-                      {formatCurrency(report.profitAndLoss?.netProfit)}
-                    </span>
-                  </div>
-                  <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/70">
-                      Margin
-                    </p>
-                    <p className="mt-2 text-3xl font-semibold text-emerald-100">
-                      {formatPercent(report.profitAndLoss?.margin)}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
-                  <CardTitle className="text-xl">Monthly Comparison</CardTitle>
-                  <CardDescription>
-                    Six business months ending in {selectedMonthLabel}.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Month</TableHead>
-                        <TableHead>Net Revenue</TableHead>
-                        <TableHead>Expenses</TableHead>
-                        <TableHead>Net Profit</TableHead>
-                        <TableHead>Completed</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(report.monthlyComparison || []).map((row) => (
-                        <TableRow key={row.monthStartBusinessDate}>
-                          <TableCell className="font-medium">
-                            {row.monthLabel}
-                          </TableCell>
-                          <TableCell>{formatCurrency(row.netRevenue)}</TableCell>
-                          <TableCell>{formatCurrency(row.expenses)}</TableCell>
-                          <TableCell>{formatCurrency(row.netProfit)}</TableCell>
-                          <TableCell>
-                            {formatCount(row.completedBookings)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
-                  <CardTitle className="text-xl">Six-Month Trend</CardTitle>
-                  <CardDescription>
-                    Net revenue trajectory leading into the selected month.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <TrendChart
-                    buckets={report.sixMonthTrend?.buckets?.map(
-                      (bucket, index) => ({
-                        ...bucket,
-                        monthLabel:
-                          report.monthlyComparison?.[index]?.monthLabel ||
-                          bucket.bucketStartBusinessDate,
-                      }),
-                    )}
-                    title="Month-over-month net revenue"
+                  <ReportKpiCard
+                    comparison={report.comparison?.expenses}
+                    label="Expenses"
+                    value={report.kpis?.expenses}
                   />
-                </CardContent>
-              </Card>
-            </div>
+                  <ReportKpiCard
+                    comparison={report.comparison?.netProfit}
+                    label="Net Profit"
+                    value={report.kpis?.netProfit}
+                  />
+                  <ReportKpiCard
+                    comparison={report.comparison?.completedBookings}
+                    isCount
+                    label="Completed Bookings"
+                    value={report.kpis?.completedBookings}
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
-                  <CardTitle className="text-xl">Booking Status</CardTitle>
-                  <CardDescription>
-                    Operational counts tied to the same live reporting range.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {(report.bookingStatus?.buckets || []).map((bucket) => (
-                    <div
-                      key={bucket.key}
-                      className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
-                    >
-                      <span className="text-sm text-muted-foreground">
-                        {bucket.label}
-                      </span>
-                      <span className="text-sm font-medium">
-                        {formatCount(bucket.count)}
-                      </span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
+                  <Card className="rounded-2xl border-white/10 bg-card/70">
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-emerald-300" />
+                        <CardTitle className="text-xl">
+                          Weekly Net Revenue
+                        </CardTitle>
+                      </div>
+                      <CardDescription>
+                        Live weekly buckets for {selectedMonthLabel}.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <TrendChart
+                        buckets={report.weeklyTrend?.buckets}
+                        title="Week-by-week net revenue"
+                      />
+                    </CardContent>
+                  </Card>
 
-              <Card className="rounded-2xl border-white/10 bg-card/70">
-                <CardHeader>
-                  <CardTitle className="text-xl">Revenue by Service</CardTitle>
-                  <CardDescription>
-                    Paid-service contribution from the same live dataset.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {(report.revenueByService || []).length > 0 ? (
-                    report.revenueByService.map((service) => (
-                      <div
-                        key={service.key}
-                        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
-                      >
-                        <span className="text-sm text-muted-foreground">
-                          {service.label}
+                  <Card className="rounded-2xl border-white/10 bg-card/70">
+                    <CardHeader>
+                      <CardTitle className="text-xl">Profit and Loss</CardTitle>
+                      <CardDescription>
+                        Cash-based view for the selected month.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Net revenue
                         </span>
-                        <span className="text-sm font-medium">
-                          {formatCurrency(service.amount)}
+                        <span className="font-medium">
+                          {formatCurrency(report.profitAndLoss?.netRevenue)}
                         </span>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No attributable paid service revenue for this range.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </>
-        ) : null}
-      </section>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Expenses</span>
+                        <span className="font-medium">
+                          {formatCurrency(report.profitAndLoss?.expenses)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Net profit
+                        </span>
+                        <span className="font-medium">
+                          {formatCurrency(report.profitAndLoss?.netProfit)}
+                        </span>
+                      </div>
+                      <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-emerald-100/70">
+                          Margin
+                        </p>
+                        <p className="mt-2 text-3xl font-semibold text-emerald-100">
+                          {formatPercent(report.profitAndLoss?.margin)}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-      <ExpenseTrackerSection
-        onDataChanged={() => setReloadToken((value) => value + 1)}
-        rangeEnd={rangeEnd}
-        rangeStart={rangeStart}
-        reloadToken={reloadToken}
-        selectedMonthLabel={selectedMonthLabel}
-      />
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
+                  <Card className="rounded-2xl border-white/10 bg-card/70">
+                    <CardHeader>
+                      <CardTitle className="text-xl">
+                        Monthly Comparison
+                      </CardTitle>
+                      <CardDescription>
+                        Six business months ending in {selectedMonthLabel}.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Month</TableHead>
+                            <TableHead>Net Revenue</TableHead>
+                            <TableHead>Expenses</TableHead>
+                            <TableHead>Net Profit</TableHead>
+                            <TableHead>Completed</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(report.monthlyComparison || []).map((row) => (
+                            <TableRow key={row.monthStartBusinessDate}>
+                              <TableCell className="font-medium">
+                                {row.monthLabel}
+                              </TableCell>
+                              <TableCell>
+                                {formatCurrency(row.netRevenue)}
+                              </TableCell>
+                              <TableCell>
+                                {formatCurrency(row.expenses)}
+                              </TableCell>
+                              <TableCell>
+                                {formatCurrency(row.netProfit)}
+                              </TableCell>
+                              <TableCell>
+                                {formatCount(row.completedBookings)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl border-white/10 bg-card/70">
+                    <CardHeader>
+                      <CardTitle className="text-xl">Six-Month Trend</CardTitle>
+                      <CardDescription>
+                        Net revenue trajectory leading into the selected month.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <TrendChart
+                        buckets={report.sixMonthTrend?.buckets?.map(
+                          (bucket, index) => ({
+                            ...bucket,
+                            monthLabel:
+                              report.monthlyComparison?.[index]?.monthLabel ||
+                              bucket.bucketStartBusinessDate,
+                          }),
+                        )}
+                        title="Month-over-month net revenue"
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <Card className="rounded-2xl border-white/10 bg-card/70">
+                    <CardHeader>
+                      <CardTitle className="text-xl">Booking Status</CardTitle>
+                      <CardDescription>
+                        Operational counts tied to the same live reporting
+                        range.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {(report.bookingStatus?.buckets || []).map((bucket) => (
+                        <div
+                          key={bucket.key}
+                          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                        >
+                          <span className="text-sm text-muted-foreground">
+                            {bucket.label}
+                          </span>
+                          <span className="text-sm font-medium">
+                            {formatCount(bucket.count)}
+                          </span>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="rounded-2xl border-white/10 bg-card/70">
+                    <CardHeader>
+                      <CardTitle className="text-xl">
+                        Revenue by Service
+                      </CardTitle>
+                      <CardDescription>
+                        Paid-service contribution from the same live dataset.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {(report.revenueByService || []).length > 0 ? (
+                        report.revenueByService.map((service) => (
+                          <div
+                            key={service.key}
+                            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                          >
+                            <span className="text-sm text-muted-foreground">
+                              {service.label}
+                            </span>
+                            <span className="text-sm font-medium">
+                              {formatCurrency(service.amount)}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No attributable paid service revenue for this range.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            ) : null}
+          </section>
+
+          <ExpenseTrackerSection
+            onDataChanged={() => setReloadToken((value) => value + 1)}
+            rangeEnd={rangeEnd}
+            rangeStart={rangeStart}
+            reloadToken={reloadToken}
+            selectedMonthLabel={selectedMonthLabel}
+          />
+        </>
+      ) : null}
 
       <DashboardDrilldownDialog
         error={drilldownState.error}

@@ -13,7 +13,7 @@ defined in [README.md](./README.md).
 |---|---|---:|---:|---:|
 | M0 - Finalize the UI contract | `DONE` | 3 | 3 | 1 day |
 | M1 - Shell, tokens, and shared styling | `DONE` | 3 | 3 | 2-3 days |
-| M2 - Full admin page styling | `NOT_STARTED` | 0 | 11 | 7-10 days |
+| M2 - Full admin page styling | `IN_PROGRESS` | 1 | 11 | 7-10 days |
 | M3 - Enhancements and release checks | `NOT_STARTED` | 0 | 5 | 3-5 days |
 
 ## M0 - Finalize the UI contract
@@ -36,7 +36,7 @@ defined in [README.md](./README.md).
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |
 |---|---|---|---|---|---|---|
-| UI-201 | Build the live Dashboard presentation at `/admin` | `NOT_STARTED` | Engineering | UI-101, Dashboard analytics API | KPI, charts, schedule, recent bookings, drill-downs, loading, and errors use live analytics | Pending |
+| UI-201 | Build the live Dashboard presentation at `/admin` | `DONE` | Engineering | UI-101, Dashboard analytics API | KPI, charts, schedule, recent bookings, drill-downs, loading, and errors use live analytics | Reused the live dashboard analytics surface in `src/app/admin/analytics/FinancialReportsPage.jsx` with a dashboard-only mode, protected `/admin` in `src/app/admin/page.jsx`, and verified with `npx jest src/app/admin/__tests__/page.test.jsx src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx --runInBand` and `npx biome check src/app/admin/page.jsx src/app/admin/__tests__/page.test.jsx src/app/admin/analytics/FinancialReportsPage.jsx src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx`. |
 | UI-202 | Refresh Bookings and add status filters | `NOT_STARTED` | Engineering | UI-101 | All/Completed/Pending/Cancelled filters work and every existing booking workflow control remains available | Pending |
 | UI-203 | Refresh Customers | `NOT_STARTED` | Engineering | UI-101 | `/admin/users` is labeled Customers and current customer operations remain intact | Pending |
 | UI-204 | Refresh Invoices and add search/totals | `NOT_STARTED` | Engineering | UI-101 | Search covers invoice number, booking reference, and customer; footer totals visible results; downloads work | Pending |
