@@ -81,6 +81,56 @@ describe("Admin Bookings Page", () => {
     });
   });
 
+  it("filters bookings by status buckets", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => [
+        baseBooking,
+        {
+          ...baseBooking,
+          id: 2,
+          propertyDetails: {
+            unit: "202",
+            building: "Tower B",
+            community: "JLT",
+          },
+          workflowStatus: "PROJECT_COMPLETED",
+          completedAt: "2026-06-10T10:00:00.000Z",
+        },
+        {
+          ...baseBooking,
+          id: 3,
+          propertyDetails: {
+            unit: "303",
+            building: "Tower C",
+            community: "Downtown",
+          },
+          status: "CANCELLED",
+          cancelledAt: "2026-06-11T10:00:00.000Z",
+        },
+      ],
+    });
+
+    render(<BookingsPage />);
+
+    expect(await screen.findByText("101, Tower A, Marina")).toBeInTheDocument();
+    expect(screen.getByText("202, Tower B, JLT")).toBeInTheDocument();
+    expect(screen.getByText("303, Tower C, Downtown")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /completed/i }));
+
+    expect(screen.queryByText("101, Tower A, Marina")).not.toBeInTheDocument();
+    expect(screen.getByText("202, Tower B, JLT")).toBeInTheDocument();
+    expect(
+      screen.queryByText("303, Tower C, Downtown"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /cancelled/i }));
+
+    expect(screen.queryByText("202, Tower B, JLT")).not.toBeInTheDocument();
+    expect(screen.getByText("303, Tower C, Downtown")).toBeInTheDocument();
+  });
+
   it("appends every uploaded physical file", async () => {
     global.fetch.mockImplementation((url) => {
       if (url === "/api/admin/bookings") {

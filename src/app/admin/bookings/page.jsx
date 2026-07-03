@@ -1,9 +1,24 @@
 "use client";
+
 import { RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import {
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminEmptyState,
+  AdminFilterChip,
+  AdminFilterRow,
+  AdminInlineMessage,
+  AdminPage,
+  AdminPageHeader,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
 import BookingWorkflowTracker from "@/components/BookingWorkflowTracker";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,6 +53,16 @@ import {
   MAX_BOOKING_UPLOAD_BYTES,
   uploadBookingFile,
 } from "@/lib/uploads/multipart";
+
+const BOOKING_FILTERS = [
+  { id: "ALL", label: "All" },
+  { id: "PENDING", label: "Pending" },
+  { id: "COMPLETED", label: "Completed" },
+  { id: "CANCELLED", label: "Cancelled" },
+];
+
+const DETAIL_PANEL_CLASS =
+  "admin-panel-subtle rounded-[1.45rem] border border-[hsl(var(--admin-border)/0.76)] p-4 sm:p-5";
 
 const getDeliveryFiles = (booking) =>
   (booking?.deliveryFiles || []).filter((file) => !file.deletedAt);
@@ -101,10 +126,87 @@ const getWorkflowLabel = (booking) =>
     [BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED]: "Project Completed",
   })[getWorkflowStatus(booking)] || "Shoot Booked";
 
+const getPropertyLabel = (booking) =>
+  [
+    booking?.propertyDetails?.unit,
+    booking?.propertyDetails?.building,
+    booking?.propertyDetails?.community,
+  ]
+    .filter(Boolean)
+    .join(", ") || "Property details pending";
+
+const isCancelledBooking = (booking) =>
+  Boolean(booking?.cancelledAt || booking?.status === "CANCELLED");
+
+const isCompletedBooking = (booking) =>
+  !isCancelledBooking(booking) &&
+  (getWorkflowStatus(booking) === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED ||
+    booking?.status === "COMPLETED" ||
+    Boolean(booking?.completedAt));
+
+const matchesBookingFilter = (booking, filterId) => {
+  if (filterId === "COMPLETED") {
+    return isCompletedBooking(booking);
+  }
+  if (filterId === "CANCELLED") {
+    return isCancelledBooking(booking);
+  }
+  if (filterId === "PENDING") {
+    return !isCancelledBooking(booking) && !isCompletedBooking(booking);
+  }
+  return true;
+};
+
+const getBookingStatusMeta = (booking) => {
+  if (isCancelledBooking(booking)) {
+    return { label: "Cancelled", tone: "danger" };
+  }
+  if (isCompletedBooking(booking)) {
+    return { label: "Project Completed", tone: "success" };
+  }
+  if (booking?.status === "DRAFT") {
+    return { label: "Awaiting Payment", tone: "warning" };
+  }
+  return { label: getWorkflowLabel(booking), tone: "info" };
+};
+
+const getFilterCounts = (bookings) =>
+  BOOKING_FILTERS.reduce((counts, filter) => {
+    counts[filter.id] = bookings.filter((booking) =>
+      matchesBookingFilter(booking, filter.id),
+    ).length;
+    return counts;
+  }, {});
+
+const getDeliverableStatusTone = (status) => {
+  if (status === "CHANGES_REQUESTED") return "warning";
+  if (status === "ACCEPTED") return "success";
+  if (status === "UNDER_REVIEW") return "info";
+  if (status === "PRIVATE") return "neutral";
+  return "neutral";
+};
+
+const fetchAdminBookings = async () => {
+  const response = await fetch("/api/admin/bookings");
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(data?.error || "Failed to fetch bookings");
+  }
+  if (!Array.isArray(data)) {
+    throw new Error("Failed to fetch bookings");
+  }
+
+  return data;
+};
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("ALL");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [deliverableAction, setDeliverableAction] = useState(null);
   const [workflowUpdating, setWorkflowUpdating] = useState(false);
@@ -130,19 +232,67 @@ export default function BookingsPage() {
           selectedTransaction.id,
         )
       : null;
+  const bookingCounts = getFilterCounts(bookings);
+  const filteredBookings = bookings.filter((booking) =>
+    matchesBookingFilter(booking, activeFilter),
+  );
 
   useEffect(() => {
-    fetch("/api/admin/bookings")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
+    let cancelled = false;
+
+    const loadBookings = async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const data = await fetchAdminBookings();
+        if (!cancelled) {
           setBookings(data);
-        } else {
-          console.error("Failed to fetch bookings", data);
         }
-      })
-      .catch((err) => console.error(err));
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setBookings([]);
+          setLoadError(error.message || "Failed to fetch bookings");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadBookings();
+
+    return () => {
+      cancelled = true;
+      uploadAbortRef.current?.abort();
+    };
   }, []);
+
+  const handleRefreshBookings = async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const data = await fetchAdminBookings();
+      setBookings(data);
+
+      if (selectedBooking?.id) {
+        const nextSelectedBooking = data.find(
+          (booking) => booking.id === selectedBooking.id,
+        );
+        setSelectedBooking(nextSelectedBooking || null);
+        if (!nextSelectedBooking) {
+          setIsOpen(false);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      setBookings([]);
+      setLoadError(error.message || "Failed to fetch bookings");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleRowClick = (booking) => {
     setSelectedBooking(booking);
@@ -179,8 +329,8 @@ export default function BookingsPage() {
       } else {
         alert(`Failed: ${res.message || "Unknown error"}`);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       alert("Failed to update booking workflow");
     } finally {
       setWorkflowUpdating(false);
@@ -263,8 +413,9 @@ export default function BookingsPage() {
           signal: controller.signal,
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok)
+        if (!response.ok) {
           throw new Error(data.error || "URL registration failed");
+        }
         applyUploadResult(data, replacementFileId);
         setExternalUrl("");
         completedCount += 1;
@@ -425,7 +576,7 @@ export default function BookingsPage() {
     if (!selectedBooking?.id) return;
     setNotifyingType(type);
     try {
-      const res = await fetch("/api/notifications/whatsapp", {
+      const response = await fetch("/api/notifications/whatsapp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -434,8 +585,8 @@ export default function BookingsPage() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
+      const data = await response.json();
+      if (!response.ok) {
         throw new Error(data?.error || "Failed to send notification");
       }
 
@@ -477,85 +628,224 @@ export default function BookingsPage() {
   };
 
   return (
-    <div className="space-y-6 text-white">
-      <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-          Operations
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight">Bookings</h1>
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Operations"
+        title="Bookings"
+        description="Track live booking progress, narrow the queue by fulfillment state, and keep every existing delivery, invoice, and notification workflow available."
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <AdminBadge tone={loadError ? "danger" : "neutral"}>
+              {loadError
+                ? "Sync failed"
+                : isLoading
+                  ? "Refreshing"
+                  : `${filteredBookings.length} visible`}
+            </AdminBadge>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRefreshBookings}
+              disabled={isLoading}
+              className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
+            >
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Refresh Bookings
+            </Button>
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Total Queue</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {bookingCounts.ALL || 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Every current booking record available to Super Admin.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Pending Work</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {bookingCounts.PENDING || 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Awaiting payment, shoot progression, editing, or delivery review.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Completed</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {bookingCounts.COMPLETED || 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Bookings whose workflow has already reached project completion.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Cancelled</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {bookingCounts.CANCELLED || 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm text-[hsl(var(--admin-muted))]">
+              Cancelled records remain visible for operator context and audit.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#181818]">
-        <Table>
-          <TableHeader className="bg-zinc-900/80">
-            <TableRow className="border-white/10 hover:bg-zinc-900/80">
-              <TableHead className="text-muted-foreground">ID</TableHead>
-              <TableHead className="text-muted-foreground">PROPERTY</TableHead>
-              <TableHead className="text-muted-foreground">DATE</TableHead>
-              <TableHead className="text-muted-foreground">AMOUNT</TableHead>
-              <TableHead className="text-muted-foreground">STATUS</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {bookings.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-zinc-500">
-                  No bookings found
-                </TableCell>
+
+      <AdminTablePanel
+        title="Booking Queue"
+        description="Status filters change the visible queue only. Opening a booking still exposes the existing workflow, file, and notification controls."
+      >
+        <div className="border-b border-white/8 px-5 py-4 sm:px-6">
+          <AdminFilterRow>
+            {BOOKING_FILTERS.map((filter) => (
+              <AdminFilterChip
+                key={filter.id}
+                active={activeFilter === filter.id}
+                onClick={() => setActiveFilter(filter.id)}
+                aria-pressed={activeFilter === filter.id}
+              >
+                <span>{filter.label}</span>
+                <span className="rounded-full border border-white/10 bg-black/20 px-2 py-0.5 text-[0.72rem] text-[hsl(var(--admin-foreground))]">
+                  {bookingCounts[filter.id] || 0}
+                </span>
+              </AdminFilterChip>
+            ))}
+          </AdminFilterRow>
+        </div>
+
+        {loadError ? (
+          <div className="space-y-4 px-5 py-6 sm:px-6">
+            <AdminInlineMessage
+              tone="danger"
+              title="Bookings could not be loaded"
+              description={loadError}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRefreshBookings}
+              className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
+            >
+              Try Again
+            </Button>
+          </div>
+        ) : isLoading ? (
+          <div className="px-5 py-6 sm:px-6">
+            <AdminInlineMessage
+              loading
+              title="Loading bookings"
+              description="Fetching the latest live queue and preserving the current admin workflows."
+            />
+          </div>
+        ) : filteredBookings.length === 0 ? (
+          <AdminEmptyState
+            title={`No ${activeFilter.toLowerCase()} bookings found`}
+            description="Change the status filter or refresh the queue to review a different set of bookings."
+          />
+        ) : (
+          <Table className="min-w-[940px]">
+            <TableHeader className="bg-white/[0.03] [&_tr]:border-white/8">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                  Booking
+                </TableHead>
+                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                  Customer
+                </TableHead>
+                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                  Services
+                </TableHead>
+                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                  Schedule
+                </TableHead>
+                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                  Total
+                </TableHead>
+                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                  Status
+                </TableHead>
               </TableRow>
-            ) : (
-              bookings.map((booking) => (
-                <TableRow
-                  key={booking.id}
-                  className="cursor-pointer hover:bg-zinc-800 border-zinc-800"
-                  onClick={() => handleRowClick(booking)}
-                >
-                  <TableCell className="text-zinc-300">{booking.id}</TableCell>
-                  <TableCell className="text-zinc-300">
-                    <p>
-                      {[
-                        booking.propertyDetails?.unit,
-                        booking.propertyDetails?.building,
-                        booking.propertyDetails?.community,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {booking.propertyDetails?.type}
-                    </p>
-                  </TableCell>
-                  <TableCell className="text-zinc-300">
-                    {booking.date}
-                  </TableCell>
-                  <TableCell className="text-zinc-300">
-                    AED {booking.total}
-                  </TableCell>
-                  <TableCell>
-                    {booking.cancelledAt ? (
-                      <Badge className="bg-red-500/15 text-red-500 hover:bg-red-500/25 border-red-500/20">
-                        Cancelled
-                      </Badge>
-                    ) : getWorkflowStatus(booking) ===
-                      BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED ? (
-                      <Badge className="bg-green-500/15 text-green-500 hover:bg-green-500/25 border-green-500/20">
-                        Project Completed
-                      </Badge>
-                    ) : booking.status === "DRAFT" ? (
-                      <Badge className="bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 border-amber-500/20">
-                        Awaiting Payment
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 border-blue-500/20">
-                        {getWorkflowLabel(booking)}
-                      </Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody className="[&_tr:last-child]:border-white/8">
+              {filteredBookings.map((booking) => {
+                const bookingStatus = getBookingStatusMeta(booking);
+
+                return (
+                  <TableRow
+                    key={booking.id}
+                    className="cursor-pointer border-white/8 text-[hsl(var(--admin-foreground))] hover:bg-white/[0.03]"
+                    onClick={() => handleRowClick(booking)}
+                  >
+                    <TableCell className="space-y-1 py-4">
+                      <p className="text-sm font-semibold">#{booking.id}</p>
+                      <p className="text-sm text-[hsl(var(--admin-foreground))]">
+                        {getPropertyLabel(booking)}
+                      </p>
+                      <p className="text-xs text-[hsl(var(--admin-muted))]">
+                        {booking.propertyDetails?.type ||
+                          "Property type pending"}
+                      </p>
+                    </TableCell>
+                    <TableCell className="space-y-1 py-4">
+                      <p className="text-sm font-medium">
+                        {booking.user?.fullName || "Customer not assigned"}
+                      </p>
+                      <p className="text-xs text-[hsl(var(--admin-muted))]">
+                        {booking.user?.email || "No email provided"}
+                      </p>
+                      <p className="text-xs text-[hsl(var(--admin-muted))]">
+                        {booking.user?.phone || "No phone provided"}
+                      </p>
+                    </TableCell>
+                    <TableCell className="py-4 text-sm text-[hsl(var(--admin-muted))]">
+                      {getBookingServices(booking).join(", ") ||
+                        "No services specified"}
+                    </TableCell>
+                    <TableCell className="space-y-1 py-4">
+                      <p className="text-sm">
+                        {booking.date || "Date pending"}
+                      </p>
+                      <p className="text-xs text-[hsl(var(--admin-muted))]">
+                        {booking.slot
+                          ? `Slot: ${booking.slot}`
+                          : "Slot pending"}
+                      </p>
+                    </TableCell>
+                    <TableCell className="py-4 text-sm font-medium">
+                      AED {booking.total ?? 0}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <AdminBadge tone={bookingStatus.tone}>
+                        {bookingStatus.label}
+                      </AdminBadge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </AdminTablePanel>
 
       <Dialog
         open={isOpen}
@@ -563,174 +853,192 @@ export default function BookingsPage() {
           if (!uploading) setIsOpen(open);
         }}
       >
-        <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden border-zinc-800 bg-[#181818] p-0 text-white sm:max-w-2xl">
-          <DialogHeader className="shrink-0 border-b border-zinc-800 px-6 py-5 pr-12">
-            <DialogTitle>Booking Details #{selectedBooking?.id}</DialogTitle>
-            <DialogDescription className="hidden">
-              Admin details for booking #{selectedBooking?.id}
+        <DialogContent className="admin-dialog flex max-h-[90vh] flex-col gap-0 overflow-hidden border-[hsl(var(--admin-border-strong)/0.92)] p-0 text-[hsl(var(--admin-foreground))] sm:max-w-5xl">
+          <DialogHeader className="shrink-0 border-b border-[hsl(var(--admin-border)/0.82)] px-5 py-5 pr-12 sm:px-6">
+            <DialogTitle className="text-xl tracking-[-0.03em] text-[hsl(var(--admin-foreground))]">
+              Booking Details #{selectedBooking?.id}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-[hsl(var(--admin-muted))]">
+              Review live workflow, communication, uploads, and invoice actions
+              without changing the current booking behavior.
             </DialogDescription>
           </DialogHeader>
 
           {selectedBooking && (
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-zinc-500 text-sm mb-1">User</p>
-                  <p className="font-medium">
-                    {selectedBooking.user?.fullName}
-                  </p>
-                  <p className="text-sm text-zinc-400">
-                    {selectedBooking.user?.email}
-                  </p>
-                  <p className="text-sm text-zinc-400">
-                    {selectedBooking.user?.phone}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-zinc-500 text-sm mb-1">Date & Slot</p>
-                  <p className="font-medium">{selectedBooking.date}</p>
-                  <p className="text-sm text-zinc-400">
-                    Slot: {selectedBooking.slot}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-                <h3 className="font-semibold mb-3 text-zinc-300">Services</h3>
-                <p className="text-sm text-zinc-400">
-                  {selectedBooking.shootDetails?.services?.join(", ") ||
-                    "No services specified."}
-                </p>
-              </div>
-
-              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-                <h3 className="font-semibold mb-3 text-zinc-300">
-                  Property Details
-                </h3>
-                <div className="text-sm text-zinc-400 space-y-1">
-                  <p>
-                    <span className="font-medium text-zinc-300">Type:</span>{" "}
-                    {selectedBooking.propertyDetails?.type}
-                  </p>
-                  <p>
-                    <span className="font-medium text-zinc-300">Size:</span>{" "}
-                    {selectedBooking.propertyDetails?.size}
-                  </p>
-                  <p>
-                    <span className="font-medium text-zinc-300">Address:</span>{" "}
-                    {[
-                      selectedBooking.propertyDetails?.unit,
-                      selectedBooking.propertyDetails?.building,
-                      selectedBooking.propertyDetails?.community,
-                    ]
-                      .filter(Boolean)
-                      .join(", ")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-                <h3 className="font-semibold mb-3 text-zinc-300">
-                  Contact Details
-                </h3>
-                <div className="text-sm text-zinc-400 space-y-1">
-                  <p>
-                    <span className="font-medium text-zinc-300">Name:</span>{" "}
-                    {selectedBooking.contactDetails?.name}
-                  </p>
-                  <p>
-                    <span className="font-medium text-zinc-300">Phone:</span>{" "}
-                    {selectedBooking.contactDetails?.phone}
-                  </p>
-                  <p>
-                    <span className="font-medium text-zinc-300">Email:</span>{" "}
-                    {selectedBooking.contactDetails?.email}
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-zinc-900/50 p-4 rounded-lg border border-zinc-800">
-                <h3 className="font-semibold mb-3 text-zinc-300">
-                  Transaction
-                </h3>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="text-zinc-500 text-sm">Amount</p>
-                    <p className="font-medium">
-                      AED {selectedBooking.transaction?.amount}
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
+              <div className="grid gap-4 xl:grid-cols-3">
+                <div className={DETAIL_PANEL_CLASS}>
+                  <p className="admin-kicker mb-3">Customer</p>
+                  <div className="space-y-1.5">
+                    <p className="text-base font-semibold">
+                      {selectedBooking.user?.fullName ||
+                        "Customer not assigned"}
+                    </p>
+                    <p className="text-sm text-[hsl(var(--admin-muted))]">
+                      {selectedBooking.user?.email || "No email provided"}
+                    </p>
+                    <p className="text-sm text-[hsl(var(--admin-muted))]">
+                      {selectedBooking.user?.phone || "No phone provided"}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-zinc-500 text-sm">Status</p>
-                    <p className="capitalize font-medium">
-                      {selectedBooking.transaction?.status}
+                </div>
+                <div className={DETAIL_PANEL_CLASS}>
+                  <p className="admin-kicker mb-3">Schedule</p>
+                  <div className="space-y-1.5">
+                    <p className="text-base font-semibold">
+                      {selectedBooking.date || "Date pending"}
                     </p>
+                    <p className="text-sm text-[hsl(var(--admin-muted))]">
+                      {selectedBooking.slot
+                        ? `Slot: ${selectedBooking.slot}`
+                        : "Slot pending"}
+                    </p>
+                    <p className="text-sm text-[hsl(var(--admin-muted))]">
+                      {getPropertyLabel(selectedBooking)}
+                    </p>
+                  </div>
+                </div>
+                <div className={DETAIL_PANEL_CLASS}>
+                  <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="admin-kicker mb-2">Transaction</p>
+                      <p className="text-base font-semibold">
+                        AED {selectedBooking.transaction?.amount ?? 0}
+                      </p>
+                    </div>
+                    <AdminBadge tone="neutral">
+                      {selectedBooking.transaction?.status || "No payment"}
+                    </AdminBadge>
                   </div>
                   {selectedInvoiceDownloadUrl ? (
-                    <Button asChild variant="secondary" size="sm">
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
+                    >
                       <Link href={selectedInvoiceDownloadUrl} target="_blank">
                         Download Invoice
                       </Link>
                     </Button>
                   ) : (
-                    <span className="text-xs text-zinc-500 italic">
-                      No invoice available
-                    </span>
+                    <p className="text-sm text-[hsl(var(--admin-muted))]">
+                      No invoice available for this booking yet.
+                    </p>
                   )}
                 </div>
               </div>
 
-              <div className="border-t border-zinc-800 pt-4 flex justify-between items-center">
-                <div>
-                  <h3 className="font-semibold text-zinc-300 mb-1">
-                    Delivery Workflow
-                  </h3>
-                  <p className="text-sm text-zinc-400">
-                    {selectedBooking.cancelledAt
-                      ? "This booking has been cancelled."
-                      : getWorkflowStatus(selectedBooking) ===
-                          BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED
-                        ? "The project is completed."
-                        : `Current stage: ${getWorkflowLabel(selectedBooking)}`}
+              <div className="grid gap-4 xl:grid-cols-3">
+                <div className={DETAIL_PANEL_CLASS}>
+                  <p className="admin-kicker mb-3">Services</p>
+                  <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+                    {selectedBooking.shootDetails?.services?.join(", ") ||
+                      "No services specified."}
                   </p>
                 </div>
-                {selectedBooking.cancelledAt ? (
-                  <Badge variant="destructive">Cancelled</Badge>
-                ) : getWorkflowStatus(selectedBooking) ===
-                  BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED ? (
-                  <Badge className="bg-green-500 hover:bg-green-600">
-                    Project Completed
-                  </Badge>
-                ) : getWorkflowAction(selectedBooking) ? (
-                  <Button
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() =>
-                      handleWorkflowUpdate(
-                        getWorkflowAction(selectedBooking).next,
-                      )
-                    }
-                    disabled={workflowUpdating}
-                  >
-                    {workflowUpdating
-                      ? "Updating..."
-                      : getWorkflowAction(selectedBooking).label}
-                  </Button>
-                ) : null}
+                <div className={DETAIL_PANEL_CLASS}>
+                  <p className="admin-kicker mb-3">Property Details</p>
+                  <div className="space-y-2 text-sm text-[hsl(var(--admin-muted))]">
+                    <p>
+                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
+                        Type:
+                      </span>{" "}
+                      {selectedBooking.propertyDetails?.type || "Not provided"}
+                    </p>
+                    <p>
+                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
+                        Size:
+                      </span>{" "}
+                      {selectedBooking.propertyDetails?.size || "Not provided"}
+                    </p>
+                    <p>
+                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
+                        Address:
+                      </span>{" "}
+                      {getPropertyLabel(selectedBooking)}
+                    </p>
+                  </div>
+                </div>
+                <div className={DETAIL_PANEL_CLASS}>
+                  <p className="admin-kicker mb-3">Contact Details</p>
+                  <div className="space-y-2 text-sm text-[hsl(var(--admin-muted))]">
+                    <p>
+                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
+                        Name:
+                      </span>{" "}
+                      {selectedBooking.contactDetails?.name || "Not provided"}
+                    </p>
+                    <p>
+                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
+                        Phone:
+                      </span>{" "}
+                      {selectedBooking.contactDetails?.phone || "Not provided"}
+                    </p>
+                    <p>
+                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
+                        Email:
+                      </span>{" "}
+                      {selectedBooking.contactDetails?.email || "Not provided"}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <BookingWorkflowTracker booking={selectedBooking} />
+              <section className={DETAIL_PANEL_CLASS}>
+                <div className="admin-toolbar gap-4">
+                  <div className="space-y-2">
+                    <p className="admin-kicker">Delivery Workflow</p>
+                    <p className="text-sm text-[hsl(var(--admin-muted))]">
+                      {selectedBooking.cancelledAt
+                        ? "This booking has been cancelled."
+                        : getWorkflowStatus(selectedBooking) ===
+                            BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED
+                          ? "The project is completed."
+                          : `Current stage: ${getWorkflowLabel(selectedBooking)}`}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <AdminBadge
+                      tone={getBookingStatusMeta(selectedBooking).tone}
+                    >
+                      {getBookingStatusMeta(selectedBooking).label}
+                    </AdminBadge>
+                    {getWorkflowAction(selectedBooking) ? (
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          handleWorkflowUpdate(
+                            getWorkflowAction(selectedBooking).next,
+                          )
+                        }
+                        disabled={workflowUpdating}
+                        className="bg-[hsl(var(--admin-success))] text-slate-950 hover:bg-[hsl(var(--admin-success)/0.88)]"
+                      >
+                        {workflowUpdating
+                          ? "Updating..."
+                          : getWorkflowAction(selectedBooking).label}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
 
-              <div className="border-t border-zinc-800 pt-4">
-                <h3 className="font-semibold text-zinc-300 mb-1">
-                  Manual WhatsApp Triggers
-                </h3>
-                <p className="text-sm text-zinc-400 mb-3">
-                  Send operational updates manually from admin.
-                </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="mt-5">
+                  <BookingWorkflowTracker booking={selectedBooking} />
+                </div>
+              </section>
+
+              <section className={DETAIL_PANEL_CLASS}>
+                <div className="space-y-2">
+                  <p className="admin-kicker">Manual WhatsApp Triggers</p>
+                  <p className="text-sm text-[hsl(var(--admin-muted))]">
+                    Send operational updates manually from admin without
+                    changing the current notification integrations.
+                  </p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Button
                     variant="outline"
-                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
                     disabled={
                       notifyingType !== null ||
                       selectedBooking.cancelledAt ||
@@ -748,7 +1056,7 @@ export default function BookingsPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                    className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
                     disabled={
                       notifyingType !== null ||
                       selectedBooking.cancelledAt ||
@@ -767,7 +1075,7 @@ export default function BookingsPage() {
                   {isSingleServiceBooking(selectedBooking) ? (
                     <Button
                       variant="outline"
-                      className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                      className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
                       disabled={
                         notifyingType !== null ||
                         selectedBooking.cancelledAt ||
@@ -794,7 +1102,7 @@ export default function BookingsPage() {
                     <>
                       <Button
                         variant="outline"
-                        className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                        className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
                         disabled={
                           notifyingType !== null ||
                           selectedBooking.cancelledAt ||
@@ -819,7 +1127,7 @@ export default function BookingsPage() {
                       </Button>
                       <Button
                         variant="outline"
-                        className="border-zinc-700 text-zinc-200 hover:bg-zinc-800"
+                        className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
                         disabled={
                           notifyingType !== null ||
                           selectedBooking.cancelledAt ||
@@ -846,43 +1154,57 @@ export default function BookingsPage() {
                     </>
                   )}
                 </div>
-              </div>
+              </section>
 
               {([
                 BOOKING_WORKFLOW_STATUS.EDITING,
                 BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
               ].includes(getWorkflowStatus(selectedBooking)) ||
                 getDeliveryFiles(selectedBooking).length > 0) && (
-                <div className="border-t border-zinc-800 pt-4">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold text-zinc-300">
-                        Deliverables
-                      </h3>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        Each physical file has its own two-request allowance.
+                <section className={DETAIL_PANEL_CLASS}>
+                  <div className="admin-toolbar gap-4">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div>
+                          <p className="admin-kicker">Delivery Assets</p>
+                          <h3 className="mt-1 text-base font-semibold text-[hsl(var(--admin-foreground))]">
+                            Deliverables
+                          </h3>
+                        </div>
+                        {selectedBooking.deliveryFinishedAt ? (
+                          <AdminBadge tone="success">
+                            Delivery Finished
+                          </AdminBadge>
+                        ) : null}
+                      </div>
+                      <p className="text-sm text-[hsl(var(--admin-muted))]">
+                        Each physical file keeps its current two-request
+                        revision allowance and existing publish/delete actions.
                       </p>
                     </div>
-                    {getDeliveryFiles(selectedBooking).some(
-                      (file) => file.status === "PRIVATE",
-                    ) && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={deliverableAction !== null}
-                        onClick={handlePublishStagedFiles}
-                      >
-                        {deliverableAction === "publish"
-                          ? "Publishing..."
-                          : "Publish Staged Files"}
-                      </Button>
-                    )}
-                    {getWorkflowStatus(selectedBooking) ===
-                      BOOKING_WORKFLOW_STATUS.FILES_UPLOADED &&
-                      !selectedBooking.deliveryFinishedAt && (
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {getDeliveryFiles(selectedBooking).some(
+                        (file) => file.status === "PRIVATE",
+                      ) ? (
                         <Button
                           type="button"
-                          className="bg-green-600 text-white hover:bg-green-700"
+                          variant="outline"
+                          disabled={deliverableAction !== null}
+                          onClick={handlePublishStagedFiles}
+                          className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
+                        >
+                          {deliverableAction === "publish"
+                            ? "Publishing..."
+                            : "Publish Staged Files"}
+                        </Button>
+                      ) : null}
+
+                      {getWorkflowStatus(selectedBooking) ===
+                        BOOKING_WORKFLOW_STATUS.FILES_UPLOADED &&
+                      !selectedBooking.deliveryFinishedAt ? (
+                        <Button
+                          type="button"
                           disabled={
                             deliverableAction !== null ||
                             getDeliveryFiles(selectedBooking).length === 0 ||
@@ -893,71 +1215,69 @@ export default function BookingsPage() {
                             )
                           }
                           onClick={handleFinishDelivery}
+                          className="bg-[hsl(var(--admin-success))] text-slate-950 hover:bg-[hsl(var(--admin-success)/0.88)]"
                         >
                           {deliverableAction === "finish"
                             ? "Finishing..."
                             : "Mark Delivery Finished"}
                         </Button>
-                      )}
-                    {selectedBooking.deliveryFinishedAt && (
-                      <Badge className="bg-emerald-600">
-                        Delivery Finished
-                      </Badge>
-                    )}
+                      ) : null}
+                    </div>
                   </div>
 
                   {getDeliveryFiles(selectedBooking).length > 0 ? (
-                    <div className="mb-5 space-y-3">
+                    <div className="mt-5 space-y-3">
                       {getDeliveryFiles(selectedBooking).map((file) => {
                         const activeRevision = (file.fileRevisions || []).find(
                           (revision) => !revision.resolvedAt,
                         );
                         const versions = file.versions || [];
+
                         return (
                           <div
                             key={file.id}
-                            className="rounded-lg border border-white/10 bg-black/20 p-3"
+                            className="admin-panel-muted rounded-[1.2rem] border border-white/8 p-4"
                           >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0">
+                              <div className="min-w-0 space-y-2">
                                 <Link
                                   href={file.currentVersion?.url || "#"}
                                   target="_blank"
-                                  className="block truncate text-sm font-medium text-blue-300 hover:underline"
+                                  className="block truncate text-sm font-semibold text-[hsl(var(--admin-foreground))] underline-offset-4 hover:underline"
                                 >
                                   {getFileName(file)}
                                 </Link>
-                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-zinc-500">
-                                  <span>{file.label || file.type}</span>
-                                  <span>
-                                    Revision {file.revisionCount || 0}/2
-                                  </span>
-                                  <span
-                                    className={
-                                      file.status === "CHANGES_REQUESTED"
-                                        ? "text-amber-300"
-                                        : file.status === "ACCEPTED"
-                                          ? "text-emerald-300"
-                                          : "text-blue-300"
-                                    }
+                                <div className="flex flex-wrap gap-2">
+                                  <AdminBadge tone="neutral">
+                                    {file.label || file.type}
+                                  </AdminBadge>
+                                  <AdminBadge
+                                    tone={getDeliverableStatusTone(file.status)}
                                   >
                                     {file.status.replaceAll("_", " ")}
-                                  </span>
-                                  <span>Version {versions.length || 1}</span>
+                                  </AdminBadge>
+                                  <AdminBadge tone="neutral">
+                                    Revision {file.revisionCount || 0}/2
+                                  </AdminBadge>
+                                  <AdminBadge tone="neutral">
+                                    Version {versions.length || 1}
+                                  </AdminBadge>
                                 </div>
-                                {activeRevision && (
-                                  <div className="mt-2 rounded border border-amber-500/20 bg-amber-500/5 p-2 text-xs">
-                                    <p className="font-medium text-amber-200">
+
+                                {activeRevision ? (
+                                  <div className="rounded-2xl border border-[hsl(var(--admin-warning)/0.28)] bg-[hsl(var(--admin-warning)/0.1)] px-3 py-2.5 text-sm">
+                                    <p className="font-medium text-[hsl(var(--admin-warning))]">
                                       Requested changes
                                     </p>
-                                    <p className="mt-1 whitespace-pre-wrap text-zinc-400">
+                                    <p className="mt-1 whitespace-pre-wrap text-[hsl(var(--admin-muted))]">
                                       {activeRevision.note}
                                     </p>
                                   </div>
-                                )}
+                                ) : null}
                               </div>
+
                               <div className="flex shrink-0 gap-2">
-                                {file.status === "CHANGES_REQUESTED" && (
+                                {file.status === "CHANGES_REQUESTED" ? (
                                   <Button
                                     type="button"
                                     size="sm"
@@ -971,18 +1291,20 @@ export default function BookingsPage() {
                                         fileInputRef.current.value = "";
                                       }
                                     }}
+                                    className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
                                   >
                                     <RefreshCcw className="mr-2 h-4 w-4" />
                                     Replace File
                                   </Button>
-                                )}
-                                {!selectedBooking.completedAt && (
+                                ) : null}
+
+                                {!selectedBooking.completedAt ? (
                                   <Button
                                     type="button"
                                     size="icon"
                                     variant="ghost"
                                     aria-label={`Delete ${getFileName(file)}`}
-                                    className="text-zinc-500 hover:bg-red-500/10 hover:text-red-400"
+                                    className="text-[hsl(var(--admin-muted))] hover:bg-[hsl(var(--admin-danger)/0.1)] hover:text-[hsl(var(--admin-danger))]"
                                     disabled={deliverableAction !== null}
                                     onClick={() =>
                                       handleDeleteDeliverable(file.id)
@@ -990,7 +1312,7 @@ export default function BookingsPage() {
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
-                                )}
+                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -998,18 +1320,21 @@ export default function BookingsPage() {
                       })}
                     </div>
                   ) : (
-                    <p className="mb-4 text-sm text-zinc-500">
-                      No files uploaded yet.
-                    </p>
+                    <div className="mt-5">
+                      <AdminEmptyState
+                        title="No files uploaded yet"
+                        description="Uploads and external links will appear here once the delivery workflow reaches the file stage."
+                      />
+                    </div>
                   )}
 
                   {[
                     BOOKING_WORKFLOW_STATUS.EDITING,
                     BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
-                  ].includes(getWorkflowStatus(selectedBooking)) && (
-                    <div className="rounded-lg border border-zinc-800 p-3">
-                      {replacementFileId && (
-                        <div className="mb-3 flex items-center justify-between rounded bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                  ].includes(getWorkflowStatus(selectedBooking)) ? (
+                    <div className="admin-panel-muted mt-5 rounded-[1.2rem] border border-white/8 p-4">
+                      {replacementFileId ? (
+                        <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--admin-warning)/0.26)] bg-[hsl(var(--admin-warning)/0.1)] px-3 py-2 text-xs text-[hsl(var(--admin-warning))]">
                           <span>
                             Uploading replacement for{" "}
                             {getFileName(
@@ -1023,16 +1348,18 @@ export default function BookingsPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => setReplacementFileId(null)}
+                            className="text-[hsl(var(--admin-warning))] hover:bg-transparent hover:text-[hsl(var(--admin-warning))]"
                           >
                             Cancel
                           </Button>
                         </div>
-                      )}
+                      ) : null}
+
                       <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-3">
                         <div>
                           <label
                             htmlFor="deliverable-type"
-                            className="mb-1 block text-xs text-zinc-400"
+                            className="mb-1.5 block text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]"
                           >
                             Deliverable Type
                           </label>
@@ -1043,7 +1370,7 @@ export default function BookingsPage() {
                             onChange={(event) =>
                               setDeliverableType(event.target.value)
                             }
-                            className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-300"
+                            className="admin-input h-11 w-full rounded-2xl px-3 text-sm"
                           >
                             {Object.values(DELIVERY_FILE_TYPE).map((type) => (
                               <option key={type}>{type}</option>
@@ -1053,7 +1380,7 @@ export default function BookingsPage() {
                         <div className="md:col-span-2">
                           <label
                             htmlFor="deliverable-external-link"
-                            className="mb-1 block text-xs text-zinc-400"
+                            className="mb-1.5 block text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]"
                           >
                             S3 File URL / External Link
                           </label>
@@ -1066,11 +1393,12 @@ export default function BookingsPage() {
                             }
                             placeholder="https://bucket.s3.region.amazonaws.com/file"
                             disabled={uploading}
-                            className="border-zinc-700 bg-zinc-900 text-zinc-300"
+                            className="admin-input h-11 rounded-2xl"
                           />
                         </div>
                       </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
+
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
                         <Input
                           ref={fileInputRef}
                           type="file"
@@ -1094,13 +1422,13 @@ export default function BookingsPage() {
                             setFiles(selected);
                             setUploadItems([]);
                           }}
-                          className="max-w-xs border-zinc-700 bg-zinc-900 text-zinc-300"
+                          className="admin-input max-w-xs text-sm"
                         />
-                        {files.length > 0 && (
-                          <span className="text-xs text-zinc-400">
+                        {files.length > 0 ? (
+                          <span className="text-xs text-[hsl(var(--admin-muted))]">
                             {files.length} file(s) selected
                           </span>
-                        )}
+                        ) : null}
                         <Button
                           type="button"
                           onClick={handleUpload}
@@ -1110,7 +1438,7 @@ export default function BookingsPage() {
                             (Boolean(replacementFileId) &&
                               files.length + (externalUrl.trim() ? 1 : 0) !== 1)
                           }
-                          className="bg-blue-600 text-white hover:bg-blue-700"
+                          className="bg-[hsl(var(--admin-highlight))] text-slate-950 hover:bg-[hsl(var(--admin-highlight)/0.88)]"
                         >
                           {uploading
                             ? "Uploading..."
@@ -1118,65 +1446,67 @@ export default function BookingsPage() {
                               ? "Upload Replacement"
                               : "Upload Files"}
                         </Button>
-                        {uploading && (
+                        {uploading ? (
                           <Button
                             type="button"
                             variant="outline"
                             onClick={() => uploadAbortRef.current?.abort()}
+                            className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
                           >
                             Cancel Upload
                           </Button>
-                        )}
+                        ) : null}
                       </div>
-                      {uploadItems.length > 0 && (
-                        <div className="mt-3 space-y-2">
+
+                      {uploadItems.length > 0 ? (
+                        <div className="mt-4 space-y-2">
                           {uploadItems.map((item, index) => (
                             <div
                               key={`${item.name}-${index}`}
-                              className="rounded border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs"
+                              className="rounded-2xl border border-white/8 bg-black/20 px-3 py-2.5 text-xs"
                             >
                               <div className="flex justify-between gap-3">
-                                <span className="truncate text-zinc-300">
+                                <span className="truncate text-[hsl(var(--admin-foreground))]">
                                   {item.name}
                                 </span>
-                                <span className="shrink-0 text-zinc-400">
+                                <span className="shrink-0 text-[hsl(var(--admin-muted))]">
                                   {item.status}
                                   {typeof item.progress === "number"
                                     ? ` ${item.progress}%`
                                     : ""}
                                 </span>
                               </div>
-                              {typeof item.progress === "number" && (
-                                <div className="mt-2 h-1.5 overflow-hidden rounded bg-zinc-800">
+                              {typeof item.progress === "number" ? (
+                                <div className="mt-2 h-1.5 overflow-hidden rounded bg-white/10">
                                   <div
-                                    className="h-full bg-blue-500 transition-[width]"
+                                    className="h-full bg-[hsl(var(--admin-highlight))] transition-[width]"
                                     style={{ width: `${item.progress}%` }}
                                   />
                                 </div>
-                              )}
+                              ) : null}
                             </div>
                           ))}
                         </div>
-                      )}
+                      ) : null}
                     </div>
-                  )}
-                </div>
+                  ) : null}
+                </section>
               )}
             </div>
           )}
 
-          <DialogFooter className="shrink-0 border-t border-zinc-800 px-6 py-4">
+          <DialogFooter className="shrink-0 border-t border-[hsl(var(--admin-border)/0.82)] px-5 py-4 sm:px-6">
             <Button
               variant="ghost"
               onClick={() => setIsOpen(false)}
               disabled={uploading}
-              className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+              className="text-[hsl(var(--admin-danger))] hover:bg-[hsl(var(--admin-danger)/0.1)] hover:text-[hsl(var(--admin-danger))]"
             >
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AdminPage>
   );
 }
