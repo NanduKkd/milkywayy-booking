@@ -1,11 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Upload, X, GripVertical } from "lucide-react";
+import { GripVertical, Loader2, Upload, X } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { AdminInlineMessage } from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,14 +20,32 @@ import {
 } from "@/components/ui/select";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 
+const INPUT_CLASS =
+  "admin-input h-11 rounded-2xl border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] text-[hsl(var(--admin-foreground))]";
+const SELECT_TRIGGER_CLASS =
+  "admin-input h-11 rounded-2xl border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] text-[hsl(var(--admin-foreground))]";
+const SELECT_CONTENT_CLASS =
+  "border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-surface-strong)/0.98)] text-[hsl(var(--admin-foreground))]";
+const FIELD_LABEL_CLASS =
+  "text-sm font-medium tracking-[0.01em] text-[hsl(var(--admin-foreground))]";
+const PRIMARY_BUTTON_CLASS =
+  "rounded-full border border-[hsl(var(--admin-highlight)/0.45)] bg-[hsl(var(--admin-highlight)/0.18)] px-5 text-[hsl(var(--admin-foreground))] hover:bg-[hsl(var(--admin-highlight)/0.26)] hover:text-[hsl(var(--admin-foreground))]";
+
+const PORTFOLIO_TYPE_LABELS = {
+  [OUR_WORK_TYPES.IMAGE]: "Photography",
+  [OUR_WORK_TYPES.SHORT_VIDEO]: "Short Form Video",
+  [OUR_WORK_TYPES.VIDEO]: "Long Form Video",
+  [OUR_WORK_TYPES.THREE_SIXTY]: "360 Virtual Tour",
+};
+
 const formSchema = z.object({
   title: z.string().min(2, "Title must be at least 2 characters"),
   subtitle: z.string().optional(),
   type: z.enum(Object.values(OUR_WORK_TYPES)),
   thumbnail: z.string().optional(),
-  mediaContent: z.union([z.string(), z.array(z.string())]).refine((val) => {
-    if (Array.isArray(val)) return val.length > 0;
-    return val.length > 0;
+  mediaContent: z.union([z.string(), z.array(z.string())]).refine((value) => {
+    if (Array.isArray(value)) return value.length > 0;
+    return value.length > 0;
   }, "Media content is required"),
   order: z.coerce.number().default(0),
   isVisible: z.boolean().default(true),
@@ -96,8 +116,8 @@ export default function PortfolioForm({ onSuccess, initialData }) {
     reset(getDefaultValues(initialData));
   }, [initialData, reset]);
 
-  const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
+  const handleFileUpload = async (event) => {
+    const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
 
     setIsUploading(true);
@@ -148,8 +168,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
       toast.error(error.message || "Error uploading image");
     } finally {
       setIsUploading(false);
-      // Reset input
-      e.target.value = "";
+      event.target.value = "";
     }
   };
 
@@ -209,20 +228,36 @@ export default function PortfolioForm({ onSuccess, initialData }) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 pt-4">
+      <AdminInlineMessage
+        tone="neutral"
+        title="Live content editor"
+        description="Uploads, visibility, and ordering still use the current production workflow. Media links and image stacks are saved exactly as before."
+      />
+
       <div className="space-y-2">
-        <Label htmlFor="title">Title</Label>
-        <Input id="title" placeholder="Project Title" {...register("title")} />
+        <Label htmlFor="title" className={FIELD_LABEL_CLASS}>
+          Title
+        </Label>
+        <Input
+          id="title"
+          className={INPUT_CLASS}
+          placeholder="Project title"
+          {...register("title")}
+        />
         {errors.title && (
           <p className="text-sm text-destructive">{errors.title.message}</p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="subtitle">Subtitle</Label>
+        <Label htmlFor="subtitle" className={FIELD_LABEL_CLASS}>
+          Subtitle
+        </Label>
         <Input
           id="subtitle"
-          placeholder="Location or Category"
+          className={INPUT_CLASS}
+          placeholder="Location, service, or category"
           {...register("subtitle")}
         />
         {errors.subtitle && (
@@ -231,16 +266,16 @@ export default function PortfolioForm({ onSuccess, initialData }) {
       </div>
 
       <div className="space-y-2">
-        <Label>Media Type</Label>
+        <Label className={FIELD_LABEL_CLASS}>Media Type</Label>
         <Select
           value={watchType}
-          onValueChange={(val) => {
-            setValue("type", val, {
+          onValueChange={(value) => {
+            setValue("type", value, {
               shouldDirty: true,
               shouldValidate: true,
             });
 
-            if (val === OUR_WORK_TYPES.IMAGE) {
+            if (value === OUR_WORK_TYPES.IMAGE) {
               const imageContent = Array.isArray(watchMediaContent)
                 ? watchMediaContent
                 : watchMediaContent
@@ -262,13 +297,13 @@ export default function PortfolioForm({ onSuccess, initialData }) {
             });
           }}
         >
-          <SelectTrigger>
+          <SelectTrigger className={SELECT_TRIGGER_CLASS}>
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
-          <SelectContent>
-            {Object.entries(OUR_WORK_TYPES).map(([key, value]) => (
+          <SelectContent className={SELECT_CONTENT_CLASS}>
+            {Object.values(OUR_WORK_TYPES).map((value) => (
               <SelectItem key={value} value={value}>
-                {key.replace("_", " ")}
+                {PORTFOLIO_TYPE_LABELS[value]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -279,73 +314,99 @@ export default function PortfolioForm({ onSuccess, initialData }) {
       </div>
 
       <div className="space-y-2">
-        <Label>
+        <Label className={FIELD_LABEL_CLASS}>
           {watchType === OUR_WORK_TYPES.IMAGE ? "Images" : "Media URL"}
         </Label>
-        
+
         {watchType === OUR_WORK_TYPES.IMAGE ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-4 gap-2 p-2 border rounded-md min-h-[100px] bg-muted/20">
-              {Array.isArray(watchMediaContent) && watchMediaContent.map((url, index) => (
-                <div
-                  key={`${url}_${index}`}
-                  className="relative group w-24 h-24 border rounded-md overflow-hidden bg-background"
-                  draggable
-                  onDragStart={() => handleDragStart(index)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => handleDropOnImage(index)}
-                >
-                  <img
-                    src={url}
-                    alt={`Work ${index}`}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-1 left-1 p-0.5 bg-black/50 rounded text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
-                    <GripVertical className="h-3 w-3" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-1 right-1 p-0.5 bg-destructive rounded text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-              <div className="w-24 h-24 border-2 border-dashed rounded-md flex items-center justify-center">
-                <Input
-                  type="file"
-                  className="hidden"
-                  id="portfolio-upload"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileUpload}
-                  disabled={isUploading}
-                />
-                <label
-                  htmlFor="portfolio-upload"
-                  className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-muted/50 transition-colors"
-                >
-                  {isUploading ? (
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  ) : (
-                    <>
-                      <Upload className="h-6 w-6 text-muted-foreground" />
-                      <span className="text-2xs text-muted-foreground mt-1">Upload</span>
-                    </>
-                  )}
-                </label>
-              </div>
+          <div className="rounded-[1.4rem] border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-surface-soft)/0.3)] p-4">
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
+                Image gallery
+              </p>
+              <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+                Upload one or more images, then drag thumbnails to set the
+                per-entry gallery order.
+              </p>
             </div>
+
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {Array.isArray(watchMediaContent) &&
+                watchMediaContent.map((url, index) => (
+                  <li
+                    key={url}
+                    className="group relative aspect-square overflow-hidden rounded-2xl border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-background-deep)/0.72)]"
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={() => handleDropOnImage(index)}
+                  >
+                    <Image
+                      src={url}
+                      alt={`Work ${index}`}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-x-0 top-0 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent p-2 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-black/30 px-2 py-1 text-[0.7rem] font-medium uppercase tracking-[0.14em]">
+                        <GripVertical className="h-3 w-3" />
+                        Drag
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[hsl(var(--admin-danger)/0.88)] text-white"
+                        aria-label={`Remove image ${index + 1}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+
+              <li className="aspect-square rounded-2xl border border-dashed border-[hsl(var(--admin-border-strong)/0.92)] bg-[hsl(var(--admin-background-deep)/0.48)]">
+                <div className="flex h-full items-center justify-center p-3">
+                  <div className="w-full">
+                    <Input
+                      type="file"
+                      className="hidden"
+                      id="portfolio-upload"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                    />
+                    <label
+                      htmlFor="portfolio-upload"
+                      className="flex h-full min-h-[120px] cursor-pointer flex-col items-center justify-center gap-2 rounded-[1rem] text-center transition-colors hover:bg-white/[0.04]"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="h-6 w-6 animate-spin text-[hsl(var(--admin-muted))]" />
+                      ) : (
+                        <>
+                          <Upload className="h-6 w-6 text-[hsl(var(--admin-muted))]" />
+                          <span className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
+                            Upload images
+                          </span>
+                          <span className="text-xs leading-5 text-[hsl(var(--admin-muted))]">
+                            JPG, PNG, or WebP
+                          </span>
+                        </>
+                      )}
+                    </label>
+                  </div>
+                </div>
+              </li>
+            </ul>
           </div>
         ) : (
-          <div className="flex gap-2">
-            <Input
-              id="mediaContent"
-              placeholder="YouTube / Instagram / Panoee Link"
-              {...register("mediaContent")}
-            />
-          </div>
+          <Input
+            id="mediaContent"
+            className={INPUT_CLASS}
+            placeholder="YouTube, Instagram, or Panoee link"
+            {...register("mediaContent")}
+          />
         )}
         {errors.mediaContent && (
           <p className="text-sm text-destructive">
@@ -354,16 +415,19 @@ export default function PortfolioForm({ onSuccess, initialData }) {
         )}
       </div>
 
-      {watchType === OUR_WORK_TYPES.THREE_SIXTY && (
-        <div className="space-y-2">
-          <Label>360 Thumbnail (for cards/modal preview)</Label>
-          <div className="flex gap-2">
+      {watchType === OUR_WORK_TYPES.THREE_SIXTY ? (
+        <div className="space-y-3">
+          <Label className={FIELD_LABEL_CLASS}>
+            360 Thumbnail (for cards and modal preview)
+          </Label>
+          <div className="flex flex-col gap-3 sm:flex-row">
             <Input
               id="thumbnail"
+              className={INPUT_CLASS}
               placeholder="https://... thumbnail image URL"
               value={watchThumbnail || ""}
-              onChange={(e) =>
-                setValue("thumbnail", e.target.value, {
+              onChange={(event) =>
+                setValue("thumbnail", event.target.value, {
                   shouldDirty: true,
                   shouldValidate: true,
                 })
@@ -374,8 +438,8 @@ export default function PortfolioForm({ onSuccess, initialData }) {
               className="hidden"
               id="portfolio-thumbnail-upload"
               accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
                 if (!file) return;
                 setIsUploading(true);
                 try {
@@ -398,41 +462,61 @@ export default function PortfolioForm({ onSuccess, initialData }) {
                   toast.error(error.message || "Failed to upload thumbnail");
                 } finally {
                   setIsUploading(false);
-                  e.target.value = "";
+                  event.target.value = "";
                 }
               }}
             />
             <label
               htmlFor="portfolio-thumbnail-upload"
-              className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground"
+              className="inline-flex h-11 min-w-[132px] cursor-pointer items-center justify-center rounded-full border border-[hsl(var(--admin-border)/0.88)] px-4 text-sm font-medium text-[hsl(var(--admin-foreground))] transition-colors hover:bg-white/[0.05]"
             >
-              Upload
+              Upload thumbnail
             </label>
           </div>
-          {watchThumbnail && (
-            <div className="relative w-44 h-24 rounded-md overflow-hidden border border-border">
-              <img
+          {watchThumbnail ? (
+            <div className="overflow-hidden rounded-2xl border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-background-deep)/0.72)]">
+              <Image
                 src={watchThumbnail}
                 alt="Thumbnail preview"
-                className="w-full h-full object-cover"
+                width={224}
+                height={128}
+                unoptimized
+                className="h-32 w-full object-cover sm:w-56"
               />
             </div>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor="order">Display Order</Label>
-        <Input id="order" type="number" {...register("order")} />
+        <Label htmlFor="order" className={FIELD_LABEL_CLASS}>
+          Display Order
+        </Label>
+        <Input
+          id="order"
+          type="number"
+          className={INPUT_CLASS}
+          {...register("order")}
+        />
+        <p className="text-xs leading-5 text-[hsl(var(--admin-muted))]">
+          Dragging rows in the portfolio list will keep this field in sync with
+          the live global order.
+        </p>
         {errors.order && (
           <p className="text-sm text-destructive">{errors.order.message}</p>
         )}
       </div>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {initialData ? "Update Entry" : "Create Entry"}
-      </Button>
+      <div className="flex justify-end">
+        <Button
+          type="submit"
+          className={PRIMARY_BUTTON_CLASS}
+          disabled={isSubmitting}
+        >
+          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {initialData ? "Update Entry" : "Create Entry"}
+        </Button>
+      </div>
     </form>
   );
 }

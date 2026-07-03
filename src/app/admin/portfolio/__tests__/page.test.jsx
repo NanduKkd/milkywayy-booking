@@ -7,6 +7,9 @@ global.fetch = jest.fn();
 // Mock Next.js navigation
 jest.mock("next/navigation", () => ({
   redirect: jest.fn(),
+  useRouter: jest.fn(() => ({
+    replace: jest.fn(),
+  })),
 }));
 
 // Mock Auth helper
@@ -38,6 +41,9 @@ describe("Portfolio Management Page", () => {
     render(page);
 
     await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "Portfolio" }),
+      ).toBeInTheDocument();
       expect(screen.getByText("Work 1")).toBeInTheDocument();
     });
   });
@@ -59,5 +65,27 @@ describe("Portfolio Management Page", () => {
     await waitFor(() => {
       expect(screen.getByText(/no portfolio items found/i)).toBeInTheDocument();
     });
+  });
+
+  it("shows the inline fetch error state while preserving the refreshed shell", async () => {
+    const { getSessionUser } = require("../../../../lib/helpers/auth");
+    getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
+
+    global.fetch.mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Portfolio API unavailable" }),
+    });
+
+    const page = await PortfolioManagement({
+      searchParams: Promise.resolve({}),
+    });
+    render(page);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/unable to load every portfolio entry/i),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText("Portfolio API unavailable")).toBeInTheDocument();
   });
 });

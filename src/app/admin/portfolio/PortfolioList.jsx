@@ -1,18 +1,34 @@
 "use client";
 
 import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
-import { Edit2, Eye, EyeOff, GripVertical, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDownUp,
+  Edit2,
+  Eye,
+  EyeOff,
+  GripVertical,
+  Images,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminDialogContent,
+  AdminEmptyState,
+  AdminFilterChip,
+  AdminFilterRow,
+  AdminInlineMessage,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -21,25 +37,136 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import PortfolioForm from "./PortfolioForm";
 
+const PORTFOLIO_FILTER_ALL = "ALL";
+
+const ADMIN_PRIMARY_BUTTON_CLASS =
+  "rounded-full border border-[hsl(var(--admin-highlight)/0.45)] bg-[hsl(var(--admin-highlight)/0.18)] px-5 text-[hsl(var(--admin-foreground))] hover:bg-[hsl(var(--admin-highlight)/0.26)] hover:text-[hsl(var(--admin-foreground))]";
+const ADMIN_GHOST_ICON_BUTTON_CLASS =
+  "rounded-full border border-transparent text-[hsl(var(--admin-muted))] hover:border-[hsl(var(--admin-border)/0.9)] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]";
+const TABLE_HEAD_CLASS =
+  "border-white/8 bg-white/[0.03] text-xs font-medium uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]";
+const TABLE_CELL_CLASS = "border-white/8 text-[hsl(var(--admin-foreground))]";
+
+const PORTFOLIO_FILTERS = [
+  { value: PORTFOLIO_FILTER_ALL, label: "All Works" },
+  { value: OUR_WORK_TYPES.IMAGE, label: "Photography" },
+  { value: OUR_WORK_TYPES.SHORT_VIDEO, label: "Short Form Video" },
+  { value: OUR_WORK_TYPES.VIDEO, label: "Long Form Video" },
+  { value: OUR_WORK_TYPES.THREE_SIXTY, label: "360 Virtual Tour" },
+];
+
+const PORTFOLIO_TYPE_META = {
+  [OUR_WORK_TYPES.IMAGE]: {
+    label: "Photography",
+    tone: "info",
+  },
+  [OUR_WORK_TYPES.SHORT_VIDEO]: {
+    label: "Short Form Video",
+    tone: "warning",
+  },
+  [OUR_WORK_TYPES.VIDEO]: {
+    label: "Long Form Video",
+    tone: "success",
+  },
+  [OUR_WORK_TYPES.THREE_SIXTY]: {
+    label: "360 Virtual Tour",
+    tone: "neutral",
+  },
+};
+
+export function normalizePortfolioItems(rawItems) {
+  return [...(rawItems || [])].sort((left, right) => {
+    const leftOrder = Number(left?.order ?? 0);
+    const rightOrder = Number(right?.order ?? 0);
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return Number(left?.id ?? 0) - Number(right?.id ?? 0);
+  });
+}
+
+function matchesPortfolioFilter(item, filterValue) {
+  return filterValue === PORTFOLIO_FILTER_ALL || item?.type === filterValue;
+}
+
+export function filterPortfolioItems(items, filterValue) {
+  return normalizePortfolioItems(items).filter((item) =>
+    matchesPortfolioFilter(item, filterValue),
+  );
+}
+
+export function reorderPortfolioItems(
+  items,
+  filterValue,
+  sourceIndex,
+  destinationIndex,
+) {
+  const normalizedItems = normalizePortfolioItems(items);
+
+  if (
+    sourceIndex === destinationIndex ||
+    sourceIndex < 0 ||
+    destinationIndex < 0
+  ) {
+    return normalizedItems;
+  }
+
+  const filteredItems = filterPortfolioItems(normalizedItems, filterValue);
+  const reorderedFilteredItems = Array.from(filteredItems);
+  const [movedItem] = reorderedFilteredItems.splice(sourceIndex, 1);
+
+  if (!movedItem) {
+    return normalizedItems;
+  }
+
+  reorderedFilteredItems.splice(destinationIndex, 0, movedItem);
+
+  let filteredIndex = 0;
+
+  return normalizedItems
+    .map((item) =>
+      matchesPortfolioFilter(item, filterValue)
+        ? reorderedFilteredItems[filteredIndex++]
+        : item,
+    )
+    .map((item, index) => ({
+      ...item,
+      order: index,
+    }));
+}
+
 export default function PortfolioList({ initialItems }) {
-  const [items, setItems] = useState(initialItems);
+  const [items, setItems] = useState(() =>
+    normalizePortfolioItems(initialItems),
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [activeFilter, setActiveFilter] = useState(PORTFOLIO_FILTER_ALL);
+
+  const filteredItems = filterPortfolioItems(items, activeFilter);
+  const totalItems = items.length;
+  const visibleItems = items.filter((item) => item.isVisible).length;
+  const hiddenItems = totalItems - visibleItems;
+  const activeFilterLabel =
+    PORTFOLIO_FILTERS.find((filter) => filter.value === activeFilter)?.label ||
+    "All Works";
 
   const onDragEnd = async (result) => {
     if (!result.destination) return;
 
-    const reorderedItems = Array.from(items);
-    const [removed] = reorderedItems.splice(result.source.index, 1);
-    reorderedItems.splice(result.destination.index, 0, removed);
+    const previousItems = items;
+    const itemsWithNewOrder = reorderPortfolioItems(
+      items,
+      activeFilter,
+      result.source.index,
+      result.destination.index,
+    );
 
-    // Update local state first for instant feedback
-    const itemsWithNewOrder = reorderedItems.map((item, index) => ({
-      ...item,
-      order: index,
-    }));
     setItems(itemsWithNewOrder);
 
     try {
@@ -54,8 +181,8 @@ export default function PortfolioList({ initialItems }) {
       if (!res.ok) throw new Error("Failed to update order");
       toast.success("Order updated");
     } catch (_error) {
+      setItems(previousItems);
       toast.error("Failed to sync order with server");
-      // Optionally revert to original items here
     }
   };
 
@@ -70,7 +197,13 @@ export default function PortfolioList({ initialItems }) {
       if (!res.ok) throw new Error("Failed to update visibility");
 
       const updatedItem = await res.json();
-      setItems(items.map((i) => (i.id === item.id ? updatedItem : i)));
+      setItems((currentItems) =>
+        normalizePortfolioItems(
+          currentItems.map((currentItem) =>
+            currentItem.id === item.id ? updatedItem : currentItem,
+          ),
+        ),
+      );
       toast.success(`Entry ${updatedItem.isVisible ? "published" : "hidden"}`);
     } catch (_error) {
       toast.error("Error updating visibility");
@@ -87,7 +220,7 @@ export default function PortfolioList({ initialItems }) {
 
       if (!res.ok) throw new Error("Failed to delete entry");
 
-      setItems(items.filter((i) => i.id !== id));
+      setItems((currentItems) => currentItems.filter((item) => item.id !== id));
       toast.success("Entry deleted successfully");
     } catch (_error) {
       toast.error("Error deleting entry");
@@ -96,9 +229,17 @@ export default function PortfolioList({ initialItems }) {
 
   const handleFormSuccess = (savedItem) => {
     if (editingItem) {
-      setItems(items.map((i) => (i.id === savedItem.id ? savedItem : i)));
+      setItems((currentItems) =>
+        normalizePortfolioItems(
+          currentItems.map((item) =>
+            item.id === savedItem.id ? savedItem : item,
+          ),
+        ),
+      );
     } else {
-      setItems([...items, savedItem]);
+      setItems((currentItems) =>
+        normalizePortfolioItems([...currentItems, savedItem]),
+      );
     }
     setIsModalOpen(false);
     setEditingItem(null);
@@ -115,62 +256,142 @@ export default function PortfolioList({ initialItems }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Dialog
-          open={isModalOpen}
-          onOpenChange={(open) => {
-            setIsModalOpen(open);
-            if (!open) setEditingItem(null);
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button onClick={openCreateModal}>
-              <Plus className="mr-2 h-4 w-4" /> New Entry
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-hidden p-0">
-            <DialogHeader className="px-6 pt-6 pb-2">
-              <DialogTitle>
-                {editingItem
-                  ? "Edit Portfolio Entry"
-                  : "Create New Portfolio Entry"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="max-h-[calc(90vh-88px)] overflow-y-auto px-6 pb-6">
-              <PortfolioForm
-                key={editingItem?.id ?? "new"}
-                onSuccess={handleFormSuccess}
-                initialData={editingItem}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Total entries</AdminCardDescription>
+            <AdminCardTitle>{totalItems}</AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+              Global drag order persists across all media types.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Visible on site</AdminCardDescription>
+            <AdminCardTitle>{visibleItems}</AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+              {hiddenItems} currently hidden from the public portfolio.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Current filter</AdminCardDescription>
+            <AdminCardTitle>{filteredItems.length}</AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent>
+            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+              Showing {activeFilterLabel} results from the live content library.
+            </p>
+          </AdminCardContent>
+        </AdminCard>
       </div>
 
-      <div className="rounded-md border bg-card">
+      <AdminTablePanel
+        title="Portfolio entries"
+        description="Filter by media type, keep visibility in sync, and drag rows to update the single public display order."
+        actions={
+          <Dialog
+            open={isModalOpen}
+            onOpenChange={(open) => {
+              setIsModalOpen(open);
+              if (!open) setEditingItem(null);
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button
+                className={ADMIN_PRIMARY_BUTTON_CLASS}
+                onClick={openCreateModal}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                New Entry
+              </Button>
+            </DialogTrigger>
+            <AdminDialogContent
+              className="max-h-[90vh] max-w-2xl overflow-hidden p-0"
+              title={
+                editingItem
+                  ? "Edit Portfolio Entry"
+                  : "Create New Portfolio Entry"
+              }
+              description="Keep the current content workflow intact while updating media, visibility, and display order."
+            >
+              <div className="max-h-[calc(90vh-120px)] overflow-y-auto px-6 pb-6">
+                <PortfolioForm
+                  key={editingItem?.id ?? "new"}
+                  onSuccess={handleFormSuccess}
+                  initialData={editingItem}
+                />
+              </div>
+            </AdminDialogContent>
+          </Dialog>
+        }
+      >
+        <div className="space-y-4 border-b border-white/8 px-5 py-4 sm:px-6">
+          <AdminFilterRow>
+            {PORTFOLIO_FILTERS.map((filter) => (
+              <AdminFilterChip
+                key={filter.value}
+                active={activeFilter === filter.value}
+                onClick={() => setActiveFilter(filter.value)}
+              >
+                {filter.label}
+              </AdminFilterChip>
+            ))}
+          </AdminFilterRow>
+
+          <AdminInlineMessage
+            tone="info"
+            title="Filtered drag ordering remains global"
+            description="Reordering a filtered view only changes the relative sequence of matching entries. Hidden media types keep their place in the overall portfolio order."
+          />
+        </div>
+
         <DragDropContext onDragEnd={onDragEnd}>
-          <Table>
+          <Table className="min-w-[860px]">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[50px]"></TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className={`${TABLE_HEAD_CLASS} w-[72px]`}>
+                  Order
+                </TableHead>
+                <TableHead className={TABLE_HEAD_CLASS}>Title</TableHead>
+                <TableHead className={TABLE_HEAD_CLASS}>Media Type</TableHead>
+                <TableHead className={TABLE_HEAD_CLASS}>Status</TableHead>
+                <TableHead className={TABLE_HEAD_CLASS}>Assets</TableHead>
+                <TableHead className={`${TABLE_HEAD_CLASS} text-right`}>
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <Droppable droppableId="portfolio">
               {(provided) => (
                 <TableBody {...provided.droppableProps} ref={provided.innerRef}>
-                  {items.length === 0 ? (
+                  {filteredItems.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        No portfolio items found.
+                      <TableCell colSpan={6} className={TABLE_CELL_CLASS}>
+                        <AdminEmptyState
+                          icon={Images}
+                          title={
+                            totalItems === 0
+                              ? "No portfolio items found"
+                              : "No entries match this filter"
+                          }
+                          description={
+                            totalItems === 0
+                              ? "Create the first portfolio entry to populate the landing page and portfolio collections."
+                              : "Try a different media-type filter or create a new entry for this content group."
+                          }
+                        />
                       </TableCell>
                     </TableRow>
                   ) : (
-                    items.map((item, index) => (
+                    filteredItems.map((item, index) => (
                       <Draggable
                         key={item.id}
                         draggableId={item.id.toString()}
@@ -181,49 +402,94 @@ export default function PortfolioList({ initialItems }) {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                           >
-                            <TableCell {...provided.dragHandleProps}>
-                              <GripVertical
-                                className="text-muted-foreground cursor-grab active:cursor-grabbing"
-                                size={20}
-                              />
+                            <TableCell
+                              {...provided.dragHandleProps}
+                              className={`${TABLE_CELL_CLASS} align-top`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <GripVertical
+                                  className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
+                                  size={18}
+                                  aria-hidden="true"
+                                />
+                                <div className="space-y-1">
+                                  <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
+                                    {(item.order ?? index) + 1}
+                                  </div>
+                                  <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
+                                    Drag
+                                  </p>
+                                </div>
+                              </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell
+                              className={`${TABLE_CELL_CLASS} align-top`}
+                            >
                               <div className="flex flex-col">
                                 <span className="font-medium">
                                   {item.title}
                                 </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {item.subtitle}
+                                <span className="text-xs text-[hsl(var(--admin-muted))]">
+                                  {item.subtitle || "No subtitle provided"}
                                 </span>
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{item.type}</Badge>
+                            <TableCell
+                              className={`${TABLE_CELL_CLASS} align-top`}
+                            >
+                              <AdminBadge
+                                tone={PORTFOLIO_TYPE_META[item.type]?.tone}
+                              >
+                                {PORTFOLIO_TYPE_META[item.type]?.label ||
+                                  item.type}
+                              </AdminBadge>
                             </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  item.isVisible ? "default" : "secondary"
-                                }
+                            <TableCell
+                              className={`${TABLE_CELL_CLASS} align-top`}
+                            >
+                              <AdminBadge
+                                tone={item.isVisible ? "success" : "neutral"}
                               >
                                 {item.isVisible ? "Visible" : "Hidden"}
-                              </Badge>
+                              </AdminBadge>
                             </TableCell>
-                            <TableCell className="text-right">
+                            <TableCell
+                              className={`${TABLE_CELL_CLASS} align-top`}
+                            >
+                              <div className="flex items-center gap-2 text-sm text-[hsl(var(--admin-muted))]">
+                                <ArrowDownUp className="h-4 w-4" />
+                                <span>
+                                  {Array.isArray(item.mediaContent)
+                                    ? `${item.mediaContent.length} files`
+                                    : "1 link"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell
+                              className={`${TABLE_CELL_CLASS} align-top text-right`}
+                            >
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  className={ADMIN_GHOST_ICON_BUTTON_CLASS}
                                   onClick={() => openEditModal(item)}
                                   title="Edit"
+                                  aria-label={`Edit ${item.title}`}
                                 >
                                   <Edit2 size={18} />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  className={ADMIN_GHOST_ICON_BUTTON_CLASS}
                                   onClick={() => toggleVisibility(item)}
                                   title={item.isVisible ? "Hide" : "Show"}
+                                  aria-label={
+                                    item.isVisible
+                                      ? `Hide ${item.title}`
+                                      : `Show ${item.title}`
+                                  }
                                 >
                                   {item.isVisible ? (
                                     <EyeOff size={18} />
@@ -234,9 +500,10 @@ export default function PortfolioList({ initialItems }) {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  className={`${ADMIN_GHOST_ICON_BUTTON_CLASS} text-[hsl(var(--admin-danger))] hover:border-[hsl(var(--admin-danger)/0.28)] hover:bg-[hsl(var(--admin-danger)/0.12)] hover:text-[hsl(var(--admin-danger))]`}
                                   onClick={() => handleDelete(item.id)}
                                   title="Delete"
+                                  aria-label={`Delete ${item.title}`}
                                 >
                                   <Trash2 size={18} />
                                 </Button>
@@ -253,7 +520,7 @@ export default function PortfolioList({ initialItems }) {
             </Droppable>
           </Table>
         </DragDropContext>
-      </div>
+      </AdminTablePanel>
     </div>
   );
 }

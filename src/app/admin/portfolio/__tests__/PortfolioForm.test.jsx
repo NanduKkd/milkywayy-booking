@@ -1,12 +1,19 @@
+import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import {
   act,
+  fireEvent,
   render,
   screen,
-  fireEvent,
   waitFor,
 } from "../../../../test-utils";
 import PortfolioForm from "../PortfolioForm";
-import { OUR_WORK_TYPES } from "@/lib/config/app.config";
+
+jest.mock("next/image", () => ({
+  __esModule: true,
+  default: (props) => {
+    return <span role="img" aria-label={props.alt} data-src={props.src} />;
+  },
+}));
 
 // Mock global fetch
 global.fetch = jest.fn();
@@ -29,15 +36,19 @@ describe("PortfolioForm", () => {
 
     render(<PortfolioForm initialData={initialData} onSuccess={() => {}} />);
 
-    expect(screen.getByLabelText("Title", { selector: "input" })).toHaveValue("Test Work");
-    expect(screen.getByLabelText("Subtitle", { selector: "input" })).toHaveValue("Sub");
+    expect(screen.getByLabelText("Title", { selector: "input" })).toHaveValue(
+      "Test Work",
+    );
+    expect(
+      screen.getByLabelText("Subtitle", { selector: "input" }),
+    ).toHaveValue("Sub");
     expect(screen.getByDisplayValue("5")).toBeInTheDocument();
-    
+
     // Check if images are rendered
     const images = screen.getAllByRole("img");
     expect(images).toHaveLength(2);
-    expect(images[0]).toHaveAttribute("src", "url1.jpg");
-    expect(images[1]).toHaveAttribute("src", "url2.jpg");
+    expect(images[0]).toHaveAttribute("data-src", "url1.jpg");
+    expect(images[1]).toHaveAttribute("data-src", "url2.jpg");
   });
 
   it("renders the form for VIDEO type (single URL)", () => {
@@ -51,7 +62,9 @@ describe("PortfolioForm", () => {
 
     render(<PortfolioForm initialData={initialData} onSuccess={() => {}} />);
 
-    const input = screen.getByPlaceholderText(/YouTube \/ Instagram \/ Panoee Link/i);
+    const input = screen.getByPlaceholderText(
+      /YouTube, Instagram, or Panoee link/i,
+    );
     expect(input).toHaveValue("https://youtube.com/watch?v=123");
   });
 
@@ -65,12 +78,14 @@ describe("PortfolioForm", () => {
 
     render(<PortfolioForm initialData={initialData} onSuccess={() => {}} />);
 
-    const removeButtons = screen.getAllByRole("button").filter(b => b.querySelector('svg.lucide-x'));
+    const removeButtons = screen
+      .getAllByRole("button")
+      .filter((button) => button.querySelector("svg.lucide-x"));
     fireEvent.click(removeButtons[0]);
 
     // One image should remain
     expect(screen.getAllByRole("img")).toHaveLength(1);
-    expect(screen.getByRole("img")).toHaveAttribute("src", "url2.jpg");
+    expect(screen.getByRole("img")).toHaveAttribute("data-src", "url2.jpg");
   });
 
   it("submits the form correctly", async () => {
@@ -100,7 +115,7 @@ describe("PortfolioForm", () => {
         expect.objectContaining({
           method: "PUT",
           body: expect.stringContaining('"title":"Updated Title"'),
-        })
+        }),
       );
       expect(onSuccess).toHaveBeenCalled();
     });
@@ -126,20 +141,20 @@ describe("PortfolioForm", () => {
       <PortfolioForm initialData={firstItem} onSuccess={() => {}} />,
     );
 
-    expect(
-      screen.getByLabelText("Title", { selector: "input" }),
-    ).toHaveValue("First Work");
+    expect(screen.getByLabelText("Title", { selector: "input" })).toHaveValue(
+      "First Work",
+    );
 
     await act(async () => {
       rerender(<PortfolioForm initialData={secondItem} onSuccess={() => {}} />);
     });
 
     await waitFor(() => {
+      expect(screen.getByLabelText("Title", { selector: "input" })).toHaveValue(
+        "Second Work",
+      );
       expect(
-        screen.getByLabelText("Title", { selector: "input" }),
-      ).toHaveValue("Second Work");
-      expect(
-        screen.getByPlaceholderText(/YouTube \/ Instagram \/ Panoee Link/i),
+        screen.getByPlaceholderText(/YouTube, Instagram, or Panoee link/i),
       ).toHaveValue("https://youtube.com/watch?v=456");
     });
   });

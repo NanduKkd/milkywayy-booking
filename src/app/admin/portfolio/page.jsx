@@ -1,11 +1,15 @@
 import { redirect } from "next/navigation";
+import {
+  AdminBadge,
+  AdminInlineMessage,
+  AdminPage,
+  AdminPageHeader,
+} from "@/components/admin/AdminPrimitives";
 import { getSessionUser } from "@/lib/helpers/auth";
 import PortfolioList from "./PortfolioList";
 
 async function getPortfolioItems() {
   try {
-    // We use the internal API route or direct DB access
-    // For consistency with other admin pages, we use a similar pattern
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/our-works`,
       {
@@ -13,12 +17,32 @@ async function getPortfolioItems() {
       },
     );
 
-    if (!res.ok) throw new Error("Failed to fetch portfolio items");
+    if (!res.ok) {
+      let message = "Failed to fetch portfolio items";
 
-    return await res.json();
+      try {
+        const payload = await res.json();
+        if (payload?.error) {
+          message = payload.error;
+        }
+      } catch {}
+
+      throw new Error(message);
+    }
+
+    return {
+      items: await res.json(),
+      error: null,
+    };
   } catch (error) {
     console.error("Error fetching portfolio items:", error);
-    return [];
+    return {
+      items: [],
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch portfolio items",
+    };
   }
 }
 
@@ -29,20 +53,28 @@ export default async function PortfolioManagement() {
     redirect("/admin/login");
   }
 
-  const items = await getPortfolioItems();
+  const { items, error } = await getPortfolioItems();
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Portfolio Management</h1>
-          <p className="text-gray-600 mt-2">
-            Manage 'Our Works' entries shown on the landing page and portfolio
-          </p>
-        </div>
-      </div>
+    <AdminPage className="px-4 py-6 sm:px-6 lg:px-8">
+      <AdminPageHeader
+        eyebrow="Content"
+        title="Portfolio"
+        description="Manage the live Our Works library shown across the landing page and portfolio surfaces. Filters, visibility changes, uploads, and drag ordering all stay on the current production data."
+        actions={
+          <AdminBadge tone="info">Global ordering stays live</AdminBadge>
+        }
+      />
+
+      {error ? (
+        <AdminInlineMessage
+          tone="danger"
+          title="Unable to load every portfolio entry"
+          description={error}
+        />
+      ) : null}
 
       <PortfolioList initialItems={items} />
-    </div>
+    </AdminPage>
   );
 }
