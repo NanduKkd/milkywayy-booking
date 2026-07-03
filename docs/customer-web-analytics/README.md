@@ -1,9 +1,9 @@
 # Customer web analytics delivery plan
 
-- Last updated: 2026-07-01
-- Planning status: `IN_PROGRESS`
-- Implementation status: `NOT_STARTED`
-- Target: measure the customer acquisition, booking, payment, login, service, campaign, revenue, and location funnels using Google Analytics 4 and Google Ads, with business reporting in a dashboard.
+- Last updated: 2026-07-03
+- Planning status: `DEFERRED`
+- Implementation status: `DEFERRED`
+- Target: deferred for a later release; customer acquisition, booking, payment, login, service, campaign, revenue, and location funnel analytics remain the intended scope when work resumes.
 
 ## Purpose
 
@@ -15,6 +15,12 @@ coarse location without making analytics the financial source of truth.
 This is a draft delivery contract. Items in
 [DECISIONS.md](./DECISIONS.md) marked `PROPOSED` remain pending and must be
 accepted before dependent implementation begins.
+
+## Current status
+
+This feature is on hold and has been deferred to a later release.
+No implementation work should start against this folder until the feature is
+reactivated and the task tracker is updated.
 
 ## Document index
 
@@ -99,4 +105,3 @@ campaign traffic accumulation, and Google reporting latency.
 3. Do not start a decision-dependent task until its decision is `ACCEPTED`.
 4. Add newly discovered work under a new stable task ID.
 5. Update the `Last updated` date when scope, decisions, or status materially changes.
-

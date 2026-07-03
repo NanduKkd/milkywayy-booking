@@ -1,15 +1,21 @@
 # Admin customer management delivery plan
 
-- Last updated: 2026-06-30
-- Planning status: `IN_PROGRESS`
-- Implementation status: `NOT_STARTED`
-- Target: make the Users page a customer-only operational view with aggregates, sorting, editing, and safe deactivation.
+- Last updated: 2026-07-03
+- Planning status: `DEFERRED`
+- Implementation status: `DEFERRED`
+- Target: deferred for a later release; the Users page remains intended to become a customer-only operational view with aggregates, sorting, editing, and safe deactivation when work resumes.
 
 ## Purpose
 
 Separate customer management from staff administration. Staff accounts are
 managed only in Settings; Users lists only `CUSTOMER` accounts and their booking
 and net-spend summaries.
+
+## Current status
+
+This feature is on hold and has been deferred to a later release.
+No implementation work should start against this folder until the feature is
+reactivated and the task tracker is updated.
 
 ## Document index
 
