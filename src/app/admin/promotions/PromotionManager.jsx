@@ -6,7 +6,6 @@ import {
   CirclePlay,
   Pencil,
   Plus,
-  Search,
   Sparkles,
   Tag,
   Trash2,
@@ -14,23 +13,23 @@ import {
   UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import {
+  AdminBadge,
+  AdminCard,
+  AdminCardContent,
+  AdminCardDescription,
+  AdminCardHeader,
+  AdminCardTitle,
+  AdminDialogContent,
+  AdminEmptyState,
+  AdminInlineMessage,
+  AdminPage,
+  AdminPageHeader,
+  AdminSearchField,
+  AdminTablePanel,
+} from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -99,13 +98,6 @@ const KIND_SORT_ORDER = {
   GENERIC: 0,
   PERSONAL: 1,
   AUTOMATIC: 2,
-};
-
-const STATUS_STYLES = {
-  ACTIVE: "bg-emerald-500/15 text-emerald-300 border-emerald-500/20",
-  DRAFT: "bg-slate-500/15 text-slate-200 border-slate-500/20",
-  PAUSED: "bg-amber-500/15 text-amber-300 border-amber-500/20",
-  DEACTIVATED: "bg-rose-500/15 text-rose-300 border-rose-500/20",
 };
 
 const BENEFIT_TYPE_OPTIONS = [
@@ -319,6 +311,19 @@ function formatStatusLabel(status) {
     .replace(/^\w/, (value) => value.toUpperCase());
 }
 
+function getStatusTone(status) {
+  switch (status) {
+    case "ACTIVE":
+      return "success";
+    case "PAUSED":
+      return "warning";
+    case "DEACTIVATED":
+      return "danger";
+    default:
+      return "neutral";
+  }
+}
+
 function formatCustomerDisplayName(customer) {
   return (
     customer?.displayName ||
@@ -349,211 +354,225 @@ function PromotionTable({
 
   if (promotions.length === 0) {
     return (
-      <Card className="border-dashed border-white/15 bg-card/50">
-        <CardContent className="flex flex-col gap-3 px-6 py-10 text-center">
-          <div className="mx-auto rounded-full border border-white/10 bg-white/[0.03] p-3">
-            <EmptyIcon className="h-5 w-5 text-muted-foreground" />
+      <AdminTablePanel
+        title={`${tab.label} catalog`}
+        description="Create or maintain promotions without changing the existing eligibility and mutation flows."
+        actions={
+          <Button type="button" variant="outline" onClick={onCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            New {tab.shortLabel}
+          </Button>
+        }
+      >
+        <div className="p-6">
+          <div className="flex flex-col gap-4 text-center">
+            <div className="mx-auto rounded-full border border-white/10 bg-white/[0.03] p-3">
+              <EmptyIcon className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <AdminEmptyState
+              title={tab.emptyTitle}
+              description={tab.emptyCopy}
+              icon={EmptyIcon}
+              className="border-0 bg-transparent py-0"
+            />
+            <div>
+              <Button type="button" onClick={onCreate}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create {tab.shortLabel}
+              </Button>
+            </div>
           </div>
-          <div className="space-y-1">
-            <p className="text-base font-medium">{tab.emptyTitle}</p>
-            <p className="text-sm text-muted-foreground">{tab.emptyCopy}</p>
-          </div>
-          <div>
-            <Button onClick={onCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create {tab.shortLabel}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </AdminTablePanel>
     );
   }
 
   return (
-    <Card className="border-white/10 bg-card/70">
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-white/10 hover:bg-transparent">
-                <TableHead>Promotion</TableHead>
-                <TableHead>Benefit</TableHead>
-                <TableHead>Eligibility</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {promotions.map((promotion) => {
-                const isBusy = pendingKey === `promotion:${promotion.id}`;
+    <AdminTablePanel
+      title={`${tab.label} catalog`}
+      description="Existing promotion logic, priorities, activation rules, and assignment flows stay unchanged under the refreshed shell."
+      actions={
+        <Button type="button" variant="outline" onClick={onCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          New {tab.shortLabel}
+        </Button>
+      }
+    >
+      <Table>
+        <TableHeader className="bg-white/[0.03]">
+          <TableRow className="border-white/8 hover:bg-transparent">
+            <TableHead className="min-w-[280px] text-[hsl(var(--admin-muted))]">
+              Promotion
+            </TableHead>
+            <TableHead className="min-w-[180px] text-[hsl(var(--admin-muted))]">
+              Benefit
+            </TableHead>
+            <TableHead className="min-w-[260px] text-[hsl(var(--admin-muted))]">
+              Eligibility
+            </TableHead>
+            <TableHead className="min-w-[140px] text-[hsl(var(--admin-muted))]">
+              Status
+            </TableHead>
+            <TableHead className="min-w-[220px] text-right text-[hsl(var(--admin-muted))]">
+              Actions
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {promotions.map((promotion) => {
+            const isBusy = pendingKey === `promotion:${promotion.id}`;
 
-                return (
-                  <TableRow key={promotion.id} className="border-white/10">
-                    <TableCell className="align-top">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {promotion.code ? (
-                            <Badge
-                              variant="secondary"
-                              className="tracking-[0.16em]"
-                            >
-                              {promotion.code}
-                            </Badge>
-                          ) : null}
-                          <span className="font-medium text-foreground">
-                            {promotion.name}
-                          </span>
+            return (
+              <TableRow key={promotion.id} className="border-white/8">
+                <TableCell className="align-top">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {promotion.code ? (
+                        <AdminBadge className="tracking-[0.16em]">
+                          {promotion.code}
+                        </AdminBadge>
+                      ) : null}
+                      <span className="font-medium text-foreground">
+                        {promotion.name}
+                      </span>
+                    </div>
+                    {promotion.adminDescription ? (
+                      <p className="max-w-md text-sm text-muted-foreground">
+                        {promotion.adminDescription}
+                      </p>
+                    ) : null}
+                    {promotion.customerMessage ? (
+                      <p className="text-xs text-sky-300/80">
+                        Customer: {promotion.customerMessage}
+                      </p>
+                    ) : null}
+                    {promotion.kind === "PERSONAL" ? (
+                      promotion.assignments?.length ? (
+                        <div className="flex flex-wrap gap-2">
+                          {promotion.assignments.map((assignment) => (
+                            <AdminBadge key={assignment.id} tone="info">
+                              {formatCustomerDisplayName(assignment.user)}
+                            </AdminBadge>
+                          ))}
                         </div>
-                        {promotion.adminDescription ? (
-                          <p className="max-w-md text-sm text-muted-foreground">
-                            {promotion.adminDescription}
-                          </p>
-                        ) : null}
-                        {promotion.customerMessage ? (
-                          <p className="text-xs text-sky-300/80">
-                            Customer: {promotion.customerMessage}
-                          </p>
-                        ) : null}
-                        {promotion.kind === "PERSONAL" ? (
-                          promotion.assignments?.length ? (
-                            <div className="flex flex-wrap gap-2">
-                              {promotion.assignments.map((assignment) => (
-                                <Badge
-                                  key={assignment.id}
-                                  variant="outline"
-                                  className="border-sky-500/20 bg-sky-500/10 text-sky-100"
-                                >
-                                  {formatCustomerDisplayName(assignment.user)}
-                                </Badge>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">
-                              No customers assigned yet.
-                            </p>
-                          )
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="space-y-1 text-sm">
-                        <p className="font-medium text-foreground">
-                          {formatBenefit(promotion)}
-                        </p>
-                        <p className="text-muted-foreground">
-                          Minimum spend:{" "}
-                          {formatCurrency(promotion.minimumSpend)}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <p>{formatTrigger(promotion)}</p>
-                        <p>
-                          Usage:{" "}
-                          {promotion.perUserLimit == null
-                            ? "No per-user limit"
-                            : `${promotion.perUserLimit} per user`}
-                          {" / "}
-                          {promotion.totalLimit == null
-                            ? "No total limit"
-                            : `${promotion.totalLimit} total`}
-                        </p>
-                        <p>
-                          Window: {formatDateTime(promotion.startsAt)} to{" "}
-                          {formatDateTime(promotion.endsAt)}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="space-y-2">
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "border",
-                            STATUS_STYLES[promotion.status],
-                          )}
-                        >
-                          {formatStatusLabel(promotion.status)}
-                        </Badge>
+                      ) : (
                         <p className="text-xs text-muted-foreground">
-                          Priority {promotion.priority || 0}
+                          No customers assigned yet.
                         </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        {promotion.kind === "PERSONAL" ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onAssignCustomer(promotion)}
-                            disabled={isBusy}
-                          >
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            Assign
-                          </Button>
-                        ) : null}
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => onEdit(promotion)}
-                          disabled={isBusy}
-                        >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </Button>
-                        {promotion.status === "ACTIVE" ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            title="Pause promotion"
-                            onClick={() => onPause(promotion)}
-                            disabled={isBusy}
-                          >
-                            <CirclePause className="mr-2 h-4 w-4" />
-                            Pause
-                          </Button>
-                        ) : promotion.status !== "DEACTIVATED" ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            title="Activate promotion"
-                            onClick={() => onActivate(promotion)}
-                            disabled={isBusy}
-                          >
-                            <CirclePlay className="mr-2 h-4 w-4" />
-                            Activate
-                          </Button>
-                        ) : null}
-                        {promotion.status !== "DEACTIVATED" ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="border-rose-500/30 text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
-                            title="Deactivate promotion"
-                            onClick={() => onDeactivate(promotion)}
-                            disabled={isBusy}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Deactivate
-                          </Button>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+                      )
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium text-foreground">
+                      {formatBenefit(promotion)}
+                    </p>
+                    <p className="text-muted-foreground">
+                      Minimum spend: {formatCurrency(promotion.minimumSpend)}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p>{formatTrigger(promotion)}</p>
+                    <p>
+                      Usage:{" "}
+                      {promotion.perUserLimit == null
+                        ? "No per-user limit"
+                        : `${promotion.perUserLimit} per user`}
+                      {" / "}
+                      {promotion.totalLimit == null
+                        ? "No total limit"
+                        : `${promotion.totalLimit} total`}
+                    </p>
+                    <p>
+                      Window: {formatDateTime(promotion.startsAt)} to{" "}
+                      {formatDateTime(promotion.endsAt)}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="space-y-2">
+                    <AdminBadge tone={getStatusTone(promotion.status)}>
+                      {formatStatusLabel(promotion.status)}
+                    </AdminBadge>
+                    <p className="text-xs text-muted-foreground">
+                      Priority {promotion.priority || 0}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="align-top">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {promotion.kind === "PERSONAL" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onAssignCustomer(promotion)}
+                        disabled={isBusy}
+                      >
+                        <UserPlus className="mr-2 h-4 w-4" />
+                        Assign
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onEdit(promotion)}
+                      disabled={isBusy}
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                    {promotion.status === "ACTIVE" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        title="Pause promotion"
+                        onClick={() => onPause(promotion)}
+                        disabled={isBusy}
+                      >
+                        <CirclePause className="mr-2 h-4 w-4" />
+                        Pause
+                      </Button>
+                    ) : promotion.status !== "DEACTIVATED" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        title="Activate promotion"
+                        onClick={() => onActivate(promotion)}
+                        disabled={isBusy}
+                      >
+                        <CirclePlay className="mr-2 h-4 w-4" />
+                        Activate
+                      </Button>
+                    ) : null}
+                    {promotion.status !== "DEACTIVATED" ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="border-rose-500/30 text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
+                        title="Deactivate promotion"
+                        onClick={() => onDeactivate(promotion)}
+                        disabled={isBusy}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Deactivate
+                      </Button>
+                    ) : null}
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </AdminTablePanel>
   );
 }
 
@@ -648,6 +667,17 @@ export default function PromotionManager({
     ).length;
     return accumulator;
   }, {});
+  const activePromotionsCount = promotions.filter(
+    (promotion) => promotion.status === "ACTIVE",
+  ).length;
+  const assignedCustomersCount = promotions.reduce(
+    (count, promotion) => count + (promotion.assignments?.length || 0),
+    0,
+  );
+  const dateRangeRuleCount = promotions.filter(
+    (promotion) =>
+      promotion.kind === "AUTOMATIC" && promotion.triggerType === "DATE_RANGE",
+  ).length;
 
   const upsertPromotion = (nextPromotion) => {
     setPromotions((currentPromotions) =>
@@ -766,160 +796,183 @@ export default function PromotionManager({
     TAB_CONFIG.find((tab) => tab.value === activeTab) ?? TAB_CONFIG[0];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Promotions
-          </p>
-          <div className="space-y-1">
-            <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-              Promotion Management
-            </h1>
-            <p className="max-w-3xl text-sm text-muted-foreground md:text-base">
-              Manage generic codes, personal offers, and automatic rules in one
-              deterministic admin surface. Legacy Discounts and Coupons routes
-              now redirect here for the rollout cutover.
-            </p>
-          </div>
+    <AdminPage>
+      <AdminPageHeader
+        eyebrow="Operations"
+        title="Promotion Management"
+        description="Manage generic codes, personal offers, and automatic rules in one deterministic admin surface while keeping the existing promotion engine, redirects, and mutations intact."
+        actions={
+          <Button type="button" onClick={() => openCreateDialog(activeTab)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create {activeTabConfig.shortLabel}
+          </Button>
+        }
+      >
+        <div className="flex flex-wrap gap-2">
+          <AdminBadge tone="success">Unified mutations live</AdminBadge>
+          <AdminBadge tone="info">Legacy redirects preserved</AdminBadge>
         </div>
-        <Button onClick={() => openCreateDialog(activeTab)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create {activeTabConfig.shortLabel}
-        </Button>
-      </div>
+      </AdminPageHeader>
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>
+              Generic / personal / automatic
+            </AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {countsByKind.GENERIC || 0} / {countsByKind.PERSONAL || 0} /{" "}
+              {countsByKind.AUTOMATIC || 0}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
+            The three current tabs stay consolidated under one live route.
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Promotions active now</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {activePromotionsCount}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
+            Draft, paused, and deactivated states still transition explicitly.
+          </AdminCardContent>
+        </AdminCard>
+        <AdminCard tone="subtle">
+          <AdminCardHeader>
+            <AdminCardDescription>Customer assignments</AdminCardDescription>
+            <AdminCardTitle className="text-3xl">
+              {assignedCustomersCount}
+            </AdminCardTitle>
+          </AdminCardHeader>
+          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
+            {dateRangeRuleCount} automatic date-range rules are currently
+            configured.
+          </AdminCardContent>
+        </AdminCard>
+      </section>
 
       {errorMessage ? (
-        <Card className="border-rose-500/20 bg-rose-500/10">
-          <CardContent className="px-5 py-4 text-sm text-rose-100">
-            {errorMessage}
-          </CardContent>
-        </Card>
+        <AdminInlineMessage
+          title="Unable to update promotions"
+          description={errorMessage}
+          tone="danger"
+        />
       ) : null}
 
-      <Card className="border-white/10 bg-card/70">
-        <CardHeader className="gap-4">
+      <AdminCard>
+        <AdminCardHeader className="gap-4">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <CardTitle>Unified promotions</CardTitle>
-              <CardDescription>
+              <AdminCardTitle>Unified promotions</AdminCardTitle>
+              <AdminCardDescription>
                 One best promotion applies; wallet credit remains separate.
-              </CardDescription>
+              </AdminCardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
               {TAB_CONFIG.map((tab) => (
-                <Badge
-                  key={tab.value}
-                  variant="outline"
-                  className="border-white/10"
-                >
+                <AdminBadge key={tab.value}>
                   {tab.shortLabel}: {countsByKind[tab.value] || 0}
-                </Badge>
+                </AdminBadge>
               ))}
             </div>
           </div>
-          <div className="space-y-6">
-            <div
-              role="tablist"
-              aria-label="Promotion kinds"
-              className="flex flex-wrap gap-2"
-            >
-              {TAB_CONFIG.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = tab.value === activeTab;
+        </AdminCardHeader>
+        <AdminCardContent className="space-y-6">
+          <div
+            role="tablist"
+            aria-label="Promotion kinds"
+            className="flex flex-wrap gap-2"
+          >
+            {TAB_CONFIG.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = tab.value === activeTab;
 
-                return (
-                  <button
-                    key={tab.value}
-                    type="button"
-                    role="tab"
-                    id={`promotion-tab-${tab.value}`}
-                    aria-selected={isActive}
-                    aria-controls={`promotion-panel-${tab.value}`}
-                    className={cn(
-                      "inline-flex items-center justify-center whitespace-nowrap rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
-                      isActive
-                        ? "border-white/20 bg-white/10 text-foreground"
-                        : "border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-foreground",
-                    )}
-                    onClick={() => setActiveTab(tab.value)}
-                  >
-                    <Icon className="mr-2 h-4 w-4" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div
-              role="tabpanel"
-              id={`promotion-panel-${activeTabConfig.value}`}
-              aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
-              className="space-y-4"
-            >
-              <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                <div className="space-y-1">
-                  <h2 className="text-xl font-semibold">
-                    {activeTabConfig.label}
-                  </h2>
-                  <p className="max-w-3xl text-sm text-muted-foreground">
-                    {activeTabConfig.description}
-                  </p>
-                </div>
-                <Button
+              return (
+                <button
+                  key={tab.value}
                   type="button"
-                  variant="outline"
-                  onClick={() => openCreateDialog(activeTabConfig.value)}
+                  role="tab"
+                  id={`promotion-tab-${tab.value}`}
+                  aria-selected={isActive}
+                  aria-controls={`promotion-panel-${tab.value}`}
+                  className={cn(
+                    "inline-flex items-center justify-center whitespace-nowrap rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
+                    isActive
+                      ? "border-white/20 bg-white/10 text-foreground"
+                      : "border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-foreground",
+                  )}
+                  onClick={() => setActiveTab(tab.value)}
                 >
-                  <Plus className="mr-2 h-4 w-4" />
-                  New {activeTabConfig.shortLabel}
-                </Button>
-              </div>
-
-              {activeTabConfig.value === "PERSONAL" ? (
-                <Card className="border-sky-500/20 bg-sky-500/10">
-                  <CardContent className="px-5 py-4 text-sm text-sky-100">
-                    Personal promotion assignment now filters to customer
-                    accounts only, so staff users never appear in search or
-                    assignment results.
-                  </CardContent>
-                </Card>
-              ) : null}
-
-              <PromotionTable
-                promotions={promotions.filter(
-                  (promotion) => promotion.kind === activeTabConfig.value,
-                )}
-                onCreate={() => openCreateDialog(activeTabConfig.value)}
-                onEdit={openEditDialog}
-                onAssignCustomer={openAssignmentDialog}
-                onActivate={(promotion) =>
-                  handleStatusChange(promotion, activateAdminPromotion)
-                }
-                onPause={(promotion) =>
-                  handleStatusChange(promotion, pauseAdminPromotion)
-                }
-                onDeactivate={handleDeactivate}
-                pendingKey={pendingKey}
-                tab={activeTabConfig}
-              />
-            </div>
+                  <Icon className="mr-2 h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
-        </CardHeader>
-      </Card>
+
+          <div
+            role="tabpanel"
+            id={`promotion-panel-${activeTabConfig.value}`}
+            aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
+            className="space-y-4"
+          >
+            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-xl font-semibold">
+                  {activeTabConfig.label}
+                </h2>
+                <p className="max-w-3xl text-sm text-muted-foreground">
+                  {activeTabConfig.description}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => openCreateDialog(activeTabConfig.value)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                New {activeTabConfig.shortLabel}
+              </Button>
+            </div>
+
+            {activeTabConfig.value === "PERSONAL" ? (
+              <AdminInlineMessage
+                title="Customer-only assignment"
+                description="Personal promotion assignment now filters to customer accounts only, so staff users never appear in search or assignment results."
+                tone="info"
+              />
+            ) : null}
+
+            <PromotionTable
+              promotions={promotions.filter(
+                (promotion) => promotion.kind === activeTabConfig.value,
+              )}
+              onCreate={() => openCreateDialog(activeTabConfig.value)}
+              onEdit={openEditDialog}
+              onAssignCustomer={openAssignmentDialog}
+              onActivate={(promotion) =>
+                handleStatusChange(promotion, activateAdminPromotion)
+              }
+              onPause={(promotion) =>
+                handleStatusChange(promotion, pauseAdminPromotion)
+              }
+              onDeactivate={handleDeactivate}
+              pendingKey={pendingKey}
+              tab={activeTabConfig}
+            />
+          </div>
+        </AdminCardContent>
+      </AdminCard>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>
-              {formMode === "create" ? "Create promotion" : "Edit promotion"}
-            </DialogTitle>
-            <DialogDescription>
-              Configure deterministic promotion behavior for the{" "}
-              {activeTabConfig.label.toLowerCase()} tab.
-            </DialogDescription>
-          </DialogHeader>
-
+        <AdminDialogContent
+          className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+          title={formMode === "create" ? "Create promotion" : "Edit promotion"}
+          description={`Configure deterministic promotion behavior for the ${activeTabConfig.label.toLowerCase()} tab.`}
+        >
           <div className="grid gap-5 py-2 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="promotion-name">Promotion name</Label>
@@ -1295,7 +1348,7 @@ export default function PromotionManager({
               </Button>
             </div>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
 
       <Dialog
@@ -1312,31 +1365,25 @@ export default function PromotionManager({
           }
         }}
       >
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Assign customer</DialogTitle>
-            <DialogDescription>
-              Search active customer accounts and attach them to{" "}
-              {assignmentPromotion?.name || "this personal promotion"}.
-            </DialogDescription>
-          </DialogHeader>
-
+        <AdminDialogContent
+          className="sm:max-w-2xl"
+          title="Assign customer"
+          description={`Search active customer accounts and attach them to ${assignmentPromotion?.name || "this personal promotion"}.`}
+        >
           <div className="space-y-5 py-2">
             <div className="space-y-3">
               <div className="space-y-1">
                 <Label htmlFor="promotion-customer-search">
                   Search customers
                 </Label>
-                <div className="relative">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="promotion-customer-search"
-                    value={assignmentQuery}
-                    onChange={(event) => setAssignmentQuery(event.target.value)}
-                    className="pl-9"
-                    placeholder="Name, company, email, phone, or customer ID"
-                  />
-                </div>
+                <AdminSearchField
+                  id="promotion-customer-search"
+                  aria-label="Search customers"
+                  value={assignmentQuery}
+                  onChange={(event) => setAssignmentQuery(event.target.value)}
+                  placeholder="Name, company, email, phone, or customer ID"
+                  className="w-full"
+                />
                 <p className="text-xs text-muted-foreground">
                   Search only returns customer accounts. Staff users are never
                   shown here.
@@ -1344,11 +1391,11 @@ export default function PromotionManager({
               </div>
 
               {assignmentMessage ? (
-                <Card className="border-white/10 bg-white/[0.03]">
-                  <CardContent className="px-4 py-3 text-sm text-muted-foreground">
-                    {assignmentMessage}
-                  </CardContent>
-                </Card>
+                <AdminInlineMessage
+                  title="Assignment update"
+                  description={assignmentMessage}
+                  tone="info"
+                />
               ) : null}
 
               <div className="space-y-2">
@@ -1374,11 +1421,12 @@ export default function PromotionManager({
                     ))}
                   </div>
                 ) : (
-                  <Card className="border-dashed border-white/10 bg-card/50">
-                    <CardContent className="px-4 py-6 text-sm text-muted-foreground">
-                      No customers assigned yet.
-                    </CardContent>
-                  </Card>
+                  <AdminEmptyState
+                    title="No customers assigned yet."
+                    description="Search for an active customer account to attach this personal promotion."
+                    icon={UserPlus}
+                    className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-6"
+                  />
                 )}
               </div>
             </div>
@@ -1388,17 +1436,19 @@ export default function PromotionManager({
                 Search results
               </p>
               {assignmentQuery.trim().length < 2 ? (
-                <Card className="border-dashed border-white/10 bg-card/50">
-                  <CardContent className="px-4 py-6 text-sm text-muted-foreground">
-                    Type at least two characters to search customers.
-                  </CardContent>
-                </Card>
+                <AdminEmptyState
+                  title="Type at least two characters."
+                  description="Search results will appear here once you start narrowing to a customer account."
+                  icon={UserRound}
+                  className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-6"
+                />
               ) : assignmentSearchPending ? (
-                <Card className="border-white/10 bg-white/[0.03]">
-                  <CardContent className="px-4 py-6 text-sm text-muted-foreground">
-                    Searching customer accounts...
-                  </CardContent>
-                </Card>
+                <AdminInlineMessage
+                  title="Searching customer accounts"
+                  description="Matching active customers are loading now."
+                  tone="info"
+                  loading
+                />
               ) : assignmentResults.length ? (
                 <div className="space-y-2">
                   {assignmentResults.map((customer) => (
@@ -1442,8 +1492,8 @@ export default function PromotionManager({
               Close
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AdminDialogContent>
       </Dialog>
-    </div>
+    </AdminPage>
   );
 }
