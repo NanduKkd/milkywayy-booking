@@ -53,6 +53,8 @@ CAL-206 association fix (2026-07-12): the admin booking-handoff route now initia
 
 CAL-207 delivery follow-up (2026-07-12): Twilio accepted the handoff WhatsApp API request but later marked it `undelivered` with error `63016` because no approved booking-handoff `ContentSid` was configured and the recipient was outside the 24-hour session window. Handoff notifications now fail immediately with an actionable configuration error instead of showing a false sent state when either required Content SID is absent. Verified with 15 focused WhatsApp, notification, and calendar UI tests. Provisioning and approving the two Twilio templates remains an operator configuration task.
 
+CAL-201/CAL-202 layout follow-up (2026-07-12): verified that the current shrinkable, wrapping selected-day controls keep the two-column calendar grid and **Upcoming schedule** panel inside a 1280 × 720 desktop viewport. Document client width and scroll width were both 1265px (`horizontalScrollbar: false`); the focused calendar UI suite passed 9 tests and both calendar source files passed Biome checks.
+
 ## M3 - Verification and rollout
 
 | ID | Task | Status | Owner | Dependencies | Acceptance criteria | Evidence |

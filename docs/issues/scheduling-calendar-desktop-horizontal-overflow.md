@@ -2,7 +2,7 @@
 
 - **Route:** `/admin/scheduling-calendar`
 - **Severity:** Medium
-- **Status:** `NOT_STARTED`
+- **Status:** `DONE`
 - **Owner:** Engineering
 - **Project-owner intervention:** No
 
@@ -27,3 +27,14 @@ The page has a large empty area between the left-side content and **Upcoming sch
 - Browser viewport: 1280 × 720 pixels.
 - Document client width: 1265 pixels; document scroll width: 1442 pixels (`horizontalScrollbar: true`).
 - The in-app browser screenshot showed the **Upcoming schedule** card cut off at the right edge and a visible bottom horizontal scrollbar.
+
+## Resolution
+
+The issue was already fixed by the current scheduling-calendar layout changes. The selected-day availability controls now use shrinkable, wrapping layouts (`min-w-0`, responsive auto-fit columns, and wrapping action rows), preventing their intrinsic width from expanding the two-column desktop grid. The **Upcoming schedule** table remains contained by its existing inner horizontal scroller.
+
+## Verification
+
+- `npx jest --runInBand src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx`
+- `npx biome check src/app/admin/scheduling-calendar/SchedulingCalendarPage.jsx src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx`
+- Safe browser check at 1280 × 720: document client width 1265 pixels; document scroll width 1265 pixels (`horizontalScrollbar: false`). The **Upcoming schedule** panel occupied x=352 through x=1233 and remained fully inside the viewport.
+- Focused calendar UI suite: 9 tests passed, including the selected-day availability controls and bounded upcoming-schedule behavior.
