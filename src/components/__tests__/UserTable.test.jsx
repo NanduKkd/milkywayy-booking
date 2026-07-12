@@ -127,6 +127,19 @@ describe("UserTable", () => {
     expect(router.push).toHaveBeenCalledWith(expect.stringContaining("page=2"));
   });
 
+  it("disables both pagination controls when the directory has one page", () => {
+    const router = useRouter();
+
+    render(<UserTable users={mockUsers} pagination={mockPagination} />);
+
+    expect(screen.getByLabelText(/go to previous page/i)).toBeDisabled();
+    expect(screen.getByLabelText(/go to next page/i)).toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText(/go to previous page/i));
+    fireEvent.click(screen.getByLabelText(/go to next page/i));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
   it("confirms before disabling an active customer", async () => {
     render(<UserTable users={mockUsers} pagination={mockPagination} />);
 

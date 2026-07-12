@@ -2,7 +2,7 @@
 
 - **Route:** `/admin/users`
 - **Severity:** Low
-- **Status:** `NOT_STARTED`
+- **Status:** `DONE`
 - **Owner:** Engineering
 - **Project-owner intervention:** No
 
@@ -27,3 +27,18 @@ Both controls are enabled. Selecting **Next** leaves the route at `/admin/users`
 - The page reported `Showing 1-2 of 2 accounts` and `Page 1 of 1`.
 - Browser inspection reported both **Previous** and **Next** buttons with `disabled: false`.
 - After selecting **Next**, the page still reported `Page 1 of 1`, displayed two rows, and remained at `http://localhost:3000/admin/users`.
+
+## Resolution
+
+Resolved on 2026-07-12 by giving the **Previous** and **Next** controls native
+disabled state whenever the current directory has no earlier or later page. This
+preserves the existing visual treatment while making the boundary state correct
+for pointer, keyboard, and assistive-technology users.
+
+## Verification
+
+- Added a focused `UserTable` regression test that renders `Page 1 of 1`, asserts
+  that both pagination buttons are disabled, and confirms clicks do not navigate.
+- `jest src/components/__tests__/UserTable.test.jsx --runInBand` (9 tests passed)
+- `biome check src/components/UserTable.js src/components/__tests__/UserTable.test.jsx`
+  (2 files passed)

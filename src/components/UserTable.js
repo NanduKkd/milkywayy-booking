@@ -97,6 +97,8 @@ export default function UserTable({ users, pagination }) {
   const visibleEnd =
     pagination.total === 0 ? 0 : visibleStart + Math.max(users.length - 1, 0);
   const hasPages = totalPages > 0;
+  const isPreviousDisabled = !hasPages || currentPage === 1;
+  const isNextDisabled = !hasPages || currentPage === totalPages;
 
   const handlePageChange = (page) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -320,9 +322,10 @@ export default function UserTable({ users, pagination }) {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
+                  disabled={isPreviousDisabled}
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   className={
-                    !hasPages || currentPage === 1
+                    isPreviousDisabled
                       ? "pointer-events-none rounded-full border-white/10 bg-white/[0.03] opacity-50"
                       : "cursor-pointer rounded-full border border-white/10 bg-white/[0.03] text-[hsl(var(--admin-foreground))] hover:bg-white/[0.06]"
                   }
@@ -331,11 +334,12 @@ export default function UserTable({ users, pagination }) {
               {renderPaginationItems()}
               <PaginationItem>
                 <PaginationNext
+                  disabled={isNextDisabled}
                   onClick={() =>
                     handlePageChange(Math.min(totalPages, currentPage + 1))
                   }
                   className={
-                    !hasPages || currentPage === totalPages
+                    isNextDisabled
                       ? "pointer-events-none rounded-full border-white/10 bg-white/[0.03] opacity-50"
                       : "cursor-pointer rounded-full border border-white/10 bg-white/[0.03] text-[hsl(var(--admin-foreground))] hover:bg-white/[0.06]"
                   }

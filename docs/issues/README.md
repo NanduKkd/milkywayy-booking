@@ -28,4 +28,4 @@ Every issue file must state its status, implementation owner, and whether projec
 | [Scheduling calendar overflows horizontally on desktop](./scheduling-calendar-desktop-horizontal-overflow.md) | Medium | `NOT_STARTED` | Engineering | No |
 | [Time-slots dialog offers “Unblock Day” for an unblocked date](./timeslots-unblock-day-shown-without-blocks.md) | Low | `NOT_STARTED` | Engineering | No |
 | [User row actions do not provide account lifecycle controls](./users-row-actions-no-response.md) | Medium | `DONE` | Engineering | No — product decision recorded 2026-07-12 |
-| [Pagination controls remain enabled on a single-page directory](./users-single-page-pagination-enabled.md) | Low | `NOT_STARTED` | Engineering | No |
+| [Pagination controls remain enabled on a single-page directory](./users-single-page-pagination-enabled.md) | Low | `DONE` | Engineering | No |
