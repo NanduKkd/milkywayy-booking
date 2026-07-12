@@ -161,6 +161,26 @@ describe("customerAuth service", () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
+  it("does not issue an OTP for a disabled customer", async () => {
+    const user = {
+      id: 7,
+      phone: "+971500000000",
+      role: "CUSTOMER",
+      disabledAt: new Date("2026-06-28T00:00:00.000Z"),
+      save: jest.fn(),
+    };
+    models.User.findOne.mockResolvedValue(user);
+
+    const result = await sendCustomerOtp({
+      phone: user.phone,
+      requestSource: "127.0.0.1",
+    });
+
+    expect(typeof result.verificationId).toBe("string");
+    expect(result.debugOtp).toBeNull();
+    expect(user.save).not.toHaveBeenCalled();
+  });
+
   it("rejects resend requests inside the throttle window", async () => {
     const user = {
       id: 7,
@@ -276,6 +296,40 @@ describe("customerAuth service", () => {
     expect(user.otpResendAvailableAt).toBeNull();
     expect(freshSave).toHaveBeenCalledTimes(1);
     expect(expiredSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects OTP verification if the customer was disabled after issuance", async () => {
+    bcrypt.hash.mockResolvedValue("hashed-otp");
+    const user = {
+      id: 9,
+      phone: "+971511111111",
+      role: "CUSTOMER",
+      disabledAt: null,
+      otp: null,
+      otpExpiresAt: null,
+      otpAttemptCount: 0,
+      otpResendAvailableAt: null,
+      save: jest.fn(),
+    };
+    models.User.findOne.mockResolvedValue(user);
+
+    const { verificationId } = await sendCustomerOtp({
+      phone: user.phone,
+      requestSource: "127.0.0.1",
+      now: new Date("2026-06-29T00:00:00.000Z"),
+    });
+
+    user.disabledAt = new Date("2026-06-29T00:01:00.000Z");
+    models.User.findByPk.mockResolvedValue(user);
+
+    await expect(
+      verifyCustomerOtp({
+        verificationId,
+        otp: "123456",
+        requestSource: "127.0.0.1",
+        now: new Date("2026-06-29T00:02:00.000Z"),
+      }),
+    ).rejects.toThrow("Invalid OTP");
   });
 
   it("caps invalid OTP attempts and clears state on the final failure", async () => {

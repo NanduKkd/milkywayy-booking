@@ -76,6 +76,11 @@ const User = sequelize.define(
       allowNull: true,
       field: "otp_resend_available_at",
     },
+    disabledAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: "disabled_at",
+    },
   },
   {
     tableName: "users",

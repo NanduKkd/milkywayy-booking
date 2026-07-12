@@ -400,7 +400,7 @@ export async function sendCustomerOtp({
   });
 
   const user = await models.User.findOne({ where: { phone: normalizedPhone } });
-  const isCustomerUser = user?.role === USER_ROLES.CUSTOMER;
+  const isCustomerUser = user?.role === USER_ROLES.CUSTOMER && !user.disabledAt;
   const verificationId = await issueOtpVerificationId({
     phone: normalizedPhone,
     userId: isCustomerUser ? user.id : null,
@@ -507,6 +507,7 @@ export async function verifyCustomerOtp({
   if (
     !user ||
     user.role !== USER_ROLES.CUSTOMER ||
+    user.disabledAt ||
     normalizePhone(user.phone) !== verificationPayload.phone
   ) {
     throw new Error("Invalid OTP");

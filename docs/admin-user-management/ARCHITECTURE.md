@@ -1,6 +1,6 @@
 # Admin customer management architecture
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-12
 
 ## Boundary
 
@@ -37,26 +37,22 @@ only the current page.
 
 ## Account state
 
-Add explicit disable metadata rather than deleting rows:
+The completed lifecycle slice adds `disabledAt` rather than deleting rows.
+Actor/reason audit metadata and a session invalidation/version value remain
+future work if the broader account-control scope is resumed.
 
-- `disabledAt`;
-- `disabledBy`;
-- `disabledReason`;
-- a session invalidation/version value if required by the selected session design.
-
-Deactivation prevents new OTP/login and invalidates or rejects existing
-sessions and OAuth access. Historical bookings, payments, invoices, files,
-wallet entries, and audit records remain intact.
+Disablement prevents new OTP issuance and rejects OTP verification if the
+customer is disabled after issuance. Historical bookings, payments, invoices,
+files, wallet entries, and audit records remain intact. Existing-session and
+OAuth-token invalidation remain outside this completed slice.
 
 ## Mutation boundary
 
-Create/edit/deactivate/reactivate operations run through permission-checked
-services. Editable fields use the existing customer schema for individual and
-company accounts. Role cannot be changed through Users.
+Create/deactivate/reactivate operations run through permission-checked
+services. Users does not expose customer editing or role changes.
 
-Deactivation requires an explicit reason and confirmation. Reactivation is a
-separate audited action and does not silently restore revoked OAuth grants unless
-that behavior is explicitly approved.
+Disablement requires explicit confirmation. Enabling is a separate action and
+does not silently restore revoked OAuth grants.
 
 ## Staff separation
 

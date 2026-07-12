@@ -24,6 +24,7 @@ async function getUsers(page = 1, limit = 10) {
         "email",
         "phone",
         "role",
+        "disabledAt",
         "createdAt",
         "updatedAt",
       ],
