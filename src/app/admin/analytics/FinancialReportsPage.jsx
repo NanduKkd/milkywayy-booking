@@ -1113,6 +1113,11 @@ export default function FinancialReportsPage({ mode = "full" }) {
     }));
   }
 
+  function selectReportMonth(event) {
+    autoLocatedActivity.current = true;
+    setMonthValue(event.target.value);
+  }
+
   return (
     <AdminPage>
       <AdminPageHeader
@@ -1127,7 +1132,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
                 aria-label="Report month"
                 className="admin-input h-11 w-full min-w-48 rounded-2xl sm:w-52"
                 id="financial-report-month"
-                onChange={(event) => setMonthValue(event.target.value)}
+                onChange={selectReportMonth}
                 style={{ colorScheme: "dark" }}
                 type="month"
                 value={monthValue}

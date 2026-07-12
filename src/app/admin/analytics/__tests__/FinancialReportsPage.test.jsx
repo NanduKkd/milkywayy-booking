@@ -456,6 +456,55 @@ describe("FinancialReportsPage", () => {
     });
   });
 
+  it("applies an explicitly selected report month to every report surface", async () => {
+    setupFetch({ expenseItems: [] });
+
+    render(<FinancialReportsPage />);
+
+    await screen.findByText("Expense Tracker");
+
+    fireEvent.change(screen.getByLabelText("Report month"), {
+      target: { value: "2026-03" },
+    });
+
+    expect(screen.getByLabelText("Report month")).toHaveValue("2026-03");
+    expect(screen.getAllByText("Mar 1, 2026 to Mar 31, 2026").length).toBe(2);
+    expect(
+      screen.getByText(/Logged expenses for March 2026/),
+    ).toBeInTheDocument();
+
+    for (const format of ["csv", "xlsx", "pdf"]) {
+      expect(
+        screen.getByRole("link", {
+          name:
+            format === "csv"
+              ? "Export CSV"
+              : format === "xlsx"
+                ? "Export Excel"
+                : "Export PDF",
+        }),
+      ).toHaveAttribute(
+        "href",
+        expect.stringContaining("rangeStart=2026-03-01"),
+      );
+    }
+
+    await waitFor(() => {
+      for (const path of [
+        "/api/admin/analytics/dashboard?",
+        "/api/admin/analytics/reports?",
+        "/api/admin/expenses?",
+      ]) {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringMatching(
+            new RegExp(`${path.replace("?", "\\?")}.*rangeStart=2026-03-01`),
+          ),
+          expect.objectContaining({ cache: "no-store" }),
+        );
+      }
+    });
+  });
+
   it("opens a KPI drill-down modal for the active dashboard range", async () => {
     setupFetch({
       expenseItems: [],
