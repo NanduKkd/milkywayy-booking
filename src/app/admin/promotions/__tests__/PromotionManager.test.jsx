@@ -5,6 +5,7 @@ import {
   deactivateAdminPromotion,
   pauseAdminPromotion,
   searchPromotionAssignableCustomers,
+  unassignAdminPromotionCustomer,
   updateAdminPromotion,
 } from "@/lib/actions/promotions";
 import {
@@ -24,6 +25,7 @@ jest.mock("@/lib/actions/promotions", () => ({
   deactivateAdminPromotion: jest.fn(),
   pauseAdminPromotion: jest.fn(),
   searchPromotionAssignableCustomers: jest.fn(),
+  unassignAdminPromotionCustomer: jest.fn(),
   updateAdminPromotion: jest.fn(),
 }));
 
@@ -178,6 +180,73 @@ describe("PromotionManager", () => {
     expect(screen.getByText("WELCOME15")).toBeInTheDocument();
   });
 
+  it("submits automatic date-range business dates", async () => {
+    createAdminPromotion.mockResolvedValue({
+      success: true,
+      data: {
+        id: 304,
+        kind: "AUTOMATIC",
+        code: null,
+        name: "July date range",
+        adminDescription: null,
+        customerMessage: null,
+        benefitType: "FIXED",
+        benefitValue: 75,
+        benefitCap: null,
+        minimumSpend: 200,
+        startsAt: null,
+        endsAt: null,
+        status: "DRAFT",
+        priority: 0,
+        perUserLimit: null,
+        totalLimit: null,
+        triggerType: "DATE_RANGE",
+        triggerConfig: {
+          startDate: "2026-07-11",
+          endDate: "2026-07-31",
+        },
+        createdAt: "2026-07-11T10:00:00.000Z",
+      },
+    });
+
+    render(<PromotionManager initialPromotions={mockPromotions} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /Automatic Discounts/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Create Automatic" }));
+    fireEvent.change(screen.getByLabelText(/Promotion name/i), {
+      target: { value: "July date range" },
+    });
+    fireEvent.click(screen.getByRole("combobox", { name: /Benefit type/i }));
+    fireEvent.click(screen.getByRole("option", { name: "Fixed amount off" }));
+    fireEvent.change(screen.getByLabelText(/Discount amount/i), {
+      target: { value: "75" },
+    });
+    fireEvent.change(screen.getByLabelText(/Minimum spend/i), {
+      target: { value: "200" },
+    });
+    fireEvent.click(screen.getByRole("combobox", { name: /Trigger type/i }));
+    fireEvent.click(screen.getByRole("option", { name: "Date range" }));
+    fireEvent.input(screen.getByLabelText(/Start business date/i), {
+      target: { value: "2026-07-11" },
+    });
+    fireEvent.input(screen.getByLabelText(/End business date/i), {
+      target: { value: "2026-07-31" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create promotion/i }));
+
+    await waitFor(() => {
+      expect(createAdminPromotion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          triggerType: "DATE_RANGE",
+          triggerConfig: {
+            startDate: "2026-07-11",
+            endDate: "2026-07-31",
+          },
+        }),
+      );
+    });
+  });
+
   it("edits an existing promotion", async () => {
     updateAdminPromotion.mockResolvedValue({
       success: true,
@@ -260,6 +329,9 @@ describe("PromotionManager", () => {
     );
     expect(
       screen.getByRole("heading", { name: "Deactivate promotion" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Deactivated promotions cannot be reactivated/i),
     ).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole("button", { name: /^Deactivate promotion$/i }),
@@ -355,5 +427,61 @@ describe("PromotionManager", () => {
     });
 
     expect(screen.getAllByText("Noura Buyer").length).toBeGreaterThan(0);
+  });
+
+  it("unassigns a customer from a personal promotion", async () => {
+    const assignedPromotion = {
+      ...mockPromotions[1],
+      assignments: [
+        {
+          id: 901,
+          promotionId: 151,
+          userId: 801,
+          assignedAt: "2026-07-01T12:30:00.000Z",
+          unassignedAt: null,
+          assignedByUserId: 11,
+          unassignedByUserId: null,
+          user: {
+            id: 801,
+            displayName: "Noura Buyer",
+            fullName: "Noura Buyer",
+            email: "noura@example.com",
+            phone: "+971500111222",
+          },
+        },
+      ],
+    };
+
+    unassignAdminPromotionCustomer.mockResolvedValue({
+      success: true,
+      data: {
+        ...assignedPromotion,
+        assignments: [],
+      },
+    });
+
+    render(
+      <PromotionManager
+        initialPromotions={[
+          mockPromotions[0],
+          assignedPromotion,
+          mockPromotions[2],
+        ]}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+    await waitFor(() => {
+      expect(unassignAdminPromotionCustomer).toHaveBeenCalledWith(151, 801);
+    });
+    expect(
+      await screen.findByText("Noura Buyer removed successfully."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText("No customers assigned yet.").length,
+    ).toBeGreaterThan(0);
   });
 });

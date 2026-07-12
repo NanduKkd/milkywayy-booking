@@ -1084,4 +1084,92 @@ export async function assignPromotionCustomer({
   });
 }
 
+export async function unassignPromotionCustomer({
+  actorUser,
+  promotionId,
+  userId,
+  reason = null,
+  transaction = null,
+}) {
+  const actor = assertAuthorizedPromotionActor(actorUser);
+  const normalizedUserId = normalizeRequiredId(userId, "Customer user ID");
+
+  return runInTransaction(transaction, async (activeTransaction) => {
+    const promotion = await findPromotionForUpdate(
+      promotionId,
+      activeTransaction,
+    );
+
+    if (!promotion) {
+      throw new Error("Promotion not found");
+    }
+
+    if (promotion.kind !== "PERSONAL") {
+      throw new Error(
+        "Only personal promotions may be unassigned from customers",
+      );
+    }
+
+    const assignment = await models.PromotionAssignment.findOne({
+      where: {
+        promotionId: promotion.id,
+        userId: normalizedUserId,
+        unassignedAt: null,
+      },
+      transaction: activeTransaction,
+      lock: activeTransaction.LOCK.UPDATE,
+    });
+
+    if (!assignment) {
+      throw new Error("Active promotion assignment not found");
+    }
+
+    const customer = await models.User.findOne({
+      where: {
+        id: normalizedUserId,
+        role: USER_ROLES.CUSTOMER,
+      },
+      transaction: activeTransaction,
+    });
+    const beforeState = buildPromotionAssignmentSnapshot({
+      ...assignment.get({ plain: true }),
+      user: customer,
+    });
+
+    await assignment.update(
+      {
+        unassignedAt: new Date(),
+        unassignedByUserId: actor.id,
+      },
+      { transaction: activeTransaction },
+    );
+
+    const afterState = buildPromotionAssignmentSnapshot({
+      ...assignment.get({ plain: true }),
+      user: customer,
+    });
+
+    await createPromotionAuditEvent({
+      promotionId: promotion.id,
+      promotionAssignmentId: assignment.id,
+      actorUserId: actor.id,
+      action: "UNASSIGNED",
+      beforeState,
+      afterState,
+      reason,
+      metadata: {
+        customerUserId: normalizedUserId,
+      },
+      transaction: activeTransaction,
+    });
+
+    const refreshedPromotion = await findPromotionForAdminView(
+      promotion.id,
+      activeTransaction,
+    );
+
+    return buildPromotionSnapshot(refreshedPromotion);
+  });
+}
+
 export const deletePromotion = deactivatePromotion;

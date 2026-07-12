@@ -1,6 +1,6 @@
 # Promotions management delivery plan
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-11
 - Planning status: `DONE`
 - Implementation status: `DONE`
 - Target: consolidate generic coupons, personal customer promotions, and automatic rules without losing current discount or wallet behavior.

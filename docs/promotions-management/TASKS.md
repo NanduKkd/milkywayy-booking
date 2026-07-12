@@ -1,6 +1,6 @@
 # Promotions management task tracker
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-11
 - Overall implementation status: `DONE`
 - Current milestone: `M3 - Verification and rollout`
 
@@ -11,7 +11,7 @@
 | M0 - Contract and migration mapping | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Persistence and evaluation engine | `DONE` | 5 | 5 | 5-7 days |
 | M2 - Admin UI and checkout integration | `DONE` | 5 | 5 | 6-9 days |
-| M3 - Verification and rollout | `DONE` | 5 | 5 | 4-6 days |
+| M3 - Verification and rollout | `DONE` | 6 | 6 | 4-6 days |
 
 ## M0 - Contract and migration mapping
 
@@ -50,3 +50,6 @@
 | PRM-303 | Add migration parity verification | `DONE` | Engineering | PRM-101 | Existing promotion outcomes match recorded pre-migration fixtures | Added `MIGRATION-PARITY-FIXTURES.md` to record preserved generic-coupon, launch-credit, wallet-separation, and intentional direct-discount cutover cases. Added `src/lib/services/__tests__/promotionMigrationParity.test.js` to verify the recorded fixtures against the migrated promotion engine and wallet preview behavior, including the two-promotion launch-tier representation. Verification on 2026-07-01: `npm test -- src/lib/services/__tests__/promotionMigrationParity.test.js --runInBand` passed. `npx biome check src/lib/services/__tests__/promotionMigrationParity.test.js docs/promotions-management/README.md docs/promotions-management/MIGRATION-PARITY-FIXTURES.md docs/promotions-management/SECURITY-TEST-PLAN.md docs/promotions-management/TASKS.md` passed. |
 | PRM-304 | Resolve the pre-existing coupon test mismatch | `DONE` | Engineering | PRM-301 | Launch-credit tests and intended automatic behavior agree | Updated `src/lib/actions/__tests__/coupons.test.js` to stop treating `LAUNCH500` as a manually redeemable code and instead verify automatic first-booking launch-credit behavior through `validateCoupon` and `getLaunchPromoStatus`, including both AED 250 and AED 500 tiers plus post-first-booking exhaustion. Verification on 2026-07-01: `npm test -- src/lib/actions/__tests__/coupons.test.js --runInBand` passed. |
 | PRM-305 | Roll out in compatibility phases | `DONE` | Engineering / Operations | PRM-301 to PRM-304 | Read/write cutover, monitoring, rollback, and old-path retirement evidence are recorded | Retired the legacy Coupons admin path by redirecting `/admin/coupons` to `/admin/promotions`, removed Coupons from admin navigation and dashboard entry points, and blocked legacy coupon mutation actions server-side so new generic-code writes can only happen through Promotions. Updated `OPERATIONS.md` and `SECURITY-TEST-PLAN.md` with cutover, monitoring, and rollback notes. Verification on 2026-07-01: `npm test -- src/lib/actions/__tests__/coupons.test.js src/app/admin/coupons/__tests__/page.test.jsx src/components/admin/__tests__/AdminSidebarNav.test.jsx src/app/admin/__tests__/page.test.jsx --runInBand` passed. `npx biome check src/lib/actions/coupons.js src/app/admin/coupons/page.jsx src/app/admin/coupons/__tests__/page.test.jsx src/components/admin/AdminSidebarNav.js src/components/admin/__tests__/AdminSidebarNav.test.jsx src/app/admin/page.jsx src/app/admin/__tests__/page.test.jsx src/app/admin/promotions/PromotionManager.jsx docs/promotions-management/README.md docs/promotions-management/OPERATIONS.md docs/promotions-management/SECURITY-TEST-PLAN.md docs/promotions-management/TASKS.md` passed. |
+| PRM-306 | Restore promotion association initialization and reverify the complete admin workflow | `DONE` | Engineering | PRM-201, PRM-202 | `/admin/promotions` loads without association errors; generic, personal, and automatic create/edit/status/assignment flows pass automated and browser verification; desktop UI has no material layout defects | Added the missing association initialization in `src/lib/actions/promotions.js`; fixed date-range input submission; added audited personal-promotion unassignment; corrected terminal deactivation copy; and added focused regression coverage. Verification on 2026-07-11: all 9 promotion-related suites passed (66 tests); targeted Biome checks passed; browser testing covered generic/personal/automatic create, edit, activate, pause, deactivate, customer search/assign/unassign, reload persistence, and desktop layout. A clean in-app browser tab loaded `/admin/promotions` with real counts, no page-level horizontal overflow, and zero console errors. |
+
+Build note: `npm run build` compiled the application successfully, then stopped during page-data collection because the local production environment does not provide a 32-character `JWT_SECRET`. This is an environment gate outside the promotions implementation.
