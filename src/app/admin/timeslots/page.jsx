@@ -371,6 +371,11 @@ export default function TimeSlotsManager() {
   const selectedOverride = selectedDateKey
     ? getDateOverride(selectedDateKey)
     : {};
+  const selectedDayHasManualBlocks =
+    Boolean(selectedOverride?.fullDayBlocked) ||
+    Object.values(selectedOverride?.blocks || {}).some(
+      (value) => value === "blocked",
+    );
   const selectedDateBookingDetails = selectedDateKey
     ? bookedDetailsMap?.[selectedDateKey] || {}
     : {};
@@ -1116,7 +1121,12 @@ export default function TimeSlotsManager() {
 
           <Separator className="admin-divider" />
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div
+            className={cn(
+              "grid gap-3",
+              selectedDayHasManualBlocks && "sm:grid-cols-2",
+            )}
+          >
             <Button
               variant="outline"
               className={ADMIN_OUTLINE_BUTTON_CLASS}
@@ -1125,13 +1135,15 @@ export default function TimeSlotsManager() {
               <Clock3 className="mr-2 h-4 w-4" />
               Block Full Day
             </Button>
-            <Button
-              variant="outline"
-              className={ADMIN_OUTLINE_BUTTON_CLASS}
-              onClick={unblockDay}
-            >
-              Unblock Day
-            </Button>
+            {selectedDayHasManualBlocks ? (
+              <Button
+                variant="outline"
+                className={ADMIN_OUTLINE_BUTTON_CLASS}
+                onClick={unblockDay}
+              >
+                Unblock Day
+              </Button>
+            ) : null}
           </div>
         </AdminDialogContent>
       </Dialog>

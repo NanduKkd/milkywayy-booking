@@ -2,7 +2,7 @@
 
 - **Route:** `/admin/timeslots`
 - **Severity:** Low
-- **Status:** `NOT_STARTED`
+- **Status:** `DONE`
 - **Owner:** Engineering
 - **Project-owner intervention:** No
 
@@ -27,3 +27,20 @@ The dialog identifies all three periods as **Available** and the summary reports
 - It showed **Morning**, **Afternoon**, and **Evening** as **Available**, each with a **Block** action.
 - The page summary stated: `0 dates currently carry manual blocks or closures.`
 - The same dialog exposed an enabled **Unblock Day** button. No state-changing action was selected during this audit.
+
+## Resolution
+
+The selected-day dialog now derives whether the date has any manual block from
+its full-day flag and period overrides. **Unblock Day** is rendered only when at
+least one of those manual blocks exists; working-day closures and bookings do
+not expose an irrelevant unblock action.
+
+## Verification evidence
+
+- Added a focused regression test that opens an unblocked date and confirms
+  **Unblock Day** is absent, then opens a date with a period-level manual block
+  and confirms the action is present.
+- `jest src/app/admin/timeslots/__tests__/page.test.jsx --runInBand` passed on
+  2026-07-12: 1 suite, 4 tests.
+- `biome check src/app/admin/timeslots/page.jsx src/app/admin/timeslots/__tests__/page.test.jsx`
+  passed on 2026-07-12.
