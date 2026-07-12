@@ -87,6 +87,12 @@ describe("schedulingConflictRevalidation", () => {
         transaction: mockTransaction,
       }),
     );
+    expect(Booking.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lock: { level: "UPDATE", of: Booking },
+        transaction: mockTransaction,
+      }),
+    );
   });
 
   it("throws an actionable conflict when a booking overlaps an existing scheduled entry", async () => {

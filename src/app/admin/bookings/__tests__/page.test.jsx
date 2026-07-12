@@ -131,6 +131,35 @@ describe("Admin Bookings Page", () => {
     expect(screen.getByText("303, Tower C, Downtown")).toBeInTheDocument();
   });
 
+  it("shows a pending replacement when a customer requested changes", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          ...baseBooking,
+          workflowStatus: "FILES_UPLOADED",
+          deliveryFiles: [
+            {
+              ...deliveryFile,
+              status: "CHANGES_REQUESTED",
+              fileRevisions: [
+                {
+                  id: 1,
+                  note: "Please brighten the kitchen",
+                  resolvedAt: null,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<BookingsPage />);
+
+    expect(await screen.findByText("Replacement Pending")).toBeInTheDocument();
+  });
+
   it("appends every uploaded physical file", async () => {
     global.fetch.mockImplementation((url) => {
       if (url === "/api/admin/bookings") {

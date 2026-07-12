@@ -1,12 +1,12 @@
 # Admin scheduling calendar security test plan
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-11
 - Release gate status: `IN_PROGRESS`
 
 ## Automated gates
 
-- Anonymous, Customer, Accounts-without-calendar, and disabled staff cannot read
-  or mutate protected calendar data.
+- Anonymous and every non-Super-Admin role cannot read or mutate protected
+  calendar data while the deferred access-control feature remains out of scope.
 - Calendar reads expose only the customer/property/contact fields required by the UI.
 - Event create/update/cancel rejects invalid dates, times, overlong text, past
   mutation, and unsupported statuses; events never alter availability.
@@ -26,7 +26,6 @@
 - Verify calendar events never reserve or block customer availability.
 - Verify an overlapping active booking prevents block creation, is identified
   with navigation to Bookings, and remains unchanged.
-- Verify an explicit admin override is clearly labelled and actor-attributed.
 - Verify direct API mutation fails when the UI control is hidden by permission.
 - Verify new-customer and registered-customer links enter the correct flow.
 - Verify edited properties are re-priced and revalidated before payment.

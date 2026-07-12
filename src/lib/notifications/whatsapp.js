@@ -16,6 +16,10 @@ const TEMPLATE_ENV_KEYS = {
   partial_media_upload: "TWILIO_CONTENT_SID_PARTIAL_MEDIA_UPLOAD",
   full_media_upload: "TWILIO_CONTENT_SID_FULL_MEDIA_UPLOAD",
 };
+const CONTENT_SID_REQUIRED_TEMPLATES = new Set([
+  "admin_booking_handoff_registration",
+  "admin_booking_handoff_checkout",
+]);
 
 const TEMPLATE_VARIABLE_MAP = {
   login_otp: {
@@ -310,6 +314,16 @@ export async function sendWhatsAppTemplate({ to, templateName, variables }) {
   const body = TEMPLATES_FALLBACK[templateName]
     ? TEMPLATES_FALLBACK[templateName](variables)
     : "";
+
+  if (CONTENT_SID_REQUIRED_TEMPLATES.has(templateName) && !contentSid) {
+    console.error("[WHATSAPP] Approved content template missing", {
+      templateName,
+    });
+    return {
+      success: false,
+      error: `Approved Twilio WhatsApp template is not configured for ${templateName}`,
+    };
+  }
 
   const payload = new URLSearchParams();
   payload.append("To", toValue);
