@@ -19,12 +19,15 @@ jest.mock("@/lib/db/models", () => ({
   default: {
     Booking: {
       findAll: jest.fn(),
+      max: jest.fn(),
     },
     Expense: {
       findAll: jest.fn(),
+      max: jest.fn(),
     },
     Transaction: {
       findAll: jest.fn(),
+      max: jest.fn(),
     },
     User: {},
   },
@@ -57,6 +60,9 @@ describe("Admin dashboard analytics API route", () => {
     models.Booking.findAll.mockResolvedValue([{ id: 10 }]);
     models.Transaction.findAll.mockResolvedValue([{ id: 20 }]);
     models.Expense.findAll.mockResolvedValue([{ id: 30 }]);
+    models.Booking.max.mockResolvedValue("2026-03-31");
+    models.Expense.max.mockResolvedValue(null);
+    models.Transaction.max.mockResolvedValue("2026-03-23T10:19:53.839Z");
   });
 
   it("returns analytics data for an authorized superadmin", async () => {
@@ -88,6 +94,7 @@ describe("Admin dashboard analytics API route", () => {
       },
     });
     expect(data.kpis.netRevenue).toBe(500);
+    expect(data.latestActivityMonth).toBe("2026-03");
   });
 
   it("rejects anonymous and non-superadmin callers", async () => {

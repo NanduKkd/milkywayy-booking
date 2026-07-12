@@ -13,12 +13,15 @@ jest.mock("@/lib/db/models", () => ({
   default: {
     Booking: {
       findAll: jest.fn(),
+      max: jest.fn(),
     },
     Expense: {
       findAll: jest.fn(),
+      max: jest.fn(),
     },
     Transaction: {
       findAll: jest.fn(),
+      max: jest.fn(),
     },
     User: { name: "MockUserModel" },
   },
@@ -41,6 +44,9 @@ describe("financialAnalyticsData", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getPricingConfig.mockResolvedValue({ Apartment: {} });
+    models.Booking.max.mockResolvedValue(null);
+    models.Expense.max.mockResolvedValue(null);
+    models.Transaction.max.mockResolvedValue(null);
   });
 
   it("extends dashboard loading to the comparison window and dedupes merged records", async () => {
@@ -122,6 +128,22 @@ describe("financialAnalyticsData", () => {
     expect(result.bookings.map((booking) => booking.id)).toEqual([21, 22, 23]);
     expect(result.expenses).toEqual([{ id: 31 }]);
     expect(result.pricingConfig).toEqual({ Apartment: {} });
+    expect(result.latestActivityMonth).toBeNull();
+  });
+
+  it("returns the latest database activity month for empty-range recovery", async () => {
+    models.Transaction.findAll.mockResolvedValue([]);
+    models.Booking.findAll.mockResolvedValue([]);
+    models.Expense.findAll.mockResolvedValue([]);
+    models.Transaction.max.mockResolvedValue("2026-03-23T10:19:53.839Z");
+    models.Booking.max.mockResolvedValue("2026-03-31");
+
+    const result = await loadDashboardAnalyticsDependencies({
+      rangeEnd: "2026-07-31",
+      rangeStart: "2026-07-01",
+    });
+
+    expect(result.latestActivityMonth).toBe("2026-03");
   });
 
   it("expands report loading to cover the six-month comparison window", () => {

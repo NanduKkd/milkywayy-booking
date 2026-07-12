@@ -132,6 +132,21 @@ async function loadExpenses(window) {
   });
 }
 
+async function loadLatestActivityMonth() {
+  const [latestPayment, latestBooking, latestExpense] = await Promise.all([
+    models.Transaction.max("paidAt", { where: { status: "success" } }),
+    models.Booking.max("date"),
+    models.Expense.max("expenseDate", { where: { deletedAt: null } }),
+  ]);
+  const latest = [latestPayment, latestBooking, latestExpense]
+    .filter(Boolean)
+    .map((value) => new Date(value))
+    .filter((value) => !Number.isNaN(value.getTime()))
+    .sort((left, right) => right.getTime() - left.getTime())[0];
+
+  return latest ? latest.toISOString().slice(0, 7) : null;
+}
+
 async function loadFinancialAnalyticsDependencies(filters, buildWindow) {
   const window = buildWindow(filters);
   const [pricingConfig, transactions, expenses] = await Promise.all([
@@ -161,11 +176,16 @@ export function buildFinancialReportDependenciesWindow(filters) {
   return buildFinancialReportDataWindow(filters);
 }
 
-export function loadDashboardAnalyticsDependencies(filters) {
-  return loadFinancialAnalyticsDependencies(
-    filters,
-    buildDashboardAnalyticsDataWindow,
-  );
+export async function loadDashboardAnalyticsDependencies(filters) {
+  const [dependencies, latestActivityMonth] = await Promise.all([
+    loadFinancialAnalyticsDependencies(
+      filters,
+      buildDashboardAnalyticsDataWindow,
+    ),
+    loadLatestActivityMonth(),
+  ]);
+
+  return { ...dependencies, latestActivityMonth };
 }
 
 export function loadFinancialDrilldownDependencies(filters) {
