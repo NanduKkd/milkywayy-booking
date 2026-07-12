@@ -14,7 +14,7 @@ defined in [README.md](./README.md).
 | M0 - Finalize the UI contract | `DONE` | 3 | 3 | 1 day |
 | M1 - Shell, tokens, and shared styling | `DONE` | 3 | 3 | 2-3 days |
 | M2 - Full admin page styling | `DONE` | 11 | 11 | 7-10 days |
-| M3 - Enhancements and release checks | `IN_PROGRESS` | 4 | 6 | 3-5 days |
+| M3 - Enhancements and release checks | `IN_PROGRESS` | 5 | 7 | 3-5 days |
 
 ## M0 - Finalize the UI contract
 
@@ -58,6 +58,7 @@ defined in [README.md](./README.md).
 | UI-304 | Complete owner visual review | `NOT_STARTED` | Owner | UI-301 to UI-303 | Owner accepts the complete refreshed admin surface | Pending |
 | UI-305 | Release the refreshed admin | `NOT_STARTED` | Engineering | UI-304 | One coordinated release is completed and immediate regressions are monitored | Pending |
 | UI-306 | Match Pricing Configuration to the approved prototype matrix | `DONE` | Engineering | UI-208 | Pricing has one save action, live property tabs, editable price-only columns, horizontal overflow, preserved hidden configuration metadata, and no summary cards, slot inputs, evening toggles, or duplicate controls | Rebuilt `src/app/admin/prices/PricingEditor.jsx` around the prototype matrix while retaining `savePricingConfig`; adapted residential and commercial columns to their live backend shapes; expanded `src/app/admin/prices/__tests__/PricingEditor.test.jsx`; verified with `npx biome check src/app/admin/prices/PricingEditor.jsx src/app/admin/prices/__tests__/PricingEditor.test.jsx`, `npx jest src/app/admin/prices/__tests__/PricingEditor.test.jsx --runInBand`, and a local browser audit of desktop rendering, tab switching, narrow-screen contained overflow, and console errors. |
+| UI-307 | Distinguish portfolio load failures from an empty library | `DONE` | Engineering | UI-209, UI-211 | Failed portfolio loads show unavailable totals and a retry path without empty-library or creation messaging; successful empty loads retain the genuine empty state | Passed the request error into `PortfolioList`, rendered unavailable summary and table states, disabled `New Entry` until live data is known, and added failed-fetch regression assertions in `src/app/admin/portfolio/__tests__/page.test.jsx`; verified with `npx jest src/app/admin/portfolio/__tests__/page.test.jsx src/app/admin/portfolio/__tests__/PortfolioList.test.jsx --runInBand` (2 suites, 7 tests) and `npx biome check src/app/admin/portfolio/page.jsx src/app/admin/portfolio/PortfolioList.jsx src/app/admin/portfolio/__tests__/page.test.jsx`. |
 
 ## Known baseline failures
 
@@ -65,4 +66,3 @@ Recheck these before implementation; they were recorded before this feature and
 must not be represented as regressions without confirming the current baseline:
 
 - `src/components/__tests__/DateSlotPicker.test.jsx`: blocked-slot expectation mismatch.
-- `src/app/admin/portfolio/__tests__/page.test.jsx`: missing `useRouter` mock.

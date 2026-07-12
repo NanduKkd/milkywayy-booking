@@ -20,7 +20,7 @@ Every issue file must state its status, implementation owner, and whether projec
 
 | Issue | Severity | Status | Owner | Project-owner intervention |
 |---|---|---|---|---|
-| [Portfolio load failure is presented as an empty library](./portfolio-load-failure-misleading-empty-state.md) | High | `NOT_STARTED` | Engineering | No |
+| [Portfolio load failure is presented as an empty library](./portfolio-load-failure-misleading-empty-state.md) | High | `DONE` | Engineering | No |
 | [Promotions catalog fails to load](./promotions-catalog-fails-to-load.md) | High | `DONE` | Engineering | No |
 | [Expense Tracker fails to load on Reports](./reports-expense-tracker-validation-error.md) | High | `NOT_STARTED` | Engineering | No |
 | [Report month input does not update the displayed reports](./reports-month-filter-does-not-apply.md) | High | `DONE` | Engineering | No |

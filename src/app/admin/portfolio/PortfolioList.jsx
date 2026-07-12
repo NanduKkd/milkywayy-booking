@@ -9,8 +9,10 @@ import {
   GripVertical,
   Images,
   Plus,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -141,7 +143,8 @@ export function reorderPortfolioItems(
     }));
 }
 
-export default function PortfolioList({ initialItems }) {
+export default function PortfolioList({ initialItems, loadError = null }) {
+  const router = useRouter();
   const [items, setItems] = useState(() =>
     normalizePortfolioItems(initialItems),
   );
@@ -272,33 +275,45 @@ export default function PortfolioList({ initialItems }) {
         <AdminCard tone="subtle">
           <AdminCardHeader>
             <AdminCardDescription>Total entries</AdminCardDescription>
-            <AdminCardTitle>{totalItems}</AdminCardTitle>
+            <AdminCardTitle>
+              {loadError ? "Unavailable" : totalItems}
+            </AdminCardTitle>
           </AdminCardHeader>
           <AdminCardContent>
             <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              Global drag order persists across all media types.
+              {loadError
+                ? "Portfolio totals could not be loaded."
+                : "Global drag order persists across all media types."}
             </p>
           </AdminCardContent>
         </AdminCard>
         <AdminCard tone="subtle">
           <AdminCardHeader>
             <AdminCardDescription>Visible on site</AdminCardDescription>
-            <AdminCardTitle>{visibleItems}</AdminCardTitle>
+            <AdminCardTitle>
+              {loadError ? "Unavailable" : visibleItems}
+            </AdminCardTitle>
           </AdminCardHeader>
           <AdminCardContent>
             <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {hiddenItems} currently hidden from the public portfolio.
+              {loadError
+                ? "Visibility totals could not be loaded."
+                : `${hiddenItems} currently hidden from the public portfolio.`}
             </p>
           </AdminCardContent>
         </AdminCard>
         <AdminCard tone="subtle">
           <AdminCardHeader>
             <AdminCardDescription>Current filter</AdminCardDescription>
-            <AdminCardTitle>{filteredItems.length}</AdminCardTitle>
+            <AdminCardTitle>
+              {loadError ? "Unavailable" : filteredItems.length}
+            </AdminCardTitle>
           </AdminCardHeader>
           <AdminCardContent>
             <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              Showing {activeFilterLabel} results from the live content library.
+              {loadError
+                ? "Filtered results could not be loaded."
+                : `Showing ${activeFilterLabel} results from the live content library.`}
             </p>
           </AdminCardContent>
         </AdminCard>
@@ -319,6 +334,7 @@ export default function PortfolioList({ initialItems }) {
               <Button
                 className={ADMIN_PRIMARY_BUTTON_CLASS}
                 onClick={openCreateModal}
+                disabled={Boolean(loadError)}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 New Entry
@@ -383,7 +399,27 @@ export default function PortfolioList({ initialItems }) {
             <Droppable droppableId="portfolio">
               {(provided) => (
                 <TableBody {...provided.droppableProps} ref={provided.innerRef}>
-                  {filteredItems.length === 0 ? (
+                  {loadError ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className={TABLE_CELL_CLASS}>
+                        <div className="space-y-4 py-4 text-center">
+                          <AdminEmptyState
+                            icon={Images}
+                            title="Portfolio entries are unavailable"
+                            description="The live portfolio could not be loaded, so this table cannot determine whether the library is empty. Retry before creating or changing entries."
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => router.refresh()}
+                          >
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Retry load
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredItems.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className={TABLE_CELL_CLASS}>
                         <AdminEmptyState
