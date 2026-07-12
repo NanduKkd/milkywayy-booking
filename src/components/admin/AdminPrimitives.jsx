@@ -81,7 +81,6 @@ export function AdminPage({ className, ...props }) {
 export function AdminPageHeader({
   eyebrow,
   title,
-  description,
   actions,
   className,
   children,
@@ -89,16 +88,13 @@ export function AdminPageHeader({
   return (
     <section
       className={cn(
-        "admin-toolbar gap-5 rounded-[1.8rem] border border-white/8 bg-white/[0.02] px-5 py-5 sm:px-6",
+        "admin-toolbar gap-4 rounded-[1.8rem] border border-white/8 bg-white/[0.02] px-5 py-4 sm:px-6",
         className,
       )}
     >
-      <div className="space-y-3">
+      <div className="space-y-2">
         {eyebrow ? <p className="admin-kicker">{eyebrow}</p> : null}
         {title ? <h1 className="admin-title">{title}</h1> : null}
-        {description ? (
-          <p className="admin-copy max-w-3xl">{description}</p>
-        ) : null}
         {children}
       </div>
       {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
@@ -308,7 +304,7 @@ export function AdminDialogContent({
             </DialogTitle>
           ) : null}
           {description ? (
-            <DialogDescription className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+            <DialogDescription className="sr-only">
               {description}
             </DialogDescription>
           ) : null}

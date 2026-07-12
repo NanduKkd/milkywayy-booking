@@ -1,6 +1,6 @@
 # Admin panel UI refresh task tracker
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-11
 - Overall implementation status: `IN_PROGRESS`
 - Current milestone: `M3 - Enhancements and release checks`
 
@@ -14,7 +14,7 @@ defined in [README.md](./README.md).
 | M0 - Finalize the UI contract | `DONE` | 3 | 3 | 1 day |
 | M1 - Shell, tokens, and shared styling | `DONE` | 3 | 3 | 2-3 days |
 | M2 - Full admin page styling | `DONE` | 11 | 11 | 7-10 days |
-| M3 - Enhancements and release checks | `IN_PROGRESS` | 3 | 5 | 3-5 days |
+| M3 - Enhancements and release checks | `IN_PROGRESS` | 4 | 6 | 3-5 days |
 
 ## M0 - Finalize the UI contract
 
@@ -57,6 +57,7 @@ defined in [README.md](./README.md).
 | UI-303 | Verify narrow-screen usability | `DONE` | Engineering | M2 | Drawer reaches every route and table actions remain reachable by horizontal scrolling | Verified in mobile drawer test suite and manual shell audit; recorded in [VERIFICATION-REPORT.md](./VERIFICATION-REPORT.md) |
 | UI-304 | Complete owner visual review | `NOT_STARTED` | Owner | UI-301 to UI-303 | Owner accepts the complete refreshed admin surface | Pending |
 | UI-305 | Release the refreshed admin | `NOT_STARTED` | Engineering | UI-304 | One coordinated release is completed and immediate regressions are monitored | Pending |
+| UI-306 | Match Pricing Configuration to the approved prototype matrix | `DONE` | Engineering | UI-208 | Pricing has one save action, live property tabs, editable price-only columns, horizontal overflow, preserved hidden configuration metadata, and no summary cards, slot inputs, evening toggles, or duplicate controls | Rebuilt `src/app/admin/prices/PricingEditor.jsx` around the prototype matrix while retaining `savePricingConfig`; adapted residential and commercial columns to their live backend shapes; expanded `src/app/admin/prices/__tests__/PricingEditor.test.jsx`; verified with `npx biome check src/app/admin/prices/PricingEditor.jsx src/app/admin/prices/__tests__/PricingEditor.test.jsx`, `npx jest src/app/admin/prices/__tests__/PricingEditor.test.jsx --runInBand`, and a local browser audit of desktop rendering, tab switching, narrow-screen contained overflow, and console errors. |
 
 ## Known baseline failures
 

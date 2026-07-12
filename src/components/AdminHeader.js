@@ -58,7 +58,7 @@ export default function AdminHeader() {
             </Link>
           </div>
           <div className="flex items-center justify-end gap-3">
-            <div className="admin-panel-muted hidden min-w-0 items-center gap-3 rounded-2xl px-3 py-2 sm:flex">
+            <div className="hidden min-w-0 items-center gap-3 px-3 py-2 sm:flex">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--admin-highlight)/0.24)] bg-[hsl(var(--admin-highlight)/0.12)] text-sm font-semibold text-[hsl(var(--admin-foreground))]">
                 {initials}
               </div>

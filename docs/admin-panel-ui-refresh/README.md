@@ -1,6 +1,6 @@
 # Admin panel UI refresh delivery plan
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-11
 - Planning status: `DONE`
 - Implementation status: `IN_PROGRESS`
 - Target: make the complete current Super Admin interface visually consistent with the approved prototype direction while preserving working behavior.
@@ -44,13 +44,14 @@ data, forms, and operational workflows remain authoritative.
 - Add Bookings status filters, Invoice search with filtered totals, and Portfolio media-type filters.
 - Preserve Portfolio drag ordering and add drag ordering for Reviews. Featured reviews remain ordered ahead of standard reviews, with drag ordering within each group.
 - Use a mobile navigation drawer. Wide data tables remain tables and scroll horizontally on narrow screens.
-- Preserve all existing forms, mutations, downloads, uploads, workflow controls, analytics, calendar behavior, configuration editing, and visibility controls.
+- Preserve all existing forms, mutations, downloads, uploads, workflow controls, analytics, calendar behavior, configuration editing, and visibility controls, except that Pricing now intentionally exposes only price fields in the approved prototype matrix. Its save still submits the complete configuration so hidden slot and evening-rule metadata is preserved.
+- Match the `adminPrototype.jsx` Pricing Configuration layout: one header save action, property-type tabs, and one horizontally scrollable price matrix backed by live configuration data.
 
 ## Explicit non-goals
 
 - Adding Admin, Accounts, Settings, or configurable permissions; this release supports the current Super Admin surface only.
 - A light or system theme.
-- Pixel-perfect reproduction of `adminPrototype.jsx`.
+- Pixel-perfect reproduction of `adminPrototype.jsx` across the full admin. The Pricing Configuration page is the explicit exception and follows its prototype layout while adapting the columns to the live data shape.
 - Adding unsupported prototype actions such as **New Booking**.
 - Adding a review-text preview column.
 - Replacing mobile tables with purpose-built record cards.

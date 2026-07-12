@@ -34,6 +34,29 @@ const initialConfig = {
       },
     ],
   },
+  Commercial: {
+    sizes: [
+      {
+        label: "Basic",
+        prices: {
+          "360° Tour": 1800,
+          Photography: { allowEvening: false, price: 1800, slots: 1 },
+          Videography: {
+            "Long Form": {
+              allowEvening: true,
+              price: 2000,
+              slots: 1,
+            },
+            "Short Form": {
+              allowEvening: false,
+              price: 1100,
+              slots: 1,
+            },
+          },
+        },
+      },
+    ],
+  },
 };
 
 describe("PricingEditor", () => {
@@ -42,16 +65,36 @@ describe("PricingEditor", () => {
     savePricingConfig.mockResolvedValue({ success: true });
   });
 
-  it("renders the refreshed pricing shell and summary cards", () => {
+  it("renders the prototype pricing matrix without the removed controls", () => {
     render(<PricingEditor initialConfig={initialConfig} />);
 
     expect(
-      screen.getByRole("heading", { name: "Pricing" }),
+      screen.getByRole("heading", { name: "Pricing Configuration" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Property groups")).toBeInTheDocument();
-    expect(screen.getByText("Lowest starting rate")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "apartments" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "commercial" })).toBeInTheDocument();
     expect(screen.getByText("Studio")).toBeInTheDocument();
     expect(screen.getByText("Photography")).toBeInTheDocument();
+    expect(screen.getByText("LF Day+Night")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /save changes/i }),
+    ).toHaveLength(1);
+    expect(screen.queryByText("Property groups")).not.toBeInTheDocument();
+    expect(screen.queryByText(/allow evening/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/slots/i)).not.toBeInTheDocument();
+  });
+
+  it("switches to the live matrix for the selected property type", () => {
+    render(<PricingEditor initialConfig={initialConfig} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "commercial" }));
+
+    expect(screen.getByText("Basic")).toBeInTheDocument();
+    expect(screen.getByText("Long Form")).toBeInTheDocument();
+    expect(screen.queryByText("LF Day+Night")).not.toBeInTheDocument();
   });
 
   it("saves the updated pricing configuration through the existing action", async () => {
@@ -63,9 +106,19 @@ describe("PricingEditor", () => {
         target: { value: "375" },
       },
     );
-    fireEvent.click(
-      screen.getAllByRole("button", { name: /save changes/i })[0],
+    fireEvent.change(
+      screen.getByLabelText(/Apartment Studio LF Night price/i),
+      {
+        target: { value: "825" },
+      },
     );
+    fireEvent.change(
+      screen.getByLabelText(/Apartment Studio 360 Tour price/i),
+      {
+        target: { value: "475" },
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
     await waitFor(() => {
       expect(savePricingConfig).toHaveBeenCalledTimes(1);
@@ -73,6 +126,39 @@ describe("PricingEditor", () => {
 
     const savedConfig = savePricingConfig.mock.calls[0][0];
     expect(savedConfig.Apartment.sizes[0].prices.Photography.price).toBe(375);
+    expect(savedConfig.Apartment.sizes[0].prices.Photography.slots).toBe(1);
+    expect(savedConfig.Apartment.sizes[0].prices.Photography.allowEvening).toBe(
+      false,
+    );
+    expect(
+      savedConfig.Apartment.sizes[0].prices.Videography["Long Form"][
+        "Night Light"
+      ],
+    ).toEqual({ allowEvening: true, price: 825, slots: 2 });
+    expect(savedConfig.Apartment.sizes[0].prices["360° Tour"]).toBe(475);
+  });
+
+  it("updates direct commercial long-form prices without dropping metadata", async () => {
+    render(<PricingEditor initialConfig={initialConfig} />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "commercial" }));
+    fireEvent.change(
+      screen.getByLabelText(/Commercial Basic Long Form price/i),
+      {
+        target: { value: "2100" },
+      },
+    );
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(savePricingConfig).toHaveBeenCalledTimes(1);
+    });
+
+    expect(
+      savePricingConfig.mock.calls[0][0].Commercial.sizes[0].prices.Videography[
+        "Long Form"
+      ],
+    ).toEqual({ allowEvening: true, price: 2100, slots: 1 });
   });
 
   it("shows the load error without hiding the empty-state guidance", () => {

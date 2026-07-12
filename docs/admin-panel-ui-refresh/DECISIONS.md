@@ -1,6 +1,6 @@
 # Admin panel UI refresh decisions
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-11
 
 ## Accepted decisions
 
@@ -22,6 +22,7 @@
 | UI-D014 | Preserve Portfolio drag ordering and add Review drag ordering within Featured and Standard groups. | Both content surfaces need direct, consistent control over public display order without changing featured priority. |
 | UI-D015 | Reviews do not receive the prototype preview column. | The owner explicitly excluded it from this release. |
 | UI-D016 | The feature ships as one release; final visual acceptance is performed by the owner. | The goal is a coherent whole-admin refresh without a formal visual-certification process. |
+| UI-D017 | Pricing Configuration uses the prototype's single price-matrix UI and removes summary cards, slot inputs, evening toggles, badges, service panels, and the duplicate save action. | The owner explicitly approved the simpler pricing surface. Price edits continue through the existing server action, and unexposed configuration fields are retained in the saved object. Commercial uses one Long Form column because its live configuration has one direct long-form price rather than the three residential variants. |
 
 ## Implementation discretion
 
