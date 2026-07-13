@@ -1,0 +1,81 @@
+name: Feature plan
+description: Plan a new feature or a material update before publishing implementation tasks.
+title: "[Feature]: "
+labels:
+  - "type:feature"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep this feature in **Draft** while scope or decisions remain open. Planning agents must not mark it Ready.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and outcome
+      description: What is wrong or missing, who is affected, and what outcome should change?
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current behavior
+      description: Describe the relevant documented or observed behavior today.
+    validations:
+      required: true
+  - type: textarea
+    id: journeys
+    attributes:
+      label: Intended journeys
+      description: Describe the desired user and operator flows, including important failure paths.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: In scope
+      placeholder: "- Deliverable or behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Explicit non-goals
+      placeholder: "- Deliberately excluded behavior"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Feature acceptance criteria
+      description: Use observable behavior, not implementation aspirations.
+      placeholder: "- [ ] Observable outcome"
+    validations:
+      required: true
+  - type: textarea
+    id: system_impact
+    attributes:
+      label: Architecture, data, operations, and security impact
+      description: Note migrations, permissions, integrations, rollout, rollback, privacy, or abuse cases.
+    validations:
+      required: true
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Decisions and open questions
+      description: Separate accepted decisions from unresolved questions or blockers.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Expected proof
+      description: Specify automated evidence and any screenshot, recording, or human review needed.
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: Durable documentation impact
+      description: Which repository docs should reflect the feature after implementation?
+    validations:
+      required: true

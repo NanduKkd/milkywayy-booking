@@ -1,10 +1,12 @@
 # WhatsApp inbound auto-reply task tracker
 
+> Historical delivery ledger. GitHub Issues and Project 1 are authoritative for current work and status. This file preserves migration evidence and must not be used for dispatch.
+
 - Last updated: 2026-07-01
 - Overall implementation status: `BLOCKED`
 - Current milestone: `M3 - Verification and rollout`
 
-This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
+The statuses below are a migration snapshot, not live workflow state.
 
 ## Progress summary
 

@@ -1,338 +1,151 @@
 # Feature Delivery Playbook
 
-- Last updated: 2026-06-30
-- Applies to: new product, platform, API, dashboard, and operational features
-- Reference example: [`docs/gpt-actions-oauth/`](/Users/nandakrishnan/code/milkywayy-booking/docs/gpt-actions-oauth/README.md)
+- Last updated: 2026-07-13
+- Applies to: product, platform, API, dashboard, operational, and documentation work
+- Workflow board: [GitHub Project 1](https://github.com/users/NanduKkd/projects/1)
 
-## Purpose
+## Authority model
 
-This playbook defines how Milkywayy should plan, track, implement, and close new features.
+The workflow separates planned intent from implemented truth:
 
-It intentionally follows the same working style used for the GPT Actions OAuth feature:
+| Concern | Authority |
+|---|---|
+| Feature idea, scope, non-goals, open decisions | Parent GitHub Issue |
+| Bounded implementation contract and acceptance criteria | Task or bug GitHub Issue |
+| Live workflow state and priority | GitHub Project 1 |
+| Code, architecture, operations, security, and durable feature behavior | Reviewed repository files |
+| Change set, verification, proof, and review | Pull request linked to the issue |
 
-- a dedicated `docs/<feature-slug>/` folder
-- a README that acts as the delivery contract
-- a task tracker that is the single source of truth for progress
-- supporting docs for architecture, decisions, operations, and verification
-- task updates made in the same change as implementation work
+An issue may completely document a proposed feature without touching the
+repository. Repository documentation changes only when knowledge becomes
+durable—for example, when an implementation is accepted or an existing system
+fact is corrected.
 
-Use this playbook for any feature that spans multiple files, multiple milestones, production risk, or cross-functional decisions. Small one-file fixes do not need the full process.
+Legacy `docs/<feature>/TASKS.md` files preserve historical task IDs and evidence.
+They are not live queues and must not be used by dispatch or recovery.
 
-## Standard feature documentation set
+## Project status model
 
-Create a new folder at `docs/<feature-slug>/`.
-
-Recommended files:
-
-- `README.md`: feature purpose, scope, status model, delivery estimate, milestones, and completion criteria.
-- `TASKS.md`: authoritative implementation tracker with milestones, dependencies, acceptance criteria, and evidence.
-- `ARCHITECTURE.md`: target design, flows, data model, boundaries, and integration points.
-- `DECISIONS.md`: accepted decisions, open questions, non-goals, and important tradeoffs.
-- `OPERATIONS.md`: rollout, configuration, migrations, monitoring, rollback, and support procedures.
-- `SECURITY-TEST-PLAN.md`: security cases, release gates, automated checks, and manual validation.
-
-Add these only when needed:
-
-- `INTEGRATION-RECORD.md`: external system IDs, callback URLs, partner configuration, or environment-specific integration details.
-- `SECURITY-VERIFICATION-REPORT.md`: generated or maintained verification evidence for release review.
-- feature-specific artifacts such as OpenAPI files, diagrams, sample payloads, or test fixtures.
-
-If documents disagree:
-
-- `DECISIONS.md` controls architectural and product decisions.
-- `TASKS.md` controls implementation status.
-- `OPERATIONS.md` controls release and recovery procedure.
-
-Sensitive deployment details such as hostnames, IPs, filesystem paths, secret locations, or exact operator commands should not live in tracked docs. Keep those in a local-only ignored file such as `docs/private/PRODUCTION-DEPLOYMENT.md`, and reference that path from tracked docs when operators need the exact live details.
-
-## Delivery flow
-
-### 1. Create the feature folder and contract
-
-Start by creating `docs/<feature-slug>/README.md` and `docs/<feature-slug>/TASKS.md`.
-
-Before implementation starts, the README should define:
-
-- the problem being solved
-- explicit in-scope deliverables
-- explicit non-goals
-- status values and update rules
-- rough milestone estimates
-- what "done" means for the feature
-
-The first version does not need perfect detail, but it must make scope boundaries clear enough that implementation does not drift.
-
-### 2. Break work into milestones and task IDs
-
-Track work in milestones, then break milestones into stable task IDs such as:
-
-- `AUTH-001`
-- `API-003`
-- `OPS-002`
-- `UI-004`
-
-Task IDs must stay stable once referenced in commits, reviews, or release notes.
-
-Each task should include:
-
-- status
-- owner
-- estimate
-- dependencies
-- acceptance criteria
-- evidence once implemented
-
-Do not hide newly discovered work inside an existing task. Add a new task ID instead.
-
-### 3. Capture design before code spreads
-
-Write `ARCHITECTURE.md` once the feature affects data flow, APIs, persistence, background jobs, permissions, or operational behavior.
-
-Write `DECISIONS.md` as soon as there are meaningful choices to lock down:
-
-- scope cuts
-- protocol choices
-- storage approaches
-- rollout strategy
-- security constraints
-- compatibility rules
-
-Implementation should follow accepted decisions. If the implementation changes direction, update the decision record first.
-
-### 4. Implement against tracked tasks
-
-Every meaningful code change should map to one or more task IDs.
-
-In the same change that adds the implementation:
-
-- update the relevant task status
-- add evidence for tests or checks that passed
-- update milestone counts if they changed
-- update the README date if the feature status materially changed
-
-This keeps the docs current and prevents the tracker from becoming fiction.
-
-### 5. Verify like release work, not just coding work
-
-For features with user data, auth, payments, external integrations, or operational risk, add `SECURITY-TEST-PLAN.md`.
-
-That plan should define:
-
-- automated test cases
-- manual validation steps
-- failure cases
-- release gates
-- what remains blocked if a gate is not complete
-
-When practical, record final verification in a dedicated report or in task evidence entries.
-
-### 6. Close the feature deliberately
-
-A feature is complete only when:
-
-- all release-blocking tasks are `DONE`
-- acceptance criteria are satisfied
-- required automated checks pass
-- required manual checks are recorded
-- rollout and rollback steps are documented
-- residual risks or deferred scope are explicitly documented
-
-Do not treat "code merged" as equal to "feature complete".
-
-## Status model
-
-Use exactly one of these values for implementation tasks:
+Use the Project `Status` field, not labels, for lifecycle state:
 
 | Status | Meaning |
 |---|---|
-| `NOT_STARTED` | No implementation work has begun. |
-| `IN_PROGRESS` | Work is active and has an owner. |
-| `BLOCKED` | Work cannot proceed; document the blocker and required decision. |
-| `IN_REVIEW` | Implementation is complete and awaiting review or verification. |
-| `DONE` | Acceptance criteria are satisfied and evidence is linked. |
-| `DEFERRED` | Explicitly removed from the current release. |
+| `Draft` | Planning is incomplete or contains unresolved product questions. |
+| `Ready` | The task is bounded, dependency-safe, testable, and approved for dispatch. |
+| `In Progress` | The single implementation worker owns the task. |
+| `In Review` | Implementation is pushed and awaits human review, requested proof, or merge. |
+| `Done` | The change is merged and required evidence is recorded. |
+| `Blocked` | Work cannot proceed without a named decision, dependency, or access grant. |
+| `Deferred` | The owner explicitly removed the item from the active queue. |
 
-Update rules:
+Labels classify work—such as `type:feature`, `type:task`, `type:bug`,
+`agent-ready`, `proof:manual`, or `blocker:access`—but never duplicate status.
 
-1. Update `TASKS.md` in the same change as the implementation.
-2. Mark a task `DONE` only after acceptance criteria and relevant tests pass.
-3. Add newly discovered scope as a new task ID.
-4. Record architecture or security changes in `DECISIONS.md` before implementing them.
-5. Update the `Last updated` date in the feature docs when status materially changes.
+## Planning a feature
 
-## Recommended operating rules
+Create a parent feature issue and keep it in `Draft` while planning. The issue
+should describe:
 
-- Keep one authoritative tracker: `TASKS.md`.
-- Use milestone-level summaries at the top so progress is visible quickly.
-- Write evidence as concrete commands, tests, review notes, or production checks.
-- Keep acceptance criteria behavioral, not vague.
-- Separate first-release scope from later ideas.
-- Record blockers explicitly instead of leaving stale `IN_PROGRESS` tasks.
-- Keep docs in the repo so code review and delivery history stay tied together.
+- the problem and intended outcome;
+- current and desired user journeys;
+- scope and explicit non-goals;
+- behavioral acceptance criteria;
+- architecture, data, operations, security, and migration effects;
+- decisions already made and unresolved questions;
+- expected proof, including screenshots or recordings when useful;
+- durable documentation expected to change when implemented.
 
-## Suggested folder template
+Planning agents may update this issue and create draft child tasks. They must
+not mark work `Ready`; publishing is the explicit handoff from planning to
+implementation.
 
-```text
-docs/
-  <feature-slug>/
-    README.md
-    TASKS.md
-    ARCHITECTURE.md
-    DECISIONS.md
-    OPERATIONS.md
-    SECURITY-TEST-PLAN.md
+## Publishing implementation issues
+
+Break approved scope into the smallest independently verifiable tasks that can
+be implemented serially. Each issue needs:
+
+- one clear outcome;
+- in-scope and out-of-scope boundaries;
+- behavioral acceptance criteria;
+- dependencies and a link to its parent feature;
+- verification commands or observable checks;
+- required proof and documentation impact;
+- enough context for an unattended worker to proceed without asking questions.
+
+Only add `agent-ready` and move a task to `Ready` after dependencies and open
+questions are resolved. Newly discovered work becomes a separate issue; do not
+hide it inside an unrelated task.
+
+## Implementing an issue
+
+The controller allows one global implementation worker. It claims the next
+eligible `Ready` issue, moves it to `In Progress`, creates
+`codex/issue-<number>-<short-slug>` from the default branch, and launches or
+resumes the recorded Codex session on that branch. Worktrees and parallel
+implementation workers are not used.
+
+The worker must:
+
+1. Read the issue, parent feature, linked decisions, relevant docs, and `AGENTS.md`.
+2. Implement only the issue scope and preserve unrelated user work.
+3. Add focused tests and run checks proportional to risk.
+4. Promote stable implementation details into the affected repository docs.
+5. Capture requested proof without exposing secrets or private deployment data.
+6. Commit with the issue reference, push the branch, and open or update a linked draft pull request.
+7. Mark the pull request ready and move the issue to `In Review` only when agent-verifiable acceptance criteria pass.
+
+The implementation worker never merges its own pull request and never moves an
+issue directly to `Done`.
+
+## Blocking and recovery
+
+An unattended worker must not ask the owner questions directly. If a decision,
+dependency, or access grant is required, it moves the issue to `Blocked` and
+upserts one comment beginning with:
+
+```html
+<!-- codex-workflow-blocker -->
 ```
 
-Extend only when the feature truly needs more artifacts.
+That comment records the blocker, evidence gathered, required input, and safe
+next action. It is edited as the blocker changes so repeated runs do not pile
+up comments. A no-work dispatch pass writes no issue comments.
 
-## README template
+Recovery checks the controller's stored issue, PID, and Codex session first. A
+live PID is left alone. An interrupted `In Progress` worker is resumed on the
+recorded branch and session when safe. If the issue is already `In Review`, the
+state is cleared so a later pass can claim the next task. Ambiguous or unsafe
+state is blocked rather than guessed through.
 
-```md
-# <Feature name> delivery plan
+## Durable documentation
 
-- Last updated: YYYY-MM-DD
-- Planning status: `NOT_STARTED`
-- Implementation status: `NOT_STARTED`
-- Target: <one-line release target>
+Use the existing feature folders under `docs/` for stable knowledge:
 
-## Purpose
+- `README.md`: shipped behavior, scope boundaries, and feature entry point;
+- `ARCHITECTURE.md`: data flow, persistence, APIs, boundaries, and integrations;
+- `DECISIONS.md`: accepted durable decisions and tradeoffs;
+- `OPERATIONS.md`: safe rollout, monitoring, rollback, and support guidance;
+- `SECURITY-TEST-PLAN.md`: security cases, release gates, and verification;
+- verification reports: reproducible non-secret evidence.
 
-<What the feature does and why it exists.>
+Executable contracts and their tests belong under `src/contracts/`. Exact live
+deployment details belong only in ignored `docs/private/` files.
 
-## Document index
+When an issue and repository documentation disagree about shipped behavior,
+verify the implementation, correct the durable docs in the pull request, and
+record the correction in the issue or PR. Do not leave the accepted design only
+in a completed issue.
 
-- [TASKS.md](./TASKS.md): authoritative implementation tracker.
-- [ARCHITECTURE.md](./ARCHITECTURE.md): target design and boundaries.
-- [DECISIONS.md](./DECISIONS.md): accepted decisions and open questions.
-- [OPERATIONS.md](./OPERATIONS.md): rollout, config, monitoring, and rollback.
-- [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md): release gates and verification.
+## Completion rules
 
-## Status model
+`In Review` requires:
 
-<Reuse the standard status table from this playbook.>
+- implementation and required docs committed and pushed;
+- a linked pull request with exact test results;
+- all agent-verifiable acceptance criteria satisfied;
+- requested automated proof attached or linked;
+- remaining human-only review called out explicitly.
 
-## Initial scope
-
-- <Deliverable 1>
-- <Deliverable 2>
-
-## Explicit non-goals
-
-- <Non-goal 1>
-- <Non-goal 2>
-
-## Delivery estimate
-
-| Milestone | Estimate |
-|---|---:|
-| M0 - Scope and decisions | <time> |
-| M1 - Foundation | <time> |
-| M2 - Core implementation | <time> |
-| M3 - Verification and rollout | <time> |
-
-## Milestone completion definition
-
-- <Condition 1>
-- <Condition 2>
-```
-
-## TASKS template
-
-```md
-# <Feature name> task tracker
-
-- Last updated: YYYY-MM-DD
-- Overall implementation status: `NOT_STARTED`
-- Current milestone: `Not started`
-
-This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
-
-## Progress summary
-
-| Milestone | Status | Done | Total | Estimate |
-|---|---|---:|---:|---:|
-| M0 - Scope and decisions | `NOT_STARTED` | 0 | 0 | <time> |
-| M1 - Foundation | `NOT_STARTED` | 0 | 0 | <time> |
-| M2 - Core implementation | `NOT_STARTED` | 0 | 0 | <time> |
-| M3 - Verification and rollout | `NOT_STARTED` | 0 | 0 | <time> |
-
-## M0 - Scope and decisions
-
-### FEAT-001 - Define first-release scope
-
-- Status: `NOT_STARTED`
-- Owner: `<owner>`
-- Estimate: <time>
-- Depends on: None
-- Evidence:
-  - None yet.
-
-Acceptance criteria:
-
-- First-release scope is explicitly listed in `README.md`.
-- Non-goals are explicitly listed in `README.md`.
-- Open questions are captured in `DECISIONS.md`.
-
-### FEAT-002 - Lock architecture and rollout constraints
-
-- Status: `NOT_STARTED`
-- Owner: `<owner>`
-- Estimate: <time>
-- Depends on: FEAT-001
-- Evidence:
-  - None yet.
-
-Acceptance criteria:
-
-- Architecture boundaries are documented.
-- External dependencies and rollout constraints are documented.
-- Security or operational risks are mapped to follow-up tasks.
-```
-
-## DECISIONS template
-
-```md
-# <Feature name> decisions
-
-- Last updated: YYYY-MM-DD
-
-## Status legend
-
-| Status | Meaning |
-|---|---|
-| `PROPOSED` | Recommended but awaiting approval or validation. |
-| `ACCEPTED` | Governs implementation. |
-| `REJECTED` | Considered and explicitly not chosen. |
-| `SUPERSEDED` | Replaced by a later decision. |
-
-### DEC-001 - <Decision title>
-
-- Status: `PROPOSED`
-- Date: YYYY-MM-DD
-- Owners: <owner>
-- Context: <why this decision matters>
-- Decision: <what is being chosen>
-- Consequence: <what this means for implementation and operations>
-```
-
-## What to copy from the OAuth example
-
-For larger features, reuse these patterns from the OAuth documentation set:
-
-- The README is the feature contract, not just a summary.
-- `TASKS.md` contains milestone summaries plus task-level evidence.
-- Each task has explicit acceptance criteria.
-- Decisions are documented as durable records with consequences.
-- Verification is treated as first-class delivery work.
-- Operational readiness is documented before release, not after incident response.
-
-## When not to use the full process
-
-You can skip the full document set when the work is:
-
-- a one-file bug fix
-- a dependency bump with no behavior change
-- a copy update
-- a narrowly scoped refactor with no product or operational impact
-
-In those cases, a short issue, PR description, or lightweight note is enough.
+`Done` requires merge plus the required review/evidence record. Code being
+written locally is not completion, and code being merged is not sufficient if
+required rollout or human proof is still missing.

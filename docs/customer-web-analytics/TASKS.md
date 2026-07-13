@@ -1,5 +1,7 @@
 # Customer web analytics task tracker
 
+> Historical delivery ledger. GitHub Issues and Project 1 are authoritative for current work and status. This file preserves migration evidence and must not be used for dispatch.
+
 - Last updated: 2026-07-03
 - Overall implementation status: `DEFERRED`
 - Current milestone: `DEFERRED`
@@ -9,8 +11,7 @@
 This feature has been put on hold and deferred to a later release.
 Leave all implementation tasks in `DEFERRED` until work is explicitly resumed.
 
-This is the authoritative progress tracker. Status values and update rules are
-defined in [README.md](./README.md).
+The statuses below are a migration snapshot, not live workflow state.
 
 ## Progress summary
 

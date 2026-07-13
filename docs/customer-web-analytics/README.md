@@ -1,8 +1,9 @@
 # Customer web analytics delivery plan
 
 - Last updated: 2026-07-03
-- Planning status: `DEFERRED`
-- Implementation status: `DEFERRED`
+- Planning status at GitHub migration: `DEFERRED`
+- Implementation status at GitHub migration: `DEFERRED`
+- Current planning issue: [#23](https://github.com/NanduKkd/milkywayy-booking/issues/23)
 - Target: deferred for a later release; customer acquisition, booking, payment, login, service, campaign, revenue, and location funnel analytics remain the intended scope when work resumes.
 
 ## Purpose
@@ -24,7 +25,7 @@ reactivated and the task tracker is updated.
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative implementation tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): target event, attribution, reporting, and persistence design.
 - [DECISIONS.md](./DECISIONS.md): proposed decisions, accepted scope constraints, and open questions.
 - [OPERATIONS.md](./OPERATIONS.md): configuration, rollout, monitoring, and rollback.
@@ -96,12 +97,12 @@ campaign traffic accumulation, and Google reporting latency.
 - Dashboard totals reconcile to GA4 for the same dimensions and reporting period.
 - Sampled paid bookings reconcile to authoritative transaction records within the documented limitations of consent, blockers, and attribution.
 - Privacy, consent, security, automated test, manual validation, rollout, monitoring, and rollback gates are complete.
-- Every release-blocking task in [TASKS.md](./TASKS.md) is `DONE` with evidence.
+- Every release-blocking GitHub Issue is `Done` with evidence.
 
-## Status update rules
+## Delivery update rules
 
-1. `TASKS.md` is the authoritative implementation tracker.
-2. Update task status and evidence in the same change as implementation.
+1. GitHub Issues and Project 1 are authoritative for current implementation status.
+2. Update the GitHub Issue/PR evidence and affected durable docs in the same change as implementation.
 3. Do not start a decision-dependent task until its decision is `ACCEPTED`.
-4. Add newly discovered work under a new stable task ID.
+4. Add newly discovered work as a separate bounded GitHub Issue.
 5. Update the `Last updated` date when scope, decisions, or status materially changes.

@@ -1,8 +1,9 @@
 # Admin analytics and finance delivery plan
 
 - Last updated: 2026-07-12
-- Planning status: `DONE`
-- Implementation status: `IN_PROGRESS`
+- Planning status at GitHub migration: `DONE`
+- Implementation status at GitHub migration: `IN_PROGRESS`
+- Current rollout issue: [#10](https://github.com/NanduKkd/milkywayy-booking/issues/10)
 - Target: deliver accurate Dashboard analytics, financial reports, exports, and first-release expense tracking.
 
 ## Purpose
@@ -12,7 +13,7 @@ over bookings, transactions, refunds, and persisted expenses.
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): metrics, query, export, and expense design.
 - [DECISIONS.md](./DECISIONS.md): accounting definitions and deferred scope.
 - [OPERATIONS.md](./OPERATIONS.md): migrations, rollout, monitoring, and recovery.

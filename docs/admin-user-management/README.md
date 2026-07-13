@@ -1,8 +1,9 @@
 # Admin customer management delivery plan
 
 - Last updated: 2026-07-12
-- Planning status: `DEFERRED`
-- Implementation status: `DEFERRED`
+- Planning status at GitHub migration: `DEFERRED`
+- Implementation status at GitHub migration: `DEFERRED`
+- Current planning issue: [#22](https://github.com/NanduKkd/milkywayy-booking/issues/22)
 - Target: deferred for a later release; the Users page remains intended to become a customer-only operational view with aggregates, sorting, and safe reversible disablement when work resumes.
 
 ## Purpose
@@ -19,7 +20,7 @@ remaining customer analytics and management work stays deferred.
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): customer query, aggregate, and deactivation flows.
 - [DECISIONS.md](./DECISIONS.md): staff separation and deletion policy.
 - [OPERATIONS.md](./OPERATIONS.md): migration and rollout plan.

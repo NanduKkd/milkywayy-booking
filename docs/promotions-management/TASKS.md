@@ -1,5 +1,7 @@
 # Promotions management task tracker
 
+> Historical delivery ledger. GitHub Issues and Project 1 are authoritative for current work and status. This file preserves migration evidence and must not be used for dispatch.
+
 - Last updated: 2026-07-11
 - Overall implementation status: `DONE`
 - Current milestone: `M3 - Verification and rollout`

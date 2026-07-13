@@ -1,8 +1,9 @@
 # Admin access control and Settings delivery plan
 
 - Last updated: 2026-07-01
-- Planning status: `DEFERRED`
-- Implementation status: `DEFERRED`
+- Planning status at GitHub migration: `DEFERRED`
+- Implementation status at GitHub migration: `DEFERRED`
+- Current planning issue: [#21](https://github.com/NanduKkd/milkywayy-booking/issues/21)
 - Target: deferred for a later release; secure staff administration, editable section permissions, invitations, and consistent server-side enforcement remain the intended scope when work resumes.
 
 ## Purpose
@@ -19,7 +20,7 @@ reactivated and the task tracker is updated.
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): roles, permissions, invitations, and enforcement.
 - [DECISIONS.md](./DECISIONS.md): role migration and security decisions.
 - [OPERATIONS.md](./OPERATIONS.md): staged database and provider rollout.

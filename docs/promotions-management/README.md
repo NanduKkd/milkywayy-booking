@@ -1,8 +1,8 @@
 # Promotions management delivery plan
 
 - Last updated: 2026-07-11
-- Planning status: `DONE`
-- Implementation status: `DONE`
+- Planning status at GitHub migration: `DONE`
+- Implementation status at GitHub migration: `DONE`
 - Target: consolidate generic coupons, personal customer promotions, and automatic rules without losing current discount or wallet behavior.
 
 ## Purpose
@@ -12,7 +12,7 @@ promotion-management surface and one deterministic eligibility engine.
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [LEGACY-INVENTORY.md](./LEGACY-INVENTORY.md): current coupon, launch-credit, discount, wallet, and invoice behavior to preserve or intentionally replace.
 - [MIGRATION-PARITY-FIXTURES.md](./MIGRATION-PARITY-FIXTURES.md): recorded representative before/after promotion outcomes used for parity verification.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): promotion model, evaluation, redemption, and migration.

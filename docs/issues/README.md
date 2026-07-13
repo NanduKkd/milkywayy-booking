@@ -1,7 +1,9 @@
 # Issue register
 
 - Last updated: 2026-07-12
-- Purpose: authoritative status index for issues discovered during manual audits
+- Purpose: historical status index for issues discovered during manual audits
+
+> GitHub Issues and Project 1 are authoritative for current issues and workflow status. This file is retained as an audit snapshot.
 
 ## Status model
 
@@ -14,7 +16,8 @@ Issue status uses the project delivery values:
 - `DONE`: the expected behavior is implemented and resolution evidence is recorded.
 - `DEFERRED`: explicitly removed from the current release.
 
-Every issue file must state its status, implementation owner, and whether project-owner intervention is required. Update this register and the issue file in the same change. An issue may be marked `DONE` only when its resolution evidence is recorded in the issue file.
+The rows below preserve their migration-time resolution evidence. Create and
+maintain all new defects in GitHub Issues rather than extending this register.
 
 ## Current issues
 
@@ -22,7 +25,7 @@ Every issue file must state its status, implementation owner, and whether projec
 |---|---|---|---|---|
 | [Portfolio load failure is presented as an empty library](./portfolio-load-failure-misleading-empty-state.md) | High | `DONE` | Engineering | No |
 | [Promotions catalog fails to load](./promotions-catalog-fails-to-load.md) | High | `DONE` | Engineering | No |
-| [Expense Tracker fails to load on Reports](./reports-expense-tracker-validation-error.md) | High | `NOT_STARTED` | Engineering | No |
+| [Expense Tracker fails to load on Reports](./reports-expense-tracker-validation-error.md) | High | `DONE` | Engineering | No |
 | [Report month input does not update the displayed reports](./reports-month-filter-does-not-apply.md) | High | `DONE` | Engineering | No |
 | [Review load failure is presented as an empty testimonial set](./reviews-load-failure-misleading-empty-state.md) | High | `DONE` | Engineering | No |
 | [Scheduling calendar overflows horizontally on desktop](./scheduling-calendar-desktop-horizontal-overflow.md) | Medium | `DONE` | Engineering | No |

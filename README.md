@@ -1,41 +1,74 @@
 # Milkywayy Booking
 
-Milkywayy Booking is a Next.js application for booking and delivering real
-estate media services. It includes a public website, customer booking and
-account flows, an operations/admin portal, delivery-file review workflows, and
-a read-only GPT Actions integration.
+Milkywayy Booking is a Next.js platform for booking and delivering real-estate
+media services. It includes a public website, customer booking and account
+flows, an operations/admin portal, Stripe payments, delivery-file workflows,
+Twilio/WhatsApp communication, and a read-only GPT Actions integration.
 
-The application uses the Next.js App Router and React, Sequelize with
-PostgreSQL, Stripe, AWS S3, Twilio/WhatsApp, Tailwind CSS, Jest, and Biome.
+## Start here
 
-## Documentation index
+- [Project overview](./docs/PROJECT-OVERVIEW.md): product surfaces, architecture, integrations, and code map.
+- [Development guide](./docs/DEVELOPMENT.md): local setup, configuration, commands, and working conventions.
+- [Project status](./docs/PROJECT-STATUS.md): current repository health and release posture.
+- [Feature delivery playbook](./docs/FEATURE-DELIVERY-PLAYBOOK.md): GitHub Issue, Project, pull-request, and durable-documentation workflow.
+- [GitHub Project 1](https://github.com/users/NanduKkd/projects/1): authoritative live workflow status.
+- [GitHub Issues](https://github.com/NanduKkd/milkywayy-booking/issues): feature plans, tasks, bugs, blockers, and requested proof.
+- [Agent instructions](./AGENTS.md): repository-local rules for coding agents.
 
-| Document | Use it for |
+GitHub Issues hold planned intent and task contracts, GitHub Project 1 holds
+live workflow state, and reviewed repository files hold durable implemented
+truth. Existing feature `TASKS.md` files are historical delivery ledgers, and
+the previous Notion workspace is a migration archive only.
+
+Exact production configuration remains only in ignored local `docs/private/`
+runbooks and must not be copied into GitHub or tracked files.
+
+## Technology
+
+- Next.js App Router and React
+- Sequelize and PostgreSQL
+- Stripe
+- AWS S3 with optional CloudFront delivery
+- Twilio Verify and WhatsApp
+- Tailwind CSS
+- Jest and Biome
+
+## Local development
+
+Prerequisites: Node.js/npm and PostgreSQL.
+
+```bash
+npm ci
+npx sequelize-cli db:migrate
+npm run dev
+```
+
+Create an ignored `.env` with the required database and integration variables.
+See the [development guide](./docs/DEVELOPMENT.md) for the configuration groups
+and setup guidance.
+
+Common checks:
+
+```bash
+npm test -- --runInBand
+npm run lint
+npm run build
+```
+
+Do not assume the repository-wide test/lint baseline is green. Check
+[Project Status](./docs/PROJECT-STATUS.md) before interpreting failures.
+
+## Repository map
+
+| Path | Responsibility |
 |---|---|
-| [Project overview](./docs/PROJECT-OVERVIEW.md) | Product areas, architecture, integrations, domain model, and code map. |
-| [Development guide](./docs/DEVELOPMENT.md) | Local setup, configuration, database commands, tests, and documentation maintenance. |
-| [Project status](./docs/PROJECT-STATUS.md) | Current implementation coverage, repository health, and known failing checks. |
-| [Feature delivery playbook](./docs/FEATURE-DELIVERY-PLAYBOOK.md) | Required planning, tracking, evidence, and documentation workflow for feature-sized work. |
-| [GPT Actions OAuth](./docs/gpt-actions-oauth/README.md) | Feature contract and index for the OAuth and GPT resource API documentation. |
-| [Admin panel UI refresh](./docs/admin-panel-ui-refresh/README.md) | New admin shell, login, Dashboard presentation, and visual migration of existing operational pages. |
-| [Admin scheduling calendar](./docs/admin-scheduling-calendar/README.md) | Shared availability, booking calendar, calendar-only events, blocking, and admin-created bookings. |
-| [Admin analytics and finance](./docs/admin-analytics-finance/README.md) | Revenue definitions, Dashboard analytics, Reports, exports, P&L, and expense tracking. |
-| [Admin customer management](./docs/admin-user-management/README.md) | Customer-only Users page, aggregates, editing, and account deactivation. |
-| [Promotions management](./docs/promotions-management/README.md) | Consolidated generic, personal, and automatic promotions with migration and precedence rules. |
-| [Admin access control](./docs/admin-access-control/README.md) | Settings, staff roles, permission enforcement, invitations, email delivery, and legacy-role removal. |
-| [Agent instructions](./AGENTS.md) | Repository-local rules for Codex and other coding agents. |
-| [Private production runbook](./docs/private/PRODUCTION-DEPLOYMENT.md) | Local-only live deployment instructions. This file is intentionally ignored by Git. |
-
-## Sources of truth
-
-- `docs/PROJECT-STATUS.md` describes the current state of the repository.
-- For a feature, its `README.md` defines the delivery contract and its
-  `TASKS.md` is the authoritative progress tracker.
-- `docs/FEATURE-DELIVERY-PLAYBOOK.md` defines how feature documentation must be
-  created and kept in sync with implementation.
-- `docs/private/PRODUCTION-DEPLOYMENT.md` contains exact live deployment
-  details. Do not copy its hostnames, paths, credentials, or operator commands
-  into tracked documentation.
-
-Start with the [development guide](./docs/DEVELOPMENT.md) to run the application
-locally.
+| `src/app/` | Pages, layouts, route handlers, and feature-local UI |
+| `src/components/` | Shared public, customer, admin, and UI components |
+| `src/lib/actions/` | Server actions |
+| `src/lib/services/` | Domain workflows and reusable server-side use cases |
+| `src/lib/db/` | Sequelize models, relations, migrations, and seeders |
+| `src/lib/oauth/` | OAuth protocol and security logic |
+| `src/contracts/` | Executable external contracts and their tests |
+| `scripts/` | Workers and verification/provisioning utilities |
+| `docs/` | Durable architecture, decisions, operations, security, and quality knowledge |
+| `docs/private/` | Ignored local production and rollout details only |

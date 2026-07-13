@@ -137,7 +137,7 @@ required customer-data policy review is complete.
 - Dashboard acceptance review.
 - Rollback validation note.
 
-Evidence belongs in [TASKS.md](./TASKS.md) as tasks progress. Exact production
+Evidence belongs on the linked GitHub Issue or pull request as tasks progress. Exact production
 identifiers and sensitive operational evidence belong only in the approved private
 operations document.
 
@@ -150,4 +150,3 @@ operations document.
 - Cross-device and pre-login association is incomplete without eligible identity signals.
 - Analytics attribution and accounting totals will not always match.
 - BigQuery export is intentionally outside this release.
-

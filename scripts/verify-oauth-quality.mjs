@@ -7,7 +7,7 @@ const biomeBin = "./node_modules/.bin/biome";
 const jestBin = "./node_modules/.bin/jest";
 
 const biomeTargets = [
-  "docs/gpt-actions-oauth",
+  "src/contracts/gpt-actions",
   "scripts/provision-oauth-client.mjs",
   "scripts/oauth-cleanup-worker.mjs",
   "scripts/lib/oauthSecurityReport.mjs",
@@ -56,7 +56,7 @@ const biomeTargets = [
 ];
 
 const jestSuites = [
-  "docs/gpt-actions-oauth/__tests__/gpt-action-openapi.test.js",
+  "src/contracts/gpt-actions/__tests__/openapi.test.js",
   "src/lib/config/__tests__/oauth.test.js",
   "src/lib/config/__tests__/session.test.js",
   "src/lib/db/migrations/__tests__/20260629010000-create-oauth-persistence.test.js",

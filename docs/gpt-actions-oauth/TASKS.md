@@ -1,10 +1,12 @@
 # GPT Actions OAuth task tracker
 
+> Historical delivery ledger. GitHub Issues and Project 1 are authoritative for current work and status. This file preserves migration evidence and must not be used for dispatch.
+
 - Last updated: 2026-07-01
 - Overall implementation status: `DONE`
 - Current milestone: `Completed - First release development`
 
-This is the authoritative progress tracker. Status values and update rules are defined in [README.md](./README.md).
+The statuses below are a migration snapshot, not live workflow state.
 
 ## Progress summary
 
@@ -601,11 +603,11 @@ Acceptance criteria:
 - Estimate: 2-3 h
 - Depends on: API-003, API-004, API-005, API-008
 - Evidence:
-  - Importable GPT Action OpenAPI artifact added in `docs/gpt-actions-oauth/gpt-action-openapi.json`, exposing only the approved read-only `/me`, bookings list/detail, invoices, and files operations on the production `https://milkywayy.com` server with `customer:read` OAuth security.
-  - Validator-backed regression coverage added in `docs/gpt-actions-oauth/__tests__/gpt-action-openapi.test.js`, asserting OpenAPI validity, approved operation IDs and paths only, production OAuth URLs, and structured DTO responses instead of conversational wrappers.
+  - Importable GPT Action OpenAPI artifact, now located at `src/contracts/gpt-actions/openapi.json`, exposes only the approved read-only `/me`, bookings list/detail, invoices, and files operations on the production `https://milkywayy.com` server with `customer:read` OAuth security.
+  - Validator-backed regression coverage, now at `src/contracts/gpt-actions/__tests__/openapi.test.js`, asserts OpenAPI validity, approved operation IDs and paths only, production OAuth URLs, and structured DTO responses instead of conversational wrappers.
   - Focused verification passed:
-    - `npx jest docs/gpt-actions-oauth/__tests__/gpt-action-openapi.test.js --runInBand`
-    - `npx biome check docs/gpt-actions-oauth/gpt-action-openapi.json docs/gpt-actions-oauth/__tests__/gpt-action-openapi.test.js`
+    - `npx jest src/contracts/gpt-actions/__tests__/openapi.test.js --runInBand`
+    - `npx biome check src/contracts/gpt-actions/openapi.json src/contracts/gpt-actions/__tests__/openapi.test.js`
 
 Acceptance criteria:
 
@@ -858,7 +860,7 @@ Acceptance criteria:
 - Depends on: API-007, OPS-003
 - Evidence:
   - The production OAuth values required by the GPT editor are now fixed and verified: authorization URL `https://milkywayy.com/oauth/authorize`, token URL `https://milkywayy.com/oauth/token`, scope `customer:read`, client ID `UP0_ZZWskQY2d6UfidkWXpK81IGqtJcMrBxRJbxs06o`, and the exact callback allowlist already recorded in [INTEGRATION-RECORD.md](./INTEGRATION-RECORD.md).
-  - The validated action schema remains [gpt-action-openapi.json](./gpt-action-openapi.json).
+  - The validated executable action schema is [`src/contracts/gpt-actions/openapi.json`](../../src/contracts/gpt-actions/openapi.json).
   - The project owner completed the target GPT editor configuration on 2026-06-30 in a logged-in ChatGPT session, including the correct client ID, securely transferred secret, authorization URL, token URL, scope, and the validated action schema import.
   - The project owner also confirmed the public-distribution release prerequisites were satisfied in the GPT editor flow, including privacy policy, verified domain, support contact, and publication/review requirements.
 

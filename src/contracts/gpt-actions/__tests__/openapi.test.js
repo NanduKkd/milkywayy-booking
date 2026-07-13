@@ -4,7 +4,7 @@ const SwaggerParser = require("@apidevtools/swagger-parser");
 
 const OPENAPI_PATH = path.join(
   process.cwd(),
-  "docs/gpt-actions-oauth/gpt-action-openapi.json",
+  "src/contracts/gpt-actions/openapi.json",
 );
 
 function loadOpenApiDocument() {

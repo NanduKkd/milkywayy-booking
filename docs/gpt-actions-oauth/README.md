@@ -1,8 +1,8 @@
 # GPT Actions OAuth delivery plan
 
 - Last updated: 2026-07-01
-- Planning status: `COMPLETE`
-- Implementation status: `DONE`
+- Planning status at GitHub migration: `COMPLETE`
+- Implementation status at GitHub migration: `DONE`
 - Target: production OAuth 2.0 authorization-code integration for one ChatGPT Custom GPT
 
 ## Purpose
@@ -15,15 +15,15 @@ This is OAuth 2.0 API authorization. It is not an OpenID Connect implementation:
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative implementation tracker, dependencies, estimates, and acceptance criteria.
+- [TASKS.md](./TASKS.md): historical first-release delivery ledger and acceptance evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): target flow, endpoints, persistence, scopes, and code boundaries.
 - [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md): security requirements, automated tests, manual verification, and release gates.
 - [DECISIONS.md](./DECISIONS.md): accepted decisions and questions that must be resolved during implementation.
 - [INTEGRATION-RECORD.md](./INTEGRATION-RECORD.md): the production Custom GPT record, including the active GPT ID, any temporarily retained compatibility callbacks, and the agreed Milkywayy OAuth endpoints.
 - [OPERATIONS.md](./OPERATIONS.md): production secret preparation, client provisioning, rotation, and emergency disablement steps.
-- [gpt-action-openapi.json](./gpt-action-openapi.json): validated GPT Action OpenAPI artifact for the approved read-only resource API.
+- [`src/contracts/gpt-actions/openapi.json`](../../src/contracts/gpt-actions/openapi.json): validated executable GPT Action OpenAPI contract for the approved read-only resource API.
 
-If documents disagree, `DECISIONS.md` controls architectural choices and `TASKS.md` controls progress status.
+If documents disagree about shipped behavior, verify the implementation and correct the durable docs. GitHub Project 1 controls current workflow status.
 
 ## Status model
 
@@ -40,7 +40,7 @@ Use exactly one of these values for implementation tasks:
 
 Update rules:
 
-1. Update the task status, owner, and evidence in `TASKS.md` in the same change as the implementation.
+1. Update the GitHub Issue and pull request evidence with the implementation.
 2. Mark a task `DONE` only after its acceptance criteria and relevant tests pass.
 3. Add newly discovered scope as a new task ID; do not silently expand an existing task.
 4. Record architecture or security changes in `DECISIONS.md` before implementing them.
@@ -92,7 +92,7 @@ Allow 2-3 calendar weeks for implementation, review, deployment, and ChatGPT int
 
 The release is complete only when:
 
-- Every release-blocking task in `TASKS.md` is `DONE`.
+- Every release-blocking GitHub Issue is `Done`.
 - Every release gate in `SECURITY-TEST-PLAN.md` passes.
 - A customer can connect from ChatGPT, list only their own records, refresh an expired access token, and disconnect access from the direct `/dashboard/connections` page.
 - Expired, replayed, revoked, wrong-client, wrong-redirect, and insufficient-scope requests fail safely.

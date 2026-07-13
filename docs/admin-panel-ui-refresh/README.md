@@ -1,8 +1,9 @@
 # Admin panel UI refresh delivery plan
 
 - Last updated: 2026-07-12
-- Planning status: `DONE`
-- Implementation status: `IN_PROGRESS`
+- Planning status at GitHub migration: `DONE`
+- Implementation status at GitHub migration: `IN_PROGRESS`
+- Current acceptance/release issue: [#14](https://github.com/NanduKkd/milkywayy-booking/issues/14)
 - Target: make the complete current Super Admin interface visually consistent with the approved prototype direction while preserving working behavior.
 
 ## Purpose
@@ -13,7 +14,7 @@ data, forms, and operational workflows remain authoritative.
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative implementation tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): UI boundaries, routing, and shared components.
 - [DECISIONS.md](./DECISIONS.md): accepted visual and compatibility decisions.
 - [OPERATIONS.md](./OPERATIONS.md): release and rollback notes.

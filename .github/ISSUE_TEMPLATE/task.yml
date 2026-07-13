@@ -1,0 +1,77 @@
+name: Implementation task
+description: Define one bounded, dependency-aware unit of implementation work.
+title: "[Task]: "
+labels:
+  - "type:task"
+body:
+  - type: input
+    id: parent
+    attributes:
+      label: Parent feature
+      description: Link the parent feature issue, or explain why this task is standalone.
+      placeholder: "#123"
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: State the single concrete result this task must deliver.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: In scope
+      placeholder: "- Required change"
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      placeholder: "- Related change deliberately excluded"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] Observable, testable result"
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and blockers
+      description: Link prerequisite issues and state any required access or decisions. Write None when clear.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: List focused commands and manual checks the implementer should run.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Required proof
+      description: Specify screenshots, recordings, logs, reports, or human review. Write None when unnecessary.
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation impact
+      description: Name durable repository docs to update, or explain why no doc change is needed.
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and operational constraints
+      description: Record secret handling, migration, rollout, rollback, monitoring, or privacy constraints. Write None when absent.
+    validations:
+      required: true

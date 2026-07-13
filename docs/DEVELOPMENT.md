@@ -184,12 +184,14 @@ and the [feature delivery playbook](./FEATURE-DELIVERY-PLAYBOOK.md). They are
 part of the delivery process for multi-file, release-relevant, or feature-sized
 work.
 
-- Create feature documentation under `docs/<feature-slug>/` instead of
-  scattering feature notes through unrelated files.
-- Treat the feature `README.md` as its delivery contract and `TASKS.md` as the
-  authoritative implementation tracker.
-- Update task status, acceptance evidence, and materially affected docs in the
-  same change as the code.
+- Plan features and bounded tasks in GitHub Issues and use Project 1 as the
+  authoritative workflow state and priority queue.
+- Keep durable shipped behavior under `docs/<feature-slug>/` instead of
+  scattering implementation knowledge through issue comments.
+- Treat existing `TASKS.md` files as historical delivery ledgers, not live
+  implementation trackers.
+- Update issue/PR evidence and materially affected durable docs in the same
+  change as the code.
 - Record architecture or product decisions before implementing a changed
   direction.
 - Update `docs/PROJECT-STATUS.md` when repository health or release posture
