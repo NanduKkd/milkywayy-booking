@@ -110,11 +110,11 @@ function LoadingState() {
         {["expense-kpi-1", "expense-kpi-2", "expense-kpi-3"].map((key) => (
           <div
             key={key}
-            className="h-28 rounded-2xl border border-white/10 bg-white/[0.04]"
+            className="h-28 rounded-lg border border-white/10 bg-white/[0.04]"
           />
         ))}
       </div>
-      <div className="h-72 rounded-2xl border border-white/10 bg-white/[0.04]" />
+      <div className="h-72 rounded-lg border border-white/10 bg-white/[0.04]" />
     </section>
   );
 }
@@ -253,7 +253,7 @@ function DeleteExpenseDialog({
         description="This removes the expense from live reporting by soft deletion and requires a reason for the audit trail."
         title="Delete expense"
       >
-        <div className="admin-panel-subtle rounded-2xl border border-[hsl(var(--admin-border)/0.72)] p-4">
+        <div className="admin-panel-subtle rounded-lg border border-[hsl(var(--admin-border)/0.72)] p-4">
           <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
             {expense?.categoryLabel || expense?.category || "Expense"}
           </p>

@@ -659,6 +659,40 @@ describe("SchedulingCalendarPage", () => {
     expect(screen.getByText("Read-only past event")).toBeInTheDocument();
   });
 
+  it("caps month-cell markers at two and exposes the remaining count", async () => {
+    currentJulyPayload.events.push(
+      {
+        ...currentJulyPayload.events[0],
+        id: 7,
+        date: "2026-07-03",
+        title: "Internal hold",
+      },
+      {
+        ...currentJulyPayload.events[0],
+        id: 8,
+        date: "2026-07-03",
+        title: "Equipment check",
+      },
+    );
+
+    render(<SchedulingCalendarPage />);
+
+    const busyDay = await screen.findByRole("button", {
+      name: /Friday, July 3, 2026\..*1 booking.*2 active events/i,
+    });
+    const markers = busyDay.querySelectorAll("[data-calendar-marker]");
+
+    expect(markers).toHaveLength(2);
+    expect(markers[0]).toHaveAttribute("data-calendar-marker", "booking");
+    expect(markers[0]).toHaveClass("bg-blue-500");
+    expect(markers[1]).toHaveAttribute("data-calendar-marker", "event");
+    expect(markers[1]).toHaveClass("bg-violet-500");
+    expect(
+      busyDay.querySelector('[data-calendar-overflow="1"]'),
+    ).toHaveTextContent("+1");
+    expect(busyDay).toHaveClass("h-[68px]", "sm:h-[76px]");
+  });
+
   it("navigates months and refetches the bounded range", async () => {
     render(<SchedulingCalendarPage />);
 
@@ -792,7 +826,7 @@ describe("SchedulingCalendarPage", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: /Block full day/i,
+        name: /Block Afternoon/i,
       }),
     );
 
@@ -819,14 +853,16 @@ describe("SchedulingCalendarPage", () => {
       timeSlots: expect.objectContaining({
         dateOverrides: expect.objectContaining({
           "2026-07-03": expect.objectContaining({
-            fullDayBlocked: true,
+            blocks: expect.objectContaining({
+              afternoon: "blocked",
+            }),
           }),
         }),
       }),
     });
   });
 
-  it("adds an exact 30-minute time block for the selected day", async () => {
+  it("hides exact-time controls while keeping legacy blocks clearable", async () => {
     render(<SchedulingCalendarPage />);
 
     expect(
@@ -844,36 +880,18 @@ describe("SchedulingCalendarPage", () => {
       }),
     );
 
-    fireEvent.change(screen.getByLabelText("From"), {
-      target: { value: "10:30" },
-    });
-    fireEvent.change(screen.getByLabelText("To"), {
-      target: { value: "11:00" },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /Add exact block/i }));
-    });
-
-    await waitFor(() => {
-      expect(timeSlotPutBodies).toHaveLength(1);
-    });
-
-    expect(timeSlotPutBodies[0]).toMatchObject({
-      allowConflictOverride: false,
-      timeSlots: expect.objectContaining({
-        dateOverrides: expect.objectContaining({
-          "2026-07-02": expect.objectContaining({
-            timeBlocks: expect.arrayContaining([
-              expect.objectContaining({
-                startTime: "10:30",
-                endTime: "11:00",
-              }),
-            ]),
-          }),
-        }),
-      }),
-    });
+    expect(screen.queryByLabelText("From")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("To")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Add exact block/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Legacy exact block active/).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/10:00\s*-\s*10:30/)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Clear blocks/i }),
+    ).toBeInTheDocument();
   });
 
   it("creates, edits, cancels, and restores a calendar-only event from the selected day", async () => {

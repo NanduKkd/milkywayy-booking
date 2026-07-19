@@ -1,10 +1,14 @@
 "use client";
 
-import { LogOut, Menu, ShieldCheck } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import AdminSidebarNav from "@/components/admin/AdminSidebarNav";
+import {
+  ADMIN_NAV_GROUPS,
+  ADMIN_NAV_ITEMS,
+} from "@/components/admin/adminNavConfig";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,10 +22,10 @@ import { useAuth } from "@/lib/contexts/auth";
 export default function AdminHeader() {
   const { authState, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const user = authState?.user;
   const displayName = user?.fullName || user?.email || "Super Admin";
-  const supportingLabel = user?.email || user?.role || "Authenticated session";
   const initials =
     displayName
       .split(/\s+/)
@@ -29,6 +33,14 @@ export default function AdminHeader() {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() || "")
       .join("") || "SA";
+  const currentItem = ADMIN_NAV_ITEMS.find((item) =>
+    item.href === "/admin"
+      ? pathname === "/admin"
+      : pathname?.startsWith(item.href),
+  );
+  const currentGroup = ADMIN_NAV_GROUPS.find((group) =>
+    group.items.some((item) => item.href === currentItem?.href),
+  );
 
   const handleLogout = async () => {
     await logout();
@@ -37,85 +49,73 @@ export default function AdminHeader() {
 
   return (
     <>
-      <nav className="sticky top-0 z-40 px-4 pt-4 lg:px-6">
-        <div className="admin-panel-subtle flex h-16 w-full items-center justify-between rounded-[1.65rem] px-4 backdrop-blur-sm lg:px-5">
-          <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Open navigation"
-              className="admin-panel-muted h-10 w-10 rounded-2xl border-white/10 text-[hsl(var(--admin-foreground))] hover:bg-[hsl(var(--admin-surface-soft)/0.7)] lg:hidden"
-              onClick={() => setMobileNavOpen(true)}
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-            <Link
-              href="/admin"
-              className="text-sm font-semibold tracking-[0.18em] text-[hsl(var(--admin-foreground))]"
-            >
-              MILKYWAYY ADMIN
-            </Link>
+      <nav className="sticky top-0 z-40 flex h-[52px] items-center justify-between border-b border-[hsl(var(--admin-border))] bg-[hsl(var(--admin-surface))] px-4 md:px-6">
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Open navigation"
+            className="h-8 w-8 rounded-lg border border-zinc-700 bg-zinc-800 text-white hover:bg-zinc-700 lg:hidden"
+            onClick={() => setMobileNavOpen(true)}
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+          <Link
+            href="/admin"
+            className="text-xs font-black tracking-[0.15em] text-white lg:hidden"
+          >
+            MILKYWAYY
+          </Link>
+          <div className="hidden items-center gap-2 lg:flex">
+            <span className="text-[10px] uppercase tracking-[0.16em] text-zinc-600">
+              {currentGroup?.label || "Admin"}
+            </span>
+            <span className="text-xs text-zinc-700">/</span>
+            <span className="text-[10px] font-medium text-zinc-400">
+              {currentItem?.label || "Workspace"}
+            </span>
           </div>
-          <div className="flex items-center justify-end gap-3">
-            <div className="hidden min-w-0 items-center gap-3 px-3 py-2 sm:flex">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--admin-highlight)/0.24)] bg-[hsl(var(--admin-highlight)/0.12)] text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                {initials}
-              </div>
-              <div className="min-w-0">
-                <p className="admin-kicker text-[0.62rem]">Signed In</p>
-                <p className="truncate text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                  {displayName}
-                </p>
-                <p className="truncate text-xs text-[hsl(var(--admin-muted))]">
-                  {supportingLabel}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              className="rounded-2xl border border-[hsl(var(--admin-danger)/0.24)] bg-[hsl(var(--admin-danger)/0.1)] px-4 text-[hsl(var(--admin-danger))] hover:bg-[hsl(var(--admin-danger)/0.16)] hover:text-[hsl(var(--admin-foreground))]"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" />
-              Log Out
-            </Button>
+        </div>
+        <div className="flex min-w-0 items-center justify-end gap-3">
+          <div className="hidden min-w-0 text-right sm:block">
+            <p className="truncate text-xs font-semibold leading-none text-white">
+              {displayName}
+            </p>
+            <p className="mt-1 truncate text-[10px] text-zinc-500">
+              {user?.role || "Super Admin"}
+            </p>
           </div>
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-600 bg-zinc-700 text-[10px] font-bold text-zinc-300">
+            {initials}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Log out"
+            title="Log out"
+            className="h-8 w-8 rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-red-400 lg:hidden"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </nav>
 
       <Dialog open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <DialogContent className="admin-dialog left-0 top-0 h-svh w-[min(24rem,calc(100vw-1rem))] max-w-none translate-x-0 translate-y-0 gap-0 rounded-none rounded-r-[1.8rem] border-l-0 p-0 data-[state=closed]:slide-out-to-left-[100%] data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-left-[100%] data-[state=open]:slide-in-from-top-0 sm:rounded-r-[1.8rem]">
-          <DialogHeader className="border-b border-white/8 px-5 py-5 pr-12 text-left">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-3">
-                <p className="admin-kicker">Admin Portal</p>
-                <div className="admin-panel-muted inline-flex max-w-full items-center gap-3 rounded-2xl px-3 py-2">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[hsl(var(--admin-highlight)/0.24)] bg-[hsl(var(--admin-highlight)/0.12)] text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                    {initials}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                      {displayName}
-                    </p>
-                    <p className="truncate text-xs text-[hsl(var(--admin-muted))]">
-                      {supportingLabel}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="admin-panel-muted flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[hsl(var(--admin-highlight))]">
-                <ShieldCheck className="h-4 w-4" />
-              </div>
-            </div>
-            <DialogTitle className="text-xl tracking-[-0.03em] text-[hsl(var(--admin-foreground))]">
-              Navigation
+        <DialogContent className="admin-dialog left-0 top-0 h-svh w-[min(20rem,calc(100vw-1rem))] max-w-none translate-x-0 translate-y-0 gap-0 rounded-none rounded-r-xl border-l-0 p-0 data-[state=closed]:slide-out-to-left-[100%] data-[state=closed]:slide-out-to-top-0 data-[state=open]:slide-in-from-left-[100%] data-[state=open]:slide-in-from-top-0 sm:rounded-r-xl">
+          <DialogHeader className="border-b border-zinc-800 px-5 py-4 pr-12 text-left">
+            <p className="text-[9px] uppercase tracking-[0.18em] text-zinc-600">
+              Admin Portal
+            </p>
+            <DialogTitle className="text-sm font-black tracking-[0.15em] text-white">
+              MILKYWAYY
             </DialogTitle>
-            <DialogDescription className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              Current Super Admin routes grouped for quick access.
+            <DialogDescription className="sr-only">
+              Admin navigation
             </DialogDescription>
           </DialogHeader>
-          <div className="overflow-y-auto px-5 py-5">
+          <div className="overflow-y-auto py-2">
             <AdminSidebarNav
               mobile
               onNavigate={() => setMobileNavOpen(false)}

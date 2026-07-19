@@ -15,11 +15,6 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AdminBadge,
-  AdminCard,
-  AdminCardContent,
-  AdminCardDescription,
-  AdminCardHeader,
-  AdminCardTitle,
   AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
@@ -382,8 +377,6 @@ export default function ReviewList({ initialItems }) {
     () => buildReviewGroups(items),
     [items],
   );
-  const visibleItems = items.filter((item) => item.isVisible).length;
-  const hiddenItems = items.length - visibleItems;
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -535,50 +528,9 @@ export default function ReviewList({ initialItems }) {
     pendingActionKey === `visibility:${item.id}`;
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Total reviews</AdminCardDescription>
-            <AdminCardTitle>{items.length}</AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              The live landing page still uses the current review dataset and
-              visibility controls.
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Visible on site</AdminCardDescription>
-            <AdminCardTitle>{visibleItems}</AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {hiddenItems} review{hiddenItems === 1 ? "" : "s"} currently stay
-              hidden from the public landing page.
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Ordering groups</AdminCardDescription>
-            <AdminCardTitle>{featuredItems.length} featured</AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {standardItems.length} standard review
-              {standardItems.length === 1 ? "" : "s"} follow after the featured
-              set.
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-      </div>
-
+    <div className="space-y-5">
       <AdminTablePanel
-        title="Review operations"
-        description="Create, edit, hide, feature, and reorder testimonials without changing the current review schema or public rendering logic."
+        title={`${items.length} reviews`}
         actions={
           <Dialog
             open={isModalOpen}

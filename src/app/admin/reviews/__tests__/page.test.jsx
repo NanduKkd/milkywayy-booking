@@ -101,8 +101,9 @@ describe("Reviews Management Page", () => {
     const page = await ReviewsManagement();
     render(page);
 
-    expect(screen.getByText("Total reviews")).toBeInTheDocument();
-    expect(screen.getAllByText("0")).toHaveLength(2);
+    expect(
+      screen.getByRole("heading", { name: "0 reviews" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("No featured reviews found")).toBeInTheDocument();
     expect(screen.getByText("No standard reviews found")).toBeInTheDocument();
     expect(

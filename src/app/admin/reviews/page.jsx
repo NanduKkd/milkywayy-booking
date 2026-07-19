@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import {
-  AdminBadge,
   AdminInlineMessage,
   AdminPage,
   AdminPageHeader,
@@ -54,15 +53,8 @@ export default async function ReviewsManagement() {
   const { items, error } = await getReviews();
 
   return (
-    <AdminPage className="px-4 py-6 sm:px-6 lg:px-8">
-      <AdminPageHeader
-        eyebrow="Content"
-        title="Reviews"
-        description="Manage the live testimonial set shown on the landing page. Featured reviews stay ahead of standard reviews, and drag ordering now persists within each group without changing the current CRUD or visibility workflow."
-        actions={
-          <AdminBadge tone="info">Grouped ordering stays live</AdminBadge>
-        }
-      />
+    <AdminPage>
+      <AdminPageHeader eyebrow="Content" title="Reviews" />
 
       {error ? (
         <div className="space-y-4">

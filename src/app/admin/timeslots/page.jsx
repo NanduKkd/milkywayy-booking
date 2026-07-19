@@ -4,7 +4,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Clock3,
   RefreshCcw,
   Save,
 } from "lucide-react";
@@ -132,7 +131,7 @@ const ADMIN_PRIMARY_BUTTON_CLASS =
 const ADMIN_OUTLINE_BUTTON_CLASS =
   "rounded-full border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]";
 const INPUT_CLASS =
-  "admin-input h-11 rounded-2xl border-[hsl(var(--admin-border)/0.9)]";
+  "admin-input h-9 rounded-lg border-[hsl(var(--admin-border)/0.9)]";
 const TABLE_HEAD_CLASS =
   "border-white/8 bg-white/[0.03] text-xs font-medium uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]";
 const TABLE_CELL_CLASS = "border-white/8 text-[hsl(var(--admin-foreground))]";
@@ -141,31 +140,6 @@ function getStateTone(state) {
   if (state === "available") return "success";
   if (state === "booked") return "danger";
   return "neutral";
-}
-
-function countActiveServices(config) {
-  return Object.values(
-    config?.systemSettings?.weightModel?.serviceWeights || {},
-  ).filter((service) => Boolean(service?.active)).length;
-}
-
-function countBlockedDates(config) {
-  return Object.values(config?.dateOverrides || {}).filter((override) => {
-    if (override?.fullDayBlocked) {
-      return true;
-    }
-
-    return Object.values(override?.blocks || {}).some(
-      (value) => value === "blocked",
-    );
-  }).length;
-}
-
-function countBookedPeriods(bookedMap) {
-  return Object.values(bookedMap || {}).reduce(
-    (total, periods) => total + periods.length,
-    0,
-  );
 }
 
 export default function TimeSlotsManager() {
@@ -357,10 +331,6 @@ export default function TimeSlotsManager() {
     });
   };
 
-  const blockFullDay = () => {
-    updateSelectedDay((existing) => ({ ...existing, fullDayBlocked: true }));
-  };
-
   const unblockDay = () => {
     updateSelectedDay(() => ({ fullDayBlocked: false, blocks: {} }));
   };
@@ -379,13 +349,6 @@ export default function TimeSlotsManager() {
   const selectedDateBookingDetails = selectedDateKey
     ? bookedDetailsMap?.[selectedDateKey] || {}
     : {};
-
-  const workingDaysCount = DAYS_OF_WEEK.filter(
-    (day) => config?.systemSettings?.workingDays?.[day],
-  ).length;
-  const activeServicesCount = countActiveServices(config);
-  const blockedDatesCount = countBlockedDates(config);
-  const bookedPeriodsCount = countBookedPeriods(bookedMap);
 
   if (!config) {
     return (
@@ -445,13 +408,7 @@ export default function TimeSlotsManager() {
             {saving ? "Saving..." : "Save Changes"}
           </Button>
         }
-      >
-        <div className="flex flex-wrap gap-2">
-          <AdminBadge tone="success">Available</AdminBadge>
-          <AdminBadge tone="danger">Booked</AdminBadge>
-          <AdminBadge tone="neutral">Blocked</AdminBadge>
-        </div>
-      </AdminPageHeader>
+      />
 
       {loadError ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -468,54 +425,7 @@ export default function TimeSlotsManager() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Rolling window</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {config.systemSettings?.rollingWindowDays || 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            Days currently open for booking validation.
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Working days</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {workingDaysCount}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            Active weekdays available to schedule against.
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Active services</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {activeServicesCount}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            Weighted service types participating in slot capacity.
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Booked periods in view</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {bookedPeriodsCount}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            {blockedDatesCount} dates currently carry manual blocks or closures.
-          </AdminCardContent>
-        </AdminCard>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2">
         <AdminCard>
           <AdminCardHeader>
             <AdminCardTitle>System settings</AdminCardTitle>
@@ -571,7 +481,7 @@ export default function TimeSlotsManager() {
                 {DAYS_OF_WEEK.map((day) => (
                   <div
                     key={day}
-                    className="admin-panel-muted flex items-center justify-between rounded-[1.1rem] border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
+                    className="admin-panel-muted flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
                   >
                     <div>
                       <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
@@ -617,7 +527,7 @@ export default function TimeSlotsManager() {
             {PERIODS.map((period) => (
               <div
                 key={period}
-                className="admin-panel-muted rounded-[1.3rem] border border-[hsl(var(--admin-border)/0.72)] p-4"
+                className="admin-panel-muted rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4"
               >
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
@@ -889,8 +799,7 @@ export default function TimeSlotsManager() {
                 Calendar
               </AdminCardTitle>
               <AdminCardDescription>
-                Click a day to review bookings, then block the full day or
-                selected periods without altering the existing conflict rules.
+                Review bookings and manage named slot blocks.
               </AdminCardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -952,7 +861,7 @@ export default function TimeSlotsManager() {
           ) : null}
         </AdminCardHeader>
         <AdminCardContent>
-          <div className="admin-panel-muted overflow-hidden rounded-[1.5rem] border border-[hsl(var(--admin-border)/0.72)]">
+          <div className="admin-panel-muted overflow-hidden rounded-xl border border-[hsl(var(--admin-border)/0.72)]">
             <div className="grid grid-cols-7">
               {DAY_HEADERS.map((header) => (
                 <div
@@ -1061,7 +970,7 @@ export default function TimeSlotsManager() {
               return (
                 <div
                   key={period}
-                  className="admin-panel-muted rounded-[1.35rem] border border-[hsl(var(--admin-border)/0.72)] p-4"
+                  className="admin-panel-muted rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4"
                 >
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div className="space-y-2">
@@ -1098,7 +1007,7 @@ export default function TimeSlotsManager() {
                       {periodBookingDetails.map((detail, index) => (
                         <div
                           key={`${period}_${detail.bookingCode}_${index}`}
-                          className="rounded-[1.05rem] border border-white/8 bg-black/10 px-3 py-3 text-sm text-[hsl(var(--admin-muted))]"
+                          className="rounded-xl border border-white/8 bg-black/10 px-3 py-3 text-sm text-[hsl(var(--admin-muted))]"
                         >
                           <p>Booking: {detail.bookingCode}</p>
                           <p>Property: {detail.propertyLabel}</p>
@@ -1121,30 +1030,15 @@ export default function TimeSlotsManager() {
 
           <Separator className="admin-divider" />
 
-          <div
-            className={cn(
-              "grid gap-3",
-              selectedDayHasManualBlocks && "sm:grid-cols-2",
-            )}
-          >
+          {selectedDayHasManualBlocks ? (
             <Button
               variant="outline"
               className={ADMIN_OUTLINE_BUTTON_CLASS}
-              onClick={blockFullDay}
+              onClick={unblockDay}
             >
-              <Clock3 className="mr-2 h-4 w-4" />
-              Block Full Day
+              Clear blocks
             </Button>
-            {selectedDayHasManualBlocks ? (
-              <Button
-                variant="outline"
-                className={ADMIN_OUTLINE_BUTTON_CLASS}
-                onClick={unblockDay}
-              >
-                Unblock Day
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
         </AdminDialogContent>
       </Dialog>
     </AdminPage>

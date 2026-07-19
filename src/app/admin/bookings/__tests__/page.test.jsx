@@ -55,7 +55,9 @@ describe("Admin Bookings Page", () => {
   it("renders bookings and opens details", async () => {
     render(<BookingsPage />);
     fireEvent.click(await screen.findByText("101, Tower A, Marina"));
-    expect(screen.getByText(/booking details #1/i)).toBeInTheDocument();
+    expect(screen.getByText(/booking #1/i)).toBeInTheDocument();
+    expect(screen.queryByText(/contact details/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/total queue/i)).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Deliverables" }),
     ).toBeInTheDocument();

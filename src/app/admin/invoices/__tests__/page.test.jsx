@@ -53,7 +53,7 @@ describe("Admin Invoices Page", () => {
     expect(screen.getByText(/loading invoices/i)).toBeInTheDocument();
     expect(await screen.findByText("MW-2026-0703-001")).toBeInTheDocument();
     expect(screen.getByText("INV-000056")).toBeInTheDocument();
-    expect(screen.getAllByText("AED 1,050")).toHaveLength(2);
+    expect(screen.getAllByText("AED 1,050")).toHaveLength(1);
 
     const downloadLink = screen.getByRole("link", {
       name: /download invoice mw-2026-0703-001/i,
@@ -69,7 +69,7 @@ describe("Admin Invoices Page", () => {
 
     expect(screen.getByText("MW-2026-0703-001")).toBeInTheDocument();
     expect(screen.queryByText("INV-000056")).not.toBeInTheDocument();
-    expect(screen.getAllByText("AED 750")).toHaveLength(3);
+    expect(screen.getAllByText("AED 750")).toHaveLength(2);
     expect(screen.getByText("Showing 1 of 2 invoices")).toBeInTheDocument();
     expect(screen.getByText("1 paid · 0 pending")).toBeInTheDocument();
   });

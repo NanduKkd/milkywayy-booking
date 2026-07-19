@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import {
-  AdminBadge,
   AdminInlineMessage,
   AdminPage,
   AdminPageHeader,
@@ -56,15 +55,8 @@ export default async function PortfolioManagement() {
   const { items, error } = await getPortfolioItems();
 
   return (
-    <AdminPage className="px-4 py-6 sm:px-6 lg:px-8">
-      <AdminPageHeader
-        eyebrow="Content"
-        title="Portfolio"
-        description="Manage the live Our Works library shown across the landing page and portfolio surfaces. Filters, visibility changes, uploads, and drag ordering all stay on the current production data."
-        actions={
-          <AdminBadge tone="info">Global ordering stays live</AdminBadge>
-        }
-      />
+    <AdminPage>
+      <AdminPageHeader eyebrow="Content" title="Portfolio" />
 
       {error ? (
         <AdminInlineMessage

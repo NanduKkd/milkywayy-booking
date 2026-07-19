@@ -669,18 +669,6 @@ export default function PromotionManager({
     ).length;
     return accumulator;
   }, {});
-  const activePromotionsCount = promotions.filter(
-    (promotion) => promotion.status === "ACTIVE",
-  ).length;
-  const assignedCustomersCount = promotions.reduce(
-    (count, promotion) => count + (promotion.assignments?.length || 0),
-    0,
-  );
-  const dateRangeRuleCount = promotions.filter(
-    (promotion) =>
-      promotion.kind === "AUTOMATIC" && promotion.triggerType === "DATE_RANGE",
-  ).length;
-
   const upsertPromotion = (nextPromotion) => {
     setPromotions((currentPromotions) =>
       sortPromotions([
@@ -840,52 +828,7 @@ export default function PromotionManager({
             Create {activeTabConfig.shortLabel}
           </Button>
         }
-      >
-        <div className="flex flex-wrap gap-2">
-          <AdminBadge tone="success">Unified mutations live</AdminBadge>
-          <AdminBadge tone="info">Legacy redirects preserved</AdminBadge>
-        </div>
-      </AdminPageHeader>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>
-              Generic / personal / automatic
-            </AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {countsByKind.GENERIC || 0} / {countsByKind.PERSONAL || 0} /{" "}
-              {countsByKind.AUTOMATIC || 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            The three current tabs stay consolidated under one live route.
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Promotions active now</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {activePromotionsCount}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            Draft, paused, and deactivated states still transition explicitly.
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Customer assignments</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {assignedCustomersCount}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            {dateRangeRuleCount} automatic date-range rules are currently
-            configured.
-          </AdminCardContent>
-        </AdminCard>
-      </section>
+      />
 
       {errorMessage ? (
         <AdminInlineMessage

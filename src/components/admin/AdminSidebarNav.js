@@ -15,15 +15,16 @@ export default function AdminSidebarNav({ mobile = false, onNavigate }) {
   return (
     <nav
       aria-label="Admin navigation"
-      className={cn("space-y-5", mobile ? "space-y-6" : "space-y-5")}
+      className={cn(mobile ? "space-y-4" : "space-y-1")}
     >
-      {ADMIN_NAV_GROUPS.map((group) => (
-        <section key={group.id} className="space-y-2.5">
-          <p className="admin-kicker px-1">{group.label}</p>
+      {ADMIN_NAV_GROUPS.map((group, groupIndex) => (
+        <section key={group.id} className={cn(groupIndex > 0 && "mt-1")}>
+          <p className="px-4 pb-1 pt-3 text-[9px] font-semibold uppercase tracking-[0.16em] text-zinc-600">
+            {group.label}
+          </p>
           <div
             className={cn(
-              "space-y-1.5",
-              mobile && "admin-panel-subtle rounded-[1.6rem] px-2.5 py-2.5",
+              mobile && "rounded-xl border border-zinc-800 bg-zinc-900 py-1",
             )}
           >
             {group.items.map((item) => {
@@ -37,15 +38,13 @@ export default function AdminSidebarNav({ mobile = false, onNavigate }) {
                   aria-current={active ? "page" : undefined}
                   onClick={onNavigate}
                   className={cn(
-                    "flex items-center gap-3 rounded-2xl border px-3.5 py-3 text-sm font-medium transition-all",
+                    "relative flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors",
                     active
-                      ? "border-[hsl(var(--admin-highlight)/0.36)] bg-[hsl(var(--admin-highlight)/0.12)] text-[hsl(var(--admin-foreground))] shadow-[inset_0_1px_0_hsl(0_0%_100%/0.05)]"
-                      : "border-transparent text-[hsl(var(--admin-muted))] hover:border-[hsl(var(--admin-border-strong)/0.92)] hover:bg-[hsl(var(--admin-surface-soft)/0.34)] hover:text-[hsl(var(--admin-foreground))]",
+                      ? "bg-zinc-800 font-semibold text-white before:absolute before:left-0 before:top-1/2 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-r-full before:bg-emerald-400"
+                      : "text-zinc-500 hover:bg-zinc-800/40 hover:text-zinc-300",
                   )}
                 >
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/6 bg-white/[0.03]">
-                    <Icon size={16} />
-                  </span>
+                  <Icon size={14} />
                   <span>{item.label}</span>
                 </Link>
               );

@@ -402,7 +402,9 @@ describe("FinancialReportsPage", () => {
       screen.getByLabelText("Loading expense tracker"),
     ).toBeInTheDocument();
 
-    expect(await screen.findByText("Dashboard Analytics")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("region", { name: "Dashboard analytics" }),
+    ).toBeInTheDocument();
     expect(await screen.findByText("Weekly Net Revenue")).toBeInTheDocument();
     expect(await screen.findByText("Expense Tracker")).toBeInTheDocument();
     expect(screen.getByText("Gross Payments")).toBeInTheDocument();
@@ -468,7 +470,6 @@ describe("FinancialReportsPage", () => {
     });
 
     expect(screen.getByLabelText("Report month")).toHaveValue("2026-03");
-    expect(screen.getAllByText("Mar 1, 2026 to Mar 31, 2026").length).toBe(2);
     expect(
       screen.getByText(/Logged expenses for March 2026/),
     ).toBeInTheDocument();
@@ -534,7 +535,9 @@ describe("FinancialReportsPage", () => {
 
     render(<FinancialReportsPage mode="dashboard" />);
 
-    expect(await screen.findByText("Admin Dashboard")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Dashboard" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open Reports" })).toHaveAttribute(
       "href",
       "/admin/analytics",

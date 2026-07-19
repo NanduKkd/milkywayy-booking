@@ -1,17 +1,9 @@
 "use client";
 
-import {
-  BarChart3,
-  CalendarDays,
-  Download,
-  Eye,
-  RefreshCcw,
-  TrendingUp,
-} from "lucide-react";
+import { BarChart3, Download, Eye, RefreshCcw, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
-  AdminBadge,
   AdminCard,
   AdminCardContent,
   AdminCardDescription,
@@ -371,28 +363,27 @@ function DashboardKpiCard({
   value,
 }) {
   return (
-    <AdminCard>
-      <AdminCardHeader className="pb-3">
-        <AdminCardDescription>{label}</AdminCardDescription>
-        <AdminCardTitle className="text-2xl">
-          {isCount ? formatCount(value) : formatCurrency(value)}
-        </AdminCardTitle>
-      </AdminCardHeader>
-      <AdminCardContent className="space-y-3">
-        <p className="text-xs text-[hsl(var(--admin-muted))]">
-          {formatDelta(comparison, isCount ? formatCount : formatCurrency)}
-        </p>
-        <Button
-          aria-label={`View ${label.toLowerCase()} details`}
-          className="rounded-xl"
-          onClick={onViewDetails}
-          type="button"
-          variant="outline"
-        >
-          <Eye className="h-4 w-4" />
-          View details
-        </Button>
-      </AdminCardContent>
+    <AdminCard className="overflow-hidden transition-colors hover:border-zinc-600">
+      <button
+        aria-label={`View ${label.toLowerCase()} details`}
+        className="w-full text-left outline-none transition-colors hover:bg-zinc-800/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
+        onClick={onViewDetails}
+        type="button"
+      >
+        <AdminCardHeader className="pb-3">
+          <AdminCardDescription className="text-[10px] font-semibold uppercase tracking-widest">
+            {label}
+          </AdminCardDescription>
+          <AdminCardTitle className="text-2xl">
+            {isCount ? formatCount(value) : formatCurrency(value)}
+          </AdminCardTitle>
+        </AdminCardHeader>
+        <AdminCardContent>
+          <p className="border-t border-zinc-800 pt-3 text-xs text-[hsl(var(--admin-muted))]">
+            {formatDelta(comparison, isCount ? formatCount : formatCurrency)}
+          </p>
+        </AdminCardContent>
+      </button>
     </AdminCard>
   );
 }
@@ -404,13 +395,13 @@ function LoadingState({ label }) {
         {["kpi-1", "kpi-2", "kpi-3", "kpi-4"].map((key) => (
           <div
             key={key}
-            className="h-32 rounded-2xl border border-white/10 bg-white/[0.04]"
+            className="h-32 rounded-lg border border-white/10 bg-white/[0.04]"
           />
         ))}
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <div className="h-80 rounded-2xl border border-white/10 bg-white/[0.04]" />
-        <div className="h-80 rounded-2xl border border-white/10 bg-white/[0.04]" />
+        <div className="h-80 rounded-lg border border-white/10 bg-white/[0.04]" />
+        <div className="h-80 rounded-lg border border-white/10 bg-white/[0.04]" />
       </div>
     </section>
   );
@@ -778,7 +769,7 @@ function DashboardDrilldownDialog({
         description={`Live drill-down rows for ${rangeLabel} in ${REPORT_TIMEZONE}.`}
         title={title}
       >
-        <div className="admin-panel-subtle rounded-[1.5rem] border border-[hsl(var(--admin-border)/0.76)] p-4">
+        <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.76)] p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
@@ -1068,8 +1059,6 @@ export default function FinancialReportsPage({ mode = "full" }) {
     rangeStart,
   ]);
 
-  const dashboardEmpty =
-    !dashboardLoading && !dashboardError && !hasDashboardActivity(dashboard);
   const reportEmpty = !loading && !error && !hasReportActivity(report);
   const csvExportHref = buildExportHref({
     format: "csv",
@@ -1130,7 +1119,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
               Report month
               <Input
                 aria-label="Report month"
-                className="admin-input h-11 w-full min-w-48 rounded-2xl sm:w-52"
+                className="admin-input h-9 w-full min-w-48 rounded-lg sm:w-52"
                 id="financial-report-month"
                 onChange={selectReportMonth}
                 style={{ colorScheme: "dark" }}
@@ -1139,7 +1128,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
               />
             </label>
             {dashboardOnly ? (
-              <Button asChild className="rounded-xl" variant="outline">
+              <Button asChild className="h-9 rounded-lg" variant="outline">
                 <Link href="/admin/analytics">
                   <BarChart3 className="h-4 w-4" />
                   Open Reports
@@ -1147,19 +1136,19 @@ export default function FinancialReportsPage({ mode = "full" }) {
               </Button>
             ) : (
               <>
-                <Button asChild className="rounded-xl" variant="outline">
+                <Button asChild className="h-9 rounded-lg" variant="outline">
                   <a aria-label="Export CSV" download href={csvExportHref}>
                     <Download className="h-4 w-4" />
                     Export CSV
                   </a>
                 </Button>
-                <Button asChild className="rounded-xl" variant="outline">
+                <Button asChild className="h-9 rounded-lg" variant="outline">
                   <a aria-label="Export Excel" download href={excelExportHref}>
                     <Download className="h-4 w-4" />
                     Export Excel
                   </a>
                 </Button>
-                <Button asChild className="rounded-xl" variant="outline">
+                <Button asChild className="h-9 rounded-lg" variant="outline">
                   <a aria-label="Export PDF" download href={pdfExportHref}>
                     <Download className="h-4 w-4" />
                     Export PDF
@@ -1168,7 +1157,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
               </>
             )}
             <Button
-              className="rounded-xl"
+              className="h-9 rounded-lg"
               onClick={() => setReloadToken((value) => value + 1)}
               type="button"
               variant="outline"
@@ -1178,38 +1167,11 @@ export default function FinancialReportsPage({ mode = "full" }) {
             </Button>
           </div>
         }
-        eyebrow={dashboardOnly ? "Operations" : "Accounts"}
-        title={dashboardOnly ? "Admin Dashboard" : "Admin Analytics"}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <AdminBadge tone="success">Live finance data</AdminBadge>
-          <AdminBadge>{REPORT_TIMEZONE}</AdminBadge>
-          <div className="admin-panel-subtle inline-flex items-center gap-2 rounded-full border border-[hsl(var(--admin-border)/0.75)] px-3 py-1.5 text-xs text-[hsl(var(--admin-muted))]">
-            <CalendarDays className="h-3.5 w-3.5 text-[hsl(var(--admin-accent))]" />
-            <span>{formatDateRange(rangeStart, rangeEnd)}</span>
-          </div>
-        </div>
-      </AdminPageHeader>
+        eyebrow={dashboardOnly ? null : "Finance"}
+        title={dashboardOnly ? "Dashboard" : "Financial Reports"}
+      />
 
-      <section
-        aria-labelledby="dashboard-analytics-heading"
-        className="space-y-6"
-      >
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Dashboard
-            </p>
-            <h2
-              className="text-2xl font-semibold tracking-tight"
-              id="dashboard-analytics-heading"
-            >
-              Dashboard Analytics
-            </h2>
-          </div>
-          <AdminBadge>{formatDateRange(rangeStart, rangeEnd)}</AdminBadge>
-        </div>
-
+      <section aria-label="Dashboard analytics" className="space-y-4">
         {dashboardLoading ? (
           <LoadingState label="Loading dashboard analytics" />
         ) : null}
@@ -1229,10 +1191,6 @@ export default function FinancialReportsPage({ mode = "full" }) {
               Retry
             </Button>
           </div>
-        ) : null}
-
-        {!dashboardLoading && !dashboardError && dashboardEmpty ? (
-          <AdminEmptyState title="No dashboard activity in this range" />
         ) : null}
 
         {!dashboardLoading && !dashboardError && dashboard ? (
@@ -1607,7 +1565,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
                           {formatCurrency(report.profitAndLoss?.netProfit)}
                         </span>
                       </div>
-                      <div className="rounded-2xl border border-[hsl(var(--admin-success)/0.24)] bg-[hsl(var(--admin-success)/0.12)] p-4">
+                      <div className="rounded-lg border border-[hsl(var(--admin-success)/0.24)] bg-[hsl(var(--admin-success)/0.12)] p-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-success)/0.82)]">
                           Margin
                         </p>

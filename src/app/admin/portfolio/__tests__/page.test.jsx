@@ -90,8 +90,8 @@ describe("Portfolio Management Page", () => {
     });
     expect(screen.getByText("Portfolio API unavailable")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("heading", { name: "Unavailable" }),
-    ).toHaveLength(3);
+      screen.getByRole("heading", { name: "Portfolio unavailable" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/portfolio entries are unavailable/i),
     ).toBeInTheDocument();

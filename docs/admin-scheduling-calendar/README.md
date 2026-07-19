@@ -1,9 +1,9 @@
 # Admin scheduling calendar delivery plan
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-20
 - Planning status at GitHub migration: `IN_PROGRESS`
 - Implementation status at GitHub migration: `IN_PROGRESS`
-- Current rollout issue: [#12](https://github.com/NanduKkd/milkywayy-booking/issues/12)
+- Current UI acceptance issue: [#26](https://github.com/NanduKkd/milkywayy-booking/issues/26)
 - Target: provide one booking-centric admin calendar backed by the existing availability rules.
 
 ## Purpose
@@ -34,10 +34,10 @@ creating a second scheduling, registration, pricing, or checkout authority.
 
 ## Initial scope
 
-- Monthly calendar showing bookings and calendar-only events with status markers.
+- Compact monthly calendar showing bookings and calendar-only events with fixed-height cells, at most two status markers, and a `+N` overflow count.
 - Selected-day schedule and upcoming-shoot table.
-- Full-day and exact time-range blocking in 30-minute increments, integrated
-  with Time Slots availability.
+- Named Morning, Afternoon, and Evening slot blocking integrated with Time Slots availability.
+- Persisted legacy exact-time and full-day blocks remain identifiable and clearable, but Calendar does not offer exact-time or dedicated full-day block creation.
 - Non-blocking calendar events with a title, optional description, date, and
   full-day or 30-minute-aligned start/end selection.
 - Multi-property admin booking preparation for existing and new customers.
@@ -55,6 +55,7 @@ creating a second scheduling, registration, pricing, or checkout authority.
 - Replacing property/service weight configuration.
 - Making informational events affect customer availability; only blocks do so.
 - Recurring calendar events in the first release.
+- Clock-time or dedicated full-day availability blocking from Calendar.
 
 ## Dependencies
 
@@ -80,5 +81,6 @@ creating a second scheduling, registration, pricing, or checkout authority.
 - Existing bookings cannot be silently invalidated by new blocks or events.
 - Concurrent changes are revalidated server-side before persistence.
 - Calendar events never affect customer availability.
+- Calendar availability changes use named slots only; legacy blocks remain recoverable.
 - New and existing customers enter the correct editable handoff path and finish
   through the existing promotion-aware payment flow.

@@ -93,7 +93,7 @@ describe("ReviewList", () => {
 
     expect(screen.getByText("Featured reviews")).toBeInTheDocument();
     expect(screen.getByText("Standard reviews")).toBeInTheDocument();
-    expect(screen.getByText("2 featured")).toBeInTheDocument();
+    expect(screen.getAllByText("2 live")).toHaveLength(2);
 
     const { featuredItems, standardItems } = buildReviewGroups(initialItems);
     expect(featuredItems).toHaveLength(2);

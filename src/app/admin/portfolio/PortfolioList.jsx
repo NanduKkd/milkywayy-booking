@@ -17,11 +17,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   AdminBadge,
-  AdminCard,
-  AdminCardContent,
-  AdminCardDescription,
-  AdminCardHeader,
-  AdminCardTitle,
   AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
@@ -153,14 +148,9 @@ export default function PortfolioList({ initialItems, loadError = null }) {
   const [activeFilter, setActiveFilter] = useState(PORTFOLIO_FILTER_ALL);
   const [pendingActionKey, setPendingActionKey] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const totalItems = items.length;
 
   const filteredItems = filterPortfolioItems(items, activeFilter);
-  const totalItems = items.length;
-  const visibleItems = items.filter((item) => item.isVisible).length;
-  const hiddenItems = totalItems - visibleItems;
-  const activeFilterLabel =
-    PORTFOLIO_FILTERS.find((filter) => filter.value === activeFilter)?.label ||
-    "All Works";
 
   const onDragEnd = async (result) => {
     if (!result.destination) return;
@@ -270,58 +260,13 @@ export default function PortfolioList({ initialItems, loadError = null }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Total entries</AdminCardDescription>
-            <AdminCardTitle>
-              {loadError ? "Unavailable" : totalItems}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {loadError
-                ? "Portfolio totals could not be loaded."
-                : "Global drag order persists across all media types."}
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Visible on site</AdminCardDescription>
-            <AdminCardTitle>
-              {loadError ? "Unavailable" : visibleItems}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {loadError
-                ? "Visibility totals could not be loaded."
-                : `${hiddenItems} currently hidden from the public portfolio.`}
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Current filter</AdminCardDescription>
-            <AdminCardTitle>
-              {loadError ? "Unavailable" : filteredItems.length}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {loadError
-                ? "Filtered results could not be loaded."
-                : `Showing ${activeFilterLabel} results from the live content library.`}
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-      </div>
-
+    <div className="space-y-5">
       <AdminTablePanel
-        title="Portfolio entries"
-        description="Filter by media type, keep visibility in sync, and drag rows to update the single public display order."
+        title={
+          loadError
+            ? "Portfolio unavailable"
+            : `${filteredItems.length} entries`
+        }
         actions={
           <Dialog
             open={isModalOpen}

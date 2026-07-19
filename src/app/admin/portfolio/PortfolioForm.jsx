@@ -21,9 +21,9 @@ import {
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 
 const INPUT_CLASS =
-  "admin-input h-11 rounded-2xl border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] text-[hsl(var(--admin-foreground))]";
+  "admin-input h-9 rounded-lg border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] text-[hsl(var(--admin-foreground))]";
 const SELECT_TRIGGER_CLASS =
-  "admin-input h-11 rounded-2xl border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] text-[hsl(var(--admin-foreground))]";
+  "admin-input h-9 rounded-lg border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] text-[hsl(var(--admin-foreground))]";
 const SELECT_CONTENT_CLASS =
   "border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-surface-strong)/0.98)] text-[hsl(var(--admin-foreground))]";
 const FIELD_LABEL_CLASS =
@@ -319,7 +319,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
         </Label>
 
         {watchType === OUR_WORK_TYPES.IMAGE ? (
-          <div className="rounded-[1.4rem] border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-surface-soft)/0.3)] p-4">
+          <div className="rounded-xl border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-surface-soft)/0.3)] p-4">
             <div className="mb-4">
               <p className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
                 Image gallery
@@ -335,7 +335,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
                 watchMediaContent.map((url, index) => (
                   <li
                     key={url}
-                    className="group relative aspect-square overflow-hidden rounded-2xl border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-background-deep)/0.72)]"
+                    className="group relative aspect-square overflow-hidden rounded-lg border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-background-deep)/0.72)]"
                     draggable
                     onDragStart={() => handleDragStart(index)}
                     onDragOver={(event) => event.preventDefault()}
@@ -365,7 +365,7 @@ export default function PortfolioForm({ onSuccess, initialData }) {
                   </li>
                 ))}
 
-              <li className="aspect-square rounded-2xl border border-dashed border-[hsl(var(--admin-border-strong)/0.92)] bg-[hsl(var(--admin-background-deep)/0.48)]">
+              <li className="aspect-square rounded-lg border border-dashed border-[hsl(var(--admin-border-strong)/0.92)] bg-[hsl(var(--admin-background-deep)/0.48)]">
                 <div className="flex h-full items-center justify-center p-3">
                   <div className="w-full">
                     <Input
@@ -468,13 +468,13 @@ export default function PortfolioForm({ onSuccess, initialData }) {
             />
             <label
               htmlFor="portfolio-thumbnail-upload"
-              className="inline-flex h-11 min-w-[132px] cursor-pointer items-center justify-center rounded-full border border-[hsl(var(--admin-border)/0.88)] px-4 text-sm font-medium text-[hsl(var(--admin-foreground))] transition-colors hover:bg-white/[0.05]"
+              className="inline-flex h-9 min-w-[132px] cursor-pointer items-center justify-center rounded-full border border-[hsl(var(--admin-border)/0.88)] px-4 text-sm font-medium text-[hsl(var(--admin-foreground))] transition-colors hover:bg-white/[0.05]"
             >
               Upload thumbnail
             </label>
           </div>
           {watchThumbnail ? (
-            <div className="overflow-hidden rounded-2xl border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-background-deep)/0.72)]">
+            <div className="overflow-hidden rounded-lg border border-[hsl(var(--admin-border)/0.82)] bg-[hsl(var(--admin-background-deep)/0.72)]">
               <Image
                 src={watchThumbnail}
                 alt="Thumbnail preview"

@@ -83,21 +83,21 @@
     --sidebar-accent-foreground: 0 0% 92%;
     --sidebar-border: 0 0% 18%;
     --sidebar-ring: 0 0% 40%;
-    --admin-background: 222 22% 8%;
-    --admin-background-deep: 225 24% 6%;
-    --admin-surface: 222 18% 12%;
-    --admin-surface-strong: 221 17% 15%;
-    --admin-surface-soft: 220 16% 18%;
-    --admin-foreground: 210 24% 96%;
-    --admin-muted: 216 12% 68%;
-    --admin-border: 218 17% 24%;
-    --admin-border-strong: 215 18% 31%;
-    --admin-highlight: 194 67% 63%;
-    --admin-highlight-soft: 42 80% 70%;
-    --admin-success: 148 63% 47%;
-    --admin-warning: 40 90% 58%;
-    --admin-danger: 0 72% 58%;
-    --admin-info: 201 90% 60%;
+    --admin-background: 240 10% 4%;
+    --admin-background-deep: 240 10% 4%;
+    --admin-surface: 240 6% 10%;
+    --admin-surface-strong: 240 6% 10%;
+    --admin-surface-soft: 240 5% 16%;
+    --admin-foreground: 0 0% 98%;
+    --admin-muted: 240 5% 46%;
+    --admin-border: 240 5% 16%;
+    --admin-border-strong: 240 4% 24%;
+    --admin-highlight: 158 64% 52%;
+    --admin-highlight-soft: 0 0% 98%;
+    --admin-success: 158 64% 52%;
+    --admin-warning: 38 92% 50%;
+    --admin-danger: 0 72% 51%;
+    --admin-info: 217 91% 60%;
     --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
   }
 
@@ -110,67 +110,46 @@
   .admin-shell {
     min-height: 100vh;
     color: hsl(var(--admin-foreground));
-    background:
-      radial-gradient(
-        circle at top,
-        hsl(var(--admin-highlight) / 0.13),
-        transparent 27%
-      ),
-      radial-gradient(
-        circle at 18% 22%,
-        hsl(var(--admin-highlight-soft) / 0.07),
-        transparent 20%
-      ),
-      linear-gradient(
-        180deg,
-        hsl(var(--admin-background)) 0%,
-        hsl(var(--admin-background-deep)) 100%
-      );
+    background: hsl(var(--admin-background));
   }
 
   .admin-panel {
-    border: 1px solid hsl(var(--admin-border) / 0.9);
-    background: linear-gradient(
-      180deg,
-      hsl(var(--admin-surface-strong) / 0.92) 0%,
-      hsl(var(--admin-surface) / 0.88) 100%
-    );
-    box-shadow:
-      0 24px 70px hsl(220 45% 3% / 0.28),
-      inset 0 1px 0 hsl(0 0% 100% / 0.04);
+    border: 1px solid hsl(var(--admin-border));
+    background: hsl(var(--admin-surface));
+    box-shadow: none;
   }
 
   .admin-panel-subtle {
-    border: 1px solid hsl(var(--admin-border) / 0.72);
-    background: hsl(var(--admin-surface) / 0.68);
-    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.03);
+    border: 1px solid hsl(var(--admin-border));
+    background: hsl(var(--admin-surface));
+    box-shadow: none;
   }
 
   .admin-panel-muted {
-    border: 1px solid hsl(var(--admin-border) / 0.55);
-    background: hsl(var(--admin-surface-soft) / 0.42);
+    border: 1px solid hsl(var(--admin-border));
+    background: hsl(var(--admin-surface-soft));
   }
 
   .admin-kicker {
     color: hsl(var(--admin-muted));
-    font-size: 0.7rem;
+    font-size: 0.625rem;
     font-weight: 600;
-    letter-spacing: 0.22em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
   }
 
   .admin-title {
     color: hsl(var(--admin-foreground));
-    font-size: clamp(1.85rem, 2vw + 1rem, 2.85rem);
-    font-weight: 600;
-    letter-spacing: -0.035em;
-    line-height: 1.05;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.3;
   }
 
   .admin-copy {
     color: hsl(var(--admin-muted));
-    font-size: 0.95rem;
-    line-height: 1.6;
+    font-size: 0.75rem;
+    line-height: 1.4;
   }
 
   .admin-divider {
@@ -200,46 +179,45 @@
   .admin-filter-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.65rem;
+    gap: 0.5rem;
   }
 
   .admin-filter-chip {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    border-radius: 9999px;
-    border: 1px solid hsl(var(--admin-border) / 0.9);
-    background: hsl(var(--admin-surface-soft) / 0.4);
+    border-radius: 0.5rem;
+    border: 1px solid hsl(var(--admin-border));
+    background: hsl(var(--admin-surface));
     color: hsl(var(--admin-muted));
-    font-size: 0.86rem;
-    font-weight: 500;
+    font-size: 0.75rem;
+    font-weight: 600;
     line-height: 1;
-    padding: 0.7rem 1rem;
+    padding: 0.4rem 0.875rem;
     transition:
       background-color 180ms ease,
       border-color 180ms ease,
       color 180ms ease,
-      transform 180ms ease;
+      color 180ms ease;
   }
 
   .admin-filter-chip:hover {
     border-color: hsl(var(--admin-border-strong) / 0.95);
     color: hsl(var(--admin-foreground));
-    transform: translateY(-1px);
   }
 
   .admin-filter-chip[data-active="true"] {
-    border-color: hsl(var(--admin-highlight) / 0.6);
-    background: hsl(var(--admin-highlight) / 0.12);
-    color: hsl(var(--admin-foreground));
-    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.04);
+    border-color: hsl(var(--admin-foreground));
+    background: hsl(var(--admin-foreground));
+    color: hsl(var(--admin-background));
+    box-shadow: none;
   }
 
   .admin-input {
     border-color: hsl(var(--admin-border) / 0.92);
     background: hsl(var(--admin-background-deep) / 0.66);
     color: hsl(var(--admin-foreground));
-    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.03);
+    box-shadow: none;
   }
 
   .admin-input::placeholder {
@@ -248,16 +226,10 @@
 
   .admin-table-shell {
     overflow: hidden;
-    border: 1px solid hsl(var(--admin-border) / 0.88);
-    border-radius: 1.5rem;
-    background: linear-gradient(
-      180deg,
-      hsl(var(--admin-surface-strong) / 0.84) 0%,
-      hsl(var(--admin-surface) / 0.8) 100%
-    );
-    box-shadow:
-      0 18px 48px hsl(220 45% 3% / 0.2),
-      inset 0 1px 0 hsl(0 0% 100% / 0.03);
+    border: 1px solid hsl(var(--admin-border));
+    border-radius: 0.75rem;
+    background: hsl(var(--admin-surface));
+    box-shadow: none;
   }
 
   .admin-table-scroll {
@@ -270,33 +242,41 @@
     gap: 0.75rem;
     justify-items: center;
     text-align: center;
-    padding: 2.75rem 1.5rem;
+    padding: 2rem 1rem;
   }
 
   .admin-empty-state-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 3rem;
-    height: 3rem;
-    border-radius: 1rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.75rem;
     border: 1px solid hsl(var(--admin-border) / 0.8);
     background: hsl(var(--admin-surface-soft) / 0.46);
     color: hsl(var(--admin-muted));
   }
 
   .admin-dialog {
-    border: 1px solid hsl(var(--admin-border-strong) / 0.92);
-    border-radius: 1.5rem;
-    background: linear-gradient(
-      180deg,
-      hsl(var(--admin-surface-strong) / 0.98) 0%,
-      hsl(var(--admin-surface) / 0.96) 100%
-    );
+    border: 1px solid hsl(var(--admin-border-strong));
+    border-radius: 1rem;
+    background: hsl(var(--admin-background));
     color: hsl(var(--admin-foreground));
-    box-shadow:
-      0 40px 90px hsl(220 45% 2% / 0.45),
-      inset 0 1px 0 hsl(0 0% 100% / 0.04);
+    box-shadow: 0 32px 80px hsl(240 10% 1% / 0.55);
+  }
+
+  .admin-shell table th {
+    height: 2.5rem;
+    color: hsl(var(--admin-muted));
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .admin-shell table td {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
   }
 }
 

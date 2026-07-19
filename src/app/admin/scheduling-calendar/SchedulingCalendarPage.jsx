@@ -11,7 +11,6 @@ import {
   Plus,
   RefreshCcw,
   RotateCcw,
-  ShieldAlert,
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +19,6 @@ import {
   AdminBadge,
   AdminCard,
   AdminCardContent,
-  AdminCardDescription,
   AdminCardHeader,
   AdminCardTitle,
   AdminEmptyState,
@@ -60,7 +58,6 @@ import {
   VIDEOGRAPHY_SUB_CATEGORIES,
   VIDEOGRAPHY_SUB_SERVICES,
 } from "@/lib/config/pricing";
-import { BUSINESS_DAY_TIME_OPTIONS } from "@/lib/services/schedulingAvailability";
 import { cn } from "@/lib/utils";
 
 const DUBAI_TIMEZONE = "Asia/Dubai";
@@ -94,9 +91,9 @@ const BOOKING_PROPERTY_TYPES = PROPERTY_TYPE_ORDER.filter(
 const BOOKING_SERVICE_OPTIONS = SERVICE_ORDER.filter(Boolean);
 const ADMIN_OUTLINE_BUTTON_CLASS =
   "border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]";
-const CALENDAR_PANEL_CLASS = "admin-panel rounded-[1.9rem]";
+const CALENDAR_PANEL_CLASS = "admin-panel rounded-xl";
 const CALENDAR_SUBPANEL_CLASS =
-  "admin-panel-subtle rounded-[1.45rem] border border-[hsl(var(--admin-border)/0.76)] p-4";
+  "admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.76)] p-4";
 
 function getDatePartsInTimeZone(date, timeZone) {
   return new Intl.DateTimeFormat("en-CA", {
@@ -214,16 +211,6 @@ function formatBlockedPeriods(blockedPeriods) {
     .join(", ");
 }
 
-function formatBlockedTimeRanges(blockedTimeRanges) {
-  if (!Array.isArray(blockedTimeRanges) || blockedTimeRanges.length === 0) {
-    return "No exact blocks";
-  }
-
-  return blockedTimeRanges
-    .map((timeRange) => `${timeRange.startTime} - ${timeRange.endTime}`)
-    .join(", ");
-}
-
 function formatConflictPeriods(periods) {
   if (!Array.isArray(periods) || periods.length === 0) {
     return "All periods";
@@ -261,11 +248,7 @@ function buildDayAriaLabel(day, counts, _eventsForDay) {
     );
   }
   if (blockedTimeRanges.length > 0) {
-    parts.push(
-      `exact blocks: ${blockedTimeRanges
-        .map((timeRange) => `${timeRange.startTime}-${timeRange.endTime}`)
-        .join(", ")}`,
-    );
+    parts.push("legacy exact block active");
   }
   if (counts.bookings > 0) {
     parts.push(`${counts.bookings} booking${counts.bookings === 1 ? "" : "s"}`);
@@ -302,7 +285,7 @@ function buildSelectedDaySummary(day) {
 
   if (blockedTimeRanges.length > 0) {
     badges.push({
-      label: `Exact blocks: ${formatBlockedTimeRanges(blockedTimeRanges)}`,
+      label: "Legacy exact block active",
       variant: "outline",
     });
   }
@@ -316,6 +299,23 @@ function buildSelectedDaySummary(day) {
   }
 
   return badges;
+}
+
+function getCalendarMarkerClass(item) {
+  const status = String(item?.status || "").toUpperCase();
+
+  if (status.includes("CANCEL")) return "bg-red-500";
+  if (status.includes("COMPLETE") || status.includes("DELIVER")) {
+    return "bg-emerald-500";
+  }
+  if (
+    status.includes("DRAFT") ||
+    status.includes("PENDING") ||
+    status.includes("PAYMENT")
+  ) {
+    return "bg-amber-500";
+  }
+  return item?.kind === "event" ? "bg-violet-500" : "bg-blue-500";
 }
 
 function getBookingStatusVariant(status) {
@@ -481,10 +481,6 @@ const EMPTY_EVENT_DIALOG_STATE = {
   mode: "create",
   eventId: null,
 };
-const DEFAULT_TIME_BLOCK_FORM = {
-  startTime: BUSINESS_DAY_TIME_OPTIONS[0] || "09:00",
-  endTime: BUSINESS_DAY_TIME_OPTIONS[1] || "09:30",
-};
 const EMPTY_PREPARATION_CUSTOMER = {
   accountType: "INDIVIDUAL",
   fullName: "",
@@ -581,7 +577,6 @@ export default function SchedulingCalendarPage() {
   const [eventForm, setEventForm] = useState(() =>
     buildEventFormState(todayDateKey),
   );
-  const [timeBlockForm, setTimeBlockForm] = useState(DEFAULT_TIME_BLOCK_FORM);
   const [bookingPreparationOpen, setBookingPreparationOpen] = useState(false);
   const [bookingPreparationMode, setBookingPreparationMode] =
     useState("existing");
@@ -605,12 +600,6 @@ export default function SchedulingCalendarPage() {
   );
   const hasLoadedOnceRef = useRef(false);
   const loadTrigger = `${monthKey}:${reloadVersion}`;
-
-  useEffect(() => {
-    if (selectedDateKey) {
-      setTimeBlockForm(DEFAULT_TIME_BLOCK_FORM);
-    }
-  }, [selectedDateKey]);
 
   useEffect(() => {
     if (!bookingPreparationOpen) {
@@ -891,81 +880,6 @@ export default function SchedulingCalendarPage() {
     } finally {
       setBlockSaving(false);
     }
-  };
-
-  const updateTimeBlockForm = (field, value) => {
-    setTimeBlockForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  };
-
-  const getValidatedTimeBlock = () => {
-    const startIndex = BUSINESS_DAY_TIME_OPTIONS.indexOf(
-      timeBlockForm.startTime,
-    );
-    const endIndex = BUSINESS_DAY_TIME_OPTIONS.indexOf(timeBlockForm.endTime);
-
-    if (startIndex === -1 || endIndex === -1) {
-      throw new Error("Block times must use 30-minute increments");
-    }
-
-    if (endIndex <= startIndex) {
-      throw new Error("Block end time must be after the start time");
-    }
-
-    return {
-      startTime: timeBlockForm.startTime,
-      endTime: timeBlockForm.endTime,
-    };
-  };
-
-  const handleAddExactBlock = async () => {
-    let nextTimeBlock;
-
-    try {
-      nextTimeBlock = getValidatedTimeBlock();
-    } catch (error) {
-      toast.error(error.message || "Invalid time block");
-      return;
-    }
-
-    await handleBlockMutation("add exact block", (existing) => {
-      const timeBlocks = Array.isArray(existing.timeBlocks)
-        ? [...existing.timeBlocks]
-        : [];
-      const alreadyExists = timeBlocks.some(
-        (timeBlock) =>
-          timeBlock?.startTime === nextTimeBlock.startTime &&
-          timeBlock?.endTime === nextTimeBlock.endTime,
-      );
-
-      if (!alreadyExists) {
-        timeBlocks.push(nextTimeBlock);
-      }
-
-      return {
-        ...existing,
-        fullDayBlocked: false,
-        timeBlocks,
-      };
-    });
-  };
-
-  const handleRemoveExactBlock = async (timeRange) => {
-    await handleBlockMutation("remove exact block", (existing) => ({
-      ...existing,
-      timeBlocks: (Array.isArray(existing.timeBlocks)
-        ? existing.timeBlocks
-        : []
-      ).filter(
-        (item) =>
-          !(
-            item?.startTime === timeRange.startTime &&
-            item?.endTime === timeRange.endTime
-          ),
-      ),
-    }));
   };
 
   const resetEventDialog = () => {
@@ -1363,8 +1277,7 @@ export default function SchedulingCalendarPage() {
         eyebrow="Scheduling"
         title="Scheduling Calendar"
         actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <AdminBadge tone="neutral">Timezone: Dubai business day</AdminBadge>
+          <div className="flex items-center gap-2">
             <AdminBadge tone={calendarStatusTone}>
               {calendarStatusLabel}
             </AdminBadge>
@@ -1378,53 +1291,18 @@ export default function SchedulingCalendarPage() {
               <RefreshCcw
                 className={cn("mr-2 h-4 w-4", refreshing && "animate-spin")}
               />
-              Refresh calendar
+              Refresh
             </Button>
           </div>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Bookings in view</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {calendarData?.summary?.totalBookings ?? 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Active events</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {calendarData?.summary?.totalActiveEvents ?? 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Fully blocked days</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {calendarData?.summary?.totalFullyBlockedDays ?? 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Partial blocks</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {calendarData?.summary?.totalPartiallyBlockedDays ?? 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-        </AdminCard>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)]">
         <AdminCard className={CALENDAR_PANEL_CLASS}>
-          <AdminCardHeader className="space-y-4">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <AdminCardHeader className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <AdminCardTitle className="text-2xl">
+                <AdminCardTitle className="text-base">
                   {monthLabel}
                 </AdminCardTitle>
               </div>
@@ -1467,34 +1345,28 @@ export default function SchedulingCalendarPage() {
               </div>
             </div>
 
-            <fieldset className="flex flex-wrap gap-2">
+            <fieldset className="flex flex-wrap gap-4">
               <legend className="sr-only">Calendar legend</legend>
-              <Badge variant="secondary" className="rounded-full">
-                Booking
-              </Badge>
-              <Badge variant="outline" className="rounded-full">
-                Calendar event
-              </Badge>
-              <Badge
-                variant="outline"
-                className="rounded-full border-amber-400/40 text-amber-200"
-              >
-                Period block
-              </Badge>
-              <Badge variant="destructive" className="rounded-full">
-                Full-day block
-              </Badge>
-              <Badge
-                variant="outline"
-                className="rounded-full border-slate-400/40 text-slate-300"
-              >
-                Non-working day
-              </Badge>
+              {[
+                ["Booked", "bg-blue-500"],
+                ["Completed", "bg-emerald-500"],
+                ["Awaiting", "bg-amber-500"],
+                ["Cancelled", "bg-red-500"],
+                ["Event", "bg-violet-500"],
+              ].map(([label, color]) => (
+                <span
+                  key={label}
+                  className="flex items-center gap-1.5 text-[10px] text-zinc-500"
+                >
+                  <span className={cn("h-2 w-2 rounded-full", color)} />
+                  {label}
+                </span>
+              ))}
             </fieldset>
           </AdminCardHeader>
 
-          <AdminCardContent className="space-y-4">
-            <div className="grid grid-cols-7 gap-2 text-center text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          <AdminCardContent className="space-y-3">
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-zinc-600">
               {DAY_HEADERS.map((label) => (
                 <div key={label}>{label}</div>
               ))}
@@ -1518,7 +1390,7 @@ export default function SchedulingCalendarPage() {
                 description="Refresh the current month range or load a different month to continue reviewing the schedule."
               />
             ) : (
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1">
                 {calendarDays.map((date) => {
                   const dateKey = toDateKey(date);
                   const day = dayMap.get(dateKey);
@@ -1528,6 +1400,16 @@ export default function SchedulingCalendarPage() {
                     activeEvents: 0,
                   };
                   const eventsForDay = eventsByDate.get(dateKey) || [];
+                  const bookingsForDay = bookingsByDate.get(dateKey) || [];
+                  const markerItems = [
+                    ...bookingsForDay.map((booking) => ({
+                      ...booking,
+                      kind: "booking",
+                    })),
+                    ...eventsForDay
+                      .filter((event) => event.status !== "CANCELLED")
+                      .map((event) => ({ ...event, kind: "event" })),
+                  ];
                   const isCurrentMonth =
                     getMonthKeyFromDateKey(dateKey) === monthKey;
                   const isSelected = selectedDateKey === dateKey;
@@ -1553,76 +1435,57 @@ export default function SchedulingCalendarPage() {
                         eventsForDay,
                       )}
                       className={cn(
-                        "relative min-h-[132px] rounded-2xl border p-3 text-left transition-colors",
+                        "relative h-[68px] rounded-lg border p-1.5 text-left transition-colors sm:h-[76px]",
                         isCurrentMonth
-                          ? "border-white/10 bg-background/50 hover:border-white/20 hover:bg-background/70"
-                          : "border-white/5 bg-background/20 text-muted-foreground opacity-60",
+                          ? "border-zinc-800 bg-zinc-950/50 hover:border-zinc-700 hover:bg-zinc-800/50"
+                          : "border-zinc-900 bg-zinc-950/20 text-zinc-700 opacity-50",
                         isSelected &&
-                          "border-primary bg-primary/10 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]",
-                        isToday && "ring-1 ring-primary/40",
+                          "border-zinc-600 bg-zinc-800 ring-1 ring-zinc-600",
+                        isToday && "ring-1 ring-emerald-500",
                         day?.block?.fullDayBlocked &&
-                          "border-rose-400/30 bg-rose-500/10",
-                        hasPartialBlock &&
-                          "border-amber-400/30 bg-amber-500/10",
+                          "border-red-800 bg-red-950/80",
+                        hasPartialBlock && "border-amber-800 bg-amber-950/20",
                       )}
                       onClick={() => setSelectedDateKey(dateKey)}
                     >
-                      <div className="flex items-start">
-                        <div>
-                          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                            {formatWeekdayLabel(dateKey)}
-                          </p>
-                          <p className="text-2xl font-semibold">
-                            {date.getUTCDate()}
-                          </p>
-                        </div>
-                        {isToday ? (
-                          <Badge
-                            variant="secondary"
-                            className="absolute right-3 top-3 shrink-0 whitespace-nowrap rounded-full px-1.5 text-[0.65rem] leading-4"
-                          >
-                            Today
-                          </Badge>
-                        ) : null}
+                      <div
+                        className={cn(
+                          "mx-auto flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold",
+                          isToday
+                            ? "bg-emerald-500 text-white"
+                            : isSelected
+                              ? "text-white"
+                              : "text-zinc-400",
+                        )}
+                      >
+                        {date.getUTCDate()}
                       </div>
-
-                      <div className="mt-3 space-y-1.5 text-xs">
-                        {counts.bookings > 0 ? (
-                          <p className="text-sky-200">
-                            {counts.bookings} booking
-                            {counts.bookings === 1 ? "" : "s"}
-                          </p>
-                        ) : null}
-                        {counts.activeEvents > 0 ? (
-                          <p className="text-emerald-200">
-                            {counts.activeEvents} active event
-                            {counts.activeEvents === 1 ? "" : "s"}
-                          </p>
-                        ) : null}
-                        {day?.block?.fullDayBlocked ? (
-                          <p className="text-rose-200">Full-day block</p>
-                        ) : null}
-                        {!day?.block?.fullDayBlocked &&
-                        day?.block?.blockedPeriods?.length > 0 ? (
-                          <p className="text-amber-100">
-                            {formatBlockedPeriods(day.block.blockedPeriods)}
-                          </p>
-                        ) : null}
-                        {!day?.block?.fullDayBlocked &&
-                        day?.block?.blockedTimeRanges?.length > 0 ? (
-                          <p className="text-amber-100">
-                            {formatBlockedTimeRanges(
-                              day.block.blockedTimeRanges,
+                      <div className="mt-1 space-y-0.5">
+                        {markerItems.slice(0, 2).map((item, index) => (
+                          <span
+                            key={`${item.kind}-${item.id || index}`}
+                            data-calendar-marker={item.kind}
+                            data-calendar-status={item.status || "unknown"}
+                            className={cn(
+                              "block h-1.5 rounded-full",
+                              getCalendarMarkerClass(item),
                             )}
-                          </p>
+                          />
+                        ))}
+                        {markerItems.length > 2 ? (
+                          <span
+                            data-calendar-overflow={markerItems.length - 2}
+                            className="block text-center text-[8px] leading-3 text-zinc-600"
+                          >
+                            +{markerItems.length - 2}
+                          </span>
                         ) : null}
-                        {day && !day.isWorkingDay ? (
-                          <p className="text-slate-300">Non-working day</p>
-                        ) : null}
-                        {!day && isCurrentMonth ? (
-                          <p className="text-muted-foreground">
-                            No calendar data
-                          </p>
+                        {day?.block?.blockedPeriods?.length > 0 &&
+                        !day?.block?.fullDayBlocked ? (
+                          <span className="block truncate text-center text-[8px] leading-3 text-amber-500">
+                            {day.block.blockedPeriods.length} slot
+                            {day.block.blockedPeriods.length === 1 ? "" : "s"}
+                          </span>
                         ) : null}
                       </div>
                     </button>
@@ -1635,10 +1498,10 @@ export default function SchedulingCalendarPage() {
 
         <div className="contents">
           <AdminCard className={CALENDAR_PANEL_CLASS}>
-            <AdminCardHeader className="space-y-3">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <AdminCardHeader className="space-y-2">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <AdminCardTitle className="text-2xl">
+                  <AdminCardTitle className="text-sm">
                     {selectedDateKey
                       ? formatDateLabel(selectedDateKey)
                       : "Select a date"}
@@ -1703,13 +1566,9 @@ export default function SchedulingCalendarPage() {
               </div>
             </AdminCardHeader>
 
-            <AdminCardContent className="space-y-5">
-              <div className={CALENDAR_SUBPANEL_CLASS}>
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <ShieldAlert className="h-4 w-4 text-amber-300" />
-                  Availability summary
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <AdminCardContent className="flex flex-col gap-4">
+              <div className={cn(CALENDAR_SUBPANEL_CLASS, "order-3")}>
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                       Block status
@@ -1722,16 +1581,12 @@ export default function SchedulingCalendarPage() {
                               selectedDay?.block?.blockedPeriods || [],
                             ),
                             selectedDay?.block?.blockedTimeRanges?.length > 0
-                              ? formatBlockedTimeRanges(
-                                  selectedDay?.block?.blockedTimeRanges || [],
-                                )
+                              ? "Legacy exact block active"
                               : "",
                           ]
                             .filter(
                               (value) =>
-                                value &&
-                                value !== "No blocked periods" &&
-                                value !== "No exact blocks",
+                                value && value !== "No blocked periods",
                             )
                             .join(" • ") || "No active blocks"}
                     </p>
@@ -1750,29 +1605,12 @@ export default function SchedulingCalendarPage() {
                 </div>
               </div>
 
-              <div className={CALENDAR_SUBPANEL_CLASS}>
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className={cn(CALENDAR_SUBPANEL_CLASS, "order-4")}>
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold">
-                      Availability blocks
-                    </h2>
+                    <h2 className="text-sm font-semibold">Slot blocking</h2>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={
-                        blockSaving || selectedDay?.block?.fullDayBlocked
-                      }
-                      onClick={() =>
-                        handleBlockMutation("block full day", (existing) => ({
-                          ...existing,
-                          fullDayBlocked: true,
-                        }))
-                      }
-                    >
-                      Block full day
-                    </Button>
                     <Button
                       type="button"
                       variant="outline"
@@ -1796,7 +1634,7 @@ export default function SchedulingCalendarPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
+                <div className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-2">
                   {PERIOD_ORDER.map((period) => {
                     const isBlocked = selectedBlockedPeriods.includes(period);
                     const definition = selectedBlockDefinitions?.[period] || {};
@@ -1804,14 +1642,14 @@ export default function SchedulingCalendarPage() {
                     return (
                       <div
                         key={period}
-                        className="min-w-0 rounded-2xl border border-white/10 p-4"
+                        className="min-w-0 rounded-lg border border-white/10 p-3"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>
                             <p className="font-medium">
                               {labelizePeriod(period)}
                             </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
+                            <p className="mt-0.5 text-xs text-muted-foreground">
                               {definition.startTime || "--:--"} -{" "}
                               {definition.endTime || "--:--"}
                             </p>
@@ -1826,7 +1664,8 @@ export default function SchedulingCalendarPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="mt-4 w-full"
+                          size="sm"
+                          className="mt-3 w-full"
                           disabled={
                             blockSaving || selectedDay?.block?.fullDayBlocked
                           }
@@ -1852,7 +1691,9 @@ export default function SchedulingCalendarPage() {
                             )
                           }
                         >
-                          {isBlocked ? "Unblock period" : "Block period"}
+                          {isBlocked
+                            ? `Unblock ${labelizePeriod(period)}`
+                            : `Block ${labelizePeriod(period)}`}
                         </Button>
                       </div>
                     );
@@ -1861,110 +1702,13 @@ export default function SchedulingCalendarPage() {
 
                 {selectedDay?.block?.fullDayBlocked ? (
                   <p className="mt-3 text-sm text-muted-foreground">
-                    Full-day block is active. Clear the day block before editing
-                    individual periods or exact time ranges.
+                    A legacy full-day block is active. Clear it before editing
+                    individual slots.
                   </p>
                 ) : null}
-
-                <div className="mt-4 min-w-0 rounded-2xl border border-white/10 p-4">
-                  <div className="min-w-0">
-                    <p className="font-medium">Exact time block</p>
-                    <div className="mt-4 grid min-w-0 grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="block-start-time">From</Label>
-                        <Input
-                          id="block-start-time"
-                          type="time"
-                          step="1800"
-                          min={BUSINESS_DAY_TIME_OPTIONS[0]}
-                          max={
-                            BUSINESS_DAY_TIME_OPTIONS[
-                              BUSINESS_DAY_TIME_OPTIONS.length - 2
-                            ]
-                          }
-                          className="min-w-0"
-                          value={timeBlockForm.startTime}
-                          disabled={
-                            blockSaving || selectedDay?.block?.fullDayBlocked
-                          }
-                          onChange={(event) =>
-                            updateTimeBlockForm("startTime", event.target.value)
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="block-end-time">To</Label>
-                        <Input
-                          id="block-end-time"
-                          type="time"
-                          step="1800"
-                          min={BUSINESS_DAY_TIME_OPTIONS[1]}
-                          max={
-                            BUSINESS_DAY_TIME_OPTIONS[
-                              BUSINESS_DAY_TIME_OPTIONS.length - 1
-                            ]
-                          }
-                          className="min-w-0"
-                          value={timeBlockForm.endTime}
-                          disabled={
-                            blockSaving || selectedDay?.block?.fullDayBlocked
-                          }
-                          onChange={(event) =>
-                            updateTimeBlockForm("endTime", event.target.value)
-                          }
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        className="col-span-2 w-full self-end"
-                        disabled={
-                          blockSaving || selectedDay?.block?.fullDayBlocked
-                        }
-                        onClick={handleAddExactBlock}
-                      >
-                        Add exact block
-                      </Button>
-                    </div>
-                  </div>
-
-                  {selectedBlockedTimeRanges.length > 0 ? (
-                    <div className="mt-4 space-y-2">
-                      {selectedBlockedTimeRanges.map((timeRange) => (
-                        <div
-                          key={`${timeRange.startTime}-${timeRange.endTime}`}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/60 px-3 py-2"
-                        >
-                          <div>
-                            <p className="font-medium">
-                              {timeRange.startTime} - {timeRange.endTime}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Exact availability block
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={
-                              blockSaving || selectedDay?.block?.fullDayBlocked
-                            }
-                            onClick={() => handleRemoveExactBlock(timeRange)}
-                          >
-                            Remove block
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      No exact time blocks for this date.
-                    </p>
-                  )}
-                </div>
               </div>
 
-              <div className="space-y-3">
+              <div className="order-1 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <h2 className="text-lg font-semibold">Bookings</h2>
@@ -1981,7 +1725,7 @@ export default function SchedulingCalendarPage() {
                   </Button>
                 </div>
                 {selectedBookings.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
                     No bookings scheduled for this date.
                   </div>
                 ) : (
@@ -1989,7 +1733,7 @@ export default function SchedulingCalendarPage() {
                     {selectedBookings.map((booking) => (
                       <div
                         key={booking.id}
-                        className="rounded-2xl border border-white/10 bg-background/40 p-4"
+                        className="rounded-lg border border-white/10 bg-background/40 p-4"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
@@ -2067,7 +1811,7 @@ export default function SchedulingCalendarPage() {
                 )}
               </div>
 
-              <div className="space-y-3">
+              <div className="order-2 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <h2 className="text-lg font-semibold">Calendar events</h2>
@@ -2088,7 +1832,7 @@ export default function SchedulingCalendarPage() {
                   </Button>
                 </div>
                 {selectedEvents.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
+                  <div className="rounded-lg border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground">
                     No calendar-only events scheduled for this date.
                   </div>
                 ) : (
@@ -2096,7 +1840,7 @@ export default function SchedulingCalendarPage() {
                     {selectedEvents.map((event) => (
                       <div
                         key={event.id}
-                        className="rounded-2xl border border-white/10 bg-background/40 p-4"
+                        className="rounded-lg border border-white/10 bg-background/40 p-4"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
@@ -2233,7 +1977,7 @@ export default function SchedulingCalendarPage() {
               month: "short",
               day: "numeric",
             })}.`}
-            className="rounded-[1.9rem] xl:col-span-2"
+            className="rounded-xl xl:col-span-2"
             actions={
               <AdminFilterRow>
                 {UPCOMING_FILTERS.map((filter) => {
@@ -2436,7 +2180,7 @@ export default function SchedulingCalendarPage() {
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
               <div
                 className={cn(
-                  "rounded-2xl border border-white/10 p-4",
+                  "rounded-lg border border-white/10 p-4",
                   bookingHandoffState.url && "hidden",
                 )}
               >
@@ -2511,7 +2255,7 @@ export default function SchedulingCalendarPage() {
                               key={customer.id}
                               type="button"
                               className={cn(
-                                "w-full rounded-2xl border p-3 text-left transition-colors",
+                                "w-full rounded-lg border p-3 text-left transition-colors",
                                 isSelected
                                   ? "border-white/30 bg-background/70"
                                   : "border-white/10 bg-background/40 hover:bg-background/60",
@@ -2541,7 +2285,7 @@ export default function SchedulingCalendarPage() {
                     ) : null}
 
                     {selectedExistingCustomer ? (
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/15 bg-background/60 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/15 bg-background/60 px-4 py-3">
                         <div>
                           <p className="font-medium">
                             {formatPreparationCustomerLabel(
@@ -2714,7 +2458,7 @@ export default function SchedulingCalendarPage() {
                   {bookingPreparationProperties.map((property, index) => (
                     <div
                       key={property.localId}
-                      className="rounded-2xl border border-white/10 p-4"
+                      className="rounded-lg border border-white/10 p-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <p className="font-medium">Property {index + 1}</p>
@@ -2939,7 +2683,7 @@ export default function SchedulingCalendarPage() {
               </div>
 
               {bookingPreparationPreview ? (
-                <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
+                <div className="rounded-lg border border-white/10 bg-background/40 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="text-lg font-semibold">
@@ -2996,7 +2740,7 @@ export default function SchedulingCalendarPage() {
                   </div>
 
                   {bookingHandoffState.url ? (
-                    <div className="mt-4 rounded-2xl border border-white/10 bg-background/60 p-4">
+                    <div className="mt-4 rounded-lg border border-white/10 bg-background/60 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="font-medium">Secure handoff link</p>
@@ -3123,7 +2867,7 @@ export default function SchedulingCalendarPage() {
                 />
               </div>
 
-              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-background/40 p-4 sm:col-span-2">
+              <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-background/40 p-4 sm:col-span-2">
                 <input
                   id="calendar-event-all-day"
                   type="checkbox"
@@ -3276,7 +3020,7 @@ export default function SchedulingCalendarPage() {
                     )
                     .join("-") || "none"
                 }`}
-                className="rounded-2xl border border-white/10 p-4"
+                className="rounded-lg border border-white/10 p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -3293,8 +3037,7 @@ export default function SchedulingCalendarPage() {
                     {Array.isArray(conflict.blockedTimeRanges) &&
                     conflict.blockedTimeRanges.length > 0 ? (
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Times:{" "}
-                        {formatBlockedTimeRanges(conflict.blockedTimeRanges)}
+                        Legacy exact block overlap
                       </p>
                     ) : null}
                   </div>

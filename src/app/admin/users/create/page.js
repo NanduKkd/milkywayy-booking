@@ -60,7 +60,7 @@ export default function CreateUserPage() {
             </AdminCardDescription>
           </AdminCardHeader>
           <AdminCardContent className="space-y-4">
-            <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-4 py-4">
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-4">
               <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
                 Super Admin
               </p>
@@ -69,7 +69,7 @@ export default function CreateUserPage() {
                 controls.
               </p>
             </div>
-            <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-4 py-4">
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-4">
               <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
                 Transport
               </p>
@@ -78,7 +78,7 @@ export default function CreateUserPage() {
                 current operations.
               </p>
             </div>
-            <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] px-4 py-4">
+            <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-4">
               <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
                 Shoot
               </p>

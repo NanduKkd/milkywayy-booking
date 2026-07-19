@@ -93,15 +93,19 @@ describe("Admin Time Slots Page", () => {
     });
   });
 
-  it("renders the refreshed scheduling shell with live summary cards", async () => {
+  it("renders the dense scheduling shell without summary cards", async () => {
     render(<TimeSlotsPage />);
 
     expect(screen.getByText(/loading time slot settings/i)).toBeInTheDocument();
+    expect(await screen.findByText("System settings")).toBeInTheDocument();
     expect(
-      await screen.findByText("Booked periods in view"),
-    ).toBeInTheDocument();
+      screen.queryByText("Booked periods in view"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Calendar")).toBeInTheDocument();
-    expect(screen.getByText("90")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Block Full Day/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/rolling window length/i)).toHaveValue(90);
     expect(screen.getByText("2 booked")).toBeInTheDocument();
   });
 
@@ -143,7 +147,7 @@ describe("Admin Time Slots Page", () => {
     fireEvent.click(unblockedDayButtons[0]);
 
     expect(
-      screen.queryByRole("button", { name: /unblock day/i }),
+      screen.queryByRole("button", { name: /clear blocks/i }),
     ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /close/i }));
@@ -152,7 +156,7 @@ describe("Admin Time Slots Page", () => {
     fireEvent.click(blockedDayButtons[0]);
 
     expect(
-      screen.getByRole("button", { name: /unblock day/i }),
+      screen.getByRole("button", { name: /clear blocks/i }),
     ).toBeInTheDocument();
   });
 
@@ -175,8 +179,6 @@ describe("Admin Time Slots Page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
 
-    expect(
-      await screen.findByText("Booked periods in view"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("System settings")).toBeInTheDocument();
   });
 });

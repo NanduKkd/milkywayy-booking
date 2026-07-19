@@ -1,12 +1,12 @@
 # Admin panel UI refresh decisions
 
-- Last updated: 2026-07-11
+- Last updated: 2026-07-20
 
 ## Accepted decisions
 
 | ID | Decision | Rationale |
 |---|---|---|
-| UI-D001 | `adminPrototype.jsx` is visual inspiration, not production source or a pixel specification. | Accessibility, live data, existing workflows, and practical layout constraints may require different markup and spacing. |
+| UI-D001 | Superseded by UI-D018. The earlier prototype-as-inspiration contract no longer applies. | Owner acceptance feedback established a stricter reference-as-spec direction. |
 | UI-D002 | Existing operational behavior takes precedence over prototype simplification. | The current admin contains working behavior absent from the mockup. |
 | UI-D003 | Every current admin page receives the shared dark styling in this release. | A partially refreshed admin would retain the inconsistency this work is intended to remove. |
 | UI-D004 | Existing routes remain authoritative. `/admin` is Dashboard and `/admin/analytics` remains detailed Reports. | Direct navigation and existing links remain stable while Dashboard analytics moves onto the landing page. |
@@ -23,11 +23,16 @@
 | UI-D015 | Reviews do not receive the prototype preview column. | The owner explicitly excluded it from this release. |
 | UI-D016 | The feature ships as one release; final visual acceptance is performed by the owner. | The goal is a coherent whole-admin refresh without a formal visual-certification process. |
 | UI-D017 | Pricing Configuration uses the prototype's single price-matrix UI and removes summary cards, slot inputs, evening toggles, badges, service panels, and the duplicate save action. | The owner explicitly approved the simpler pricing surface. Price edits continue through the existing server action, and unexposed configuration fields are retained in the saved object. Commercial uses one Long Form column because its live configuration has one direct long-form price rather than the three residential variants. |
+| UI-D018 | The owner-supplied `design-reference.jsx` is the target visual specification and may be copied directly wherever current production behavior permits. | The admin must match the accepted dense design rather than reinterpret it as a spacious themed system. |
+| UI-D019 | The default admin presentation is compact, dense, and scan-first. Use the reference's narrow fixed shell, zinc surfaces, small radii, compact controls, and table-first hierarchy throughout the current authenticated route inventory. | Repeat operators need maximum useful information with minimal reading and scrolling. |
+| UI-D020 | Remove repeated introductions, decorative summary cards, and documentation-like helper text from routine surfaces. Preserve labels, validation, error recovery, destructive confirmation, and accessibility text needed to operate safely. | Density must not remove essential operating or safety information. |
+| UI-D021 | Reference fixture records and unsupported controls are excluded. Live data, authorization, route boundaries, and supported mutations remain authoritative. | The reference defines presentation, not domain state or product capability. |
+| UI-D022 | Calendar month cells have fixed height, show at most two short status-colored markers, and expose additional entries as `+N`; selecting the date exposes the complete day. | Busy dates must not make the month grid grow or become difficult to scan. |
 
 ## Implementation discretion
 
 - Engineering may choose the chart implementation that best reuses the completed analytics work and current dependencies.
-- Exact spacing, responsive breakpoints, and component composition may be adjusted to keep existing content usable.
+- Responsive breakpoints and component composition may be adjusted only where needed to keep live content usable and accessible; the reference density remains the default.
 - Page-scoped commits are allowed even though deployment is one release.
 
 ## Non-goals
