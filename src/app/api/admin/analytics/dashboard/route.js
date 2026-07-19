@@ -38,8 +38,13 @@ export async function GET(request) {
     }
 
     const filters = buildDashboardFilterInput(request.url);
-    const { bookings, transactions, expenses, pricingConfig } =
-      await loadDashboardAnalyticsDependencies(filters);
+    const {
+      bookings,
+      transactions,
+      expenses,
+      pricingConfig,
+      latestActivityMonth,
+    } = await loadDashboardAnalyticsDependencies(filters);
 
     const result = buildDashboardAnalytics({
       bookings,
@@ -49,7 +54,7 @@ export async function GET(request) {
       filters,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, latestActivityMonth });
   } catch (error) {
     const status = isDashboardValidationError(error) ? 400 : 500;
 

@@ -1,14 +1,15 @@
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
 import {
-  PROMOTION_ADMIN_AUTHORIZATION_MODE,
   activatePromotion,
   assignPromotionCustomer,
   createPromotion,
   deactivatePromotion,
   listPromotions,
+  PROMOTION_ADMIN_AUTHORIZATION_MODE,
   pausePromotion,
   searchAssignableCustomers,
+  unassignPromotionCustomer,
   updatePromotion,
 } from "../promotionAdmin";
 
@@ -102,10 +103,19 @@ function buildAssignmentRecord(overrides = {}) {
     ...overrides,
   };
 
-  return {
+  const record = {
     ...state,
     get: jest.fn(({ plain } = {}) => (plain ? { ...state } : { ...state })),
+    update: jest.fn(async (values) => {
+      Object.assign(state, values, {
+        updatedAt: new Date("2026-07-01T14:00:00.000Z"),
+      });
+      Object.assign(record, state);
+      return record;
+    }),
   };
+
+  return record;
 }
 
 jest.mock("@/lib/db/db", () => ({
@@ -436,6 +446,81 @@ describe("promotionAdmin service", () => {
           }),
         ],
       }),
+    );
+  });
+
+  it("unassigns a customer while preserving assignment history", async () => {
+    const promotion = buildPromotionRecord({
+      id: 77,
+      kind: "PERSONAL",
+      code: null,
+    });
+    const assignment = buildAssignmentRecord({
+      id: 401,
+      promotionId: 77,
+      userId: 91,
+      user: buildCustomerRecord({
+        id: 91,
+        fullName: "Noura Buyer",
+        email: "noura@example.com",
+      }),
+    });
+    const refreshedPromotion = buildPromotionRecord({
+      id: 77,
+      kind: "PERSONAL",
+      code: null,
+      assignments: [],
+    });
+
+    models.Promotion.findByPk
+      .mockResolvedValueOnce(promotion)
+      .mockResolvedValueOnce(refreshedPromotion);
+    models.PromotionAssignment.findOne.mockResolvedValue(assignment);
+    models.User.findOne.mockResolvedValue(assignment.user);
+
+    const result = await unassignPromotionCustomer({
+      actorUser: superadminActor,
+      promotionId: 77,
+      userId: 91,
+    });
+
+    expect(models.PromotionAssignment.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          promotionId: 77,
+          userId: 91,
+          unassignedAt: null,
+        },
+        transaction: mockTransaction,
+        lock: mockTransaction.LOCK.UPDATE,
+      }),
+    );
+    expect(assignment.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        unassignedAt: expect.any(Date),
+        unassignedByUserId: 11,
+      }),
+      { transaction: mockTransaction },
+    );
+    expect(models.PromotionAuditEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promotionId: 77,
+        promotionAssignmentId: 401,
+        action: "UNASSIGNED",
+        beforeState: expect.objectContaining({ unassignedAt: null }),
+        afterState: expect.objectContaining({
+          unassignedAt: expect.any(String),
+          unassignedByUserId: 11,
+        }),
+        metadata: expect.objectContaining({
+          authorizationMode: PROMOTION_ADMIN_AUTHORIZATION_MODE,
+          customerUserId: 91,
+        }),
+      }),
+      { transaction: mockTransaction },
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ id: 77, assignments: [] }),
     );
   });
 

@@ -174,7 +174,7 @@ async function main() {
   const fixtureScopeFiles = [
     ...(await collectFiles("src")),
     ...(await collectFiles("scripts")),
-    ...(await collectFiles("docs/gpt-actions-oauth")),
+    ...(await collectFiles("src/contracts/gpt-actions")),
     "package.json",
   ];
 
@@ -213,7 +213,7 @@ async function main() {
     `[oauth-log-safety] reviewed ${reviewedFiles.length} OAuth/GPT files for raw logging and environment leaks`,
   );
   console.log(
-    `[oauth-log-safety] reviewed ${fixtureScopeFiles.length} files for live credentials in fixtures and docs`,
+    `[oauth-log-safety] reviewed ${fixtureScopeFiles.length} files for live credentials in fixtures and executable contracts`,
   );
 
   if (monitoringPackages.length === 0) {

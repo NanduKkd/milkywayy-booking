@@ -2,7 +2,8 @@
 
 import { UserPlus } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import {
   AdminBadge,
   AdminEmptyState,
@@ -34,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { setCustomerDisabled } from "@/lib/actions/users";
 
 const getRoleBadgeTone = (role) => {
   switch (role) {
@@ -78,6 +80,8 @@ const formatJoinedDate = (value) => {
 export default function UserTable({ users, pagination }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [pendingUserId, setPendingUserId] = useState(null);
+  const [isPending, startTransition] = useTransition();
 
   const [limit, limitOptions] = useMemo(() => {
     const currentLimit = `${getLimitFromParams(searchParams)}`;
@@ -93,6 +97,8 @@ export default function UserTable({ users, pagination }) {
   const visibleEnd =
     pagination.total === 0 ? 0 : visibleStart + Math.max(users.length - 1, 0);
   const hasPages = totalPages > 0;
+  const isPreviousDisabled = !hasPages || currentPage === 1;
+  const isNextDisabled = !hasPages || currentPage === totalPages;
 
   const handlePageChange = (page) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -104,6 +110,37 @@ export default function UserTable({ users, pagination }) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("limit", nextLimit.toString());
     router.push(`?${params.toString()}`);
+  };
+
+  const handleCustomerAccessChange = (user) => {
+    const isDisabled = Boolean(user.disabledAt);
+
+    if (
+      !isDisabled &&
+      !window.confirm(
+        `Disable ${user.fullName || `customer #${user.id}`}? They will not be able to log in until enabled again.`,
+      )
+    ) {
+      return;
+    }
+
+    setPendingUserId(user.id);
+    startTransition(async () => {
+      const result = await setCustomerDisabled({
+        userId: user.id,
+        disabled: !isDisabled,
+      });
+
+      if (!result.success) {
+        toast.error(result.message || "Failed to update customer access");
+        setPendingUserId(null);
+        return;
+      }
+
+      toast.success(isDisabled ? "Customer enabled" : "Customer disabled");
+      setPendingUserId(null);
+      router.refresh();
+    });
   };
 
   const renderPaginationItems = () => {
@@ -232,30 +269,37 @@ export default function UserTable({ users, pagination }) {
                       </div>
                     </TableCell>
                     <TableCell className="px-5">
-                      <AdminBadge tone={getRoleBadgeTone(user.role)}>
-                        {user.role}
-                      </AdminBadge>
+                      <div className="flex flex-wrap gap-2">
+                        <AdminBadge tone={getRoleBadgeTone(user.role)}>
+                          {user.role}
+                        </AdminBadge>
+                        {user.role === "CUSTOMER" && user.disabledAt
+                          ? <AdminBadge tone="danger">Disabled</AdminBadge>
+                          : null}
+                      </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap px-5 text-sm text-[hsl(var(--admin-muted))]">
                       {formatJoinedDate(user.createdAt)}
                     </TableCell>
                     <TableCell className="px-5">
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-[hsl(var(--admin-highlight))] transition hover:border-[hsl(var(--admin-highlight)/0.42)] hover:bg-[hsl(var(--admin-highlight)/0.08)]"
-                          onClick={() => console.log("Edit user:", user.id)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-[hsl(var(--admin-danger))] transition hover:border-[hsl(var(--admin-danger)/0.42)] hover:bg-[hsl(var(--admin-danger)/0.08)]"
-                          onClick={() => console.log("Delete user:", user.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      {user.role === "CUSTOMER"
+                        ? <div className="flex gap-2">
+                            <button
+                              type="button"
+                              disabled={isPending && pendingUserId === user.id}
+                              className={
+                                user.disabledAt
+                                  ? "rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-[hsl(var(--admin-highlight))] transition hover:border-[hsl(var(--admin-highlight)/0.42)] hover:bg-[hsl(var(--admin-highlight)/0.08)] disabled:cursor-wait disabled:opacity-50"
+                                  : "rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-[hsl(var(--admin-danger))] transition hover:border-[hsl(var(--admin-danger)/0.42)] hover:bg-[hsl(var(--admin-danger)/0.08)] disabled:cursor-wait disabled:opacity-50"
+                              }
+                              onClick={() => handleCustomerAccessChange(user)}
+                            >
+                              {user.disabledAt ? "Enable" : "Disable"}
+                            </button>
+                          </div>
+                        : <span className="text-sm text-[hsl(var(--admin-muted))]">
+                            —
+                          </span>}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -278,9 +322,10 @@ export default function UserTable({ users, pagination }) {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
+                  disabled={isPreviousDisabled}
                   onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   className={
-                    !hasPages || currentPage === 1
+                    isPreviousDisabled
                       ? "pointer-events-none rounded-full border-white/10 bg-white/[0.03] opacity-50"
                       : "cursor-pointer rounded-full border border-white/10 bg-white/[0.03] text-[hsl(var(--admin-foreground))] hover:bg-white/[0.06]"
                   }
@@ -289,11 +334,12 @@ export default function UserTable({ users, pagination }) {
               {renderPaginationItems()}
               <PaginationItem>
                 <PaginationNext
+                  disabled={isNextDisabled}
                   onClick={() =>
                     handlePageChange(Math.min(totalPages, currentPage + 1))
                   }
                   className={
-                    !hasPages || currentPage === totalPages
+                    isNextDisabled
                       ? "pointer-events-none rounded-full border-white/10 bg-white/[0.03] opacity-50"
                       : "cursor-pointer rounded-full border border-white/10 bg-white/[0.03] text-[hsl(var(--admin-foreground))] hover:bg-white/[0.06]"
                   }

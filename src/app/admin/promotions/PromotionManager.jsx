@@ -56,6 +56,7 @@ import {
   deactivateAdminPromotion,
   pauseAdminPromotion,
   searchPromotionAssignableCustomers,
+  unassignAdminPromotionCustomer,
   updateAdminPromotion,
 } from "@/lib/actions/promotions";
 import { cn } from "@/lib/utils";
@@ -617,7 +618,6 @@ export default function PromotionManager({
     if (normalizedQuery.length < 2) {
       setAssignmentResults([]);
       setAssignmentSearchPending(false);
-      setAssignmentMessage(null);
       return undefined;
     }
 
@@ -795,6 +795,33 @@ export default function PromotionManager({
     setAssignmentResults([]);
     setAssignmentMessage(
       `${formatCustomerDisplayName(customer)} assigned successfully.`,
+    );
+  };
+
+  const handleUnassignCustomer = async (assignment) => {
+    if (!assignmentPromotion) {
+      return;
+    }
+
+    setAssignmentPendingUserId(assignment.userId);
+    setAssignmentMessage(null);
+
+    const result = await unassignAdminPromotionCustomer(
+      assignmentPromotion.id,
+      assignment.userId,
+    );
+
+    setAssignmentPendingUserId(null);
+
+    if (!result.success) {
+      setAssignmentMessage(result.message);
+      return;
+    }
+
+    upsertPromotion(result.data);
+    setAssignmentPromotion(result.data);
+    setAssignmentMessage(
+      `${formatCustomerDisplayName(assignment.user)} removed successfully.`,
     );
   };
 
@@ -1263,7 +1290,7 @@ export default function PromotionManager({
                         id="trigger-start-date"
                         type="date"
                         value={formData.triggerStartDate}
-                        onChange={(event) =>
+                        onInput={(event) =>
                           setFormData((current) => ({
                             ...current,
                             triggerStartDate: event.target.value,
@@ -1280,7 +1307,7 @@ export default function PromotionManager({
                         id="trigger-end-date"
                         type="date"
                         value={formData.triggerEndDate}
-                        onChange={(event) =>
+                        onInput={(event) =>
                           setFormData((current) => ({
                             ...current,
                             triggerEndDate: event.target.value,
@@ -1386,7 +1413,10 @@ export default function PromotionManager({
                   id="promotion-customer-search"
                   aria-label="Search customers"
                   value={assignmentQuery}
-                  onChange={(event) => setAssignmentQuery(event.target.value)}
+                  onChange={(event) => {
+                    setAssignmentQuery(event.target.value);
+                    setAssignmentMessage(null);
+                  }}
                   placeholder="Name, company, email, phone, or customer ID"
                   className="w-full"
                 />
@@ -1413,16 +1443,29 @@ export default function PromotionManager({
                     {assignmentPromotion.assignments.map((assignment) => (
                       <div
                         key={assignment.id}
-                        className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
                       >
-                        <p className="text-sm font-medium text-foreground">
-                          {formatCustomerDisplayName(assignment.user)}
-                        </p>
-                        {formatCustomerSecondaryLine(assignment.user) ? (
-                          <p className="text-xs text-muted-foreground">
-                            {formatCustomerSecondaryLine(assignment.user)}
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {formatCustomerDisplayName(assignment.user)}
                           </p>
-                        ) : null}
+                          {formatCustomerSecondaryLine(assignment.user) ? (
+                            <p className="truncate text-xs text-muted-foreground">
+                              {formatCustomerSecondaryLine(assignment.user)}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUnassignCustomer(assignment)}
+                          disabled={
+                            assignmentPendingUserId === assignment.userId
+                          }
+                        >
+                          Remove
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -1509,7 +1552,7 @@ export default function PromotionManager({
           }
         }}
         title="Deactivate promotion"
-        description="This removes the selected promotion from active use until an operator explicitly reactivates it."
+        description="This permanently retires the selected promotion. Deactivated promotions cannot be reactivated."
         confirmLabel="Deactivate promotion"
         confirmPendingLabel="Deactivating..."
         confirmPending={
@@ -1526,7 +1569,7 @@ export default function PromotionManager({
           <AdminInlineMessage
             tone="warning"
             title={deactivateTarget.name}
-            description="Live checkout and automatic evaluation will stop applying this promotion until it is reactivated."
+            description="Live checkout and automatic evaluation will stop applying this promotion. Create a replacement promotion if it is needed again."
           />
         ) : null}
       </AdminConfirmDialog>

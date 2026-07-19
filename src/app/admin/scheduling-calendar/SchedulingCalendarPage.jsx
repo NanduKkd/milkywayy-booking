@@ -33,7 +33,6 @@ import {
 } from "@/components/admin/AdminPrimitives";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -77,6 +76,12 @@ const PREPARATION_START_TIME_OPTIONS = [
   { value: "13:00", label: "Afternoon · 13:00" },
   { value: "17:00", label: "Evening · 17:00" },
 ];
+const EVENT_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const hours = String(Math.floor(index / 2)).padStart(2, "0");
+  const minutes = index % 2 === 0 ? "00" : "30";
+
+  return `${hours}:${minutes}`;
+});
 const VIDEOGRAPHY_PREPARATION_OPTIONS = [
   VIDEOGRAPHY_SUB_SERVICES.SHORT_FORM,
   `${VIDEOGRAPHY_SUB_SERVICES.LONG_FORM}.${VIDEOGRAPHY_SUB_CATEGORIES.LONG_FORM.DAYLIGHT}`,
@@ -494,6 +499,7 @@ const EMPTY_HANDOFF_LINK_STATE = {
   transactionId: null,
   url: "",
   expiresAt: "",
+  whatsAppSent: false,
 };
 
 function createPreparedPropertyLocalId() {
@@ -589,17 +595,14 @@ export default function SchedulingCalendarPage() {
   const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
   const [selectedExistingCustomer, setSelectedExistingCustomer] =
     useState(null);
-  const [bookingPreparationSaving, setBookingPreparationSaving] =
-    useState(false);
   const [bookingPreparationPreview, setBookingPreparationPreview] = useState(
     EMPTY_PREPARATION_PREVIEW,
   );
   const [bookingHandoffSaving, setBookingHandoffSaving] = useState(false);
+  const [bookingHandoffSending, setBookingHandoffSending] = useState(false);
   const [bookingHandoffState, setBookingHandoffState] = useState(
     EMPTY_HANDOFF_LINK_STATE,
   );
-  const [sendBookingHandoffViaWhatsApp, setSendBookingHandoffViaWhatsApp] =
-    useState(false);
   const hasLoadedOnceRef = useRef(false);
   const loadTrigger = `${monthKey}:${reloadVersion}`;
 
@@ -1119,7 +1122,6 @@ export default function SchedulingCalendarPage() {
     setSelectedExistingCustomer(null);
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
     setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
-    setSendBookingHandoffViaWhatsApp(false);
   };
 
   const openBookingPreparationDialog = () => {
@@ -1134,7 +1136,6 @@ export default function SchedulingCalendarPage() {
     setSelectedExistingCustomer(null);
     setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
     setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
-    setSendBookingHandoffViaWhatsApp(false);
   };
 
   const updateBookingPreparationCustomer = (field, value) => {
@@ -1241,49 +1242,8 @@ export default function SchedulingCalendarPage() {
     }
   };
 
-  const submitBookingPreparation = async (submitEvent) => {
-    submitEvent.preventDefault();
-    setBookingPreparationSaving(true);
-
-    try {
-      const requestPayload =
-        bookingPreparationMode === "existing"
-          ? {
-              customerMode: "existing",
-              customerId: selectedExistingCustomer?.id,
-              properties: bookingPreparationProperties,
-            }
-          : {
-              customerMode: "new",
-              customer: bookingPreparationCustomer,
-              properties: bookingPreparationProperties,
-            };
-      const response = await fetch(
-        "/api/admin/scheduling-calendar/booking-preparation",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(requestPayload),
-        },
-      );
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          payload?.error || "Failed to prepare booking handoff preview",
-        );
-      }
-
-      setBookingPreparationPreview(payload);
-      toast.success("Booking preparation validated");
-    } catch (error) {
-      toast.error(error.message || "Failed to prepare booking");
-    } finally {
-      setBookingPreparationSaving(false);
-    }
-  };
-
-  const createBookingHandoff = async () => {
+  const createBookingHandoff = async (submitEvent) => {
+    submitEvent?.preventDefault?.();
     setBookingHandoffSaving(true);
 
     try {
@@ -1307,7 +1267,7 @@ export default function SchedulingCalendarPage() {
           body: JSON.stringify({
             input: requestPayload,
             transactionId: bookingHandoffState.transactionId || null,
-            sendWhatsApp: sendBookingHandoffViaWhatsApp,
+            sendWhatsApp: false,
           }),
         },
       );
@@ -1326,27 +1286,60 @@ export default function SchedulingCalendarPage() {
         transactionId: payload.transactionId || null,
         url: payload.url || "",
         expiresAt: payload.expiresAt || "",
+        whatsAppSent: false,
       });
       const actionLabel = bookingHandoffState.transactionId
         ? "Booking handoff regenerated"
         : "Booking handoff created";
 
-      if (payload?.notification?.attempted && payload.notification.sent) {
-        toast.success(`${actionLabel} and sent on WhatsApp`);
-      } else {
-        toast.success(actionLabel);
-      }
-
-      if (payload?.notification?.attempted && !payload.notification.sent) {
-        toast.error(
-          payload.notification.error ||
-            "WhatsApp delivery failed. Copy the secure link manually.",
-        );
-      }
+      toast.success(actionLabel);
     } catch (error) {
       toast.error(error.message || "Failed to create booking handoff");
     } finally {
       setBookingHandoffSaving(false);
+    }
+  };
+
+  const sendBookingHandoffWhatsApp = async () => {
+    if (
+      !bookingHandoffState.transactionId ||
+      bookingHandoffState.whatsAppSent
+    ) {
+      return;
+    }
+
+    setBookingHandoffSending(true);
+    try {
+      const response = await fetch(
+        "/api/admin/scheduling-calendar/booking-handoffs",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "send_whatsapp",
+            transactionId: bookingHandoffState.transactionId,
+          }),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || !payload?.notification?.sent) {
+        throw new Error(
+          payload?.notification?.error ||
+            payload?.error ||
+            "Failed to send customer link via WhatsApp",
+        );
+      }
+
+      setBookingHandoffState((current) => ({
+        ...current,
+        whatsAppSent: true,
+      }));
+      toast.success("Customer link sent via WhatsApp");
+    } catch (error) {
+      toast.error(error.message || "Failed to send customer link via WhatsApp");
+    } finally {
+      setBookingHandoffSending(false);
     }
   };
 
@@ -1369,7 +1362,6 @@ export default function SchedulingCalendarPage() {
       <AdminPageHeader
         eyebrow="Scheduling"
         title="Scheduling Calendar"
-        description="Review live bookings, calendar events, and availability blocks in one Dubai-time scheduling view without changing the current operational flows."
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <AdminBadge tone="neutral">Timezone: Dubai business day</AdminBadge>
@@ -1400,11 +1392,6 @@ export default function SchedulingCalendarPage() {
               {calendarData?.summary?.totalBookings ?? 0}
             </AdminCardTitle>
           </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm text-[hsl(var(--admin-muted))]">
-              Scheduled live bookings bounded to the loaded calendar range.
-            </p>
-          </AdminCardContent>
         </AdminCard>
         <AdminCard tone="subtle">
           <AdminCardHeader>
@@ -1413,11 +1400,6 @@ export default function SchedulingCalendarPage() {
               {calendarData?.summary?.totalActiveEvents ?? 0}
             </AdminCardTitle>
           </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm text-[hsl(var(--admin-muted))]">
-              Calendar-only holds and notes that remain active in this view.
-            </p>
-          </AdminCardContent>
         </AdminCard>
         <AdminCard tone="subtle">
           <AdminCardHeader>
@@ -1426,11 +1408,6 @@ export default function SchedulingCalendarPage() {
               {calendarData?.summary?.totalFullyBlockedDays ?? 0}
             </AdminCardTitle>
           </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm text-[hsl(var(--admin-muted))]">
-              Dates currently unavailable for every business-day period.
-            </p>
-          </AdminCardContent>
         </AdminCard>
         <AdminCard tone="subtle">
           <AdminCardHeader>
@@ -1439,11 +1416,6 @@ export default function SchedulingCalendarPage() {
               {calendarData?.summary?.totalPartiallyBlockedDays ?? 0}
             </AdminCardTitle>
           </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm text-[hsl(var(--admin-muted))]">
-              Dates using period or exact-time overrides from Time Slots.
-            </p>
-          </AdminCardContent>
         </AdminCard>
       </div>
 
@@ -1455,9 +1427,6 @@ export default function SchedulingCalendarPage() {
                 <AdminCardTitle className="text-2xl">
                   {monthLabel}
                 </AdminCardTitle>
-                <AdminCardDescription className="mt-1">
-                  Live status for bookings, events, and Time Slots blocks.
-                </AdminCardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -1584,7 +1553,7 @@ export default function SchedulingCalendarPage() {
                         eventsForDay,
                       )}
                       className={cn(
-                        "min-h-[132px] rounded-2xl border p-3 text-left transition-colors",
+                        "relative min-h-[132px] rounded-2xl border p-3 text-left transition-colors",
                         isCurrentMonth
                           ? "border-white/10 bg-background/50 hover:border-white/20 hover:bg-background/70"
                           : "border-white/5 bg-background/20 text-muted-foreground opacity-60",
@@ -1598,7 +1567,7 @@ export default function SchedulingCalendarPage() {
                       )}
                       onClick={() => setSelectedDateKey(dateKey)}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start">
                         <div>
                           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                             {formatWeekdayLabel(dateKey)}
@@ -1610,7 +1579,7 @@ export default function SchedulingCalendarPage() {
                         {isToday ? (
                           <Badge
                             variant="secondary"
-                            className="rounded-full px-2"
+                            className="absolute right-3 top-3 shrink-0 whitespace-nowrap rounded-full px-1.5 text-[0.65rem] leading-4"
                           >
                             Today
                           </Badge>
@@ -1664,7 +1633,7 @@ export default function SchedulingCalendarPage() {
           </AdminCardContent>
         </AdminCard>
 
-        <div className="space-y-6">
+        <div className="contents">
           <AdminCard className={CALENDAR_PANEL_CLASS}>
             <AdminCardHeader className="space-y-3">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1674,9 +1643,6 @@ export default function SchedulingCalendarPage() {
                       ? formatDateLabel(selectedDateKey)
                       : "Select a date"}
                   </AdminCardTitle>
-                  <AdminCardDescription className="mt-1">
-                    Selected-day schedule, block state, and live entries.
-                  </AdminCardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -1790,12 +1756,6 @@ export default function SchedulingCalendarPage() {
                     <h2 className="text-lg font-semibold">
                       Availability blocks
                     </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Reuse Time Slots overrides for this date. Exact blocks use
-                      30-minute `from` and `to` times. Active bookings must be
-                      resolved in Bookings before an overlapping block can be
-                      saved.
-                    </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -1836,7 +1796,7 @@ export default function SchedulingCalendarPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,8rem),1fr))] gap-3">
                   {PERIOD_ORDER.map((period) => {
                     const isBlocked = selectedBlockedPeriods.includes(period);
                     const definition = selectedBlockDefinitions?.[period] || {};
@@ -1844,9 +1804,9 @@ export default function SchedulingCalendarPage() {
                     return (
                       <div
                         key={period}
-                        className="rounded-2xl border border-white/10 p-4"
+                        className="min-w-0 rounded-2xl border border-white/10 p-4"
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>
                             <p className="font-medium">
                               {labelizePeriod(period)}
@@ -1858,7 +1818,7 @@ export default function SchedulingCalendarPage() {
                           </div>
                           <Badge
                             variant={isBlocked ? "destructive" : "outline"}
-                            className="rounded-full"
+                            className="shrink-0 whitespace-nowrap rounded-full"
                           >
                             {isBlocked ? "Blocked" : "Open"}
                           </Badge>
@@ -1906,16 +1866,10 @@ export default function SchedulingCalendarPage() {
                   </p>
                 ) : null}
 
-                <div className="mt-4 rounded-2xl border border-white/10 p-4">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                      <p className="font-medium">Exact time block</p>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Block a precise interval in 30-minute increments, such
-                        as `10:00`-`10:30` or `10:00`-`12:30`.
-                      </p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                <div className="mt-4 min-w-0 rounded-2xl border border-white/10 p-4">
+                  <div className="min-w-0">
+                    <p className="font-medium">Exact time block</p>
+                    <div className="mt-4 grid min-w-0 grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label htmlFor="block-start-time">From</Label>
                         <Input
@@ -1928,6 +1882,7 @@ export default function SchedulingCalendarPage() {
                               BUSINESS_DAY_TIME_OPTIONS.length - 2
                             ]
                           }
+                          className="min-w-0"
                           value={timeBlockForm.startTime}
                           disabled={
                             blockSaving || selectedDay?.block?.fullDayBlocked
@@ -1949,6 +1904,7 @@ export default function SchedulingCalendarPage() {
                               BUSINESS_DAY_TIME_OPTIONS.length - 1
                             ]
                           }
+                          className="min-w-0"
                           value={timeBlockForm.endTime}
                           disabled={
                             blockSaving || selectedDay?.block?.fullDayBlocked
@@ -1960,7 +1916,7 @@ export default function SchedulingCalendarPage() {
                       </div>
                       <Button
                         type="button"
-                        className="self-end"
+                        className="col-span-2 w-full self-end"
                         disabled={
                           blockSaving || selectedDay?.block?.fullDayBlocked
                         }
@@ -2277,7 +2233,7 @@ export default function SchedulingCalendarPage() {
               month: "short",
               day: "numeric",
             })}.`}
-            className="rounded-[1.9rem]"
+            className="rounded-[1.9rem] xl:col-span-2"
             actions={
               <AdminFilterRow>
                 {UPCOMING_FILTERS.map((filter) => {
@@ -2459,617 +2415,662 @@ export default function SchedulingCalendarPage() {
       <Dialog
         open={bookingPreparationOpen}
         onOpenChange={(open) => {
-          if (!open && !bookingPreparationSaving) {
+          if (!open && !bookingHandoffSaving && !bookingHandoffSending) {
             resetBookingPreparationDialog();
           }
         }}
       >
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="shrink-0 border-b border-white/10 px-6 py-5">
             <DialogTitle>Prepare admin booking</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="sr-only">
               Collect the customer and property details, then validate pricing
               and availability, then create a secure payment handoff link.
             </DialogDescription>
           </DialogHeader>
 
-          <form className="space-y-6" onSubmit={submitBookingPreparation}>
-            <div className="rounded-2xl border border-white/10 p-4">
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant={
-                    bookingPreparationMode === "existing"
-                      ? "secondary"
-                      : "outline"
-                  }
-                  onClick={() => {
-                    setBookingPreparationMode("existing");
-                    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
-                    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
-                  }}
-                >
-                  Existing customer
-                </Button>
-                <Button
-                  type="button"
-                  variant={
-                    bookingPreparationMode === "new" ? "secondary" : "outline"
-                  }
-                  onClick={() => {
-                    setBookingPreparationMode("new");
-                    setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
-                    setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
-                  }}
-                >
-                  New customer
-                </Button>
-              </div>
-
-              {bookingPreparationMode === "existing" ? (
-                <div className="mt-4 space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-                    <div className="space-y-2">
-                      <Label htmlFor="booking-preparation-search">
-                        Search customer
-                      </Label>
-                      <Input
-                        id="booking-preparation-search"
-                        value={customerSearchQuery}
-                        placeholder="Name, company, email, phone, or customer ID"
-                        onChange={(event) =>
-                          setCustomerSearchQuery(event.target.value)
-                        }
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      className="self-end"
-                      disabled={customerSearchLoading}
-                      onClick={searchExistingCustomers}
-                    >
-                      {customerSearchLoading ? "Searching..." : "Search"}
-                    </Button>
-                  </div>
-
-                  {customerSearchResults.length > 0 ? (
-                    <div className="space-y-2">
-                      {customerSearchResults.map((customer) => {
-                        const isSelected =
-                          selectedExistingCustomer?.id === customer.id;
-
-                        return (
-                          <button
-                            key={customer.id}
-                            type="button"
-                            className={cn(
-                              "w-full rounded-2xl border p-3 text-left transition-colors",
-                              isSelected
-                                ? "border-white/30 bg-background/70"
-                                : "border-white/10 bg-background/40 hover:bg-background/60",
-                            )}
-                            onClick={() => {
-                              setSelectedExistingCustomer(customer);
-                              setBookingPreparationPreview(
-                                EMPTY_PREPARATION_PREVIEW,
-                              );
-                              setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
-                            }}
-                          >
-                            <p className="font-medium">
-                              {formatPreparationCustomerLabel(customer)}
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {[customer.email, customer.phone]
-                                .filter(Boolean)
-                                .join(" • ") || "No contact details"}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-
-                  <div className="rounded-2xl border border-dashed border-white/10 px-4 py-3 text-sm text-muted-foreground">
-                    Selected customer:{" "}
-                    {formatPreparationCustomerLabel(selectedExistingCustomer)}
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="booking-preparation-account-type">
-                      Account type
-                    </Label>
-                    <select
-                      id="booking-preparation-account-type"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={bookingPreparationCustomer.accountType}
-                      onChange={(event) =>
-                        updateBookingPreparationCustomer(
-                          "accountType",
-                          event.target.value,
-                        )
-                      }
-                    >
-                      <option value="INDIVIDUAL">Individual</option>
-                      <option value="COMPANY">Company</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="booking-preparation-phone">Phone</Label>
-                    <Input
-                      id="booking-preparation-phone"
-                      value={bookingPreparationCustomer.phone}
-                      onChange={(event) =>
-                        updateBookingPreparationCustomer(
-                          "phone",
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                  {bookingPreparationCustomer.accountType === "COMPANY" ? (
-                    <div className="space-y-2">
-                      <Label htmlFor="booking-preparation-company">
-                        Company name
-                      </Label>
-                      <Input
-                        id="booking-preparation-company"
-                        value={bookingPreparationCustomer.companyName}
-                        onChange={(event) =>
-                          updateBookingPreparationCustomer(
-                            "companyName",
-                            event.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label htmlFor="booking-preparation-full-name">
-                        Full name
-                      </Label>
-                      <Input
-                        id="booking-preparation-full-name"
-                        value={bookingPreparationCustomer.fullName}
-                        onChange={(event) =>
-                          updateBookingPreparationCustomer(
-                            "fullName",
-                            event.target.value,
-                          )
-                        }
-                      />
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="booking-preparation-email">Email</Label>
-                    <Input
-                      id="booking-preparation-email"
-                      type="email"
-                      value={bookingPreparationCustomer.email}
-                      onChange={(event) =>
-                        updateBookingPreparationCustomer(
-                          "email",
-                          event.target.value,
-                        )
-                      }
-                    />
-                  </div>
-                  {bookingPreparationCustomer.accountType === "COMPANY" ? (
-                    <>
-                      <div className="space-y-2 sm:col-span-2">
-                        <Label htmlFor="booking-preparation-billing-address">
-                          Billing address
-                        </Label>
-                        <Input
-                          id="booking-preparation-billing-address"
-                          value={bookingPreparationCustomer.billingAddress}
-                          onChange={(event) =>
-                            updateBookingPreparationCustomer(
-                              "billingAddress",
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="booking-preparation-trn">TRN</Label>
-                        <Input
-                          id="booking-preparation-trn"
-                          value={bookingPreparationCustomer.trn}
-                          onChange={(event) =>
-                            updateBookingPreparationCustomer(
-                              "trn",
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                    </>
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-semibold">Prepared properties</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Use the same pricing and availability rules as the customer
-                    checkout flow.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addPreparedProperty}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add property
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                {bookingPreparationProperties.map((property, index) => (
-                  <div
-                    key={property.localId}
-                    className="rounded-2xl border border-white/10 p-4"
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={createBookingHandoff}
+          >
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+              <div
+                className={cn(
+                  "rounded-2xl border border-white/10 p-4",
+                  bookingHandoffState.url && "hidden",
+                )}
+              >
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={
+                      bookingPreparationMode === "existing"
+                        ? "secondary"
+                        : "outline"
+                    }
+                    onClick={() => {
+                      setBookingPreparationMode("existing");
+                      setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+                      setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
+                    }}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium">Property {index + 1}</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={bookingPreparationProperties.length === 1}
-                        onClick={() => removePreparedProperty(index)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Remove
-                      </Button>
-                    </div>
+                    Existing customer
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={
+                      bookingPreparationMode === "new" ? "secondary" : "outline"
+                    }
+                    onClick={() => {
+                      setBookingPreparationMode("new");
+                      setBookingPreparationPreview(EMPTY_PREPARATION_PREVIEW);
+                      setBookingHandoffState(EMPTY_HANDOFF_LINK_STATE);
+                    }}
+                  >
+                    New customer
+                  </Button>
+                </div>
 
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor={`prepared-property-type-${index}`}>
-                          Property type
-                        </Label>
-                        <select
-                          id={`prepared-property-type-${index}`}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          value={property.propertyType}
-                          onChange={(event) =>
-                            updatePreparedProperty(
-                              index,
-                              "propertyType",
-                              event.target.value,
-                            )
-                          }
+                {bookingPreparationMode === "existing" ? (
+                  <div className="mt-4 space-y-4">
+                    {!selectedExistingCustomer ? (
+                      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <div className="space-y-2">
+                          <Label htmlFor="booking-preparation-search">
+                            Search customer
+                          </Label>
+                          <Input
+                            id="booking-preparation-search"
+                            value={customerSearchQuery}
+                            placeholder="Name, company, email, phone, or customer ID"
+                            onChange={(event) =>
+                              setCustomerSearchQuery(event.target.value)
+                            }
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          className="self-end"
+                          disabled={customerSearchLoading}
+                          onClick={searchExistingCustomers}
                         >
-                          <option value="">Select property type</option>
-                          {BOOKING_PROPERTY_TYPES.map((propertyType) => (
-                            <option key={propertyType} value={propertyType}>
-                              {propertyType}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`prepared-property-size-${index}`}>
-                          Property size
-                        </Label>
-                        <select
-                          id={`prepared-property-size-${index}`}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          value={property.propertySize}
-                          onChange={(event) =>
-                            updatePreparedProperty(
-                              index,
-                              "propertySize",
-                              event.target.value,
-                            )
-                          }
-                        >
-                          <option value="">Select property size</option>
-                          {getPreparedPropertySizeOptions(
-                            property.propertyType,
-                          ).map((propertySize) => (
-                            <option key={propertySize} value={propertySize}>
-                              {propertySize}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 space-y-3">
-                      <Label>Services</Label>
-                      <div className="grid gap-2 sm:grid-cols-3">
-                        {BOOKING_SERVICE_OPTIONS.map((service) => (
-                          <label
-                            key={service}
-                            className="flex items-center gap-2 rounded-xl border border-white/10 bg-background/40 px-3 py-2 text-sm"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={property.services.includes(service)}
-                              onChange={() =>
-                                togglePreparedPropertyService(index, service)
-                              }
-                            />
-                            <span>{service}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {property.services.includes("Videography") ? (
-                      <div className="mt-4 space-y-2">
-                        <Label htmlFor={`prepared-property-video-${index}`}>
-                          Videography option
-                        </Label>
-                        <select
-                          id={`prepared-property-video-${index}`}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          value={property.videographySubService}
-                          onChange={(event) =>
-                            updatePreparedProperty(
-                              index,
-                              "videographySubService",
-                              event.target.value,
-                            )
-                          }
-                        >
-                          <option value="">Select videography option</option>
-                          {VIDEOGRAPHY_PREPARATION_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {formatVideographyPreparationLabel(option)}
-                            </option>
-                          ))}
-                        </select>
+                          {customerSearchLoading ? "Searching..." : "Search"}
+                        </Button>
                       </div>
                     ) : null}
 
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    {!selectedExistingCustomer &&
+                    customerSearchResults.length > 0 ? (
                       <div className="space-y-2">
-                        <Label htmlFor={`prepared-property-date-${index}`}>
-                          Preferred date
-                        </Label>
-                        <Input
-                          id={`prepared-property-date-${index}`}
-                          type="date"
-                          value={property.preferredDate}
-                          onChange={(event) =>
-                            updatePreparedProperty(
-                              index,
-                              "preferredDate",
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`prepared-property-time-${index}`}>
-                          Start time
-                        </Label>
-                        <select
-                          id={`prepared-property-time-${index}`}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          value={property.startTime}
-                          onChange={(event) =>
-                            updatePreparedProperty(
-                              index,
-                              "startTime",
-                              event.target.value,
-                            )
-                          }
-                        >
-                          {PREPARATION_START_TIME_OPTIONS.map((timeOption) => (
-                            <option
-                              key={timeOption.value}
-                              value={timeOption.value}
+                        {customerSearchResults.map((customer) => {
+                          const isSelected =
+                            selectedExistingCustomer?.id === customer.id;
+
+                          return (
+                            <button
+                              key={customer.id}
+                              type="button"
+                              className={cn(
+                                "w-full rounded-2xl border p-3 text-left transition-colors",
+                                isSelected
+                                  ? "border-white/30 bg-background/70"
+                                  : "border-white/10 bg-background/40 hover:bg-background/60",
+                              )}
+                              onClick={() => {
+                                setSelectedExistingCustomer(customer);
+                                setBookingPreparationPreview(
+                                  EMPTY_PREPARATION_PREVIEW,
+                                );
+                                setBookingHandoffState(
+                                  EMPTY_HANDOFF_LINK_STATE,
+                                );
+                              }}
                             >
-                              {timeOption.label}
-                            </option>
-                          ))}
-                        </select>
+                              <p className="font-medium">
+                                {formatPreparationCustomerLabel(customer)}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {[customer.email, customer.phone]
+                                  .filter(Boolean)
+                                  .join(" • ") || "No contact details"}
+                              </p>
+                            </button>
+                          );
+                        })}
                       </div>
-                    </div>
+                    ) : null}
 
-                    <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                      <div className="space-y-2">
-                        <Label htmlFor={`prepared-property-building-${index}`}>
-                          Building
-                        </Label>
-                        <Input
-                          id={`prepared-property-building-${index}`}
-                          value={property.building}
-                          onChange={(event) =>
-                            updatePreparedProperty(
-                              index,
-                              "building",
-                              event.target.value,
-                            )
-                          }
-                        />
+                    {selectedExistingCustomer ? (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/15 bg-background/60 px-4 py-3">
+                        <div>
+                          <p className="font-medium">
+                            {formatPreparationCustomerLabel(
+                              selectedExistingCustomer,
+                            )}
+                          </p>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {[
+                              selectedExistingCustomer.email,
+                              selectedExistingCustomer.phone,
+                            ]
+                              .filter(Boolean)
+                              .join(" • ")}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedExistingCustomer(null);
+                            setCustomerSearchResults([]);
+                          }}
+                        >
+                          Change customer
+                        </Button>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`prepared-property-community-${index}`}>
-                          Community
-                        </Label>
-                        <Input
-                          id={`prepared-property-community-${index}`}
-                          value={property.community}
-                          onChange={(event) =>
-                            updatePreparedProperty(
-                              index,
-                              "community",
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`prepared-property-unit-${index}`}>
-                          Unit number
-                        </Label>
-                        <Input
-                          id={`prepared-property-unit-${index}`}
-                          value={property.unitNumber}
-                          onChange={(event) =>
-                            updatePreparedProperty(
-                              index,
-                              "unitNumber",
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </div>
-                    </div>
+                    ) : null}
                   </div>
-                ))}
+                ) : (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="booking-preparation-account-type">
+                        Account type
+                      </Label>
+                      <select
+                        id="booking-preparation-account-type"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={bookingPreparationCustomer.accountType}
+                        onChange={(event) =>
+                          updateBookingPreparationCustomer(
+                            "accountType",
+                            event.target.value,
+                          )
+                        }
+                      >
+                        <option value="INDIVIDUAL">Individual</option>
+                        <option value="COMPANY">Company</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="booking-preparation-phone">Phone</Label>
+                      <Input
+                        id="booking-preparation-phone"
+                        value={bookingPreparationCustomer.phone}
+                        onChange={(event) =>
+                          updateBookingPreparationCustomer(
+                            "phone",
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                    {bookingPreparationCustomer.accountType === "COMPANY" ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="booking-preparation-company">
+                          Company name
+                        </Label>
+                        <Input
+                          id="booking-preparation-company"
+                          value={bookingPreparationCustomer.companyName}
+                          onChange={(event) =>
+                            updateBookingPreparationCustomer(
+                              "companyName",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="booking-preparation-full-name">
+                          Full name
+                        </Label>
+                        <Input
+                          id="booking-preparation-full-name"
+                          value={bookingPreparationCustomer.fullName}
+                          onChange={(event) =>
+                            updateBookingPreparationCustomer(
+                              "fullName",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="booking-preparation-email">Email</Label>
+                      <Input
+                        id="booking-preparation-email"
+                        type="email"
+                        value={bookingPreparationCustomer.email}
+                        onChange={(event) =>
+                          updateBookingPreparationCustomer(
+                            "email",
+                            event.target.value,
+                          )
+                        }
+                      />
+                    </div>
+                    {bookingPreparationCustomer.accountType === "COMPANY" ? (
+                      <>
+                        <div className="space-y-2 sm:col-span-2">
+                          <Label htmlFor="booking-preparation-billing-address">
+                            Billing address
+                          </Label>
+                          <Input
+                            id="booking-preparation-billing-address"
+                            value={bookingPreparationCustomer.billingAddress}
+                            onChange={(event) =>
+                              updateBookingPreparationCustomer(
+                                "billingAddress",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="booking-preparation-trn">TRN</Label>
+                          <Input
+                            id="booking-preparation-trn"
+                            value={bookingPreparationCustomer.trn}
+                            onChange={(event) =>
+                              updateBookingPreparationCustomer(
+                                "trn",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                )}
               </div>
-            </div>
 
-            {bookingPreparationPreview ? (
-              <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+              <div
+                className={cn("space-y-4", bookingHandoffState.url && "hidden")}
+              >
+                <div className="flex items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-semibold">
-                      Prepared handoff summary
+                      Prepared properties
                     </h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {formatPreparationCustomerLabel(
-                        bookingPreparationPreview.customer,
-                      )}
-                      {bookingPreparationPreview.customer?.phone
-                        ? ` • ${bookingPreparationPreview.customer.phone}`
-                        : ""}
+                    <p className="text-sm text-muted-foreground">
+                      Use the same pricing and availability rules as the
+                      customer checkout flow.
                     </p>
                   </div>
-                  <Badge variant="secondary" className="rounded-full">
-                    AED {Number(bookingPreparationPreview.totalAmount || 0)}
-                  </Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addPreparedProperty}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add property
+                  </Button>
                 </div>
 
-                <div className="mt-4 space-y-3">
-                  {bookingPreparationPreview.properties.map(
-                    (property, index) => (
-                      <div
-                        key={`${property.preferredDate}-${property.startTime}-${property.label}-${property.locationLabel || index}`}
-                        className="rounded-xl border border-white/10 bg-background/60 p-3"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="font-medium">
-                              {property.label || `Property ${index + 1}`}
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                              {property.locationLabel || "Location pending"}
-                            </p>
-                          </div>
-                          <Badge variant="outline">
-                            AED {Number(property.total || 0)}
-                          </Badge>
+                <div className="space-y-4">
+                  {bookingPreparationProperties.map((property, index) => (
+                    <div
+                      key={property.localId}
+                      className="rounded-2xl border border-white/10 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="font-medium">Property {index + 1}</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={bookingPreparationProperties.length === 1}
+                          onClick={() => removePreparedProperty(index)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Remove
+                        </Button>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor={`prepared-property-type-${index}`}>
+                            Property type
+                          </Label>
+                          <select
+                            id={`prepared-property-type-${index}`}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={property.propertyType}
+                            onChange={(event) =>
+                              updatePreparedProperty(
+                                index,
+                                "propertyType",
+                                event.target.value,
+                              )
+                            }
+                          >
+                            <option value="">Select property type</option>
+                            {BOOKING_PROPERTY_TYPES.map((propertyType) => (
+                              <option key={propertyType} value={propertyType}>
+                                {propertyType}
+                              </option>
+                            ))}
+                          </select>
                         </div>
-                        <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                          <p className="text-muted-foreground">
-                            {property.serviceLabel}
-                          </p>
-                          <p className="text-muted-foreground">
-                            {property.preferredDate} • {property.startTime}
-                            {property.arrivalWindow
-                              ? ` • Arrival ${property.arrivalWindow}`
-                              : ""}
-                          </p>
+                        <div className="space-y-2">
+                          <Label htmlFor={`prepared-property-size-${index}`}>
+                            Property size
+                          </Label>
+                          <select
+                            id={`prepared-property-size-${index}`}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={property.propertySize}
+                            onChange={(event) =>
+                              updatePreparedProperty(
+                                index,
+                                "propertySize",
+                                event.target.value,
+                              )
+                            }
+                          >
+                            <option value="">Select property size</option>
+                            {getPreparedPropertySizeOptions(
+                              property.propertyType,
+                            ).map((propertySize) => (
+                              <option key={propertySize} value={propertySize}>
+                                {propertySize}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
-                    ),
-                  )}
-                </div>
 
-                {bookingHandoffState.url ? (
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-background/60 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-medium">Secure handoff link</p>
-                        <p className="mt-1 break-all text-sm text-muted-foreground">
-                          {bookingHandoffState.url}
-                        </p>
-                        {bookingHandoffState.expiresAt ? (
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            Expires{" "}
-                            {new Date(
-                              bookingHandoffState.expiresAt,
-                            ).toLocaleString("en-GB")}
-                          </p>
-                        ) : null}
+                      <div className="mt-4 space-y-3">
+                        <Label>Services</Label>
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          {BOOKING_SERVICE_OPTIONS.map((service) => (
+                            <label
+                              key={service}
+                              className="flex items-center gap-2 rounded-xl border border-white/10 bg-background/40 px-3 py-2 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={property.services.includes(service)}
+                                onChange={() =>
+                                  togglePreparedPropertyService(index, service)
+                                }
+                              />
+                              <span>{service}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={copyBookingHandoffLink}
-                      >
-                        <Copy className="mr-2 h-4 w-4" />
-                        Copy link
-                      </Button>
-                    </div>
-                  </div>
-                ) : null}
 
-                <div className="mt-4 rounded-2xl border border-white/10 bg-background/60 p-4">
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="send-booking-handoff-whatsapp"
-                      checked={sendBookingHandoffViaWhatsApp}
-                      onCheckedChange={(checked) =>
-                        setSendBookingHandoffViaWhatsApp(checked === true)
-                      }
-                    />
-                    <div className="space-y-1">
-                      <Label
-                        htmlFor="send-booking-handoff-whatsapp"
-                        className="font-medium"
-                      >
-                        Send customer link via WhatsApp
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Defaults off. Registration-required and registered
-                        customers receive different handoff messages.
-                      </p>
+                      {property.services.includes("Videography") ? (
+                        <div className="mt-4 space-y-2">
+                          <Label htmlFor={`prepared-property-video-${index}`}>
+                            Videography option
+                          </Label>
+                          <select
+                            id={`prepared-property-video-${index}`}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={property.videographySubService}
+                            onChange={(event) =>
+                              updatePreparedProperty(
+                                index,
+                                "videographySubService",
+                                event.target.value,
+                              )
+                            }
+                          >
+                            <option value="">Select videography option</option>
+                            {VIDEOGRAPHY_PREPARATION_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {formatVideographyPreparationLabel(option)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : null}
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor={`prepared-property-date-${index}`}>
+                            Preferred date
+                          </Label>
+                          <Input
+                            id={`prepared-property-date-${index}`}
+                            type="date"
+                            value={property.preferredDate}
+                            onChange={(event) =>
+                              updatePreparedProperty(
+                                index,
+                                "preferredDate",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`prepared-property-time-${index}`}>
+                            Start time
+                          </Label>
+                          <select
+                            id={`prepared-property-time-${index}`}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                            value={property.startTime}
+                            onChange={(event) =>
+                              updatePreparedProperty(
+                                index,
+                                "startTime",
+                                event.target.value,
+                              )
+                            }
+                          >
+                            {PREPARATION_START_TIME_OPTIONS.map(
+                              (timeOption) => (
+                                <option
+                                  key={timeOption.value}
+                                  value={timeOption.value}
+                                >
+                                  {timeOption.label}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor={`prepared-property-building-${index}`}
+                          >
+                            Building
+                          </Label>
+                          <Input
+                            id={`prepared-property-building-${index}`}
+                            value={property.building}
+                            onChange={(event) =>
+                              updatePreparedProperty(
+                                index,
+                                "building",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor={`prepared-property-community-${index}`}
+                          >
+                            Community
+                          </Label>
+                          <Input
+                            id={`prepared-property-community-${index}`}
+                            value={property.community}
+                            onChange={(event) =>
+                              updatePreparedProperty(
+                                index,
+                                "community",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`prepared-property-unit-${index}`}>
+                            Unit number
+                          </Label>
+                          <Input
+                            id={`prepared-property-unit-${index}`}
+                            value={property.unitNumber}
+                            onChange={(event) =>
+                              updatePreparedProperty(
+                                index,
+                                "unitNumber",
+                                event.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
-            ) : null}
 
-            <DialogFooter>
+              {bookingPreparationPreview ? (
+                <div className="rounded-2xl border border-white/10 bg-background/40 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        Prepared handoff summary
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {formatPreparationCustomerLabel(
+                          bookingPreparationPreview.customer,
+                        )}
+                        {bookingPreparationPreview.customer?.phone
+                          ? ` • ${bookingPreparationPreview.customer.phone}`
+                          : ""}
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="rounded-full">
+                      AED {Number(bookingPreparationPreview.totalAmount || 0)}
+                    </Badge>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {bookingPreparationPreview.properties.map(
+                      (property, index) => (
+                        <div
+                          key={`${property.preferredDate}-${property.startTime}-${property.label}-${property.locationLabel || index}`}
+                          className="rounded-xl border border-white/10 bg-background/60 p-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="font-medium">
+                                {property.label || `Property ${index + 1}`}
+                              </p>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {property.locationLabel || "Location pending"}
+                              </p>
+                            </div>
+                            <Badge variant="outline">
+                              AED {Number(property.total || 0)}
+                            </Badge>
+                          </div>
+                          <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                            <p className="text-muted-foreground">
+                              {property.serviceLabel}
+                            </p>
+                            <p className="text-muted-foreground">
+                              {property.preferredDate} • {property.startTime}
+                              {property.arrivalWindow
+                                ? ` • Arrival ${property.arrivalWindow}`
+                                : ""}
+                            </p>
+                          </div>
+                        </div>
+                      ),
+                    )}
+                  </div>
+
+                  {bookingHandoffState.url ? (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-background/60 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">Secure handoff link</p>
+                          <p className="mt-1 break-all text-sm text-muted-foreground">
+                            {bookingHandoffState.url}
+                          </p>
+                          {bookingHandoffState.expiresAt ? (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              Expires{" "}
+                              {new Date(
+                                bookingHandoffState.expiresAt,
+                              ).toLocaleString("en-GB")}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={copyBookingHandoffLink}
+                          >
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy link
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={bookingHandoffSaving}
+                            onClick={createBookingHandoff}
+                          >
+                            {bookingHandoffSaving
+                              ? "Regenerating..."
+                              : "Regenerate link"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {bookingHandoffState.url ? (
+                    <Button
+                      className="mt-4 w-full"
+                      type="button"
+                      disabled={
+                        bookingHandoffSending ||
+                        bookingHandoffState.whatsAppSent
+                      }
+                      onClick={sendBookingHandoffWhatsApp}
+                    >
+                      {bookingHandoffState.whatsAppSent
+                        ? "Link sent to customer via WhatsApp"
+                        : bookingHandoffSending
+                          ? "Sending via WhatsApp..."
+                          : "Send customer link via WhatsApp"}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <DialogFooter className="shrink-0 border-t border-white/10 px-6 py-4">
               <Button
                 type="button"
                 variant="outline"
-                disabled={bookingPreparationSaving}
+                disabled={bookingHandoffSaving || bookingHandoffSending}
                 onClick={resetBookingPreparationDialog}
               >
                 Close
               </Button>
-              <Button type="submit" disabled={bookingPreparationSaving}>
-                {bookingPreparationSaving
-                  ? "Validating..."
-                  : "Validate preparation"}
-              </Button>
-              <Button
-                type="button"
-                disabled={bookingHandoffSaving || !bookingPreparationPreview}
-                onClick={createBookingHandoff}
-              >
-                {bookingHandoffSaving
-                  ? "Saving..."
-                  : bookingHandoffState.transactionId
-                    ? "Regenerate link"
-                    : "Create secure link"}
-              </Button>
+              {!bookingHandoffState.url ? (
+                <Button type="submit" disabled={bookingHandoffSaving}>
+                  {bookingHandoffSaving ? "Creating..." : "Create secure link"}
+                </Button>
+              ) : null}
             </DialogFooter>
           </form>
         </DialogContent>
@@ -3142,30 +3143,42 @@ export default function SchedulingCalendarPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="calendar-event-start-time">Start time</Label>
-                <Input
+                <select
                   id="calendar-event-start-time"
-                  type="time"
-                  step="1800"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={eventForm.allDay}
                   value={eventForm.startTime}
                   onChange={(event) =>
                     handleEventFormChange("startTime", event.target.value)
                   }
-                />
+                >
+                  <option value="">Select start time</option>
+                  {EVENT_TIME_OPTIONS.map((time) => (
+                    <option key={time} value={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="calendar-event-end-time">End time</Label>
-                <Input
+                <select
                   id="calendar-event-end-time"
-                  type="time"
-                  step="1800"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={eventForm.allDay}
                   value={eventForm.endTime}
                   onChange={(event) =>
                     handleEventFormChange("endTime", event.target.value)
                   }
-                />
+                >
+                  <option value="">Select end time</option>
+                  {EVENT_TIME_OPTIONS.map((time) => (
+                    <option key={time} value={time}>
+                      {time}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2">

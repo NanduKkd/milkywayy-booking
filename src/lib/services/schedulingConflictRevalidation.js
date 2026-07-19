@@ -277,7 +277,9 @@ async function loadBookingsForDates(dates, transaction) {
 
   if (transaction) {
     query.transaction = transaction;
-    query.lock = transaction.LOCK.UPDATE;
+    // The transaction association is an optional outer join. PostgreSQL rejects
+    // an unscoped FOR UPDATE because it attempts to lock that nullable side.
+    query.lock = { level: transaction.LOCK.UPDATE, of: Booking };
   }
 
   return Booking.findAll(query);

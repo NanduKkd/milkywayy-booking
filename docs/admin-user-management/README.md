@@ -1,9 +1,10 @@
 # Admin customer management delivery plan
 
-- Last updated: 2026-07-03
-- Planning status: `DEFERRED`
-- Implementation status: `DEFERRED`
-- Target: deferred for a later release; the Users page remains intended to become a customer-only operational view with aggregates, sorting, editing, and safe deactivation when work resumes.
+- Last updated: 2026-07-12
+- Planning status at GitHub migration: `DEFERRED`
+- Implementation status at GitHub migration: `DEFERRED`
+- Current planning issue: [#22](https://github.com/NanduKkd/milkywayy-booking/issues/22)
+- Target: deferred for a later release; the Users page remains intended to become a customer-only operational view with aggregates, sorting, and safe reversible disablement when work resumes.
 
 ## Purpose
 
@@ -14,12 +15,12 @@ and net-spend summaries.
 ## Current status
 
 This feature is on hold and has been deferred to a later release.
-No implementation work should start against this folder until the feature is
-reactivated and the task tracker is updated.
+The customer Disable/Enable lifecycle slice was completed on 2026-07-12; the
+remaining customer analytics and management work stays deferred.
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): customer query, aggregate, and deactivation flows.
 - [DECISIONS.md](./DECISIONS.md): staff separation and deletion policy.
 - [OPERATIONS.md](./OPERATIONS.md): migration and rollout plan.
@@ -40,14 +41,15 @@ reactivated and the task tracker is updated.
 
 - Customer-only list and summary KPIs.
 - Server-side pagination, sorting, and filtering by customer name, booking count, and net spend.
-- Customer create and edit flows.
+- Customer creation; editing is not offered on the Users page.
 - Safe customer deactivation/reactivation instead of hard deletion.
-- Deactivated-account enforcement across authentication, booking, dashboard, API, and OAuth access.
+- Disabled customers cannot start or complete a new OTP login.
 - Staff removal from Users and management through `admin-access-control` Settings.
 
 ## Explicit non-goals
 
 - Hard deletion of customers or their financial/booking history.
+- Customer editing from the Users page.
 - Staff invitations or staff permission editing; those belong to Settings.
 - Customer segmentation, marketing automation, or bulk messaging.
 
@@ -70,6 +72,6 @@ reactivated and the task tracker is updated.
 
 - No staff account appears in Users queries, counts, exports, or search results.
 - Booking and net-spend totals reconcile to source records.
-- Deactivation blocks new and existing access without deleting history.
+- Disablement blocks new OTP login without deleting history.
 - Reactivation is authorized and auditable.
 - Pagination and sorting remain server-side and stable at production data volume.

@@ -134,6 +134,28 @@ describe("Admin Time Slots Page", () => {
     expect(payload.timeSlots.systemSettings.rollingWindowDays).toBe(120);
   });
 
+  it("only offers to unblock a day that has manual blocks", async () => {
+    render(<TimeSlotsPage />);
+
+    await screen.findByText("Calendar");
+
+    const unblockedDayButtons = screen.getAllByRole("button", { name: /^14/ });
+    fireEvent.click(unblockedDayButtons[0]);
+
+    expect(
+      screen.queryByRole("button", { name: /unblock day/i }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+
+    const blockedDayButtons = screen.getAllByRole("button", { name: /^15/ });
+    fireEvent.click(blockedDayButtons[0]);
+
+    expect(
+      screen.getByRole("button", { name: /unblock day/i }),
+    ).toBeInTheDocument();
+  });
+
   it("shows a retryable error state when the initial load fails", async () => {
     global.fetch
       .mockResolvedValueOnce({

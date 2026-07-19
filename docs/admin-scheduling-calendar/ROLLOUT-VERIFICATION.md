@@ -1,12 +1,12 @@
 # Admin scheduling calendar rollout verification
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-11
 - Verification status: `IN_PROGRESS`
 
 ## Automated release evidence
 
 - Command: `npm run verify:scheduling-calendar-rollout`
-- Result: Passed 143 tests across 29 suites with no skipped or todo release-blocking cases.
+- Result: Passed 147 tests across 29 suites with no skipped or todo release-blocking cases.
 - Exact sampled booking identifiers, operator names, deployment timing, and rollback rehearsal details remain in the ignored local worksheet at `docs/private/ADMIN-SCHEDULING-CALENDAR-ROLLOUT.md`.
 
 | Area | Verification group | Suites | Tests | Coverage |
@@ -14,7 +14,32 @@
 | Schema and reads | Schema and read-model coverage | 4 | 9 | Calendar-event storage, bounded range reads, and the unified bookings/events/blocks query stay aligned. |
 | Blocks and events | Blocking and event mutation smoke coverage | 6 | 35 | Availability precedence, exact-block conflict failures, and non-blocking event mutations remain safe. |
 | Booking handoff | Preparation and handoff smoke coverage | 11 | 30 | Admin booking preparation, OTP-gated handoffs, replacement links, and WhatsApp opt-in behavior stay enforced. |
-| UI and regression | Calendar UI and booking regression coverage | 8 | 69 | The admin Calendar UI, booking flows, and Time Slots regressions stay covered together for release review. |
+| UI and regression | Calendar UI and booking regression coverage | 8 | 73 | The admin Calendar UI, booking flows, and Time Slots regressions stay covered together for release review. |
+
+## Localhost smoke evidence
+
+Verified against `http://localhost:3000` on 2026-07-11:
+
+- unauthenticated Calendar page navigation redirected to `/admin/login`;
+- unauthenticated Calendar API access returned `401 Unauthorized`;
+- an invalid public handoff token returned `400` and rendered the handled
+  "Booking handoff unavailable" state;
+- the checked pages reported no browser runtime errors.
+
+Authenticated mutations and real Stripe, OTP, and WhatsApp delivery were not
+executed in this browser pass. Those behaviors passed mocked/in-process tests
+but remain part of the target-environment manual checklist below.
+
+## Verification assessment
+
+| Check | Assessment | Evidence or remaining work |
+|---|---|---|
+| Approved feature behavior | `PASS` | Current code inspection plus 147 passing tests cover exact blocks, non-blocking events, multi-property preparation, customer-state handoffs, four-hour pending holds, promotion-aware checkout, and WhatsApp default-off behavior. |
+| Local authorization and error handling | `PASS` | Browser/API smoke results above. |
+| Replacement-link invalidation | `PARTIAL` | Version replacement and stale-token rejection are implemented in `adminBookingHandoffs.js`; current automated coverage verifies metadata expiry and route delegation, but does not directly exercise regeneration against persisted service records. |
+| Authenticated end-to-end browser flow | `PENDING` | Requires a usable Super Admin browser session and test customer/payment setup. |
+| External delivery/payment integrations | `PENDING` | Requires target-environment OTP, WhatsApp, and Stripe execution. |
+| Deployment/operations gate (`CAL-304`) | `PENDING` | Migration, representative data comparison, monitoring confirmation, and rollback rehearsal are not recorded yet. |
 
 ## Manual rollout checklist
 

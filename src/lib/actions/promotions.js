@@ -1,5 +1,6 @@
 "use server";
 
+import "@/lib/db/relations";
 import { revalidatePath } from "next/cache";
 import { USER_ROLES } from "@/lib/config/app.config";
 import models from "@/lib/db/models";
@@ -12,6 +13,7 @@ import {
   listPromotions,
   pausePromotion,
   searchAssignableCustomers,
+  unassignPromotionCustomer,
   updatePromotion,
 } from "@/lib/services/promotionAdmin";
 import { actionWrapper } from "./utils";
@@ -122,4 +124,19 @@ const assignAdminPromotionCustomerHandler = async (promotionId, userId) => {
 };
 export const assignAdminPromotionCustomer = actionWrapper(
   assignAdminPromotionCustomerHandler,
+);
+
+const unassignAdminPromotionCustomerHandler = async (promotionId, userId) => {
+  const actorUser = await requirePromotionAdminActor();
+  const promotion = await unassignPromotionCustomer({
+    actorUser,
+    promotionId,
+    userId,
+  });
+
+  revalidatePromotionAdminPaths();
+  return promotion;
+};
+export const unassignAdminPromotionCustomer = actionWrapper(
+  unassignAdminPromotionCustomerHandler,
 );

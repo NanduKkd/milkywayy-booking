@@ -1,13 +1,15 @@
-import { render, screen, waitFor } from "../../../../test-utils";
+import { fireEvent, render, screen, waitFor } from "../../../../test-utils";
 import PortfolioManagement from "../page";
 
 // Mock global fetch
 global.fetch = jest.fn();
 
 // Mock Next.js navigation
+const mockRefresh = jest.fn();
 jest.mock("next/navigation", () => ({
   redirect: jest.fn(),
   useRouter: jest.fn(() => ({
+    refresh: mockRefresh,
     replace: jest.fn(),
   })),
 }));
@@ -87,5 +89,22 @@ describe("Portfolio Management Page", () => {
       ).toBeInTheDocument();
     });
     expect(screen.getByText("Portfolio API unavailable")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("heading", { name: "Unavailable" }),
+    ).toHaveLength(3);
+    expect(
+      screen.getByText(/portfolio entries are unavailable/i),
+    ).toBeInTheDocument();
+    const retryButton = screen.getByRole("button", { name: /retry load/i });
+    expect(retryButton).toBeEnabled();
+    fireEvent.click(retryButton);
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /new entry/i })).toBeDisabled();
+    expect(
+      screen.queryByText(/no portfolio items found/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/create the first portfolio entry/i),
+    ).not.toBeInTheDocument();
   });
 });

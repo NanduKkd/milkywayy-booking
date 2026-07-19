@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
+import "@/lib/db/relations";
 import { auth } from "@/lib/helpers/auth";
 import {
   createAdminBookingHandoff,
   isAdminBookingHandoffValidationError,
+  sendAdminBookingHandoffLink,
 } from "@/lib/services/adminBookingHandoffs";
 
 function isSchedulingAvailabilityConflict(error) {
@@ -28,6 +30,15 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+    if (body?.action === "send_whatsapp") {
+      const result = await sendAdminBookingHandoffLink({
+        actorUser: { id: Number(session.id), role: session.role },
+        transactionId: body?.transactionId,
+      });
+
+      return NextResponse.json(result);
+    }
+
     const result = await createAdminBookingHandoff({
       actorUser: {
         id: Number(session.id),

@@ -62,11 +62,23 @@ describe("Admin expenses collection API route", () => {
       filters: {
         rangeStart: "2026-07-01",
         rangeEnd: "2026-07-31",
-        category: undefined,
-        includeDeleted: undefined,
       },
     });
     expect(data.items).toEqual([{ id: 7 }]);
+  });
+
+  it("passes an explicit includeDeleted query value through for validation", async () => {
+    listExpenses.mockResolvedValue({ items: [] });
+
+    const response = await GET({
+      url: "http://localhost:3000/api/admin/expenses?includeDeleted=false",
+    });
+
+    expect(response.status).toBe(200);
+    expect(listExpenses).toHaveBeenCalledWith({
+      actorUser: { id: 1, role: "SUPERADMIN" },
+      filters: { includeDeleted: "false" },
+    });
   });
 
   it("rejects anonymous and non-superadmin access for reads and writes", async () => {

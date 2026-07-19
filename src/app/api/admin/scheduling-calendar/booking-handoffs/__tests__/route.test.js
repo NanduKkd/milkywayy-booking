@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/helpers/auth";
-import { createAdminBookingHandoff } from "@/lib/services/adminBookingHandoffs";
+import {
+  createAdminBookingHandoff,
+  sendAdminBookingHandoffLink,
+} from "@/lib/services/adminBookingHandoffs";
 import { POST } from "../route";
 
 jest.mock("next/server", () => ({
@@ -16,8 +19,11 @@ jest.mock("@/lib/helpers/auth", () => ({
   auth: jest.fn(),
 }));
 
+jest.mock("@/lib/db/relations", () => ({}));
+
 jest.mock("@/lib/services/adminBookingHandoffs", () => ({
   createAdminBookingHandoff: jest.fn(),
+  sendAdminBookingHandoffLink: jest.fn(),
   isAdminBookingHandoffValidationError: jest.fn((error) =>
     String(error?.message || "").includes("required"),
   ),
@@ -70,6 +76,26 @@ describe("Admin booking handoff POST route", () => {
     auth.mockResolvedValueOnce({ id: 3, role: "CUSTOMER" });
     const forbiddenResponse = await POST({ json: jest.fn() });
     expect(forbiddenResponse.status).toBe(403);
+  });
+
+  it("sends an existing handoff link without regenerating it", async () => {
+    sendAdminBookingHandoffLink.mockResolvedValue({
+      notification: { attempted: true, sent: true },
+    });
+
+    const response = await POST({
+      json: jest.fn().mockResolvedValue({
+        action: "send_whatsapp",
+        transactionId: 91,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(sendAdminBookingHandoffLink).toHaveBeenCalledWith({
+      actorUser: { id: 1, role: "SUPERADMIN" },
+      transactionId: 91,
+    });
+    expect(createAdminBookingHandoff).not.toHaveBeenCalled();
   });
 
   it("returns validation failures as 400", async () => {

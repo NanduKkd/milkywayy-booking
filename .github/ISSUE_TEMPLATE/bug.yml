@@ -1,0 +1,60 @@
+name: Bug report
+description: Describe a reproducible defect and its bounded repair contract.
+title: "[Bug]: "
+labels:
+  - "type:bug"
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Defect
+      description: What behavior is incorrect and who is affected?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide deterministic steps, inputs, environment constraints, and frequency.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and evidence
+      description: Include safe logs, screenshots, recordings, or failing tests without secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Repair scope and non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] Regression is reproduced by a test and the test passes after the fix"
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and blockers
+      description: Link prerequisites or write None.
+    validations:
+      required: true
+  - type: textarea
+    id: proof
+    attributes:
+      label: Required proof and documentation impact
+      description: State proof requirements and durable docs that must change, or write None.
+    validations:
+      required: true

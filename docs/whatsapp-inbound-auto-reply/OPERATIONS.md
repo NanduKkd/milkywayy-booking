@@ -33,7 +33,7 @@ Use `npm run verify:whatsapp-inbound-config` as a sanitized preflight before att
 5. Send one WhatsApp message from a non-business test number.
 6. Confirm exactly one approved response arrives and includes the website's displayed phone number.
 7. Send an existing outbound notification and confirm its behavior is unchanged.
-8. Record validation evidence in `TASKS.md`.
+8. Record safe validation evidence on the linked GitHub Issue or pull request.
 
 ## Monitoring
 

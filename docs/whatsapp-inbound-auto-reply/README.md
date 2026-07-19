@@ -1,8 +1,9 @@
 # WhatsApp inbound auto-reply delivery plan
 
 - Last updated: 2026-07-01
-- Planning status: `DONE`
-- Implementation status: `BLOCKED`
+- Planning status at GitHub migration: `DONE`
+- Implementation status at GitHub migration: `BLOCKED`
+- Current rollout issue: [#17](https://github.com/NanduKkd/milkywayy-booking/issues/17)
 - Target: Automatically direct inbound WhatsApp senders to the public contact phone number.
 
 ## Purpose
@@ -11,7 +12,7 @@ Milkywayy currently sends WhatsApp notifications through Twilio but does not han
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative implementation tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): target request flow and system boundaries.
 - [DECISIONS.md](./DECISIONS.md): accepted decisions, proposals, and tradeoffs.
 - [OPERATIONS.md](./OPERATIONS.md): configuration, rollout, monitoring, and rollback.
@@ -69,5 +70,5 @@ This copy is approved for implementation. It deliberately avoids claiming that m
 - Invalid or unsigned requests cannot trigger a WhatsApp response.
 - Valid inbound WhatsApp messages receive the approved response.
 - Focused tests and lint checks pass.
-- Production configuration and manual Twilio validation are recorded in `TASKS.md` without committing sensitive deployment details.
+- Production configuration remains private; safe manual validation evidence belongs on the linked GitHub Issue or pull request.
 - Rollback instructions are usable and do not require a code revert as the first response.

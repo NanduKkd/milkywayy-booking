@@ -491,6 +491,9 @@ async function buildHandoffResponse(
   { transaction = null } = {},
 ) {
   const handoffMetadata = getAdminBookingHandoffMetadata(transactionRecord);
+  const customerUser =
+    transactionRecord.user ||
+    (await User.findByPk(transactionRecord.userId, { transaction }));
   const bookings = await Booking.findAll({
     where: { transactionId: transactionRecord.id },
     order: [["id", "ASC"]],
@@ -513,7 +516,7 @@ async function buildHandoffResponse(
     requiresRegistration: Boolean(handoffMetadata?.requiresRegistration),
     registrationVerifiedAt: handoffMetadata?.registrationVerifiedAt || null,
     isExpired: isAdminBookingHandoffExpired(transactionRecord),
-    customer: buildCustomerSnapshotFromUser(transactionRecord.user),
+    customer: buildCustomerSnapshotFromUser(customerUser),
     properties: editableProperties,
     propertyPreviews,
     totalAmount,
@@ -640,8 +643,8 @@ export async function createAdminBookingHandoff({
       registrationVerifiedAt:
         customerMode === "new"
           ? null
-          : existingTransaction
-            ? getAdminBookingHandoffMetadata(existingTransaction)
+          : currentTransaction
+            ? getAdminBookingHandoffMetadata(currentTransaction)
                 ?.registrationVerifiedAt || now
             : now,
       createdByUserId: actor.id,
@@ -725,6 +728,40 @@ export async function createAdminBookingHandoff({
     ...result,
     notification,
   };
+}
+
+export async function sendAdminBookingHandoffLink({
+  actorUser,
+  transactionId,
+} = {}) {
+  assertAuthorizedActor(actorUser);
+  const transactionRecord = await Transaction.findByPk(transactionId, {
+    include: [{ model: User, as: "user" }],
+  });
+  const handoffMetadata = getAdminBookingHandoffMetadata(transactionRecord);
+
+  if (!transactionRecord || !handoffMetadata) {
+    throw new Error("Booking handoff not found");
+  }
+
+  if (isAdminBookingHandoffExpired(transactionRecord)) {
+    throw new Error("This booking handoff link has expired");
+  }
+
+  const response = await buildHandoffResponse(transactionRecord);
+  const token = await issueHandoffToken({
+    transactionId: transactionRecord.id,
+    version: handoffMetadata.version,
+  });
+  const notification = await sendAdminBookingHandoffWhatsApp({
+    customer: response.customer,
+    propertyPreviews: response.propertyPreviews,
+    url: buildHandoffUrl(token),
+    expiresAt: response.expiresAt,
+    requiresRegistration: response.requiresRegistration,
+  });
+
+  return { notification };
 }
 
 export async function getAdminBookingHandoffByToken({ token } = {}) {

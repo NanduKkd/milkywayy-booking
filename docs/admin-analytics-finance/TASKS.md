@@ -1,6 +1,8 @@
 # Admin analytics and finance task tracker
 
-- Last updated: 2026-07-02
+> Historical delivery ledger. GitHub Issues and Project 1 are authoritative for current work and status. This file preserves migration evidence and must not be used for dispatch.
+
+- Last updated: 2026-07-12
 - Overall implementation status: `IN_PROGRESS`
 - Current milestone: `M3 - Verification and rollout`
 
@@ -10,7 +12,7 @@
 |---|---|---:|---:|---:|
 | M0 - Metric and report contract | `DONE` | 3 | 3 | 2-3 days |
 | M1 - Expense and analytics foundation | `DONE` | 5 | 5 | 4-6 days |
-| M2 - Reports and exports | `DONE` | 6 | 6 | 7-10 days |
+| M2 - Reports and exports | `DONE` | 8 | 8 | 7-10 days |
 | M3 - Verification and rollout | `IN_PROGRESS` | 4 | 5 | 4-5 days |
 
 ## M0 - Metric and report contract
@@ -41,6 +43,9 @@
 | FIN-204 | Implement Excel export | `DONE` | Engineering | FIN-003, FIN-103 | Workbook has stable columns, types, filters, totals, and safe cell values | Added shared XLSX workbook generation in `src/lib/services/financialReportExport.js`, extended `GET /api/admin/analytics/reports/export?format=xlsx`, and exposed an Excel export action from `src/app/admin/analytics/FinancialReportsPage.jsx`. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialReportExport.test.js src/app/api/admin/analytics/reports/export/__tests__/route.test.js src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx --runInBand`. |
 | FIN-205 | Implement PDF report export | `DONE` | Engineering | FIN-003, FIN-103 | PDF is readable, dated, filter-labelled, and reconciles to screen totals | Added shared Puppeteer-backed PDF generation in `src/lib/services/financialReportExport.js`, extended `GET /api/admin/analytics/reports/export?format=pdf`, and exposed a PDF export action from `src/app/admin/analytics/FinancialReportsPage.jsx`. Verified on 2026-07-01 with `npx jest src/lib/services/__tests__/financialReportExport.test.js src/app/api/admin/analytics/reports/export/__tests__/route.test.js src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx --runInBand`. |
 | FIN-206 | Implement Dashboard drill-downs and export control | `DONE` | Engineering | FIN-104, FIN-105 | KPI drill-down and Dashboard export respect the active date range | Added a live Dashboard Analytics section to `src/app/admin/analytics/FinancialReportsPage.jsx` that loads `/api/admin/analytics/dashboard`, opens KPI/service/schedule/recent-booking drill-downs through `/api/admin/analytics/drill-down`, and keeps CSV/Excel/PDF export controls bound to the same active month range. Verified on 2026-07-01 with `npx jest src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx src/app/api/admin/analytics/dashboard/__tests__/route.test.js src/app/api/admin/analytics/drill-down/__tests__/route.test.js src/app/api/admin/analytics/reports/__tests__/route.test.js src/app/api/admin/analytics/reports/export/__tests__/route.test.js --runInBand`. |
+| FIN-207 | Recover empty default months and simplify Dashboard presentation | `DONE` | Engineering | FIN-104, FIN-206 | Dashboard opens the latest month containing database activity when the current month is empty; revenue uses a date/revenue line chart; decorative subtitles are removed | Added latest-activity month discovery to the bounded Dashboard data loader and automatic empty-month recovery in the client; replaced bucket bars with a responsive SVG date/revenue line chart; compacted shared admin headers, removed page-level explanatory copy, visually hid admin modal descriptions while retaining accessible semantics, and made the native month picker use a visible dark color scheme. Verified on 2026-07-12 with `npx jest --runTestsByPath src/lib/services/__tests__/financialAnalyticsData.test.js src/lib/services/__tests__/financialAggregation.test.js src/app/api/admin/analytics/dashboard/__tests__/route.test.js src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx src/components/admin/__tests__/AdminPrimitives.test.jsx --runInBand` (36 tests passed). |
+| FIN-208 | Keep explicit Report month selections applied across finance surfaces | `DONE` | Engineering | FIN-201 to FIN-206 | Selecting a month updates visible ranges, report and expense requests, and every export URL without empty-month recovery overriding the selection | Confirmed the shared month state already drives all finance surfaces, restricted automatic latest-activity recovery to the initial default month, and added a regression test covering a July-to-March selection across visible labels, request ranges, and CSV/XLSX/PDF URLs. Verified on 2026-07-12 with the focused `FinancialReportsPage.test.jsx` suite (7 tests passed) and Biome (2 files checked). |
+| FIN-209 | Fix omitted Expense Tracker deletion filter validation | `DONE` | Engineering | FIN-102, FIN-202 | Month-scoped Expense Tracker requests load without requiring `includeDeleted`; explicit deletion-filter values still reach service validation | Updated the expense collection API to omit absent query parameters instead of passing `includeDeleted: undefined`, which had triggered boolean validation and disabled the tracker. Added route regression coverage for omitted and explicit-false values. Verified on 2026-07-12 with `npx jest --runTestsByPath src/app/api/admin/expenses/__tests__/route.test.js src/lib/services/__tests__/expenseAdmin.test.js src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx --runInBand` (3 suites and 19 tests passed). |
 
 ## M3 - Verification and rollout
 

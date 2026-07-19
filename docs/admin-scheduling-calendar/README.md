@@ -1,8 +1,9 @@
 # Admin scheduling calendar delivery plan
 
 - Last updated: 2026-07-03
-- Planning status: `IN_PROGRESS`
-- Implementation status: `IN_PROGRESS`
+- Planning status at GitHub migration: `IN_PROGRESS`
+- Implementation status at GitHub migration: `IN_PROGRESS`
+- Current rollout issue: [#12](https://github.com/NanduKkd/milkywayy-booking/issues/12)
 - Target: provide one booking-centric admin calendar backed by the existing availability rules.
 
 ## Purpose
@@ -13,7 +14,7 @@ creating a second scheduling, registration, pricing, or checkout authority.
 
 ## Document index
 
-- [TASKS.md](./TASKS.md): authoritative tracker.
+- [TASKS.md](./TASKS.md): historical delivery ledger retained for migration evidence.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): event, booking, and availability flows.
 - [DECISIONS.md](./DECISIONS.md): scheduling precedence and manual-entry decisions.
 - [OPERATIONS.md](./OPERATIONS.md): migration, rollout, and recovery.

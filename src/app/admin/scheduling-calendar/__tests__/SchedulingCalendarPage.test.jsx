@@ -536,6 +536,16 @@ describe("SchedulingCalendarPage", () => {
         const body = JSON.parse(init?.body || "{}");
         bookingHandoffBodies.push(body);
 
+        if (body.action === "send_whatsapp") {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              notification: { attempted: true, sent: true },
+            }),
+          });
+        }
+
         const selectedCustomer =
           body.input.customerMode === "existing"
             ? {
@@ -879,6 +889,18 @@ describe("SchedulingCalendarPage", () => {
       name: /Create calendar event/i,
     });
 
+    expect(within(createDialog).getByLabelText("Start time")).toHaveProperty(
+      "tagName",
+      "SELECT",
+    );
+    const startTimeSelect = within(createDialog).getByLabelText("Start time");
+    expect(
+      within(startTimeSelect).queryByRole("option", { name: "10:15" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(startTimeSelect).getByRole("option", { name: "10:30" }),
+    ).toBeInTheDocument();
+
     fireEvent.change(within(createDialog).getByLabelText("Title"), {
       target: { value: "Walkthrough hold" },
     });
@@ -947,6 +969,12 @@ describe("SchedulingCalendarPage", () => {
       name: /Prepare admin booking/i,
     });
 
+    expect(dialog).toHaveClass("max-h-[calc(100dvh-2rem)]", "overflow-hidden");
+    expect(dialog.querySelector(".overflow-y-auto")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /Create secure link/i }),
+    ).toBeVisible();
+
     fireEvent.change(within(dialog).getByLabelText("Search customer"), {
       target: { value: "ava" },
     });
@@ -979,7 +1007,7 @@ describe("SchedulingCalendarPage", () => {
     });
 
     fireEvent.click(
-      within(dialog).getByRole("button", { name: /Validate preparation/i }),
+      within(dialog).getByRole("button", { name: /Create secure link/i }),
     );
 
     expect(
@@ -998,7 +1026,7 @@ describe("SchedulingCalendarPage", () => {
     expect(within(dialog).getAllByText("AED 1450").length).toBeGreaterThan(0);
   });
 
-  it("defaults WhatsApp handoff delivery off and lets the admin opt in before creating the link", async () => {
+  it("sends a generated link once and resets delivery after regeneration", async () => {
     render(<SchedulingCalendarPage />);
 
     expect(
@@ -1036,19 +1064,6 @@ describe("SchedulingCalendarPage", () => {
       target: { value: "1504" },
     });
 
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: /Validate preparation/i }),
-    );
-
-    const whatsappCheckbox = await within(dialog).findByRole("checkbox", {
-      name: /Send customer link via WhatsApp/i,
-    });
-
-    expect(whatsappCheckbox).not.toBeChecked();
-
-    fireEvent.click(whatsappCheckbox);
-    expect(whatsappCheckbox).toBeChecked();
-
     await act(async () => {
       fireEvent.click(
         within(dialog).getByRole("button", { name: /Create secure link/i }),
@@ -1060,7 +1075,7 @@ describe("SchedulingCalendarPage", () => {
     });
 
     expect(bookingHandoffBodies[0]).toMatchObject({
-      sendWhatsApp: true,
+      sendWhatsApp: false,
       input: {
         customerMode: "existing",
         customerId: 7,
@@ -1071,5 +1086,35 @@ describe("SchedulingCalendarPage", () => {
         "https://example.com/booking/handoff/token-1",
       ),
     ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByLabelText("Search customer"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: /Validate preparation/i }),
+    ).not.toBeInTheDocument();
+
+    const sendButton = within(dialog).getByRole("button", {
+      name: /Send customer link via WhatsApp/i,
+    });
+    fireEvent.click(sendButton);
+
+    expect(
+      await within(dialog).findByRole("button", {
+        name: /Link sent to customer via WhatsApp/i,
+      }),
+    ).toBeDisabled();
+    expect(bookingHandoffBodies[1]).toEqual({
+      action: "send_whatsapp",
+      transactionId: 91,
+    });
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: /Regenerate link/i }),
+    );
+    expect(
+      await within(dialog).findByRole("button", {
+        name: /^Send customer link via WhatsApp$/i,
+      }),
+    ).toBeEnabled();
   });
 });

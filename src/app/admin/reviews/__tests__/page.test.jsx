@@ -58,7 +58,7 @@ describe("Reviews Management Page", () => {
     });
   });
 
-  it("shows the inline fetch error state while preserving the refreshed shell", async () => {
+  it("shows a retryable unavailable state without misleading empty totals", async () => {
     const { getSessionUser } = require("../../../../lib/helpers/auth");
     getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
 
@@ -73,10 +73,40 @@ describe("Reviews Management Page", () => {
     render(page);
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/unable to load every review/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/reviews are unavailable/i)).toBeInTheDocument();
     });
-    expect(screen.getByText("Reviews API unavailable")).toBeInTheDocument();
+    expect(screen.getByText(/Reviews API unavailable/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /try again/i })).toHaveAttribute(
+      "href",
+      "/admin/reviews",
+    );
+    expect(screen.queryByText("Total reviews")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("No featured reviews found"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("No standard reviews found"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the genuine empty-review state when the request succeeds", async () => {
+    const { getSessionUser } = require("../../../../lib/helpers/auth");
+    getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
+
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => [],
+    });
+
+    const page = await ReviewsManagement();
+    render(page);
+
+    expect(screen.getByText("Total reviews")).toBeInTheDocument();
+    expect(screen.getAllByText("0")).toHaveLength(2);
+    expect(screen.getByText("No featured reviews found")).toBeInTheDocument();
+    expect(screen.getByText("No standard reviews found")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/reviews are unavailable/i),
+    ).not.toBeInTheDocument();
   });
 });

@@ -74,7 +74,7 @@ export default async function PortfolioManagement() {
         />
       ) : null}
 
-      <PortfolioList initialItems={items} />
+      <PortfolioList initialItems={items} loadError={error} />
     </AdminPage>
   );
 }

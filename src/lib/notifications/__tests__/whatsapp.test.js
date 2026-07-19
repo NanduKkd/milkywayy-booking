@@ -97,4 +97,21 @@ describe("sendWhatsAppTemplate", () => {
       4: "02 Jul 2026, 18:00",
     });
   });
+
+  it("does not report a handoff as sent without an approved content template", async () => {
+    delete process.env.TWILIO_CONTENT_SID_ADMIN_BOOKING_HANDOFF_REGISTRATION;
+
+    const result = await sendWhatsAppTemplate({
+      to: "+971500000000",
+      templateName: "admin_booking_handoff_registration",
+      variables: { Handoff_Link: "https://example.com/handoff" },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error:
+        "Approved Twilio WhatsApp template is not configured for admin_booking_handoff_registration",
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
 });

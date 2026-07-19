@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   AdminBadge,
   AdminCard,
-  AdminCardContent,
   AdminCardDescription,
   AdminCardHeader,
   AdminCardTitle,
@@ -144,6 +143,9 @@ const isCompletedBooking = (booking) =>
     booking?.status === "COMPLETED" ||
     Boolean(booking?.completedAt));
 
+const hasReplacementPending = (booking) =>
+  getDeliveryFiles(booking).some((file) => file.status === "CHANGES_REQUESTED");
+
 const matchesBookingFilter = (booking, filterId) => {
   if (filterId === "COMPLETED") {
     return isCompletedBooking(booking);
@@ -163,6 +165,9 @@ const getBookingStatusMeta = (booking) => {
   }
   if (isCompletedBooking(booking)) {
     return { label: "Project Completed", tone: "success" };
+  }
+  if (hasReplacementPending(booking)) {
+    return { label: "Replacement Pending", tone: "warning" };
   }
   if (booking?.status === "DRAFT") {
     return { label: "Awaiting Payment", tone: "warning" };
@@ -632,7 +637,6 @@ export default function BookingsPage() {
       <AdminPageHeader
         eyebrow="Operations"
         title="Bookings"
-        description="Track live booking progress, narrow the queue by fulfillment state, and keep every existing delivery, invoice, and notification workflow available."
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <AdminBadge tone={loadError ? "danger" : "neutral"}>
@@ -664,11 +668,6 @@ export default function BookingsPage() {
               {bookingCounts.ALL || 0}
             </AdminCardTitle>
           </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm text-[hsl(var(--admin-muted))]">
-              Every current booking record available to Super Admin.
-            </p>
-          </AdminCardContent>
         </AdminCard>
         <AdminCard tone="subtle">
           <AdminCardHeader>
@@ -677,11 +676,6 @@ export default function BookingsPage() {
               {bookingCounts.PENDING || 0}
             </AdminCardTitle>
           </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm text-[hsl(var(--admin-muted))]">
-              Awaiting payment, shoot progression, editing, or delivery review.
-            </p>
-          </AdminCardContent>
         </AdminCard>
         <AdminCard tone="subtle">
           <AdminCardHeader>
@@ -690,11 +684,6 @@ export default function BookingsPage() {
               {bookingCounts.COMPLETED || 0}
             </AdminCardTitle>
           </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm text-[hsl(var(--admin-muted))]">
-              Bookings whose workflow has already reached project completion.
-            </p>
-          </AdminCardContent>
         </AdminCard>
         <AdminCard tone="subtle">
           <AdminCardHeader>
@@ -703,18 +692,10 @@ export default function BookingsPage() {
               {bookingCounts.CANCELLED || 0}
             </AdminCardTitle>
           </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm text-[hsl(var(--admin-muted))]">
-              Cancelled records remain visible for operator context and audit.
-            </p>
-          </AdminCardContent>
         </AdminCard>
       </div>
 
-      <AdminTablePanel
-        title="Booking Queue"
-        description="Status filters change the visible queue only. Opening a booking still exposes the existing workflow, file, and notification controls."
-      >
+      <AdminTablePanel title="Booking Queue">
         <div className="border-b border-white/8 px-5 py-4 sm:px-6">
           <AdminFilterRow>
             {BOOKING_FILTERS.map((filter) => (

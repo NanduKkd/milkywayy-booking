@@ -9,7 +9,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AdminBadge,
   AdminCard,
@@ -250,10 +250,25 @@ function getDrilldownLabel(metricKey) {
 }
 
 function TrendChart({ buckets = [], title, valueKey = "netRevenue" }) {
-  const maxValue = Math.max(
-    ...buckets.map((bucket) => Math.abs(Number(bucket?.[valueKey] || 0))),
-    1,
-  );
+  const width = 720;
+  const height = 240;
+  const padding = { bottom: 38, left: 72, right: 18, top: 16 };
+  const values = buckets.map((bucket) => Number(bucket?.[valueKey] || 0));
+  const maxValue = Math.max(...values, 1);
+  const minValue = Math.min(...values, 0);
+  const valueSpan = Math.max(maxValue - minValue, 1);
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const points = values.map((value, index) => {
+    const x =
+      padding.left + (index / Math.max(values.length - 1, 1)) * plotWidth;
+    const y =
+      padding.top + plotHeight - ((value - minValue) / valueSpan) * plotHeight;
+    return `${x},${y}`;
+  });
+  const tickIndexes = Array.from(
+    new Set([0, Math.floor((buckets.length - 1) / 2), buckets.length - 1]),
+  ).filter((index) => index >= 0);
 
   return (
     <div className="space-y-3">
@@ -262,35 +277,70 @@ function TrendChart({ buckets = [], title, valueKey = "netRevenue" }) {
         <h3 className="text-sm font-medium text-foreground">{title}</h3>
       </div>
 
-      <div className="space-y-2">
-        {buckets.map((bucket) => {
-          const value = Number(bucket?.[valueKey] || 0);
-          const width = `${Math.max((Math.abs(value) / maxValue) * 100, 4)}%`;
-          const label =
-            bucket.monthLabel || bucket.bucketStartBusinessDate || "Bucket";
-
+      <svg
+        aria-label="Revenue by date"
+        className="h-auto w-full overflow-visible"
+        role="img"
+        viewBox={`0 0 ${width} ${height}`}
+      >
+        {[0, 0.5, 1].map((ratio) => {
+          const y = padding.top + plotHeight - ratio * plotHeight;
           return (
-            <div key={label} className="space-y-1">
-              <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                <span>{label}</span>
-                <span className="font-medium text-foreground">
-                  {formatCurrency(value)}
-                </span>
-              </div>
-              <div className="h-2 rounded-full bg-white/5">
-                <div
-                  className={
-                    value >= 0
-                      ? "h-2 rounded-full bg-emerald-400/80"
-                      : "h-2 rounded-full bg-amber-400/80"
-                  }
-                  style={{ width }}
-                />
-              </div>
-            </div>
+            <g key={ratio}>
+              <line
+                stroke="currentColor"
+                className="text-white/10"
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y}
+                y2={y}
+              />
+              <text
+                className="fill-muted-foreground text-[11px]"
+                textAnchor="end"
+                x={padding.left - 10}
+                y={y + 4}
+              >
+                {formatCurrency(minValue + valueSpan * ratio)}
+              </text>
+            </g>
           );
         })}
-      </div>
+        <polyline
+          fill="none"
+          points={points.join(" ")}
+          stroke="rgb(52 211 153)"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="3"
+        />
+        {tickIndexes.map((index) => {
+          const x =
+            padding.left +
+            (index / Math.max(buckets.length - 1, 1)) * plotWidth;
+          const label =
+            buckets[index]?.monthLabel ||
+            buckets[index]?.bucketStartBusinessDate ||
+            "";
+          return (
+            <text
+              className="fill-muted-foreground text-[11px]"
+              key={`${label}-${index}`}
+              textAnchor={
+                index === 0
+                  ? "start"
+                  : index === buckets.length - 1
+                    ? "end"
+                    : "middle"
+              }
+              x={x}
+              y={height - 10}
+            >
+              {label}
+            </text>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -831,6 +881,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [reloadToken, setReloadToken] = useState(0);
+  const autoLocatedActivity = useRef(false);
 
   const selectedMonthLabel = formatMonthLabel(monthValue);
   const { rangeEnd, rangeStart } = getMonthRange(monthValue);
@@ -861,6 +912,16 @@ export default function FinancialReportsPage({ mode = "full" }) {
           throw new Error(data?.error || "Failed to load dashboard analytics");
         }
 
+        if (
+          !autoLocatedActivity.current &&
+          !hasDashboardActivity(data) &&
+          data.latestActivityMonth &&
+          data.latestActivityMonth !== monthValue
+        ) {
+          autoLocatedActivity.current = true;
+          setMonthValue(data.latestActivityMonth);
+          return;
+        }
         setDashboard(data);
       } catch (requestError) {
         if (requestError?.name === "AbortError") {
@@ -881,7 +942,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
     loadDashboard();
 
     return () => controller.abort();
-  }, [rangeEnd, rangeStart, reloadToken]);
+  }, [monthValue, rangeEnd, rangeStart, reloadToken]);
 
   useEffect(() => {
     if (dashboardOnly) {
@@ -1052,6 +1113,11 @@ export default function FinancialReportsPage({ mode = "full" }) {
     }));
   }
 
+  function selectReportMonth(event) {
+    autoLocatedActivity.current = true;
+    setMonthValue(event.target.value);
+  }
+
   return (
     <AdminPage>
       <AdminPageHeader
@@ -1066,7 +1132,8 @@ export default function FinancialReportsPage({ mode = "full" }) {
                 aria-label="Report month"
                 className="admin-input h-11 w-full min-w-48 rounded-2xl sm:w-52"
                 id="financial-report-month"
-                onChange={(event) => setMonthValue(event.target.value)}
+                onChange={selectReportMonth}
+                style={{ colorScheme: "dark" }}
                 type="month"
                 value={monthValue}
               />
@@ -1111,11 +1178,6 @@ export default function FinancialReportsPage({ mode = "full" }) {
             </Button>
           </div>
         }
-        description={
-          dashboardOnly
-            ? `Live KPI cards, revenue movement, schedule activity, and recent bookings for ${selectedMonthLabel}.`
-            : `Dashboard KPIs, financial reports, exports, and tracked expenses for ${selectedMonthLabel}.`
-        }
         eyebrow={dashboardOnly ? "Operations" : "Accounts"}
         title={dashboardOnly ? "Admin Dashboard" : "Admin Analytics"}
       >
@@ -1144,10 +1206,6 @@ export default function FinancialReportsPage({ mode = "full" }) {
             >
               Dashboard Analytics
             </h2>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Live KPI cards, range-bound drill-downs, and export controls all
-              share the same active month filter.
-            </p>
           </div>
           <AdminBadge>{formatDateRange(rangeStart, rangeEnd)}</AdminBadge>
         </div>
@@ -1174,10 +1232,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
         ) : null}
 
         {!dashboardLoading && !dashboardError && dashboardEmpty ? (
-          <AdminEmptyState
-            description={`Live dashboard analytics returned no revenue, expenses, or operational booking activity for ${selectedMonthLabel}.`}
-            title="No dashboard activity in this range"
-          />
+          <AdminEmptyState title="No dashboard activity in this range" />
         ) : null}
 
         {!dashboardLoading && !dashboardError && dashboard ? (
@@ -1204,9 +1259,6 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       Revenue Trend
                     </AdminCardTitle>
                   </div>
-                  <AdminCardDescription>
-                    Dashboard revenue movement for {selectedMonthLabel}.
-                  </AdminCardDescription>
                 </AdminCardHeader>
                 <AdminCardContent>
                   <TrendChart

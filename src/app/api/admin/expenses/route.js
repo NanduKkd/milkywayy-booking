@@ -41,14 +41,14 @@ export async function GET(request) {
     }
 
     const url = new URL(request.url);
+    const filters = Object.fromEntries(
+      ["rangeStart", "rangeEnd", "category", "includeDeleted"]
+        .filter((key) => url.searchParams.has(key))
+        .map((key) => [key, url.searchParams.get(key)]),
+    );
     const result = await listExpenses({
       actorUser: authorization.actorUser,
-      filters: {
-        rangeStart: url.searchParams.get("rangeStart") || undefined,
-        rangeEnd: url.searchParams.get("rangeEnd") || undefined,
-        category: url.searchParams.get("category") || undefined,
-        includeDeleted: url.searchParams.get("includeDeleted") || undefined,
-      },
+      filters,
     });
 
     return NextResponse.json(result);

@@ -1,6 +1,6 @@
 # Admin customer management decisions
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-12
 
 ## Accepted decisions
 
@@ -13,6 +13,7 @@
 | USR-D005 | Net spend reuses the finance revenue definition. | Users and Reports must not disagree on customer value. |
 | USR-D006 | Users cannot change account roles. | Customer-to-staff promotion is a privileged Settings workflow. |
 | USR-D007 | Deactivation and reactivation require authorization and audit evidence. | Account lifecycle actions affect authentication and sensitive customer access. |
+| USR-D008 | Users offers no Edit or Delete action; enabled users can be disabled after explicit confirmation, and disabled users can be enabled again. | The project owner selected a reversible account lifecycle control and removed profile editing from this surface on 2026-07-12. |
 
 ## Deferred scope
 
