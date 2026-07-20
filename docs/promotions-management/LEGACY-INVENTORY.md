@@ -1,6 +1,6 @@
 # Promotions legacy inventory and migration mapping
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-21
 
 ## Purpose
 
@@ -30,6 +30,24 @@ cutover.
 - `src/lib/actions/__tests__/coupons.test.js` still expects `LAUNCH500` to be
   manually valid, but the live action rejects manual entry and auto-applies the
   launch credit instead. Keep that mismatch tracked under `PRM-304`.
+
+## Invoice compatibility matrix
+
+Invoice rows explain persisted benefits; they do not select or reapply them.
+The accepted combinations are:
+
+| Persisted representation | Invoice rows | Compatibility intent |
+|---|---|---|
+| Promotion snapshot only | One immutable promotion row | Current no-stacking checkout behavior. |
+| Legacy bulk deduction | One `Discount` row, or `First-Shoot Launch Credit` when its stored launch metadata matches | Historical explainability. |
+| Legacy coupon deduction | One uppercased coupon row using immutable metadata, associated coupon code, or a generic fallback label | Historical explainability. |
+| Legacy launch credit plus legacy coupon | Both rows | Intentionally reproducible pre-cutover combination. |
+| Promotion snapshot plus matching legacy launch or coupon representation | One snapshot row | The same persisted commercial benefit must not be shown twice. |
+
+Snapshot and legacy fields that do not identify the same benefit remain
+separate rows so invoices do not silently erase valid historical explanations.
+New checkout selection still permits at most one promotion under PRM-D001; this
+matrix does not re-enable stacking.
 
 ## Verification notes
 

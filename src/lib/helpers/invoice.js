@@ -176,7 +176,7 @@ function formatInvoiceServiceLabel(service, subService = "") {
 
   const label = String(subService)
     .split(".")
-    .map((part) => part.trim())
+    .map((part) => part.trim().replace(/_/g, " "))
     .filter(Boolean)
     .join(" - ");
 
@@ -233,6 +233,26 @@ export function buildInvoiceDiscountSummaries(transaction) {
     transaction?.metadata?.appliedLaunchPromoDeduction || 0,
   );
 
+  const couponSummary = buildInvoiceCouponSummary(transaction);
+  const isLaunchSnapshotDuplicate =
+    promotionSummary &&
+    !promotionSummary.code &&
+    promotionSummary.name === LAUNCH_PROMO_LABEL &&
+    toCents(promotionSummary.amount) === toCents(bulkDeduction) &&
+    toCents(launchPromoDeduction) === toCents(bulkDeduction);
+  const isCouponSnapshotDuplicate =
+    promotionSummary?.code &&
+    couponSummary &&
+    promotionSummary.code ===
+      String(
+        transaction?.metadata?.appliedCouponCode ||
+          transaction?.coupon?.code ||
+          "",
+      )
+        .trim()
+        .toUpperCase() &&
+    toCents(promotionSummary.amount) === toCents(couponSummary.amount);
+
   if (promotionSummary) {
     summaries.push({
       label: promotionSummary.label,
@@ -240,7 +260,7 @@ export function buildInvoiceDiscountSummaries(transaction) {
     });
   }
 
-  if (bulkDeduction > 0) {
+  if (bulkDeduction > 0 && !isLaunchSnapshotDuplicate) {
     summaries.push({
       label:
         launchPromoDeduction > 0 && launchPromoDeduction === bulkDeduction
@@ -250,8 +270,9 @@ export function buildInvoiceDiscountSummaries(transaction) {
     });
   }
 
-  const couponSummary = buildInvoiceCouponSummary(transaction);
-  if (couponSummary) summaries.push(couponSummary);
+  if (couponSummary && !isCouponSnapshotDuplicate) {
+    summaries.push(couponSummary);
+  }
 
   return summaries;
 }
@@ -443,16 +464,28 @@ export function buildBookingInvoiceItems(booking, pricingConfig) {
     ];
   }
 
-  const itemizedTotal = roundCurrency(
-    validItems.reduce((sum, item) => sum + item.amount, 0),
+  const itemizedTotalCents = validItems.reduce(
+    (sum, item) => sum + toCents(item.amount),
+    0,
   );
-  const delta = roundCurrency(bookingTotal - itemizedTotal);
+  const deltaCents = toCents(bookingTotal) - itemizedTotalCents;
 
-  if (Math.abs(delta) >= 0.01) {
-    validItems[validItems.length - 1] = {
-      ...validItems[validItems.length - 1],
-      amount: roundCurrency(validItems[validItems.length - 1].amount + delta),
-    };
+  if (deltaCents !== 0) {
+    const lastItemIndex = validItems.length - 1;
+    const lastItem = validItems[lastItemIndex];
+    const adjustedLastItemCents = toCents(lastItem.amount) + deltaCents;
+
+    if (adjustedLastItemCents > 0) {
+      validItems[lastItemIndex] = {
+        ...lastItem,
+        amount: adjustedLastItemCents / 100,
+      };
+    } else {
+      validItems.push({
+        label: "Booking total adjustment",
+        amount: deltaCents / 100,
+      });
+    }
   }
 
   return validItems;
