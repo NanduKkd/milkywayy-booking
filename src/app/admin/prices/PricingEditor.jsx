@@ -106,6 +106,7 @@ function getCellPrice(size, column) {
 
 export default function PricingEditor({ initialConfig, loadError = null }) {
   const [config, setConfig] = useState(initialConfig || {});
+  const [savedConfig, setSavedConfig] = useState(initialConfig || {});
   const [activeType, setActiveType] = useState(
     () => Object.keys(initialConfig || {})[0] || "",
   );
@@ -116,6 +117,22 @@ export default function PricingEditor({ initialConfig, loadError = null }) {
   const selectedConfig = config[selectedType];
   const columns = getColumns(selectedConfig);
   const hasConfig = propertyTypes.length > 0;
+  const dirtyPropertyTypes = new Set(
+    propertyTypes.filter((propertyType) => {
+      const typeConfig = config[propertyType];
+      const savedTypeConfig = savedConfig[propertyType];
+      const typeColumns = getColumns(typeConfig);
+
+      return (typeConfig?.sizes || []).some((size, sizeIndex) =>
+        typeColumns.some(
+          (column) =>
+            getCellPrice(size, column) !==
+            getCellPrice(savedTypeConfig?.sizes?.[sizeIndex], column),
+        ),
+      );
+    }),
+  );
+  const hasUnsavedChanges = dirtyPropertyTypes.size > 0;
 
   const handlePriceChange = (propertyType, sizeIndex, column, value) => {
     const price = Number(value);
@@ -170,6 +187,7 @@ export default function PricingEditor({ initialConfig, loadError = null }) {
       const result = await savePricingConfig(config);
 
       if (result.success) {
+        setSavedConfig(config);
         toast.success("Pricing configuration saved successfully!");
         return;
       }
@@ -201,7 +219,7 @@ export default function PricingEditor({ initialConfig, loadError = null }) {
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving || !hasConfig}
+          disabled={saving || !hasConfig || !hasUnsavedChanges}
           className="rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save Changes"}
@@ -226,6 +244,7 @@ export default function PricingEditor({ initialConfig, loadError = null }) {
           >
             {propertyTypes.map((propertyType) => {
               const active = propertyType === selectedType;
+              const isDirty = dirtyPropertyTypes.has(propertyType);
 
               return (
                 <button
@@ -235,13 +254,23 @@ export default function PricingEditor({ initialConfig, loadError = null }) {
                   aria-selected={active}
                   onClick={() => setActiveType(propertyType)}
                   className={cn(
-                    "rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition-colors",
+                    "inline-flex items-center rounded-lg px-4 py-1.5 text-xs font-semibold capitalize transition-colors",
                     active
                       ? "bg-white text-black"
                       : "border border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600",
                   )}
                 >
-                  {getPropertyLabel(propertyType)}
+                  <span>{getPropertyLabel(propertyType)}</span>
+                  {isDirty ? (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className="ml-2 inline-block h-2 w-2 rounded-full bg-amber-400 ring-2 ring-amber-400/20"
+                        title="Unsaved edits"
+                      />
+                      <span className="sr-only">Unsaved edits</span>
+                    </>
+                  ) : null}
                 </button>
               );
             })}
@@ -284,11 +313,23 @@ export default function PricingEditor({ initialConfig, loadError = null }) {
                       </th>
                       {columns.map((column) => {
                         const price = getCellPrice(size, column);
+                        const savedPrice = getCellPrice(
+                          savedConfig[selectedType]?.sizes?.[sizeIndex],
+                          column,
+                        );
+                        const isDirty = price !== savedPrice;
                         const label = `${selectedType} ${size.label} ${column.label} price`;
 
                         return (
                           <td key={column.key} className="px-4 py-3">
-                            <label className="flex w-[100px] items-center rounded-lg bg-zinc-800 px-2.5 py-1.5 text-sm font-semibold text-white ring-blue-500 transition-shadow focus-within:ring-1">
+                            <label
+                              className={cn(
+                                "flex w-[100px] items-center rounded-lg border px-2.5 py-1.5 text-sm font-semibold text-white transition-colors focus-within:ring-1",
+                                isDirty
+                                  ? "border-amber-500/70 bg-amber-500/15 ring-amber-400"
+                                  : "border-transparent bg-zinc-800 ring-blue-500",
+                              )}
+                            >
                               <span aria-hidden="true" className="mr-1">
                                 AED
                               </span>

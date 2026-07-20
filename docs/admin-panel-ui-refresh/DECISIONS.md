@@ -28,6 +28,9 @@
 | UI-D020 | Remove repeated introductions, decorative summary cards, and documentation-like helper text from routine surfaces. Preserve labels, validation, error recovery, destructive confirmation, and accessibility text needed to operate safely. | Density must not remove essential operating or safety information. |
 | UI-D021 | Reference fixture records and unsupported controls are excluded. Live data, authorization, route boundaries, and supported mutations remain authoritative. | The reference defines presentation, not domain state or product capability. |
 | UI-D022 | Calendar month cells have fixed height, show at most two short status-colored markers, and expose additional entries as `+N`; selecting the date exposes the complete day. | Busy dates must not make the month grid grow or become difficult to scan. |
+| UI-D023 | `/admin/timeslots` is configuration-only; the calendar and all date-specific availability changes live in `/admin/scheduling-calendar`. | A duplicate calendar adds navigation and maintenance cost without adding capability. |
+| UI-D024 | Pricing highlights changed cells and marks every property-type tab containing unsaved edits until a successful save. | Operators need to see both the precise changed value and unsaved work hidden behind another tab. |
+| UI-D025 | Portfolio and Reviews keep drag ordering but show only an accessible grip handle, not a repeated `DRAG` label or persisted order number. | The row position already communicates sequence; repeated labels and often-stale numeric values add noise. |
 
 ## Implementation discretion
 

@@ -94,6 +94,10 @@ describe("ReviewList", () => {
     expect(screen.getByText("Featured reviews")).toBeInTheDocument();
     expect(screen.getByText("Standard reviews")).toBeInTheDocument();
     expect(screen.getAllByText("2 live")).toHaveLength(2);
+    expect(screen.queryByText(/^Drag$/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Order" }),
+    ).not.toBeInTheDocument();
 
     const { featuredItems, standardItems } = buildReviewGroups(initialItems);
     expect(featuredItems).toHaveLength(2);

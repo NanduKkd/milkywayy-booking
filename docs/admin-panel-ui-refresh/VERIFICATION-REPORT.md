@@ -1,9 +1,9 @@
 # Admin Panel UI Refresh Verification Report
 
-- **Date**: 2026-07-03
-- **Task Reference**: [UI-302](file:///Users/nandakrishnan/code/milkywayy-booking/docs/admin-panel-ui-refresh/TASKS.md#L56)
+- **Date**: 2026-07-20
+- **Task Reference**: GitHub Issue #26
 - **Status**: `PASSED`
-- **Testing Environment**: Local development server (`npm run dev`) using mock database records and mock component states.
+- **Testing Environment**: Local development server (`npm run dev`) with read-only browser verification plus mocked component-test states.
 
 ---
 
@@ -13,7 +13,11 @@ This report documents the smoke-testing checks performed to close out task **UI-
 
 Every authenticated admin route was verified to ensure that the refreshed layout (using the standardized dark admin shell, consistent typography, responsive grid components, and standardized dialogs/error elements) preserves the exact existing operational mutations, actions, and features.
 
-The validation covers both automated unit tests (21 passing admin-specific test suites, covering 81 test cases) and manual/simulated smoke checks for all 7 primary workspace and operations modules.
+The validation covers automated admin and shared-component tests plus manual browser checks of every authenticated admin route at desktop and narrow viewports.
+
+## Owner-feedback revision
+
+The 2026-07-20 review pass aligns Promotions, Dashboard, and Reports more closely to `design-reference.jsx`; removes the duplicate calendar from Time Slots; adds unsaved-edit indicators to Pricing; and removes visible drag/rank labels from Portfolio and Reviews. Dashboard and Reports reuse the reference hierarchy and density while continuing to render live application data and the existing operational actions.
 
 ---
 
@@ -25,8 +29,10 @@ npx jest src/app/admin src/components/admin --runInBand
 ```
 
 ### Results
-- **Test Suites**: 21 passed, 21 total
-- **Tests**: 81 passed, 81 total
+- **Test Suites**: 22 passed, 22 total
+- **Tests**: 92 passed, 92 total
+- **Focused Biome check**: 11 changed source/test files passed
+- **Production build**: passed (`next build`); the authenticated Promotions route is correctly reported as dynamic because it reads cookies
 - **Coverage Included**:
   - Sidebar navigation state and mobile drawer responsive triggers.
   - Custom UI filters, total logic, dialog forms, and drag-and-drop ordering behaviors.
@@ -57,4 +63,4 @@ Tests were conducted using local mock datasets covering every critical mutation 
 - **Mobile Drawer Check**: Toggling the menu icon in the viewport header properly slides in the navigation list drawer on viewport widths `< 768px`.
 - **Drawer Links**: Checked all links (`/admin`, `/admin/bookings`, `/admin/users`, `/admin/invoices`, `/admin/analytics`, `/admin/promotions`, `/admin/scheduling-calendar`, `/admin/timeslots`, `/admin/prices`, `/admin/portfolio`, `/admin/reviews`) inside the drawer; all target the correct routes.
 - **Table Accessibility**: Wide grid structures (e.g., Booking list, Invoices list) are contained inside scroll-x wrappers. Tested scrolling horizontal headers, exposing all action buttons (Delete, View, Download) on mobile layouts.
-- **Destructive Confirmations**: Click events on delete/archive controls trigger the shared custom confirmation overlay from [AdminPrimitives.jsx](file:///Users/nandakrishnan/code/milkywayy-booking/src/components/admin/AdminPrimitives.jsx) before committing any changes.
+- **Destructive Confirmations**: Click events on delete/archive controls trigger the shared custom confirmation overlay from `src/components/admin/AdminPrimitives.jsx` before committing any changes.

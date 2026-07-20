@@ -393,27 +393,20 @@ describe("FinancialReportsPage", () => {
     render(<FinancialReportsPage />);
 
     expect(
-      screen.getByLabelText("Loading dashboard analytics"),
-    ).toBeInTheDocument();
-    expect(
       screen.getByLabelText("Loading financial reports"),
     ).toBeInTheDocument();
     expect(
       screen.getByLabelText("Loading expense tracker"),
     ).toBeInTheDocument();
 
-    expect(
-      await screen.findByRole("region", { name: "Dashboard analytics" }),
-    ).toBeInTheDocument();
     expect(await screen.findByText("Weekly Net Revenue")).toBeInTheDocument();
     expect(await screen.findByText("Expense Tracker")).toBeInTheDocument();
-    expect(screen.getByText("Gross Payments")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "View net revenue details" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("region", { name: "Dashboard analytics" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByText("Net revenue").length).toBeGreaterThan(0);
     expect(screen.getByText("Category Breakdown")).toBeInTheDocument();
     expect(screen.getByText("Tracked Expenses")).toBeInTheDocument();
-    expect(screen.getByText("BK-201")).toBeInTheDocument();
     expect(screen.getByText("Campaign shoot boost")).toBeInTheDocument();
     expect(screen.getAllByText("Marketing").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Jun 2026").length).toBeGreaterThan(0);
@@ -443,10 +436,6 @@ describe("FinancialReportsPage", () => {
     );
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/admin/analytics/dashboard?"),
-        expect.objectContaining({ cache: "no-store" }),
-      );
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining("/api/admin/analytics/reports?"),
         expect.objectContaining({ cache: "no-store" }),
@@ -492,7 +481,6 @@ describe("FinancialReportsPage", () => {
 
     await waitFor(() => {
       for (const path of [
-        "/api/admin/analytics/dashboard?",
         "/api/admin/analytics/reports?",
         "/api/admin/expenses?",
       ]) {
@@ -511,10 +499,10 @@ describe("FinancialReportsPage", () => {
       expenseItems: [],
     });
 
-    render(<FinancialReportsPage />);
+    render(<FinancialReportsPage mode="dashboard" />);
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "View net revenue details" }),
+      await screen.findByRole("button", { name: "View total revenue details" }),
     );
 
     expect(await screen.findByText("Net Revenue Details")).toBeInTheDocument();

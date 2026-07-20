@@ -97,6 +97,31 @@ describe("PricingEditor", () => {
     expect(screen.queryByText("LF Day+Night")).not.toBeInTheDocument();
   });
 
+  it("highlights unsaved cells and marks each dirty property tab", async () => {
+    render(<PricingEditor initialConfig={initialConfig} />);
+
+    const priceInput = screen.getByLabelText(
+      /Apartment Studio Photography price/i,
+    );
+    fireEvent.change(priceInput, { target: { value: "375" } });
+
+    expect(priceInput.closest("label")).toHaveClass("border-amber-500/70");
+    expect(
+      screen.getByRole("tab", { name: /apartments unsaved edits/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: /^commercial$/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("tab", { name: /apartments unsaved edits/i }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it("saves the updated pricing configuration through the existing action", async () => {
     render(<PricingEditor initialConfig={initialConfig} />);
 

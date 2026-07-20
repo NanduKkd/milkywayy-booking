@@ -317,20 +317,14 @@ export default function PortfolioList({ initialItems, loadError = null }) {
               </AdminFilterChip>
             ))}
           </AdminFilterRow>
-
-          <AdminInlineMessage
-            tone="info"
-            title="Filtered drag ordering remains global"
-            description="Reordering a filtered view only changes the relative sequence of matching entries. Hidden media types keep their place in the overall portfolio order."
-          />
         </div>
 
         <DragDropContext onDragEnd={onDragEnd}>
           <Table className="min-w-[860px]">
             <TableHeader>
               <TableRow>
-                <TableHead className={`${TABLE_HEAD_CLASS} w-[72px]`}>
-                  Order
+                <TableHead className={`${TABLE_HEAD_CLASS} w-[52px]`}>
+                  <span className="sr-only">Reorder</span>
                 </TableHead>
                 <TableHead className={TABLE_HEAD_CLASS}>Title</TableHead>
                 <TableHead className={TABLE_HEAD_CLASS}>Media Type</TableHead>
@@ -404,22 +398,14 @@ export default function PortfolioList({ initialItems, loadError = null }) {
                               <TableCell
                                 {...provided.dragHandleProps}
                                 className={`${TABLE_CELL_CLASS} align-top`}
+                                aria-label={`Reorder ${item.title}`}
+                                title="Drag to reorder"
                               >
-                                <div className="flex items-center gap-3">
-                                  <GripVertical
-                                    className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
-                                    size={18}
-                                    aria-hidden="true"
-                                  />
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                                      {(item.order ?? index) + 1}
-                                    </div>
-                                    <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
-                                      Drag
-                                    </p>
-                                  </div>
-                                </div>
+                                <GripVertical
+                                  className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
+                                  size={18}
+                                  aria-hidden="true"
+                                />
                               </TableCell>
                               <TableCell
                                 className={`${TABLE_CELL_CLASS} align-top`}

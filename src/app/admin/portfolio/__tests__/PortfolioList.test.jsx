@@ -80,6 +80,10 @@ describe("PortfolioList", () => {
     expect(screen.getByText("Photography One")).toBeInTheDocument();
     expect(screen.getByText("Long Form One")).toBeInTheDocument();
     expect(screen.getByText("Photography Two")).toBeInTheDocument();
+    expect(screen.queryByText(/^Drag$/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Order" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^Photography$/i }));
 

@@ -1,6 +1,6 @@
 # Admin panel UI refresh architecture
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-20
 
 ## Boundary
 
@@ -73,23 +73,28 @@ download URLs remain unchanged.
 
 ### Promotions, Calendar, Time Slots, and Pricing
 
-These pages receive shared styling without changes to their domain behavior.
-Promotions retains its three current tabs. Calendar, scheduling configuration,
-and pricing continue using their current services and validation.
+Promotions retains its three current tabs and dense reference table/form
+composition. The operational month view and date-specific block controls exist
+only at `/admin/scheduling-calendar`; `/admin/timeslots` edits rolling windows,
+working days, named period definitions, and weight configuration without
+rendering a second calendar. Pricing continues through its current save action
+and marks changed cells plus affected property tabs until that action succeeds.
 
 ### Portfolio
 
 Add media-type filters for All Works, Photography, Short Form Video, Long Form
 Video, and 360 Virtual Tour. Existing create/edit/upload/delete/visibility and
 drag-order behavior remain available. Filtering must not corrupt the persisted
-global order.
+global order. The table exposes an icon-only drag handle; numeric order values
+remain internal persistence state.
 
 ### Reviews
 
 Keep CRUD, visibility, rating, and featured controls. Add drag ordering within
 the Featured and Standard groups and persist the resulting `order` values.
-Featured reviews continue to sort before Standard reviews. Do not add a review
-preview column.
+Featured reviews continue to sort before Standard reviews. Review ordering also
+uses an icon-only handle without a visible order number or `DRAG` label. Do not
+add a review preview column.
 
 ## Responsive behavior
 

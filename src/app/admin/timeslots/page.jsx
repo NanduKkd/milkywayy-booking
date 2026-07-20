@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  RefreshCcw,
-  Save,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RefreshCcw, Save } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   AdminBadge,
@@ -16,14 +10,12 @@ import {
   AdminCardDescription,
   AdminCardHeader,
   AdminCardTitle,
-  AdminDialogContent,
   AdminInlineMessage,
   AdminPage,
   AdminPageHeader,
   AdminTablePanel,
 } from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -39,8 +31,6 @@ const DAYS_OF_WEEK = [
   "Saturday",
   "Sunday",
 ];
-
-const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const PERIODS = ["morning", "afternoon", "evening"];
 
 const PROPERTY_WEIGHT_GROUPS = [
@@ -67,152 +57,49 @@ const SERVICE_WEIGHT_ORDER = [
   "360 Virtual Tour",
 ];
 
-const toDateKey = (dateObj) => {
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-  const d = String(dateObj.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
-const toDayName = (dateObj) => {
-  const day = dateObj.getDay();
-  const sundayFirst = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ];
-  return sundayFirst[day];
-};
-
-const buildCalendarDays = (currentMonth) => {
-  const first = new Date(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth(),
-    1,
-  );
-  const mondayIndex = (first.getDay() + 6) % 7;
-  const start = new Date(first);
-  start.setDate(first.getDate() - mondayIndex);
-
-  const days = [];
-  for (let i = 0; i < 42; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    days.push(d);
-  }
-  return days;
-};
-
-const getMonthRange = (currentMonth) => {
-  const start = new Date(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth(),
-    1,
-  );
-  const end = new Date(
-    currentMonth.getFullYear(),
-    currentMonth.getMonth() + 1,
-    0,
-  );
-  return { start: toDateKey(start), end: toDateKey(end) };
-};
-
-const labelizePeriod = (period) => {
-  if (!period) return "";
-  return period.charAt(0).toUpperCase() + period.slice(1);
-};
+const labelizePeriod = (period) =>
+  period ? period.charAt(0).toUpperCase() + period.slice(1) : "";
 
 const ADMIN_PRIMARY_BUTTON_CLASS =
   "rounded-full border border-[hsl(var(--admin-highlight)/0.45)] bg-[hsl(var(--admin-highlight)/0.18)] px-5 text-[hsl(var(--admin-foreground))] hover:bg-[hsl(var(--admin-highlight)/0.26)] hover:text-[hsl(var(--admin-foreground))]";
-const ADMIN_OUTLINE_BUTTON_CLASS =
-  "rounded-full border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]";
 const INPUT_CLASS =
   "admin-input h-9 rounded-lg border-[hsl(var(--admin-border)/0.9)]";
 const TABLE_HEAD_CLASS =
   "border-white/8 bg-white/[0.03] text-xs font-medium uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]";
 const TABLE_CELL_CLASS = "border-white/8 text-[hsl(var(--admin-foreground))]";
 
-function getStateTone(state) {
-  if (state === "available") return "success";
-  if (state === "booked") return "danger";
-  return "neutral";
-}
-
 export default function TimeSlotsManager() {
   const [config, setConfig] = useState(null);
-  const [bookedMap, setBookedMap] = useState({});
-  const [bookedDetailsMap, setBookedDetailsMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
-  const [calendarRefreshing, setCalendarRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  );
-  const [selectedDateKey, setSelectedDateKey] = useState("");
-  const [isDayDialogOpen, setIsDayDialogOpen] = useState(false);
-  const hasLoadedOnceRef = useRef(false);
 
-  const monthLabel = useMemo(() => {
-    return currentMonth.toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
-  }, [currentMonth]);
-
-  const calendarDays = useMemo(
-    () => buildCalendarDays(currentMonth),
-    [currentMonth],
-  );
-
-  const loadConfig = useCallback(
-    async ({ preserveLayout = false } = {}) => {
-      if (preserveLayout) {
-        setCalendarRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setLoadError(null);
-      try {
-        const { start, end } = getMonthRange(currentMonth);
-        const res = await fetch(
-          `/api/admin/timeslots?start=${start}&end=${end}`,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            cache: "no-store",
-          },
-        );
-        if (!res.ok) throw new Error("Failed to load time slot config");
-        const data = await res.json();
-        setConfig(data.config);
-        setBookedMap(data.bookedMap || {});
-        setBookedDetailsMap(data.bookedDetailsMap || {});
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Failed to load time slot config";
-        setLoadError(message);
-        toast.error(message);
-      } finally {
-        if (preserveLayout) {
-          setCalendarRefreshing(false);
-        } else {
-          setLoading(false);
-        }
-        hasLoadedOnceRef.current = true;
-      }
-    },
-    [currentMonth],
-  );
+  const loadConfig = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const res = await fetch("/api/admin/timeslots", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+      if (!res.ok) throw new Error("Failed to load time slot config");
+      const data = await res.json();
+      setConfig(data.config);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to load time slot config";
+      setLoadError(message);
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    loadConfig({ preserveLayout: hasLoadedOnceRef.current });
+    loadConfig();
   }, [loadConfig]);
 
   const saveConfig = async () => {
@@ -277,78 +164,6 @@ export default function TimeSlotsManager() {
       },
     }));
   };
-
-  const getDateOverride = (dateKey) => config?.dateOverrides?.[dateKey] || {};
-
-  const getPeriodState = (dateObj, dateKey, period) => {
-    if (!config) return "blocked";
-    const dayName = toDayName(dateObj);
-    const isWorkingDay = Boolean(config.systemSettings?.workingDays?.[dayName]);
-    const override = getDateOverride(dateKey);
-
-    if (!isWorkingDay) return "blocked";
-    if (override.fullDayBlocked) return "blocked";
-
-    const blockOverride = override.blocks?.[period];
-    if (blockOverride === "blocked") return "blocked";
-    if (bookedMap?.[dateKey]?.includes(period)) return "booked";
-    return "available";
-  };
-
-  const openDayDialog = (dateObj) => {
-    const key = toDateKey(dateObj);
-    setSelectedDateKey(key);
-    setIsDayDialogOpen(true);
-  };
-
-  const updateSelectedDay = (updater) => {
-    if (!selectedDateKey) return;
-    updateConfig((prev) => {
-      const existing = prev.dateOverrides?.[selectedDateKey] || {};
-      const next = updater(existing);
-      return {
-        ...prev,
-        dateOverrides: {
-          ...prev.dateOverrides,
-          [selectedDateKey]: next,
-        },
-      };
-    });
-  };
-
-  const toggleBlockForPeriod = (period) => {
-    updateSelectedDay((existing) => {
-      const blocks = { ...(existing.blocks || {}) };
-      if (blocks[period] === "blocked") {
-        delete blocks[period];
-      } else {
-        blocks[period] = "blocked";
-      }
-      return {
-        ...existing,
-        blocks,
-      };
-    });
-  };
-
-  const unblockDay = () => {
-    updateSelectedDay(() => ({ fullDayBlocked: false, blocks: {} }));
-  };
-
-  const selectedDateObj = selectedDateKey
-    ? new Date(`${selectedDateKey}T00:00:00`)
-    : null;
-  const selectedOverride = selectedDateKey
-    ? getDateOverride(selectedDateKey)
-    : {};
-  const selectedDayHasManualBlocks =
-    Boolean(selectedOverride?.fullDayBlocked) ||
-    Object.values(selectedOverride?.blocks || {}).some(
-      (value) => value === "blocked",
-    );
-  const selectedDateBookingDetails = selectedDateKey
-    ? bookedDetailsMap?.[selectedDateKey] || {}
-    : {};
 
   if (!config) {
     return (
@@ -789,258 +604,6 @@ export default function TimeSlotsManager() {
           </AdminCard>
         </AdminCardContent>
       </AdminCard>
-
-      <AdminCard>
-        <AdminCardHeader className="gap-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-2">
-              <AdminCardTitle className="flex items-center gap-2 text-2xl">
-                <CalendarDays className="h-5 w-5" />
-                Calendar
-              </AdminCardTitle>
-              <AdminCardDescription>
-                Review bookings and manage named slot blocks.
-              </AdminCardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className={ADMIN_OUTLINE_BUTTON_CLASS}
-                onClick={() =>
-                  setCurrentMonth(
-                    (prev) =>
-                      new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
-                  )
-                }
-                aria-label="Previous month"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="min-w-[160px] text-center text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                {monthLabel}
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                className={ADMIN_OUTLINE_BUTTON_CLASS}
-                onClick={() =>
-                  setCurrentMonth(
-                    (prev) =>
-                      new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
-                  )
-                }
-                aria-label="Next month"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className={ADMIN_OUTLINE_BUTTON_CLASS}
-                onClick={() =>
-                  setCurrentMonth(
-                    new Date(
-                      new Date().getFullYear(),
-                      new Date().getMonth(),
-                      1,
-                    ),
-                  )
-                }
-              >
-                Today
-              </Button>
-            </div>
-          </div>
-          {calendarRefreshing ? (
-            <AdminInlineMessage
-              loading
-              tone="info"
-              title="Refreshing calendar"
-              description="Updating booked periods and block state for the selected month."
-            />
-          ) : null}
-        </AdminCardHeader>
-        <AdminCardContent>
-          <div className="admin-panel-muted overflow-hidden rounded-xl border border-[hsl(var(--admin-border)/0.72)]">
-            <div className="grid grid-cols-7">
-              {DAY_HEADERS.map((header) => (
-                <div
-                  key={header}
-                  className="border-b border-white/8 bg-white/[0.04] px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]"
-                >
-                  {header}
-                </div>
-              ))}
-              {calendarDays.map((day) => {
-                const key = toDateKey(day);
-                const isInCurrentMonth =
-                  day.getMonth() === currentMonth.getMonth();
-                const periodStates = PERIODS.map((period) =>
-                  getPeriodState(day, key, period),
-                );
-                const selected = selectedDateKey === key;
-
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => openDayDialog(day)}
-                    className={cn(
-                      "min-h-[120px] border-l border-t border-white/8 px-3 py-3 text-left transition hover:bg-white/[0.04]",
-                      !isInCurrentMonth &&
-                        "bg-white/[0.03] text-[hsl(var(--admin-muted))]",
-                      selected &&
-                        "ring-1 ring-inset ring-[hsl(var(--admin-highlight)/0.75)]",
-                    )}
-                  >
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">
-                        {day.getDate()}
-                      </span>
-                      {bookedMap?.[key]?.length ? (
-                        <AdminBadge
-                          tone="danger"
-                          className="px-2 py-0.5 text-[0.62rem]"
-                        >
-                          {bookedMap[key].length} booked
-                        </AdminBadge>
-                      ) : null}
-                    </div>
-                    <div className="space-y-2">
-                      {periodStates.map((state, index) => (
-                        <div
-                          key={`${key}_${PERIODS[index]}`}
-                          className={cn(
-                            "rounded-full px-2 py-1 text-[0.68rem] font-medium",
-                            state === "available" &&
-                              "bg-[hsl(var(--admin-success)/0.18)] text-[hsl(var(--admin-success))]",
-                            state === "booked" &&
-                              "bg-[hsl(var(--admin-danger)/0.18)] text-[hsl(var(--admin-danger))]",
-                            state === "blocked" &&
-                              "bg-white/[0.06] text-[hsl(var(--admin-muted))]",
-                          )}
-                        >
-                          {labelizePeriod(PERIODS[index])}
-                        </div>
-                      ))}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </AdminCardContent>
-      </AdminCard>
-
-      <Dialog open={isDayDialogOpen} onOpenChange={setIsDayDialogOpen}>
-        <AdminDialogContent
-          className="max-w-2xl"
-          title={
-            selectedDateObj
-              ? selectedDateObj.toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })
-              : "Day details"
-          }
-          description="Review period availability, existing bookings, and block overrides for the selected day."
-        >
-          <div className="space-y-3">
-            {PERIODS.map((period) => {
-              const state =
-                selectedDateObj && selectedDateKey
-                  ? getPeriodState(selectedDateObj, selectedDateKey, period)
-                  : "blocked";
-              const blockDef =
-                config.systemSettings.blockDefinitions?.[period] || {};
-              const periodBookingDetails =
-                selectedDateBookingDetails?.[period] || [];
-              const displayPeriodLabel =
-                period === "evening" &&
-                periodBookingDetails.length > 0 &&
-                periodBookingDetails.every(
-                  (detail) =>
-                    detail.slotLabel === periodBookingDetails[0]?.slotLabel,
-                )
-                  ? periodBookingDetails[0]?.slotLabel || labelizePeriod(period)
-                  : labelizePeriod(period);
-
-              return (
-                <div
-                  key={period}
-                  className="admin-panel-muted rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4"
-                >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                          {displayPeriodLabel}
-                        </p>
-                        <AdminBadge tone={getStateTone(state)}>
-                          {state === "available"
-                            ? "Available"
-                            : state === "booked"
-                              ? "Booked"
-                              : "Blocked"}
-                        </AdminBadge>
-                      </div>
-                      <p className="text-sm text-[hsl(var(--admin-muted))]">
-                        {blockDef.startTime || "--:--"} -{" "}
-                        {blockDef.endTime || "--:--"}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={ADMIN_OUTLINE_BUTTON_CLASS}
-                      onClick={() => toggleBlockForPeriod(period)}
-                    >
-                      {selectedOverride?.blocks?.[period] === "blocked"
-                        ? "Unblock"
-                        : "Block"}
-                    </Button>
-                  </div>
-                  {state === "booked" && periodBookingDetails.length > 0 ? (
-                    <div className="mt-4 space-y-2">
-                      {periodBookingDetails.map((detail, index) => (
-                        <div
-                          key={`${period}_${detail.bookingCode}_${index}`}
-                          className="rounded-xl border border-white/8 bg-black/10 px-3 py-3 text-sm text-[hsl(var(--admin-muted))]"
-                        >
-                          <p>Booking: {detail.bookingCode}</p>
-                          <p>Property: {detail.propertyLabel}</p>
-                          {detail.serviceLabel ? (
-                            <p>Services: {detail.serviceLabel}</p>
-                          ) : null}
-                          {detail.slotLabel &&
-                          detail.slotLabel !== displayPeriodLabel ? (
-                            <p>Slot: {detail.slotLabel}</p>
-                          ) : null}
-                          <p>Arrival: {detail.arrival}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-
-          <Separator className="admin-divider" />
-
-          {selectedDayHasManualBlocks ? (
-            <Button
-              variant="outline"
-              className={ADMIN_OUTLINE_BUTTON_CLASS}
-              onClick={unblockDay}
-            >
-              Clear blocks
-            </Button>
-          ) : null}
-        </AdminDialogContent>
-      </Dialog>
     </AdminPage>
   );
 }

@@ -15,11 +15,6 @@ import {
 import { useEffect, useState } from "react";
 import {
   AdminBadge,
-  AdminCard,
-  AdminCardContent,
-  AdminCardDescription,
-  AdminCardHeader,
-  AdminCardTitle,
   AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
@@ -343,7 +338,6 @@ function formatCustomerSecondaryLine(customer) {
 
 function PromotionTable({
   promotions,
-  onCreate,
   onEdit,
   onActivate,
   onAssignCustomer,
@@ -356,33 +350,17 @@ function PromotionTable({
 
   if (promotions.length === 0) {
     return (
-      <AdminTablePanel
-        title={`${tab.label} catalog`}
-        description="Create or maintain promotions without changing the existing eligibility and mutation flows."
-        actions={
-          <Button type="button" variant="outline" onClick={onCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            New {tab.shortLabel}
-          </Button>
-        }
-      >
-        <div className="p-6">
-          <div className="flex flex-col gap-4 text-center">
-            <div className="mx-auto rounded-full border border-white/10 bg-white/[0.03] p-3">
+      <AdminTablePanel>
+        <div className="py-16 text-center">
+          <div className="flex flex-col gap-3 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-800">
               <EmptyIcon className="h-5 w-5 text-muted-foreground" />
             </div>
             <AdminEmptyState
               title={tab.emptyTitle}
-              description={tab.emptyCopy}
               icon={EmptyIcon}
-              className="border-0 bg-transparent py-0"
+              className="border-0 bg-transparent p-0 [&>div:first-child]:hidden"
             />
-            <div>
-              <Button type="button" onClick={onCreate}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create {tab.shortLabel}
-              </Button>
-            </div>
           </div>
         </div>
       </AdminTablePanel>
@@ -390,16 +368,7 @@ function PromotionTable({
   }
 
   return (
-    <AdminTablePanel
-      title={`${tab.label} catalog`}
-      description="Existing promotion logic, priorities, activation rules, and assignment flows stay unchanged under the refreshed shell."
-      actions={
-        <Button type="button" variant="outline" onClick={onCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          New {tab.shortLabel}
-        </Button>
-      }
-    >
+    <AdminTablePanel>
       <Table>
         <TableHeader className="bg-white/[0.03]">
           <TableRow className="border-white/8 hover:bg-transparent">
@@ -821,7 +790,6 @@ export default function PromotionManager({
       <AdminPageHeader
         eyebrow="Operations"
         title="Promotion Management"
-        description="Manage generic codes, personal offers, and automatic rules in one deterministic admin surface while keeping the existing promotion engine, redirects, and mutations intact."
         actions={
           <Button type="button" onClick={() => openCreateDialog(activeTab)}>
             <Plus className="mr-2 h-4 w-4" />
@@ -838,110 +806,73 @@ export default function PromotionManager({
         />
       ) : null}
 
-      <AdminCard>
-        <AdminCardHeader className="gap-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <AdminCardTitle>Unified promotions</AdminCardTitle>
-              <AdminCardDescription>
-                One best promotion applies; wallet credit remains separate.
-              </AdminCardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {TAB_CONFIG.map((tab) => (
-                <AdminBadge key={tab.value}>
-                  {tab.shortLabel}: {countsByKind[tab.value] || 0}
-                </AdminBadge>
-              ))}
-            </div>
-          </div>
-        </AdminCardHeader>
-        <AdminCardContent className="space-y-6">
-          <div
-            role="tablist"
-            aria-label="Promotion kinds"
-            className="flex flex-wrap gap-2"
-          >
-            {TAB_CONFIG.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = tab.value === activeTab;
+      <div className="space-y-5">
+        <div
+          role="tablist"
+          aria-label="Promotion kinds"
+          className="flex flex-wrap gap-2"
+        >
+          {TAB_CONFIG.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = tab.value === activeTab;
 
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  role="tab"
-                  id={`promotion-tab-${tab.value}`}
-                  aria-selected={isActive}
-                  aria-controls={`promotion-panel-${tab.value}`}
-                  className={cn(
-                    "inline-flex items-center justify-center whitespace-nowrap rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
-                    isActive
-                      ? "border-white/20 bg-white/10 text-foreground"
-                      : "border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-foreground",
-                  )}
-                  onClick={() => setActiveTab(tab.value)}
-                >
-                  <Icon className="mr-2 h-4 w-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div
-            role="tabpanel"
-            id={`promotion-panel-${activeTabConfig.value}`}
-            aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
-            className="space-y-4"
-          >
-            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold">
-                  {activeTabConfig.label}
-                </h2>
-                <p className="max-w-3xl text-sm text-muted-foreground">
-                  {activeTabConfig.description}
-                </p>
-              </div>
-              <Button
+            return (
+              <button
+                key={tab.value}
                 type="button"
-                variant="outline"
-                onClick={() => openCreateDialog(activeTabConfig.value)}
+                role="tab"
+                id={`promotion-tab-${tab.value}`}
+                aria-selected={isActive}
+                aria-controls={`promotion-panel-${tab.value}`}
+                className={cn(
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-lg border px-4 py-1.5 text-xs font-semibold transition-colors",
+                  isActive
+                    ? "border-white bg-white text-black"
+                    : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-white",
+                )}
+                onClick={() => setActiveTab(tab.value)}
               >
-                <Plus className="mr-2 h-4 w-4" />
-                New {activeTabConfig.shortLabel}
-              </Button>
-            </div>
+                <Icon className="mr-2 h-4 w-4" />
+                {tab.label} ({countsByKind[tab.value] || 0})
+              </button>
+            );
+          })}
+        </div>
 
-            {activeTabConfig.value === "PERSONAL" ? (
-              <AdminInlineMessage
-                title="Customer-only assignment"
-                description="Personal promotion assignment now filters to customer accounts only, so staff users never appear in search or assignment results."
-                tone="info"
-              />
-            ) : null}
-
-            <PromotionTable
-              promotions={promotions.filter(
-                (promotion) => promotion.kind === activeTabConfig.value,
-              )}
-              onCreate={() => openCreateDialog(activeTabConfig.value)}
-              onEdit={openEditDialog}
-              onAssignCustomer={openAssignmentDialog}
-              onActivate={(promotion) =>
-                handleStatusChange(promotion, activateAdminPromotion)
-              }
-              onPause={(promotion) =>
-                handleStatusChange(promotion, pauseAdminPromotion)
-              }
-              onDeactivate={setDeactivateTarget}
-              pendingKey={pendingKey}
-              tab={activeTabConfig}
-            />
+        <div
+          role="tabpanel"
+          id={`promotion-panel-${activeTabConfig.value}`}
+          aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
+          className="space-y-4"
+        >
+          <div className="flex items-center justify-end">
+            <Button
+              type="button"
+              onClick={() => openCreateDialog(activeTabConfig.value)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              New {activeTabConfig.shortLabel}
+            </Button>
           </div>
-        </AdminCardContent>
-      </AdminCard>
+
+          <PromotionTable
+            promotions={promotions.filter(
+              (promotion) => promotion.kind === activeTabConfig.value,
+            )}
+            onEdit={openEditDialog}
+            onAssignCustomer={openAssignmentDialog}
+            onActivate={(promotion) =>
+              handleStatusChange(promotion, activateAdminPromotion)
+            }
+            onPause={(promotion) =>
+              handleStatusChange(promotion, pauseAdminPromotion)
+            }
+            onDeactivate={setDeactivateTarget}
+            pendingKey={pendingKey}
+            tab={activeTabConfig}
+          />
+        </div>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <AdminDialogContent

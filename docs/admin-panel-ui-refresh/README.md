@@ -50,10 +50,13 @@ proof data.
 - Keep routine copy scan-first. Page titles, operational labels, validation, destructive confirmation, empty/error recovery, and accessibility text remain; repeated introductions, decorative summaries, and documentation-like explanations do not.
 - Add Bookings status filters, Invoice search with filtered totals, and Portfolio media-type filters.
 - Preserve Portfolio drag ordering and add drag ordering for Reviews. Featured reviews remain ordered ahead of standard reviews, with drag ordering within each group.
+- Keep reorder handles icon-only on Portfolio and Reviews; persisted order numbers remain implementation data and are not repeated in every row.
 - Use a mobile navigation drawer. Wide data tables remain tables and scroll horizontally on narrow screens.
 - Preserve all existing forms, mutations, downloads, uploads, workflow controls, analytics, calendar behavior, configuration editing, and visibility controls, except that Pricing now intentionally exposes only price fields in the approved prototype matrix. Its save still submits the complete configuration so hidden slot and evening-rule metadata is preserved.
 - Match the `adminPrototype.jsx` Pricing Configuration layout: one header save action, property-type tabs, and one horizontally scrollable price matrix backed by live configuration data.
+- Highlight each edited Pricing cell and mark every property-type tab that contains unsaved edits; clear those indicators only after a successful save.
 - Use bounded Calendar month cells with at most two short color-coded markers and a `+N` overflow count. Calendar availability mutation is named-slot-only; no clock-time or dedicated full-day block creation control is presented there.
+- Keep the calendar exclusively in `/admin/scheduling-calendar`; `/admin/timeslots` is configuration-only.
 - Keep persisted legacy exact/full-day blocks identifiable and clearable without displaying exact block times.
 
 ## Explicit non-goals

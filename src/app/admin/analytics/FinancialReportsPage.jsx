@@ -32,16 +32,12 @@ import ExpenseTrackerSection from "./ExpenseTrackerSection";
 const REPORT_TIMEZONE = "Asia/Dubai";
 const DASHBOARD_DRILLDOWN_PAGE_SIZE = 10;
 const DASHBOARD_KPI_CARDS = [
-  { isCount: false, key: "grossPayments", label: "Gross Payments" },
-  { isCount: false, key: "refunds", label: "Refunds" },
-  { isCount: false, key: "netRevenue", label: "Net Revenue" },
+  { isCount: false, key: "netRevenue", label: "Total Revenue" },
+  { isCount: true, key: "completedBookings", label: "Completed Bookings" },
+  { isCount: true, key: "pendingBookings", label: "Pending Shoots" },
+  { isAverage: true, key: "averageBookingValue", label: "Avg Booking Value" },
   { isCount: false, key: "expenses", label: "Expenses" },
   { isCount: false, key: "netProfit", label: "Net Profit" },
-  { isCount: false, key: "outstandingBalance", label: "Outstanding Balance" },
-  { isCount: true, key: "completedBookings", label: "Completed Bookings" },
-  { isCount: true, key: "pendingBookings", label: "Pending Bookings" },
-  { isCount: true, key: "cancelledBookings", label: "Cancelled Bookings" },
-  { isCount: false, key: "lostValue", label: "Lost Value" },
 ];
 const DRILLDOWN_LABELS = {
   cancelledBookings: "Cancelled Bookings",
@@ -363,14 +359,14 @@ function DashboardKpiCard({
   value,
 }) {
   return (
-    <AdminCard className="overflow-hidden transition-colors hover:border-zinc-600">
+    <AdminCard className="overflow-hidden rounded-xl border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-600">
       <button
         aria-label={`View ${label.toLowerCase()} details`}
         className="w-full text-left outline-none transition-colors hover:bg-zinc-800/40 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500"
         onClick={onViewDetails}
         type="button"
       >
-        <AdminCardHeader className="pb-3">
+        <AdminCardHeader className="p-5 pb-3">
           <AdminCardDescription className="text-[10px] font-semibold uppercase tracking-widest">
             {label}
           </AdminCardDescription>
@@ -378,7 +374,7 @@ function DashboardKpiCard({
             {isCount ? formatCount(value) : formatCurrency(value)}
           </AdminCardTitle>
         </AdminCardHeader>
-        <AdminCardContent>
+        <AdminCardContent className="px-5 pb-5">
           <p className="border-t border-zinc-800 pt-3 text-xs text-[hsl(var(--admin-muted))]">
             {formatDelta(comparison, isCount ? formatCount : formatCurrency)}
           </p>
@@ -878,6 +874,13 @@ export default function FinancialReportsPage({ mode = "full" }) {
   const { rangeEnd, rangeStart } = getMonthRange(monthValue);
 
   useEffect(() => {
+    if (!dashboardOnly) {
+      setDashboard(null);
+      setDashboardError(null);
+      setDashboardLoading(false);
+      return undefined;
+    }
+
     void reloadToken;
 
     const controller = new AbortController();
@@ -933,7 +936,7 @@ export default function FinancialReportsPage({ mode = "full" }) {
     loadDashboard();
 
     return () => controller.abort();
-  }, [monthValue, rangeEnd, rangeStart, reloadToken]);
+  }, [dashboardOnly, monthValue, rangeEnd, rangeStart, reloadToken]);
 
   useEffect(() => {
     if (dashboardOnly) {
@@ -1075,6 +1078,46 @@ export default function FinancialReportsPage({ mode = "full" }) {
     rangeEnd,
     rangeStart,
   });
+  const reportStatusCounts = Object.fromEntries(
+    (report?.bookingStatus?.buckets || []).map((bucket) => [
+      bucket.key,
+      bucket.count,
+    ]),
+  );
+  const reportCompleted = Number(
+    report?.kpis?.completedBookings ?? reportStatusCounts.completed ?? 0,
+  );
+  const reportAverageValue =
+    Number(report?.kpis?.netRevenue || 0) / Math.max(reportCompleted, 1);
+  const reportKpis = [
+    {
+      comparison: report?.comparison?.netRevenue,
+      label: "Revenue",
+      value: report?.kpis?.netRevenue,
+    },
+    {
+      comparison: report?.comparison?.completedBookings,
+      isCount: true,
+      label: "Completed",
+      value: reportCompleted,
+    },
+    {
+      isCount: true,
+      label: "Cancelled",
+      value: reportStatusCounts.cancelled,
+    },
+    {
+      isCount: true,
+      label: "Pending",
+      value: reportStatusCounts.pending,
+    },
+    { label: "Avg Value", value: reportAverageValue },
+    {
+      comparison: report?.comparison?.expenses,
+      label: "Expenses",
+      value: report?.kpis?.expenses,
+    },
+  ];
 
   function openDrilldown(metricKey) {
     setDrilldownState({
@@ -1169,220 +1212,228 @@ export default function FinancialReportsPage({ mode = "full" }) {
         }
         eyebrow={dashboardOnly ? null : "Finance"}
         title={dashboardOnly ? "Dashboard" : "Financial Reports"}
+        description={
+          dashboardOnly
+            ? `Live bookings, revenue, and expenses · ${selectedMonthLabel}`
+            : undefined
+        }
       />
 
-      <section aria-label="Dashboard analytics" className="space-y-4">
-        {dashboardLoading ? (
-          <LoadingState label="Loading dashboard analytics" />
-        ) : null}
+      {dashboardOnly ? (
+        <section aria-label="Dashboard analytics" className="space-y-4">
+          {dashboardLoading ? (
+            <LoadingState label="Loading dashboard analytics" />
+          ) : null}
 
-        {!dashboardLoading && dashboardError ? (
-          <div className="space-y-4">
-            <AdminInlineMessage
-              description={dashboardError}
-              title="Dashboard unavailable"
-              tone="danger"
-            />
-            <Button
-              onClick={() => setReloadToken((value) => value + 1)}
-              type="button"
-              variant="outline"
-            >
-              Retry
-            </Button>
-          </div>
-        ) : null}
-
-        {!dashboardLoading && !dashboardError && dashboard ? (
-          <>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {DASHBOARD_KPI_CARDS.map((card) => (
-                <DashboardKpiCard
-                  key={card.key}
-                  comparison={dashboard.comparison?.[card.key]}
-                  isCount={card.isCount}
-                  label={card.label}
-                  onViewDetails={() => openDrilldown(card.key)}
-                  value={dashboard.kpis?.[card.key]}
-                />
-              ))}
+          {!dashboardLoading && dashboardError ? (
+            <div className="space-y-4">
+              <AdminInlineMessage
+                description={dashboardError}
+                title="Dashboard unavailable"
+                tone="danger"
+              />
+              <Button
+                onClick={() => setReloadToken((value) => value + 1)}
+                type="button"
+                variant="outline"
+              >
+                Retry
+              </Button>
             </div>
+          ) : null}
 
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
-              <AdminCard>
-                <AdminCardHeader>
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-300" />
-                    <AdminCardTitle className="text-xl">
-                      Revenue Trend
-                    </AdminCardTitle>
-                  </div>
-                </AdminCardHeader>
-                <AdminCardContent>
-                  <TrendChart
-                    buckets={dashboard.revenueTrend?.buckets}
-                    title={`Dashboard ${dashboard.revenueTrend?.granularity || "day"} buckets`}
+          {!dashboardLoading && !dashboardError && dashboard ? (
+            <>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {DASHBOARD_KPI_CARDS.map((card) => (
+                  <DashboardKpiCard
+                    key={card.key}
+                    comparison={
+                      card.isAverage ? null : dashboard.comparison?.[card.key]
+                    }
+                    isCount={card.isCount}
+                    label={card.label}
+                    onViewDetails={() =>
+                      openDrilldown(card.isAverage ? "netRevenue" : card.key)
+                    }
+                    value={
+                      card.isAverage
+                        ? Number(dashboard.kpis?.netRevenue || 0) /
+                          Math.max(
+                            Number(dashboard.kpis?.completedBookings || 0),
+                            1,
+                          )
+                        : dashboard.kpis?.[card.key]
+                    }
                   />
-                </AdminCardContent>
-              </AdminCard>
+                ))}
+              </div>
 
-              <AdminCard>
-                <AdminCardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <AdminCardTitle className="text-xl">
-                        Revenue by Service
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                <AdminCard className="xl:col-span-2">
+                  <AdminCardHeader className="p-5 pb-2">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-emerald-300" />
+                      <AdminCardTitle className="text-sm">
+                        Revenue Trend
                       </AdminCardTitle>
-                      <AdminCardDescription>
-                        Paid-service contribution from the same dashboard range.
-                      </AdminCardDescription>
                     </div>
-                    <Button
-                      className="rounded-xl"
-                      onClick={() => openDrilldown("revenueByService")}
-                      type="button"
-                      variant="outline"
-                    >
-                      <Eye className="h-4 w-4" />
-                      View rows
-                    </Button>
-                  </div>
-                </AdminCardHeader>
-                <AdminCardContent className="space-y-3">
-                  {(dashboard.revenueByService || []).length > 0 ? (
-                    dashboard.revenueByService.map((service) => (
-                      <div
-                        key={service.key}
-                        className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
-                      >
-                        <span className="text-sm text-[hsl(var(--admin-muted))]">
-                          {service.label}
-                        </span>
-                        <span className="text-sm font-medium">
-                          {formatCurrency(service.amount)}
-                        </span>
+                  </AdminCardHeader>
+                  <AdminCardContent>
+                    <TrendChart
+                      buckets={dashboard.revenueTrend?.buckets}
+                      title={`Dashboard ${dashboard.revenueTrend?.granularity || "day"} buckets`}
+                    />
+                  </AdminCardContent>
+                </AdminCard>
+
+                <AdminCard>
+                  <AdminCardHeader className="p-5 pb-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <AdminCardTitle className="text-sm">
+                          Revenue by Service
+                        </AdminCardTitle>
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-[hsl(var(--admin-muted))]">
-                      No attributable paid service revenue for this range.
-                    </p>
-                  )}
-                </AdminCardContent>
-              </AdminCard>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr,0.85fr]">
-              <AdminCard>
-                <AdminCardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <AdminCardTitle className="text-xl">
-                        Schedule Summary
-                      </AdminCardTitle>
-                      <AdminCardDescription>
-                        Operational booking volume for the same bounded range.
-                      </AdminCardDescription>
+                      <Button
+                        className="h-8 rounded-lg text-xs"
+                        onClick={() => openDrilldown("revenueByService")}
+                        type="button"
+                        variant="outline"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View rows
+                      </Button>
                     </div>
-                    <Button
-                      className="rounded-xl"
-                      onClick={() => openDrilldown("scheduleSummary")}
-                      type="button"
-                      variant="outline"
-                    >
-                      <Eye className="h-4 w-4" />
-                      View rows
-                    </Button>
-                  </div>
-                </AdminCardHeader>
-                <AdminCardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                        Total
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
-                        {formatCount(dashboard.scheduleSummary?.totals?.total)}
-                      </p>
-                    </div>
-                    <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                        Pending
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
-                        {formatCount(
-                          dashboard.scheduleSummary?.totals?.pending,
-                        )}
-                      </p>
-                    </div>
-                    <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                        Completed
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
-                        {formatCount(
-                          dashboard.scheduleSummary?.totals?.completed,
-                        )}
-                      </p>
-                    </div>
-                    <div className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] p-4">
-                      <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                        Cancelled
-                      </p>
-                      <p className="mt-2 text-2xl font-semibold text-[hsl(var(--admin-foreground))]">
-                        {formatCount(
-                          dashboard.scheduleSummary?.totals?.cancelled,
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {(dashboard.scheduleSummary?.recentDayDetails || [])
-                      .length > 0 ? (
-                      dashboard.scheduleSummary.recentDayDetails.map((day) => (
+                  </AdminCardHeader>
+                  <AdminCardContent className="space-y-3">
+                    {(dashboard.revenueByService || []).length > 0 ? (
+                      dashboard.revenueByService.map((service) => (
                         <div
-                          key={day.bucketStartBusinessDate}
-                          className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
+                          key={service.key}
+                          className="flex items-center justify-between border-b border-zinc-800 py-2.5 last:border-0"
                         >
-                          <div>
-                            <p className="font-medium text-[hsl(var(--admin-foreground))]">
-                              {formatBusinessDate(day.bucketStartBusinessDate)}
-                            </p>
-                            <p className="text-xs text-[hsl(var(--admin-muted))]">
-                              {formatCount(day.total)} bookings ·{" "}
-                              {formatCount(day.pending)} pending ·{" "}
-                              {formatCount(day.completed)} completed ·{" "}
-                              {formatCount(day.cancelled)} cancelled
-                            </p>
-                          </div>
+                          <span className="text-sm text-[hsl(var(--admin-muted))]">
+                            {service.label}
+                          </span>
                           <span className="text-sm font-medium">
-                            {formatCount(day.total)}
+                            {formatCurrency(service.amount)}
                           </span>
                         </div>
                       ))
                     ) : (
                       <p className="text-sm text-[hsl(var(--admin-muted))]">
-                        No scheduled bookings intersect this range.
+                        No attributable paid service revenue for this range.
                       </p>
                     )}
-                  </div>
-                </AdminCardContent>
-              </AdminCard>
+                  </AdminCardContent>
+                </AdminCard>
+              </div>
 
-              <AdminCard>
-                <AdminCardHeader>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <AdminCardTitle className="text-xl">
-                        Recent Bookings
+              <div className="space-y-4">
+                <AdminCard>
+                  <AdminCardHeader className="border-b border-zinc-800 p-5 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <AdminCardTitle className="text-sm">
+                        Today&apos;s Schedule
                       </AdminCardTitle>
-                      <AdminCardDescription>
-                        Most recently created non-draft bookings in range.
-                      </AdminCardDescription>
+                      <Button
+                        className="h-8 rounded-lg text-xs"
+                        onClick={() => openDrilldown("scheduleSummary")}
+                        type="button"
+                        variant="outline"
+                      >
+                        <Eye className="h-4 w-4" />
+                        View rows
+                      </Button>
                     </div>
+                  </AdminCardHeader>
+                  <AdminCardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-zinc-800 lg:grid-cols-4">
+                      <div className="bg-zinc-900 p-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                          Total
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-[hsl(var(--admin-foreground))]">
+                          {formatCount(
+                            dashboard.scheduleSummary?.totals?.total,
+                          )}
+                        </p>
+                      </div>
+                      <div className="bg-zinc-900 p-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                          Pending
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-amber-400">
+                          {formatCount(
+                            dashboard.scheduleSummary?.totals?.pending,
+                          )}
+                        </p>
+                      </div>
+                      <div className="bg-zinc-900 p-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                          Completed
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-emerald-400">
+                          {formatCount(
+                            dashboard.scheduleSummary?.totals?.completed,
+                          )}
+                        </p>
+                      </div>
+                      <div className="bg-zinc-900 p-3">
+                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                          Cancelled
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-red-400">
+                          {formatCount(
+                            dashboard.scheduleSummary?.totals?.cancelled,
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(dashboard.scheduleSummary?.recentDayDetails || [])
+                        .length > 0 ? (
+                        dashboard.scheduleSummary.recentDayDetails.map(
+                          (day) => (
+                            <div
+                              key={day.bucketStartBusinessDate}
+                              className="flex items-center justify-between border-b border-zinc-800 px-1 py-2.5 last:border-0"
+                            >
+                              <div>
+                                <p className="font-medium text-[hsl(var(--admin-foreground))]">
+                                  {formatBusinessDate(
+                                    day.bucketStartBusinessDate,
+                                  )}
+                                </p>
+                                <p className="text-xs text-[hsl(var(--admin-muted))]">
+                                  {formatCount(day.total)} bookings ·{" "}
+                                  {formatCount(day.pending)} pending ·{" "}
+                                  {formatCount(day.completed)} completed ·{" "}
+                                  {formatCount(day.cancelled)} cancelled
+                                </p>
+                              </div>
+                              <span className="text-sm font-medium">
+                                {formatCount(day.total)}
+                              </span>
+                            </div>
+                          ),
+                        )
+                      ) : (
+                        <p className="text-sm text-[hsl(var(--admin-muted))]">
+                          No scheduled bookings intersect this range.
+                        </p>
+                      )}
+                    </div>
+                  </AdminCardContent>
+                </AdminCard>
+
+                <AdminTablePanel
+                  title="Recent Bookings"
+                  actions={
                     <Button
-                      className="rounded-xl"
+                      className="h-8 rounded-lg text-xs"
                       onClick={() => openDrilldown("recentBookings")}
                       type="button"
                       variant="outline"
@@ -1390,72 +1441,67 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       <Eye className="h-4 w-4" />
                       View rows
                     </Button>
-                  </div>
-                </AdminCardHeader>
-                <AdminCardContent className="space-y-3">
-                  {(dashboard.recentBookings || []).length > 0 ? (
-                    dashboard.recentBookings.map((booking) => (
-                      <div
-                        key={booking.id}
-                        className="admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="font-medium text-[hsl(var(--admin-foreground))]">
+                  }
+                >
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Booking</TableHead>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(dashboard.recentBookings || []).length > 0 ? (
+                        dashboard.recentBookings.map((booking) => (
+                          <TableRow key={booking.id}>
+                            <TableCell className="font-medium">
                               {booking.bookingCode || `Booking #${booking.id}`}
-                            </p>
-                            <p className="text-xs text-[hsl(var(--admin-muted))]">
+                            </TableCell>
+                            <TableCell>
                               {booking.customer?.fullName ||
                                 booking.customer?.email ||
                                 "No customer"}
-                            </p>
-                          </div>
-                          <span className="text-sm font-medium">
-                            {formatCurrency(booking.total)}
-                          </span>
-                        </div>
-                        <p className="mt-2 text-xs text-[hsl(var(--admin-muted))]">
-                          Created {formatDateTime(booking.createdAt)} ·
-                          Scheduled {formatBusinessDate(booking.date)} ·{" "}
-                          {booking.workflowStatus ||
-                            booking.status ||
-                            "Unknown"}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-[hsl(var(--admin-muted))]">
-                      No recent bookings intersect this range.
-                    </p>
-                  )}
-                </AdminCardContent>
-              </AdminCard>
-            </div>
-          </>
-        ) : null}
-      </section>
+                            </TableCell>
+                            <TableCell>
+                              {formatBusinessDate(booking.date)}
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {formatCurrency(booking.total)}
+                            </TableCell>
+                            <TableCell>
+                              {booking.workflowStatus ||
+                                booking.status ||
+                                "Unknown"}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <EmptyTableRow
+                          colSpan={5}
+                          message="No recent bookings in this range."
+                        />
+                      )}
+                    </TableBody>
+                  </Table>
+                </AdminTablePanel>
+              </div>
+            </>
+          ) : null}
+        </section>
+      ) : null}
 
       {!dashboardOnly ? (
         <>
           <section
             aria-labelledby="financial-reports-heading"
-            className="space-y-6"
+            className="space-y-5"
           >
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                Reports
-              </p>
-              <h2
-                className="text-2xl font-semibold tracking-tight"
-                id="financial-reports-heading"
-              >
-                Financial Reports
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Revenue, refunds, expenses, profit, and month-over-month
-                movement for {selectedMonthLabel}.
-              </p>
-            </div>
+            <h2 className="sr-only" id="financial-reports-heading">
+              Financial Reports
+            </h2>
 
             {loading ? (
               <LoadingState label="Loading financial reports" />
@@ -1486,28 +1532,47 @@ export default function FinancialReportsPage({ mode = "full" }) {
 
             {!loading && !error && report ? (
               <>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  <ReportKpiCard
-                    comparison={report.comparison?.netRevenue}
-                    label="Net Revenue"
-                    value={report.kpis?.netRevenue}
-                  />
-                  <ReportKpiCard
-                    comparison={report.comparison?.expenses}
-                    label="Expenses"
-                    value={report.kpis?.expenses}
-                  />
-                  <ReportKpiCard
-                    comparison={report.comparison?.netProfit}
-                    label="Net Profit"
-                    value={report.kpis?.netProfit}
-                  />
-                  <ReportKpiCard
-                    comparison={report.comparison?.completedBookings}
-                    isCount
-                    label="Completed Bookings"
-                    value={report.kpis?.completedBookings}
-                  />
+                <div className="rounded-xl border border-zinc-800 border-l-4 border-l-emerald-600 bg-zinc-900 p-5">
+                  <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
+                    <div>
+                      <p className="text-xs font-semibold text-emerald-400">
+                        Net revenue
+                      </p>
+                      <p className="mt-1 text-2xl font-bold">
+                        {formatCurrency(report.kpis?.netRevenue)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-red-400">
+                        Expenses
+                      </p>
+                      <p className="mt-1 text-2xl font-bold">
+                        {formatCurrency(report.kpis?.expenses)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-blue-400">
+                        Net profit
+                      </p>
+                      <p className="mt-1 text-2xl font-bold">
+                        {formatCurrency(report.kpis?.netProfit)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-amber-400">
+                        Margin
+                      </p>
+                      <p className="mt-1 text-2xl font-bold">
+                        {formatPercent(report.profitAndLoss?.margin)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                  {reportKpis.map((kpi) => (
+                    <ReportKpiCard key={kpi.label} {...kpi} />
+                  ))}
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.3fr,0.9fr]">
