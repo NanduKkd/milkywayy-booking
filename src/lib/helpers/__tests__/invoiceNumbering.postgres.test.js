@@ -31,6 +31,42 @@ describe("invoice numbering with disposable PostgreSQL", () => {
     }
   }
 
+  function createDeferred() {
+    let resolve;
+    const promise = new Promise((promiseResolve) => {
+      resolve = promiseResolve;
+    });
+    return { promise, resolve };
+  }
+
+  async function withTimeout(promise, label, timeoutMs = 1500) {
+    let timeoutId;
+    const timeout = new Promise((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error(`${label} exceeded ${timeoutMs}ms`)),
+        timeoutMs,
+      );
+    });
+
+    try {
+      return await Promise.race([promise, timeout]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  async function waitFor(predicate, label, timeoutMs = 1500) {
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+      const result = await predicate();
+      if (result) return result;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+
+    throw new Error(`${label} exceeded ${timeoutMs}ms`);
+  }
+
   async function createUser() {
     const [row] = await database.sequelize.query(
       `INSERT INTO users (created_at, updated_at)
@@ -123,5 +159,112 @@ describe("invoice numbering with disposable PostgreSQL", () => {
     console.info(
       `[invoice-numbering-postgres] concurrent=${invoiceNumbers.join(",")} persisted=2 duplicate_rejected=true`,
     );
+  });
+
+  it("holds the daily advisory lock until a separate allocator backend is visibly waiting", async () => {
+    const [firstUserId, secondUserId] = await Promise.all([
+      createUser(),
+      createUser(),
+    ]);
+    const [first, second] = await Promise.all([
+      createSuccessfulTransaction(firstUserId),
+      createSuccessfulTransaction(secondUserId),
+    ]);
+    const firstInvoiceNumber = await ensureTransactionInvoiceNumber(first);
+    const holder = await appSequelize.transaction();
+    const allocationLockAttempt = createDeferred();
+    let allocatorBackendPid;
+    let holderOpen = true;
+    let querySpy;
+
+    try {
+      const [holderBackend] = await appSequelize.query(
+        'SELECT pg_backend_pid() AS "pid"',
+        { transaction: holder, type: QueryTypes.SELECT },
+      );
+      const holderBackendPid = Number(holderBackend.pid);
+      await appSequelize.query(
+        "SELECT pg_advisory_xact_lock(hashtext(:invoiceDayKey))",
+        {
+          replacements: { invoiceDayKey: "mw_invoice:2026-07-21" },
+          transaction: holder,
+          type: QueryTypes.SELECT,
+        },
+      );
+
+      const originalQuery = appSequelize.query;
+      querySpy = jest
+        .spyOn(appSequelize, "query")
+        .mockImplementation(function queryWithAllocatorProbe(sql, options) {
+          if (
+            String(sql).includes("pg_advisory_xact_lock") &&
+            options?.transaction &&
+            options.transaction !== holder
+          ) {
+            allocatorBackendPid = Number(
+              options.transaction.connection?.processID,
+            );
+            allocationLockAttempt.resolve();
+          }
+          return originalQuery.call(this, sql, options);
+        });
+
+      let allocationCompleted = false;
+      const allocation = ensureTransactionInvoiceNumber(second).then(
+        (result) => {
+          allocationCompleted = true;
+          return result;
+        },
+      );
+
+      await withTimeout(
+        allocationLockAttempt.promise,
+        "Second invoice allocation lock attempt",
+      );
+      expect(allocatorBackendPid).toEqual(expect.any(Number));
+      expect(allocatorBackendPid).toBeGreaterThan(0);
+      expect(allocatorBackendPid).not.toBe(holderBackendPid);
+
+      const waitingAllocator = await waitFor(async () => {
+        const [session] = await database.sequelize.query(
+          `
+            SELECT
+              wait_event_type AS "waitEventType",
+              state
+            FROM pg_stat_activity
+            WHERE pid = :pid
+          `,
+          {
+            replacements: { pid: allocatorBackendPid },
+            type: QueryTypes.SELECT,
+          },
+        );
+        return session?.waitEventType === "Lock" && session.state === "active"
+          ? session
+          : null;
+      }, "Second invoice allocator advisory-lock wait");
+
+      expect(waitingAllocator).toEqual({
+        waitEventType: "Lock",
+        state: "active",
+      });
+      expect(allocationCompleted).toBe(false);
+
+      await holder.commit();
+      holderOpen = false;
+
+      await expect(
+        withTimeout(allocation, "Second invoice allocation completion"),
+      ).resolves.toBe("MW-2026-0721-002");
+      await second.reload();
+      expect(firstInvoiceNumber).toBe("MW-2026-0721-001");
+      expect(second.invoiceNumber).toBe("MW-2026-0721-002");
+      console.info(
+        `[invoice-numbering-postgres] advisory_lock_wait=true distinct=${firstInvoiceNumber},${second.invoiceNumber}`,
+      );
+    } finally {
+      querySpy?.mockRestore();
+      if (holderOpen) await holder.rollback();
+    }
   });
 });

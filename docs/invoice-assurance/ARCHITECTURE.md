@@ -21,6 +21,11 @@ counts eligible successful transactions in the exact UTC interval, then writes
 the formatted number. This serializes allocation within one day without
 blocking another day.
 
+The PostgreSQL proof holds that same daily lock from one backend and observes
+the second allocator backend waiting on it before release. This directly tests
+serialization rather than merely relying on deterministic transaction-ID
+ordering.
+
 `transactions.invoice_number` remains unique in PostgreSQL and is the final
 integrity boundary. If another writer still wins a collision, allocation rolls
 back and retries a bounded number of times with a valid next sequence; an

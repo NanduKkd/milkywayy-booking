@@ -16,8 +16,12 @@ retry.
 reserved, disposable PostgreSQL database through the shared harness. It runs
 two synthetic successful transactions for the same UTC day concurrently,
 asserts two distinct persisted numbers, and attempts a duplicate write against
-the real `transactions.invoice_number` unique constraint. It never uses
-production credentials or customer records.
+the real `transactions.invoice_number` unique constraint. It also holds the
+same transaction-scoped daily advisory lock from one real backend and verifies
+through `pg_stat_activity` that the second allocator backend is actively
+waiting on that lock before release; a bounded timeout fails rather than
+hanging. After release, the second allocator persists the next distinct
+number. It never uses production credentials or customer records.
 
 Run focused unit coverage with:
 
