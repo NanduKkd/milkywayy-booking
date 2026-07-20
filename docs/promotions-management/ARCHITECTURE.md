@@ -1,6 +1,6 @@
 # Promotions management architecture
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-20
 
 ## Domain model
 
@@ -53,12 +53,12 @@ Required columns:
 Constraints:
 
 - only promotions with `kind = PERSONAL` may be assigned
-- only active customer accounts may be assignment targets
-- in the current user schema, "active customer accounts" means existing
-  `users.role = CUSTOMER` rows until a dedicated disabled/suspended state
-  exists (`PRM-D013`)
+- only enabled customer accounts may be assignment targets; both customer
+  search and direct assignment require an existing `users.role = CUSTOMER`
+  row with `users.disabled_at IS NULL` (`User.disabledAt = null`; `PRM-D013`)
 - one customer may have at most one active row per personal promotion
-- unassignment preserves history rather than deleting the row
+- disabling a customer does not delete or rewrite an existing assignment, and
+  unassignment preserves history rather than deleting the row
 
 ### promotion_redemptions
 
@@ -82,6 +82,32 @@ Concurrency contract:
 - active-count queries only include `RESERVED` and `APPLIED`
 - a transaction may own at most one non-released redemption row
 - released or expired rows remain for audit and reconciliation
+
+Reservation enforcement locks the selected `promotions` row with
+`FOR UPDATE` before counting or inserting redemptions. Competing PostgreSQL
+transactions therefore serialize on one promotion, then the later transaction
+rechecks committed `RESERVED` and `APPLIED` rows before it can reserve. A
+partial unique index on `promotion_redemptions.transaction_id` independently
+prevents two active redemptions for one transaction, including attempts that
+target different promotions.
+
+Checkout attaches `promotion_id`, `promotion_redemption_id`, and the immutable
+snapshot in the same database transaction that creates the reservation. A
+rollback removes both the redemption and the transaction attachment. The
+database-backed integration harness builds only the required synthetic base
+tables plus the production promotion migration in a disposable database, uses
+independent connection-pool transactions for contention, applies bounded
+statement/lock/idle-transaction timeouts, and drops the database after success
+or setup failure. Cluster DDL is available only under `NODE_ENV=test` with an
+explicit opt-in and dedicated test-admin connection settings; application
+database settings are never used for database creation or removal. Every
+created database has the fixed `mw_codex_test_` prefix, which is revalidated
+immediately before creation, connection termination, alteration, and removal.
+Connection and administrative shutdowns are bounded, and failed removal keeps
+the cleanup handle retryable until the database is confirmed removed. Every
+provisioning or cleanup attempt ends or forcibly destroys its short-lived admin
+connection in `finally`; a later cleanup retry creates a fresh admin connection
+from immutable test configuration rather than reusing the failed client.
 
 ### promotion_audit_events
 
@@ -184,6 +210,59 @@ for each promotion kind, assignment lookup, usage totals, and audit history.
 Until `admin-access-control` resumes, the compatibility authorization mode is
 `SUPERADMIN`-only rather than the deferred role-permission matrix. Deletion of
 used/system promotions becomes deactivation rather than physical deletion.
+
+### Service-boundary validation
+
+`promotionAdmin` normalizes codes to trimmed uppercase values, trims required
+names and optional text, normalizes supported enum values to uppercase, and
+converts numeric/date inputs before persistence. The service rejects invalid
+promotion kinds, benefit types and values, caps, minimum spends, lifecycle
+statuses, booleans, priorities, usage limits, eligibility dates, trigger types,
+and trigger configuration with stable operator-safe errors.
+
+Eligibility timestamps accept only these string forms:
+
+- `YYYY-MM-DD`, interpreted as midnight UTC;
+- an ISO 8601 date-time with a literal `T`, hours and minutes, optional seconds
+  and one-to-three fractional digits, and either no offset, `Z`, or an explicit
+  `±HH:mm` offset.
+
+The admin `datetime-local` fields emit the offset-free
+`YYYY-MM-DDTHH:mm` form. Because edit values are derived from stored UTC
+timestamps, offset-free values are interpreted as UTC to make create/edit
+round trips independent of the server time zone. Explicit offsets are applied
+before persistence and snapshots remain UTC ISO strings. Space or slash
+separators, offsets without a colon, impossible calendar/leap dates, invalid
+clock values, and offsets beyond `±14:00` are rejected. Both eligibility and
+date-range trigger windows must be ordered; date-range trigger configuration
+continues to use Dubai business-date `YYYY-MM-DD` values.
+
+Kind-specific invariants are enforced before database writes: generic
+promotions require a code and `NONE` trigger, personal promotions reject codes
+and require `NONE`, and automatic promotions reject codes and require a
+non-`NONE` trigger. Percentage benefits cannot exceed 100, fixed benefits
+cannot define a cap, and active generic codes are compared case-insensitively
+on create, update, and activation. The preflight lookup provides early operator
+feedback, while the partial unique index remains authoritative under races.
+Known active-code constraint failures are mapped back to the same stable
+conflict message without exposing database details; unrelated failures retain
+their original error path.
+
+Status changes on existing promotions are accepted only through lifecycle
+actions. Activation moves a draft or paused promotion to active; pause accepts
+a draft or active promotion, preserving the existing ability to hold a
+promotion before first activation; deactivation accepts any non-deactivated
+status and is terminal. Repeating the action for the current status is a no-op
+and does not append an audit event. Configuration updates that normalize to the
+stored configuration are also no-ops and create neither update nor audit writes.
+
+Assignment mutations reject missing promotions or customers, non-personal
+promotions, duplicate active assignments, and missing active assignments.
+Unassignment timestamps the active assignment and appends an audit event; it
+never deletes or rewrites historical assignment rows. If two assignments race,
+the active-assignment partial unique index is mapped to the same stable
+duplicate message used by the preflight check; unexpected database errors are
+not swallowed.
 
 ## Approval outcome for PRM-003
 

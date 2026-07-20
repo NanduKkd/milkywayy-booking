@@ -1,29 +1,134 @@
 # Promotions management security test plan
 
-- Last updated: 2026-07-20
-- Core promotions release gate status: `DONE`
-- Test-assurance Project snapshot (2026-07-20):
+- Last updated: 2026-07-21
+- Test-assurance Project snapshot (2026-07-21):
   - parent feature #28: `DRAFT`
-  - authorized child tasks PRM-307 (#30), PRM-308 (#29), PRM-309 (#31),
-    and PRM-310 (#32): `IN REVIEW`
+  - PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32): `DONE`
+  - PRM-309 (#31): `IN_REVIEW`
+  - successor tasks PRM-312 (#33), PRM-311 (#34), and PRM-313 (#35):
+    `DRAFT` and dependency-gated
 
-## Automated gates
+Each child gate owns separate proof. Completing one child does not complete the
+parent feature or any dependency-gated successor.
 
-- Promotion CRUD and assignment permissions are enforced server-side.
-- Personal customer lookup excludes staff and disabled customers.
-- Codes, labels, percentages, amounts, caps, minimums, dates, priorities, and
-  limits reject malformed/out-of-range input.
-- Eligibility tests cover active dates, first/second booking, customer assignment,
-  minimum spend, per-user limits, total limits, and disabled promotions.
-- Precedence tests prove one promotion only, personal over automatic, generic
-  only when strictly better, and wallet separation.
-- Migration parity fixtures cover preserved generic-coupon, launch-credit, and
-  wallet-separation outcomes plus the accepted direct-discount non-stacking cutover.
-- Concurrent reservation tests cannot exceed per-user or global limits.
-- Failed, expired, cancelled, and replayed payment flows release/finalize exactly once.
-- Transaction and invoice calculations use the stored promotion snapshot rather
-  than mutable current configuration.
-- Code-validation responses do not expose private customer assignments or useful enumeration detail.
+## PRM-307 disabled-customer eligibility gate
+
+- Personal customer lookup requires `role = CUSTOMER` and `disabledAt = null`,
+  excluding staff and disabled customers.
+- Direct personal-promotion assignment enforces the same eligibility predicate;
+  disabled, staff, and missing users receive the same non-enumerating
+  `Customer account not found` error and create no assignment or audit event.
+- Enabled customers remain searchable and assignable, while disabling an
+  account leaves historical assignment rows intact for audit.
+
+Run the focused gate with:
+
+```sh
+npm test -- --runInBand src/lib/services/__tests__/promotionAdmin.test.js
+```
+
+## PRM-308 validation and lifecycle gate
+
+- Table-driven `promotionAdmin` service tests independently cover create
+  normalization; update preserve, set, clear, inactive-conflict, and no-op
+  behavior; kind/code/trigger invariants; benefit and limit boundaries; explicit
+  timestamp grammar and ordered ranges; status isolation; and boolean trigger
+  flags.
+- Active generic-code conflicts are tested case-insensitively across create,
+  update, and activation. Known race-time unique-constraint failures at those
+  writes map to the same stable conflict message, while unrelated errors remain
+  unchanged.
+- Lifecycle unit tests cover draft/paused activation, draft/active pause,
+  repeated no-op actions, direct-update rejection, and terminal deactivation.
+- Assignment and unassignment tests reject wrong kinds, missing promotions or
+  customers, duplicate active assignments, and missing active assignments while
+  proving successful unassignment preserves the historical row. A known
+  assignment unique-constraint race maps to the stable duplicate message;
+  unexpected errors are retained.
+- Eligibility timestamp tests run under `Pacific/Kiritimati` and
+  `America/Los_Angeles` to prove date-only, offset-free admin values, and
+  offset-bearing inputs normalize independently of the server time zone.
+
+The PRM-308 cases are mocked service-boundary unit tests. Real database
+contention is covered separately by PRM-310 below; action/page coverage remains
+owned by PRM-309.
+
+Run the focused gate with:
+
+```sh
+npm test -- src/lib/services/__tests__/promotionAdmin.test.js --runInBand --coverage --collectCoverageFrom=src/lib/services/promotionAdmin.js
+TZ=Pacific/Kiritimati npm test -- src/lib/services/__tests__/promotionAdmin.test.js --runInBand
+TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.test.js --runInBand
+```
+
+## PRM-310 PostgreSQL contention and lifecycle gate
+
+- Real PostgreSQL contention tests use separate backend transactions and prove
+  exactly one reservation plus one deterministic rejection at per-user and
+  global limits of one.
+- The active-transaction partial unique index rejects concurrent active
+  redemptions even when attempts target different promotions.
+- Database-backed lifecycle tests prove `RESERVED` and `APPLIED` consume limits,
+  `RELEASED` and `EXPIRED` do not, retries are idempotent, forbidden state
+  changes fail, and rollback leaves no redemption or transaction attachment.
+- The disposable PostgreSQL harness proves database cleanup after successful and
+  failed setup, bounds stalled or throwing connection shutdown, and preserves
+  retryable cleanup state after failed removal. Each failed cleanup attempt
+  leaves zero tagged admin sessions, and a retry uses a fresh admin client.
+
+## Integrated assurance boundaries
+
+- The PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32) gates above preserve
+  their distinct eligibility, validation/lifecycle, and real-PostgreSQL proof.
+- PRM-309 (#31) below preserves its distinct server-action and initial-page
+  proof, including authentication, delegation, revalidation, and safe action
+  wrapping.
+- Checkout lifecycle, UI failure/recovery, and CI enforcement remain draft and
+  dependency-gated under #34, #33, and #35 respectively.
+
+Future assurance changes must preserve #30 eligibility evidence, #29
+validation/lifecycle evidence, #31 action/page evidence, #32 PostgreSQL
+contention/harness evidence, and the authoritative Project state.
+
+## Repeatable PostgreSQL gate
+
+The harness fails closed unless `NODE_ENV=test`, the opt-in value is exactly
+`CREATE_DROP_RESERVED_DATABASES`, and every dedicated test-admin setting below
+is present. The configured role must be a test-only role on a disposable test
+cluster with permission to create/drop databases and terminate its own test
+connections. Do not use production or shared application credentials.
+
+- `MW_TEST_POSTGRES_ADMIN_OPT_IN`
+- `MW_TEST_POSTGRES_ADMIN_HOST`
+- `MW_TEST_POSTGRES_ADMIN_PORT`
+- `MW_TEST_POSTGRES_ADMIN_USER`
+- `MW_TEST_POSTGRES_ADMIN_PASSWORD` (optional when the test server does not use
+  password authentication)
+- `MW_TEST_POSTGRES_ADMIN_DATABASE` (must be `postgres`)
+
+The cluster DDL path ignores application `DB_HOST`, `DB_PORT`, `DB_USER`,
+`DB_PASSWORD`, and `DB_NAME`. It generates only names under the fixed
+`mw_codex_test_` prefix and rechecks that invariant immediately before every
+create, terminate, alter, or drop operation. The integration suite points the
+application model connection at that generated database only after safe
+creation, then restores the prior application environment after cleanup.
+
+With the dedicated test-admin environment configured, run:
+
+```sh
+npx jest src/lib/db/testing/__tests__/disposablePostgres.test.js --runInBand
+npx jest src/lib/services/__tests__/promotionRedemptions.postgres.test.js --runInBand
+```
+
+Capture redemption-service coverage with:
+
+```sh
+npx jest src/lib/services/__tests__/promotionRedemptions.postgres.test.js --runInBand --coverage --collectCoverageFrom=src/lib/services/promotionRedemptions.js
+```
+
+Both commands use synthetic identifiers and create and remove their own
+database. A missing opt-in or incomplete dedicated configuration is a hard
+failure; there is no fallback to application database credentials.
 
 ## Server-action and initial-page gate
 
@@ -64,11 +169,11 @@ The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
 80% branches. The issue #31 implementation recorded 100% statements and 100%
 branches for both boundary files across 26 focused tests.
 
-The parent assurance feature remains in `DRAFT`; the four authorized child
-tasks above are in review, not complete. Further checkout lifecycle, UI
+The parent assurance feature remains in `DRAFT`; PRM-307, PRM-308, and PRM-310
+are merged, while PRM-309 remains in review. Further checkout lifecycle, UI
 failure/recovery, and CI enforcement work remains draft and dependency-gated.
-Focused boundary results do not imply that the repository-wide Jest baseline is
-green.
+Focused boundary results do not imply that the repository-wide Jest baseline
+is green.
 
 ## Manual gates
 
