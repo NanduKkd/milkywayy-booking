@@ -20,7 +20,7 @@ import User from "@/lib/db/models/user";
 import { auth } from "@/lib/helpers/auth";
 import { getPricingConfig } from "@/lib/helpers/pricing";
 import {
-  applyPromotionForCheckoutTransaction,
+  finalizePaidPromotionCheckoutTransaction,
   releasePromotionForCheckoutTransaction,
   reservePromotionForCheckoutTransaction,
 } from "@/lib/services/promotionCheckout";
@@ -122,7 +122,7 @@ jest.mock("@/lib/actions/discounts", () => ({
 
 jest.mock("@/lib/services/promotionCheckout", () => ({
   PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS: 24 * 60 * 60 * 1000,
-  applyPromotionForCheckoutTransaction: jest.fn(),
+  finalizePaidPromotionCheckoutTransaction: jest.fn(),
   releasePromotionForCheckoutTransaction: jest.fn(),
   reservePromotionForCheckoutTransaction: jest.fn(),
 }));
@@ -190,7 +190,12 @@ describe("Booking Actions", () => {
       email: "test@example.com",
     });
     DynamicConfig.findOne.mockResolvedValue(null);
-    applyPromotionForCheckoutTransaction.mockResolvedValue(null);
+    finalizePaidPromotionCheckoutTransaction.mockImplementation(
+      async ({ transactionId }) => ({
+        transaction: { id: transactionId, status: "success" },
+        alreadyFinalized: false,
+      }),
+    );
     releasePromotionForCheckoutTransaction.mockResolvedValue(null);
     reservePromotionForCheckoutTransaction.mockResolvedValue(null);
     evaluateCheckoutPromotionPricing.mockResolvedValue({

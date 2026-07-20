@@ -1,5 +1,6 @@
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
+import { evaluateCheckoutPromotionPricing } from "./promotionPricing";
 import {
   applyPromotionRedemption,
   expirePromotionRedemption,
@@ -7,8 +8,7 @@ import {
   reservePromotionRedemption,
 } from "./promotionRedemptions";
 
-export const PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS =
-  24 * 60 * 60 * 1000;
+export const PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function runInTransaction(transaction, callback) {
   if (transaction) {
@@ -107,11 +107,10 @@ function buildPromotionSnapshot({
     minimumSpend: Number(promotion.minimumSpend || 0),
     triggerType: promotion.triggerType,
     triggerConfig: promotion.triggerConfig || {},
-    triggerSnapshot:
-      triggerSnapshot || {
-        triggerType: promotion.triggerType,
-        triggerConfig: promotion.triggerConfig || {},
-      },
+    triggerSnapshot: triggerSnapshot || {
+      triggerType: promotion.triggerType,
+      triggerConfig: promotion.triggerConfig || {},
+    },
     benefitAmount,
     sourceMarkers: {
       legacySourceType: promotion.legacySourceType || null,
@@ -126,13 +125,14 @@ export async function reservePromotionForCheckoutTransaction({
   selectedPromotion = null,
   eligibleSubtotal,
   bookingIds = [],
+  enteredCode = null,
+  now = new Date(),
   reservationExpiresAt = new Date(
     Date.now() + PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS,
   ),
   transaction = null,
 }) {
-  const normalizedSelection =
-    normalizeReservationSelection(selectedPromotion);
+  const normalizedSelection = normalizeReservationSelection(selectedPromotion);
 
   if (!normalizedSelection) {
     return null;
@@ -173,6 +173,31 @@ export async function reservePromotionForCheckoutTransaction({
       throw new Error("Promotion not found");
     }
 
+    // A checkout preview is advisory only. Re-evaluate while the reservation
+    // transaction is open so a customer cannot consume a promotion after an
+    // operator pauses it, removes a personal assignment, changes a trigger,
+    // reaches a limit, or lets its window end.
+    const currentPricing = await evaluateCheckoutPromotionPricing({
+      userId: normalizedUserId,
+      eligibleSubtotal: normalizedEligibleSubtotal,
+      // Programmatic checkout callers can supply a preselected generic
+      // promotion without separately carrying its entered-code string.
+      enteredCode:
+        enteredCode ?? (promotion.kind === "GENERIC" ? promotion.code : null),
+      now,
+      transaction: activeTransaction,
+    });
+    const currentSelection = currentPricing.selectedPromotion;
+
+    if (
+      !currentSelection ||
+      Number(currentSelection.promotionId) !== Number(promotion.id) ||
+      Number(currentSelection.benefitAmount) !==
+        Number(normalizedSelection.benefitAmount)
+    ) {
+      throw new Error("Promotion is no longer eligible for checkout");
+    }
+
     const bookingId = getSingleBookingId(bookingIds);
     const redemption = await reservePromotionRedemption({
       promotionId: promotion.id,
@@ -180,17 +205,17 @@ export async function reservePromotionForCheckoutTransaction({
       transactionId: checkoutTransaction.id,
       bookingId,
       eligibleSubtotal: normalizedEligibleSubtotal,
-      benefitAmount: normalizedSelection.benefitAmount,
+      benefitAmount: currentSelection.benefitAmount,
       benefitTypeSnapshot: promotion.benefitType,
-      triggerSnapshot: normalizedSelection.triggerSnapshot,
+      triggerSnapshot: currentSelection.triggerSnapshot,
       reservationExpiresAt,
       transaction: activeTransaction,
     });
     const promotionSnapshot = buildPromotionSnapshot({
       promotion,
       eligibleSubtotal: normalizedEligibleSubtotal,
-      benefitAmount: normalizedSelection.benefitAmount,
-      triggerSnapshot: normalizedSelection.triggerSnapshot,
+      benefitAmount: currentSelection.benefitAmount,
+      triggerSnapshot: currentSelection.triggerSnapshot,
     });
 
     await checkoutTransaction.update(
@@ -247,11 +272,77 @@ export async function applyPromotionForCheckoutTransaction({
       );
     }
 
+    if (
+      redemption.reservationExpiresAt &&
+      new Date(redemption.reservationExpiresAt).getTime() <= now.getTime()
+    ) {
+      await expirePromotionRedemption({
+        redemptionId: redemption.id,
+        now,
+        transaction: activeTransaction,
+      });
+      throw new Error("Promotion reservation has expired");
+    }
+
     return applyPromotionRedemption({
       redemptionId: redemption.id,
       now,
       transaction: activeTransaction,
     });
+  });
+}
+
+/**
+ * Records the customer-visible result of a paid checkout once. Stripe retries
+ * are expected, so the first successful reconciliation owns promotion
+ * finalization and booking confirmation; later deliveries only observe it.
+ */
+export async function finalizePaidPromotionCheckoutTransaction({
+  transactionId,
+  stripePaymentIntentId = null,
+  paidAt = new Date(),
+  transaction = null,
+}) {
+  return runInTransaction(transaction, async (activeTransaction) => {
+    const checkoutTransaction = await findTransactionForUpdate(
+      transactionId,
+      activeTransaction,
+    );
+
+    if (!checkoutTransaction) {
+      throw new Error("Transaction not found");
+    }
+
+    if (checkoutTransaction.status === "success") {
+      return { transaction: checkoutTransaction, alreadyFinalized: true };
+    }
+
+    await applyPromotionForCheckoutTransaction({
+      transactionId: checkoutTransaction.id,
+      now: paidAt,
+      transaction: activeTransaction,
+    });
+
+    await checkoutTransaction.update(
+      {
+        status: "success",
+        ...(stripePaymentIntentId ? { stripePaymentIntentId } : {}),
+        paidAt,
+      },
+      { transaction: activeTransaction },
+    );
+    await models.Booking.update(
+      { status: "CONFIRMED" },
+      {
+        where: {
+          transactionId: checkoutTransaction.id,
+          status: "DRAFT",
+        },
+        transaction: activeTransaction,
+      },
+    );
+
+    return { transaction: checkoutTransaction, alreadyFinalized: false };
   });
 }
 

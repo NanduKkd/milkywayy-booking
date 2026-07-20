@@ -94,6 +94,16 @@ target different promotions.
 Checkout attaches `promotion_id`, `promotion_redemption_id`, and the immutable
 snapshot in the same database transaction that creates the reservation. A
 rollback removes both the redemption and the transaction attachment. The
+checkout preview is advisory: the selected candidate is evaluated again in the
+reservation transaction, so an intervening pause/deactivation, assignment
+removal, eligibility-window expiry, limit consumption, or booking-trigger
+change cannot consume an invalid benefit. The reservation then becomes the
+payment contract: paid reconciliation applies that stored snapshot once and
+confirms associated draft bookings in the same transaction. Duplicate Stripe
+delivery observes the completed transaction and produces no second promotion
+or booking transition; a reservation that has expired before reconciliation is
+marked `EXPIRED` instead.
+
 database-backed integration harness builds only the required synthetic base
 tables plus the production promotion migration in a disposable database, uses
 independent connection-pool transactions for contention, applies bounded
@@ -181,9 +191,12 @@ generic ties and automatic rules.
 ## Trigger semantics
 
 First/second booking rules count successful paid bookings under one documented
-policy and must be rechecked at reservation/finalization. Date-range rules use
-Dubai business dates. Trigger configuration is validated by type rather than
-executed as arbitrary expressions.
+policy and are rechecked when the checkout reservation is created. Payment
+finalization verifies that the captured reservation remains valid and has not
+expired; it applies the immutable reservation rather than recomputing a price
+after the card has been charged. Date-range rules use Dubai business dates.
+Trigger configuration is validated by type rather than executed as arbitrary
+expressions.
 
 `trigger_config` shapes:
 

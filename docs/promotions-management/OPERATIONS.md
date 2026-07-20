@@ -33,6 +33,20 @@ Monitor evaluator differences, rejected codes, redemption reservations,
 reservation expiry, usage-limit conflicts, checkout total changes, webhook
 finalization failures, and customer support reports.
 
+## Checkout reconciliation
+
+Checkout previews are not payment authority. The reservation transaction
+rechecks eligibility immediately before it writes the redemption and immutable
+transaction snapshot. A paused/deactivated promotion, removed personal
+assignment, expired window, consumed limit, or changed booking trigger rejects
+the checkout before a Stripe session is created.
+
+For a paid Stripe session, reconciliation applies the reserved redemption,
+marks the transaction successful, and confirms its draft bookings atomically.
+Retrying an already successful session is a no-op for those customer-visible
+effects. If a reservation has expired, record it as `EXPIRED` and investigate
+the pending payment rather than silently applying a stale benefit.
+
 ## Admin mutation rejection handling
 
 - Correct malformed promotion fields in the Promotions form; invalid calendar
