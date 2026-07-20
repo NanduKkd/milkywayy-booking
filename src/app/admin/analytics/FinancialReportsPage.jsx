@@ -419,10 +419,12 @@ function TrendChart({ buckets = [], title, valueKey = "netRevenue" }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <BarChart3 className="h-4 w-4 text-emerald-300" />
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
-      </div>
+      {title ? (
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-emerald-300" />
+          <h3 className="text-sm font-medium text-foreground">{title}</h3>
+        </div>
+      ) : null}
 
       <svg
         aria-label="Revenue by date"
@@ -495,6 +497,7 @@ function TrendChart({ buckets = [], title, valueKey = "netRevenue" }) {
 function DonutChart({
   centerLabel,
   centerValue,
+  compact = false,
   data = [],
   formatValue = formatCount,
   title,
@@ -520,8 +523,19 @@ function DonutChart({
   }
 
   return (
-    <div className="grid items-center gap-5 sm:grid-cols-[180px_1fr]">
-      <div className="relative mx-auto h-[170px] w-[170px]">
+    <div
+      className={`grid w-full items-center gap-4 ${
+        compact
+          ? "sm:grid-cols-[132px_minmax(0,1fr)]"
+          : "sm:grid-cols-[150px_minmax(0,1fr)]"
+      }`}
+      data-donut-layout={compact ? "compact" : "standard"}
+    >
+      <div
+        className={`relative mx-auto ${
+          compact ? "h-[132px] w-[132px]" : "h-[150px] w-[150px]"
+        }`}
+      >
         <svg
           aria-label={title}
           className="h-full w-full -rotate-90"
@@ -557,7 +571,9 @@ function DonutChart({
           })}
         </svg>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-base font-bold text-white">
+          <span
+            className={`${compact ? "text-sm" : "text-base"} whitespace-nowrap font-bold text-white`}
+          >
             {centerValue || formatValue(total)}
           </span>
           <span className="mt-0.5 text-[10px] text-zinc-500">
@@ -565,10 +581,10 @@ function DonutChart({
           </span>
         </div>
       </div>
-      <div className="space-y-2.5">
+      <div className="min-w-0 space-y-2.5">
         {normalized.map((item) => (
           <div
-            className="flex items-center justify-between gap-4"
+            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
             key={item.key || item.label}
           >
             <span className="flex min-w-0 items-center gap-2 text-xs text-zinc-400">
@@ -1566,14 +1582,11 @@ export default function FinancialReportsPage({ mode = "full" }) {
                     </div>
                   </AdminCardHeader>
                   <AdminCardContent>
-                    <TrendChart
-                      buckets={dashboard.revenueTrend?.buckets}
-                      title={`Dashboard ${dashboard.revenueTrend?.granularity || "day"} buckets`}
-                    />
+                    <TrendChart buckets={dashboard.revenueTrend?.buckets} />
                   </AdminCardContent>
                 </AdminCard>
 
-                <AdminCard>
+                <AdminCard className="flex flex-col">
                   <AdminCardHeader className="p-5 pb-1">
                     <div className="flex items-center justify-between gap-3">
                       <AdminCardTitle className="text-sm">
@@ -1584,9 +1597,10 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       </span>
                     </div>
                   </AdminCardHeader>
-                  <AdminCardContent className="p-5 pt-1">
+                  <AdminCardContent className="flex flex-1 items-center p-5 pt-1">
                     <DonutChart
                       centerLabel="total revenue"
+                      compact
                       data={(dashboard.revenueByService || []).map(
                         (service) => ({
                           key: service.key,

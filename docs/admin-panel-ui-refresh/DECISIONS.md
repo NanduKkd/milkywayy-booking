@@ -39,6 +39,7 @@
 | UI-D031 | Dashboard Today’s Schedule contains only current-Dubai-business-day bookings; Recent Bookings adopts the reference fields and its View All action navigates to `/admin/bookings`. Expense Tracker is one compact panel with five-row client pagination while retaining all CRUD and audit behavior. | Titles and actions must describe their actual content, and dense operational tables should not turn into long unbounded pages. |
 | UI-D032 | Bookings uses ten-row client pagination, and Pending means only Awaiting Payment or Shoot Booked rather than every non-terminal workflow stage. | All and Pending must remain meaningfully distinct even when no bookings are completed or cancelled; later active stages remain discoverable through All. |
 | UI-D033 | Selected-day slot blocking is presented as three divider-separated rows with configured time beneath the slot name, plus status and one Block/Open action. The header status badges and separate Block Status/Entries summary are omitted. | Card-per-slot treatment and duplicated selected-day summaries add visual weight without adding information or capability. |
+| UI-D034 | Shared donut charts use a bounded chart-and-legend grid, a smaller Dashboard variant, and a right-aligned value column; the Dashboard revenue trend omits its redundant bucket caption. | The fixed-width chart column crowded narrow cards, while an unconstrained legend drifted across wider report cards. The chart title and axes already identify the Dashboard trend. |
 
 ## Implementation discretion
 

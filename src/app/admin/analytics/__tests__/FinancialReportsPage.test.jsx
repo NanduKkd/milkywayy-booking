@@ -446,10 +446,17 @@ describe("FinancialReportsPage", () => {
       screen.getByRole("img", { name: "Booking status for July 2026" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("img", {
-        name: "Revenue by service for July 2026",
-      }),
-    ).toBeInTheDocument();
+      screen
+        .getByRole("img", { name: "Booking status for July 2026" })
+        .closest("[data-donut-layout]"),
+    ).toHaveAttribute("data-donut-layout", "standard");
+    expect(
+      screen
+        .getByRole("img", {
+          name: "Revenue by service for July 2026",
+        })
+        .closest("[data-donut-layout]"),
+    ).toHaveAttribute("data-donut-layout", "standard");
     expect(screen.getByRole("link", { name: "Export CSV" })).toHaveAttribute(
       "href",
       expect.stringContaining("/api/admin/analytics/reports/export?"),
@@ -575,10 +582,13 @@ describe("FinancialReportsPage", () => {
     expect(screen.queryByText("Financial Reports")).not.toBeInTheDocument();
     expect(screen.queryByText("Expense Tracker")).not.toBeInTheDocument();
     expect(
-      await screen.findByRole("img", {
-        name: "Revenue by service for July 2026",
-      }),
-    ).toBeInTheDocument();
+      (
+        await screen.findByRole("img", {
+          name: "Revenue by service for July 2026",
+        })
+      ).closest("[data-donut-layout]"),
+    ).toHaveAttribute("data-donut-layout", "compact");
+    expect(screen.queryByText("Dashboard day buckets")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View all →" })).toHaveAttribute(
       "href",
       "/admin/bookings",

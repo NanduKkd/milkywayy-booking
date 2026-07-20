@@ -54,7 +54,9 @@ management, drill-down, and export behavior. Shared calculations remain in the
 analytics service. The Dashboard response also includes presentation-ready
 property, service, slot, and start-time fields for its recent-booking rows plus a
 current-Dubai-business-day schedule. Custom SVG donut components render live
-service/status distributions without adding a charting dependency.
+service/status distributions without adding a charting dependency. Their shared
+responsive grid constrains the chart, legend label, and right-aligned value
+columns, with a compact variant for the narrower Dashboard card.
 
 ### Bookings
 

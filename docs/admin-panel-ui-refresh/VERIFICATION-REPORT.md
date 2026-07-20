@@ -27,6 +27,8 @@ The Bookings follow-up adds compact ten-row pagination and narrows Pending to th
 
 The Calendar follow-up replaces variable entry markers and slot-count text with fixed Morning/Afternoon/Evening tracks. Blocked tracks use the header legend's red. Selected-day controls use three responsive rows with time beneath the slot name, and the redundant status badges plus Block Status/Entries panel are removed.
 
+The analytics alignment follow-up removes the redundant Dashboard trend caption and gives Dashboard and Reports donut charts bounded responsive chart/legend columns with consistently aligned values.
+
 ---
 
 ## Automated Test Run Summary
@@ -43,6 +45,8 @@ npm test -- --runInBand \
 npm test -- --runInBand src/app/admin/bookings/__tests__/page.test.jsx
 
 npm test -- --runInBand src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx
+
+npm test -- --runInBand src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx
 ```
 
 ### Results
@@ -50,6 +54,7 @@ npm test -- --runInBand src/app/admin/scheduling-calendar/__tests__/SchedulingCa
 - **Focused tests**: 41 passed, 41 total
 - **Bookings follow-up**: 1 suite / 8 tests passed, covering reference-aligned Pending semantics and ten-row pagination
 - **Calendar follow-up**: 1 suite / 11 tests passed, covering fixed period tracks, flat slot rows, slot mutation conflicts, exact-block hiding, events, and booking preparation
+- **Analytics alignment follow-up**: 1 suite / 8 tests passed, covering compact Dashboard and standard Reports donut layouts plus removal of the redundant Dashboard trend caption
 - **Repository-wide baseline**: 171 suites / 813 tests passed; 6 suites / 18 tests failed in pre-existing booking autoscroll, OAuth database, and environment-hostname assertions. None of the failing suites touches the changed admin analytics or promotions paths.
 - **Focused Biome check**: all changed source/test files passed
 - **Production build**: passed (`next build`); the authenticated Promotions route is correctly reported as dynamic because it reads cookies
