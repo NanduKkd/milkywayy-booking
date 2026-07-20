@@ -303,7 +303,7 @@ function findBookingSubsetByAmount(bookings, targetCents) {
   return matches.length === 1 ? matches[0] : [];
 }
 
-async function resolveTransactionBookings(transaction) {
+export async function resolveTransactionBookings(transaction) {
   if (!transaction?.id) return [];
 
   let bookings = await Booking.findAll({
@@ -373,11 +373,21 @@ async function resolveTransactionBookings(transaction) {
   const matchedIds = matchedBookings.map((booking) => booking.id);
   await Booking.update(
     { transactionId: transaction.id, status: "CONFIRMED" },
-    { where: { id: matchedIds } },
+    {
+      where: {
+        id: matchedIds,
+        userId: transaction.userId,
+        [Op.or]: [{ transactionId: null }, { transactionId: transaction.id }],
+      },
+    },
   );
 
   return Booking.findAll({
-    where: { id: matchedIds },
+    where: {
+      id: matchedIds,
+      userId: transaction.userId,
+      transactionId: transaction.id,
+    },
     order: [["id", "ASC"]],
   });
 }
@@ -896,28 +906,26 @@ export async function ensureTransactionInvoiceUrl(transaction, user = null) {
   );
   if (!generatedInvoiceUrl) return transaction.invoiceUrl || null;
 
-  await transaction.update({
+  const nextMetadata = {
+    ...(transaction.metadata || {}),
+    invoiceBookingCount: resolvedBookings.length,
+    invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
+  };
+  const invoiceUpdate = {
     invoiceUrl: generatedInvoiceUrl,
-    metadata: {
-      ...(transaction.metadata || {}),
-      invoiceBookingCount: resolvedBookings.length,
-      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
-    },
-  });
+    metadata: nextMetadata,
+  };
+
+  if (typeof transaction.update === "function") {
+    await transaction.update(invoiceUpdate);
+  }
+
   if (typeof transaction.setDataValue === "function") {
     transaction.setDataValue("invoiceUrl", generatedInvoiceUrl);
-    transaction.setDataValue("metadata", {
-      ...(transaction.metadata || {}),
-      invoiceBookingCount: resolvedBookings.length,
-      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
-    });
+    transaction.setDataValue("metadata", nextMetadata);
   } else {
     transaction.invoiceUrl = generatedInvoiceUrl;
-    transaction.metadata = {
-      ...(transaction.metadata || {}),
-      invoiceBookingCount: resolvedBookings.length,
-      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
-    };
+    transaction.metadata = nextMetadata;
   }
 
   return generatedInvoiceUrl;

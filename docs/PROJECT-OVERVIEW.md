@@ -60,6 +60,16 @@ The main implementation is in
 defined by the booking delivery models and migrations under
 [`src/lib/db/`](../src/lib/db/).
 
+### Invoice safety
+
+Invoices resolve only bookings belonging to the transaction customer. Direct
+associations take precedence; metadata and time/amount recovery paths are
+bounded and require a unique match before writing an association. Stored PDF
+URLs are reused only when their invoice number, template version, and booking
+count remain current; otherwise regeneration preserves existing metadata and
+keeps a prior URL if rendering fails. See the [invoice resolution and freshness
+contract](./invoices/BOOKING-RESOLUTION.md).
+
 ### GPT Actions and OAuth
 
 Milkywayy implements an OAuth 2.0 authorization-code flow for a ChatGPT Custom
