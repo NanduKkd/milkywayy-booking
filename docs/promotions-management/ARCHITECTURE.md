@@ -1,6 +1,6 @@
 # Promotions management architecture
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-20
 
 ## Domain model
 
@@ -53,12 +53,12 @@ Required columns:
 Constraints:
 
 - only promotions with `kind = PERSONAL` may be assigned
-- only active customer accounts may be assignment targets
-- in the current user schema, "active customer accounts" means existing
-  `users.role = CUSTOMER` rows until a dedicated disabled/suspended state
-  exists (`PRM-D013`)
+- only enabled customer accounts may be assignment targets; both customer
+  search and direct assignment require an existing `users.role = CUSTOMER`
+  row with `users.disabled_at IS NULL` (`User.disabledAt = null`; `PRM-D013`)
 - one customer may have at most one active row per personal promotion
-- unassignment preserves history rather than deleting the row
+- disabling a customer does not delete or rewrite an existing assignment, and
+  unassignment preserves history rather than deleting the row
 
 ### promotion_redemptions
 

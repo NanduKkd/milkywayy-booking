@@ -1,12 +1,18 @@
 # Promotions management security test plan
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-20
 - Release gate status: `DONE`
 
 ## Automated gates
 
 - Promotion CRUD and assignment permissions are enforced server-side.
-- Personal customer lookup excludes staff and disabled customers.
+- Personal customer lookup requires `role = CUSTOMER` and `disabledAt = null`,
+  excluding staff and disabled customers.
+- Direct personal-promotion assignment enforces the same eligibility predicate;
+  disabled, staff, and missing users receive the same non-enumerating
+  `Customer account not found` error and create no assignment or audit event.
+- Enabled customers remain searchable and assignable, while disabling an
+  account leaves historical assignment rows intact for audit.
 - Codes, labels, percentages, amounts, caps, minimums, dates, priorities, and
   limits reject malformed/out-of-range input.
 - Eligibility tests cover active dates, first/second booking, customer assignment,

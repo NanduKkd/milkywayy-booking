@@ -77,6 +77,7 @@ function buildCustomerRecord(overrides = {}) {
     phone: "+971500000000",
     accountType: "INDIVIDUAL",
     role: "CUSTOMER",
+    disabledAt: null,
     updatedAt: new Date("2026-07-01T09:00:00.000Z"),
     ...overrides,
   };
@@ -327,7 +328,7 @@ describe("promotionAdmin service", () => {
     ).rejects.toThrow("Date-range start date must use YYYY-MM-DD");
   });
 
-  it("searches assignable customers without exposing staff accounts", async () => {
+  it("searches only enabled customer accounts", async () => {
     models.User.findAll.mockResolvedValue([
       buildCustomerRecord({
         id: 51,
@@ -345,6 +346,7 @@ describe("promotionAdmin service", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           role: "CUSTOMER",
+          disabledAt: null,
         }),
         limit: 8,
         transaction: null,
@@ -399,6 +401,7 @@ describe("promotionAdmin service", () => {
       where: {
         id: 91,
         role: "CUSTOMER",
+        disabledAt: null,
       },
       transaction: mockTransaction,
       lock: mockTransaction.LOCK.UPDATE,
@@ -448,6 +451,56 @@ describe("promotionAdmin service", () => {
       }),
     );
   });
+
+  it.each([
+    [
+      "disabled customer",
+      buildCustomerRecord({
+        id: 92,
+        disabledAt: new Date("2026-07-01T10:30:00.000Z"),
+      }),
+    ],
+    ["staff user", buildCustomerRecord({ id: 93, role: "SHOOT" })],
+    ["missing user", null],
+  ])(
+    "rejects direct assignment for a %s without revealing account eligibility",
+    async (_label, ineligibleCustomer) => {
+      const promotion = buildPromotionRecord({
+        id: 77,
+        kind: "PERSONAL",
+        code: null,
+      });
+
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+      models.User.findOne.mockResolvedValue(
+        ineligibleCustomer?.role === "CUSTOMER" &&
+          ineligibleCustomer.disabledAt == null
+          ? ineligibleCustomer
+          : null,
+      );
+
+      await expect(
+        assignPromotionCustomer({
+          actorUser: superadminActor,
+          promotionId: 77,
+          userId: ineligibleCustomer?.id ?? 999,
+        }),
+      ).rejects.toThrow("Customer account not found");
+
+      expect(models.User.findOne).toHaveBeenCalledWith({
+        where: {
+          id: ineligibleCustomer?.id ?? 999,
+          role: "CUSTOMER",
+          disabledAt: null,
+        },
+        transaction: mockTransaction,
+        lock: mockTransaction.LOCK.UPDATE,
+      });
+      expect(models.PromotionAssignment.findOne).not.toHaveBeenCalled();
+      expect(models.PromotionAssignment.create).not.toHaveBeenCalled();
+      expect(models.PromotionAuditEvent.create).not.toHaveBeenCalled();
+    },
+  );
 
   it("unassigns a customer while preserving assignment history", async () => {
     const promotion = buildPromotionRecord({
