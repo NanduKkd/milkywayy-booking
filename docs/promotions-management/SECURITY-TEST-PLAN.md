@@ -6,7 +6,7 @@
   - PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32): `DONE`
   - PRM-309 (#31): `DONE`
   - PRM-312 (#33) and PRM-311 (#34): `DONE`
-  - PRM-313 (#35): `IN PROGRESS`; it owns the committed CI gates below
+  - PRM-313 (#35): `IN REVIEW`; it owns the committed CI gates below
 
 Each child gate owns separate proof. Completing one child does not complete the
 parent feature or any dependency-gated successor.
