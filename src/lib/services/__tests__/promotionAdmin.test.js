@@ -1,4 +1,4 @@
-import { Op } from "sequelize";
+import { Op, UniqueConstraintError } from "sequelize";
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
 import {
@@ -59,6 +59,16 @@ function buildValidAutomaticInput(overrides = {}) {
     triggerType: "ANY_PAID_BOOKING",
     ...overrides,
   });
+}
+
+function buildUniqueConstraintError(constraint) {
+  const error = new UniqueConstraintError({
+    message: `raw database detail for ${constraint}`,
+    errors: [],
+  });
+  error.parent = { constraint };
+  error.original = error.parent;
+  return error;
 }
 
 function buildPromotionRecord(overrides = {}) {
@@ -618,7 +628,7 @@ describe("promotionAdmin service", () => {
       [
         "invalid start date",
         buildValidGenericInput({ startsAt: "not-a-date" }),
-        "Start date must be a valid date",
+        "Start date must use YYYY-MM-DD or an ISO 8601 date-time",
       ],
       [
         "impossible end date",
@@ -793,6 +803,105 @@ describe("promotionAdmin service", () => {
     });
   });
 
+  describe.each(["create", "update"])(
+    "%s eligibility-date grammar",
+    (operation) => {
+      async function submitStartDate(value) {
+        if (operation === "create") {
+          models.Promotion.create.mockImplementation(async (values) =>
+            buildPromotionRecord({ id: 88, ...values }),
+          );
+
+          await createPromotion({
+            actorUser: superadminActor,
+            input: buildValidGenericInput({ startsAt: value }),
+          });
+
+          return models.Promotion.create.mock.calls[0][0].startsAt;
+        }
+
+        const promotion = buildPromotionRecord({
+          id: 19,
+          status: "DRAFT",
+          startsAt: null,
+        });
+        models.Promotion.findByPk.mockResolvedValue(promotion);
+
+        await updatePromotion({
+          actorUser: superadminActor,
+          promotionId: 19,
+          input: { startsAt: value },
+        });
+
+        return promotion.update.mock.calls[0][0].startsAt;
+      }
+
+      it.each([
+        ["date-only leap day", "2028-02-29", "2028-02-29T00:00:00.000Z"],
+        [
+          "offset-free datetime-local payload",
+          "2026-07-01T12:30",
+          "2026-07-01T12:30:00.000Z",
+        ],
+        [
+          "UTC datetime with fractional seconds",
+          "2026-07-01T12:30:45.9Z",
+          "2026-07-01T12:30:45.900Z",
+        ],
+        [
+          "positive-offset datetime",
+          "2026-07-01T12:30+04:00",
+          "2026-07-01T08:30:00.000Z",
+        ],
+        [
+          "negative-offset datetime",
+          "2026-07-01T12:30:45-07:00",
+          "2026-07-01T19:30:45.000Z",
+        ],
+      ])("normalizes %s deterministically", async (_label, value, expected) => {
+        const result = await submitStartDate(value);
+        expect(result.toISOString()).toBe(expected);
+      });
+
+      it.each([
+        [
+          "non-string date",
+          new Date("2026-07-01T00:00:00.000Z"),
+          "must use YYYY-MM-DD or an ISO 8601 date-time",
+        ],
+        ["non-leap February 29", "2026-02-29", "must be a valid date"],
+        [
+          "impossible datetime-local date",
+          "2026-02-30T00:00",
+          "must be a valid date",
+        ],
+        [
+          "space-separated rollover bypass",
+          "2026-02-30 00:00:00Z",
+          "must use YYYY-MM-DD or an ISO 8601 date-time",
+        ],
+        [
+          "slash-separated date",
+          "2026/07/01",
+          "must use YYYY-MM-DD or an ISO 8601 date-time",
+        ],
+        [
+          "offset without a colon",
+          "2026-07-01T12:00+0400",
+          "must use YYYY-MM-DD or an ISO 8601 date-time",
+        ],
+        ["hour 24", "2026-07-01T24:00", "must be a valid date"],
+        [
+          "offset beyond ISO 8601 range",
+          "2026-07-01T12:00+14:30",
+          "must be a valid date",
+        ],
+      ])("rejects %s", async (_label, value, message) => {
+        await expect(submitStartDate(value)).rejects.toThrow(message);
+      });
+    },
+  );
+
   it("validates automatic date-range promotions before create", async () => {
     await expect(
       createPromotion({
@@ -866,6 +975,20 @@ describe("promotionAdmin service", () => {
     const query = models.User.findAll.mock.calls[0][0];
     expect(query.limit).toBe(20);
     expect(query.where[Op.or][0]).toEqual({ id: 42 });
+  });
+
+  it("uses the default customer search limit when an optional limit is cleared", async () => {
+    models.User.findAll.mockResolvedValue([]);
+
+    await searchAssignableCustomers({
+      actorUser: superadminActor,
+      query: "customer",
+      limit: null,
+    });
+
+    expect(models.User.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 8 }),
+    );
   });
 
   it.each([0, -1, 1.5])(
@@ -1263,6 +1386,199 @@ describe("promotionAdmin service", () => {
       );
     });
 
+    it.each([
+      {
+        label: "preserves every omitted field",
+        existing: {
+          adminDescription: "Existing internal copy",
+          customerMessage: "Existing customer copy",
+          systemFlag: true,
+          totalLimit: 70,
+          legacySourceType: "COUPON",
+          legacySourceId: "legacy-7",
+          startsAt: new Date("2026-07-01T09:00:00.000Z"),
+          endsAt: new Date("2026-07-31T18:00:00.000Z"),
+        },
+        input: { name: "Renamed promotion" },
+        expected: {
+          kind: "GENERIC",
+          code: "SAVE20",
+          name: "Renamed promotion",
+          adminDescription: "Existing internal copy",
+          customerMessage: "Existing customer copy",
+          benefitType: "PERCENTAGE",
+          benefitValue: 20,
+          benefitCap: 200,
+          minimumSpend: 500,
+          startsAt: new Date("2026-07-01T09:00:00.000Z"),
+          endsAt: new Date("2026-07-31T18:00:00.000Z"),
+          status: "DRAFT",
+          systemFlag: true,
+          priority: 0,
+          perUserLimit: 1,
+          totalLimit: 70,
+          triggerType: "NONE",
+          triggerConfig: {},
+          legacySourceType: "COUPON",
+          legacySourceId: "legacy-7",
+        },
+      },
+      {
+        label: "sets and normalizes every configurable field",
+        existing: {},
+        input: {
+          kind: " generic ",
+          code: " updated-30 ",
+          name: " Updated promotion ",
+          adminDescription: " New internal copy ",
+          customerMessage: " New customer copy ",
+          benefitType: " percentage ",
+          benefitValue: "30",
+          benefitCap: "150",
+          minimumSpend: "250",
+          startsAt: "2026-08-01T09:15",
+          endsAt: "2026-08-31T18:45Z",
+          systemFlag: true,
+          priority: "4",
+          perUserLimit: "2",
+          totalLimit: "90",
+          triggerType: " none ",
+          triggerConfig: null,
+          legacySourceType: " coupon ",
+          legacySourceId: " legacy-30 ",
+        },
+        expected: {
+          kind: "GENERIC",
+          code: "UPDATED-30",
+          name: "Updated promotion",
+          adminDescription: "New internal copy",
+          customerMessage: "New customer copy",
+          benefitType: "PERCENTAGE",
+          benefitValue: 30,
+          benefitCap: 150,
+          minimumSpend: 250,
+          startsAt: new Date("2026-08-01T09:15:00.000Z"),
+          endsAt: new Date("2026-08-31T18:45:00.000Z"),
+          status: "DRAFT",
+          systemFlag: true,
+          priority: 4,
+          perUserLimit: 2,
+          totalLimit: 90,
+          triggerType: "NONE",
+          triggerConfig: {},
+          legacySourceType: "coupon",
+          legacySourceId: "legacy-30",
+        },
+      },
+      {
+        label: "clears nullable fields and resets blank defaults",
+        existing: {
+          adminDescription: "Internal",
+          customerMessage: "Customer",
+          benefitCap: "200.00",
+          minimumSpend: "500.00",
+          startsAt: new Date("2026-07-01T09:00:00.000Z"),
+          endsAt: new Date("2026-07-31T18:00:00.000Z"),
+          systemFlag: true,
+          priority: 4,
+          perUserLimit: 2,
+          totalLimit: 70,
+          legacySourceType: "COUPON",
+          legacySourceId: "legacy-7",
+        },
+        input: {
+          name: "Cleared promotion",
+          adminDescription: " ",
+          customerMessage: null,
+          benefitCap: "",
+          minimumSpend: "",
+          startsAt: null,
+          endsAt: "",
+          systemFlag: false,
+          priority: "",
+          perUserLimit: "",
+          totalLimit: null,
+          triggerConfig: null,
+          legacySourceType: "",
+          legacySourceId: null,
+        },
+        expected: {
+          kind: "GENERIC",
+          code: "SAVE20",
+          name: "Cleared promotion",
+          adminDescription: null,
+          customerMessage: null,
+          benefitType: "PERCENTAGE",
+          benefitValue: 20,
+          benefitCap: null,
+          minimumSpend: 0,
+          startsAt: null,
+          endsAt: null,
+          status: "DRAFT",
+          systemFlag: false,
+          priority: 0,
+          perUserLimit: null,
+          totalLimit: null,
+          triggerType: "NONE",
+          triggerConfig: {},
+          legacySourceType: null,
+          legacySourceId: null,
+        },
+      },
+    ])("$label", async ({ existing, input, expected }) => {
+      const promotion = buildPromotionRecord({ id: 19, ...existing });
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+
+      await updatePromotion({
+        actorUser: superadminActor,
+        promotionId: 19,
+        input,
+      });
+
+      expect(promotion.update).toHaveBeenCalledWith(
+        { ...expected, updatedByUserId: 11 },
+        { transaction: mockTransaction },
+      );
+    });
+
+    it("requires an explicit code when changing a promotion to generic", async () => {
+      models.Promotion.findByPk.mockResolvedValue(
+        buildPromotionRecord({
+          id: 19,
+          kind: "PERSONAL",
+          code: null,
+        }),
+      );
+
+      await expect(
+        updatePromotion({
+          actorUser: superadminActor,
+          promotionId: 19,
+          input: { kind: "GENERIC" },
+        }),
+      ).rejects.toThrow("Generic promotions require a code");
+    });
+
+    it("treats an empty update as a no-op without update or audit writes", async () => {
+      const promotion = buildPromotionRecord({
+        id: 19,
+        updatedByUserId: 11,
+      });
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+
+      const result = await updatePromotion({
+        actorUser: superadminActor,
+        promotionId: 19,
+        input: {},
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({ id: 19, code: "SAVE20" }),
+      );
+      expect(promotion.update).not.toHaveBeenCalled();
+      expect(models.PromotionAuditEvent.create).not.toHaveBeenCalled();
+    });
+
     it("rejects direct status updates before loading a promotion", async () => {
       await expect(
         updatePromotion({
@@ -1342,6 +1658,30 @@ describe("promotionAdmin service", () => {
       expect(models.Promotion.findOne).not.toHaveBeenCalled();
     });
 
+    it("allows an inactive generic update without an active-code lookup", async () => {
+      const promotion = buildPromotionRecord({
+        id: 19,
+        code: "OLD20",
+        status: "PAUSED",
+      });
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+      models.Promotion.findOne.mockResolvedValue(
+        buildPromotionRecord({ id: 20, code: "SAVE20", status: "ACTIVE" }),
+      );
+
+      await updatePromotion({
+        actorUser: superadminActor,
+        promotionId: 19,
+        input: { code: " save20 " },
+      });
+
+      expect(models.Promotion.findOne).not.toHaveBeenCalled();
+      expect(promotion.update).toHaveBeenCalledWith(
+        expect.objectContaining({ code: "SAVE20", status: "PAUSED" }),
+        { transaction: mockTransaction },
+      );
+    });
+
     it("rejects an active update when another code differs only by case", async () => {
       models.Promotion.findByPk.mockResolvedValue(
         buildPromotionRecord({ id: 19, code: "OLD20", status: "ACTIVE" }),
@@ -1378,6 +1718,81 @@ describe("promotionAdmin service", () => {
 
       expectLowercaseCodeLookup("SAVE20", 19);
     });
+
+    it.each([
+      ["create", "promotions_active_generic_code_unique"],
+      ["update", "promotions_active_generic_code_unique"],
+      ["activation", "promotions_active_generic_code_unique"],
+    ])(
+      "maps a race-time %s constraint failure to the stable conflict message",
+      async (operation, constraint) => {
+        const databaseError = buildUniqueConstraintError(constraint);
+        models.Promotion.findOne.mockResolvedValue(null);
+
+        let promise;
+        if (operation === "create") {
+          models.Promotion.create.mockRejectedValue(databaseError);
+          promise = createPromotion({
+            actorUser: superadminActor,
+            input: buildValidGenericInput({ status: "ACTIVE" }),
+          });
+        } else {
+          const promotion = buildPromotionRecord({
+            id: 19,
+            code: operation === "update" ? "OLD20" : "SAVE20",
+            status: operation === "update" ? "ACTIVE" : "PAUSED",
+          });
+          promotion.update.mockRejectedValue(databaseError);
+          models.Promotion.findByPk.mockResolvedValue(promotion);
+
+          promise =
+            operation === "update"
+              ? updatePromotion({
+                  actorUser: superadminActor,
+                  promotionId: 19,
+                  input: { code: "SAVE20" },
+                })
+              : activatePromotion({
+                  actorUser: superadminActor,
+                  promotionId: 19,
+                });
+        }
+
+        const error = await promise.catch((caughtError) => caughtError);
+        expect(error).toBeInstanceOf(Error);
+        expect(error.message).toBe(
+          "An active generic promotion already uses that code",
+        );
+      },
+    );
+
+    it("does not swallow unexpected create failures", async () => {
+      const unexpectedError = new Error("unexpected connection failure");
+      models.Promotion.findOne.mockResolvedValue(null);
+      models.Promotion.create.mockRejectedValue(unexpectedError);
+
+      await expect(
+        createPromotion({
+          actorUser: superadminActor,
+          input: buildValidGenericInput({ status: "ACTIVE" }),
+        }),
+      ).rejects.toBe(unexpectedError);
+    });
+
+    it("does not remap an unrelated unique constraint", async () => {
+      const unrelatedConstraintError = buildUniqueConstraintError(
+        "some_other_unique_constraint",
+      );
+      models.Promotion.findOne.mockResolvedValue(null);
+      models.Promotion.create.mockRejectedValue(unrelatedConstraintError);
+
+      await expect(
+        createPromotion({
+          actorUser: superadminActor,
+          input: buildValidGenericInput({ status: "ACTIVE" }),
+        }),
+      ).rejects.toBe(unrelatedConstraintError);
+    });
   });
 
   describe("lifecycle transition matrix", () => {
@@ -1400,19 +1815,30 @@ describe("promotionAdmin service", () => {
       expect(models.PromotionAuditEvent.create).not.toHaveBeenCalled();
     });
 
-    it("rejects pausing a promotion that has never been activated", async () => {
+    it("allows a draft promotion to be paused", async () => {
       const promotion = buildPromotionRecord({ id: 62, status: "DRAFT" });
       models.Promotion.findByPk.mockResolvedValue(promotion);
 
-      await expect(
-        pausePromotion({
-          actorUser: superadminActor,
-          promotionId: 62,
-        }),
-      ).rejects.toThrow("Only active promotions may be paused");
+      const result = await pausePromotion({
+        actorUser: superadminActor,
+        promotionId: 62,
+        reason: "hold before launch",
+      });
 
-      expect(promotion.update).not.toHaveBeenCalled();
-      expect(models.PromotionAuditEvent.create).not.toHaveBeenCalled();
+      expect(result.status).toBe("PAUSED");
+      expect(promotion.update).toHaveBeenCalledWith(
+        { status: "PAUSED", updatedByUserId: 11 },
+        { transaction: mockTransaction },
+      );
+      expect(models.PromotionAuditEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "PAUSED",
+          reason: "hold before launch",
+          beforeState: expect.objectContaining({ status: "DRAFT" }),
+          afterState: expect.objectContaining({ status: "PAUSED" }),
+        }),
+        { transaction: mockTransaction },
+      );
     });
 
     it.each([activatePromotion, pausePromotion])(
@@ -1547,6 +1973,45 @@ describe("promotionAdmin service", () => {
       expect(models.PromotionAssignment.create).not.toHaveBeenCalled();
       expect(assignment.update).not.toHaveBeenCalled();
       expect(models.PromotionAuditEvent.create).not.toHaveBeenCalled();
+    });
+
+    it("maps a race-time assignment constraint failure to the stable duplicate message", async () => {
+      models.Promotion.findByPk.mockResolvedValue(
+        buildPromotionRecord({ kind: "PERSONAL", code: null }),
+      );
+      models.User.findOne.mockResolvedValue(buildCustomerRecord());
+      models.PromotionAssignment.findOne.mockResolvedValue(null);
+      models.PromotionAssignment.create.mockRejectedValue(
+        buildUniqueConstraintError(
+          "promotion_assignments_active_promotion_user_unique",
+        ),
+      );
+
+      await expect(
+        assignPromotionCustomer({
+          actorUser: superadminActor,
+          promotionId: 7,
+          userId: 42,
+        }),
+      ).rejects.toThrow("Customer already has an active promotion assignment");
+    });
+
+    it("does not swallow unexpected assignment failures", async () => {
+      const unexpectedError = new Error("unexpected assignment failure");
+      models.Promotion.findByPk.mockResolvedValue(
+        buildPromotionRecord({ kind: "PERSONAL", code: null }),
+      );
+      models.User.findOne.mockResolvedValue(buildCustomerRecord());
+      models.PromotionAssignment.findOne.mockResolvedValue(null);
+      models.PromotionAssignment.create.mockRejectedValue(unexpectedError);
+
+      await expect(
+        assignPromotionCustomer({
+          actorUser: superadminActor,
+          promotionId: 7,
+          userId: 42,
+        }),
+      ).rejects.toBe(unexpectedError);
     });
 
     it("rejects unassignment when the customer is missing", async () => {
