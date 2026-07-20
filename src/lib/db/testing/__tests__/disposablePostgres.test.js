@@ -43,16 +43,27 @@ describe("disposable PostgreSQL harness safety", () => {
     return result.rows.map(({ datname }) => datname);
   }
 
-  async function adminSessionCount() {
+  async function adminSessionCount(processIds) {
+    if (processIds.length === 0) return 0;
+
     const result = await verifierClient.query(
       `
         SELECT COUNT(*)::integer AS count
         FROM pg_stat_activity
         WHERE application_name = $1
+          AND pid = ANY($2::integer[])
       `,
-      [ADMIN_APPLICATION_NAME],
+      [ADMIN_APPLICATION_NAME, processIds],
     );
     return result.rows[0].count;
+  }
+
+  function createDeferred() {
+    let resolve;
+    const promise = new Promise((currentResolve) => {
+      resolve = currentResolve;
+    });
+    return { promise, resolve };
   }
 
   function breakAdminClient(adminClient) {
@@ -169,16 +180,15 @@ describe("disposable PostgreSQL harness safety", () => {
     });
 
     try {
-      expect(await adminSessionCount()).toBe(0);
       await expect(database.close()).rejects.toThrow(
         "database drop failed after 2 attempt(s)",
       );
-      expect(await adminSessionCount()).toBe(0);
+      expect(await adminSessionCount(cleanupProcessIds)).toBe(0);
       expect(await databaseExists(database.databaseName)).toBe(true);
 
       allowDrop = true;
       await database.close();
-      expect(await adminSessionCount()).toBe(0);
+      expect(await adminSessionCount(cleanupProcessIds)).toBe(0);
       expect(await databaseExists(database.databaseName)).toBe(false);
       expect(cleanupProcessIds).toHaveLength(2);
       expect(new Set(cleanupProcessIds).size).toBe(2);
@@ -224,63 +234,125 @@ describe("disposable PostgreSQL harness safety", () => {
     expect(await databasesWithPrefix(databasePrefix)).toEqual([]);
   });
 
-  it("ends failed setup cleanup sessions and retries removal with a fresh client", async () => {
+  it("isolates setup-retry sessions and cleans up after a pre-retry failure", async () => {
     let allowDrop = false;
     const cleanupProcessIds = [];
+    const concurrentCleanupProcessIds = [];
+    const concurrentCleanupStarted = createDeferred();
+    const releaseConcurrentCleanup = createDeferred();
+    let concurrentDatabase;
+    let concurrentClosePromise;
     let setupError;
+    let retryCleanup;
+    let finalCleanupResults;
 
     try {
-      await createDisposablePostgresDatabase({
-        databaseLabel: "setup_drop_retry",
-        setup: async () => {
-          throw new Error("synthetic setup failure before cleanup retry");
-        },
+      concurrentDatabase = await createDisposablePostgresDatabase({
+        databaseLabel: "concurrent_cleanup_probe",
         testHooks: {
-          beforeAdminOperation: ({ adminClient, operationName }) => {
-            if (operationName === "database drop" && !allowDrop) {
-              breakAdminClient(adminClient);
-              throw new Error("synthetic setup cleanup drop failure");
+          beforeAdminOperation: async ({ attempt, operationName }) => {
+            if (operationName === "connection termination" && attempt === 1) {
+              concurrentCleanupStarted.resolve();
+              await releaseConcurrentCleanup.promise;
             }
           },
           onAdminClientConnected: ({ processId, purpose }) => {
-            if (purpose === "cleanup") cleanupProcessIds.push(processId);
+            if (purpose === "cleanup") {
+              concurrentCleanupProcessIds.push(processId);
+            }
           },
         },
         timeouts: {
           adminEndMs: 100,
-          adminOperationMs: 1000,
+          adminOperationMs: 3000,
           connectionCloseMs: 100,
           retryDelayMs: 10,
         },
       });
-    } catch (error) {
-      setupError = error;
-    }
+      concurrentClosePromise = concurrentDatabase.close();
+      await concurrentCleanupStarted.promise;
 
-    expect(setupError).toHaveProperty(
-      "message",
-      "synthetic setup failure before cleanup retry",
-    );
-    expect(setupError?.databaseName).toMatch(
-      new RegExp(`^${RESERVED_DATABASE_PREFIX}`),
-    );
-    expect(setupError?.retryCleanup).toEqual(expect.any(Function));
-    expect(await adminSessionCount()).toBe(0);
-    expect(await databaseExists(setupError.databaseName)).toBe(true);
-    expect(cleanupProcessIds).toHaveLength(2);
-    expect(new Set(cleanupProcessIds).size).toBe(2);
+      try {
+        await createDisposablePostgresDatabase({
+          databaseLabel: "setup_drop_retry",
+          setup: async () => {
+            throw new Error("synthetic setup failure before cleanup retry");
+          },
+          testHooks: {
+            beforeAdminOperation: ({ adminClient, operationName }) => {
+              if (operationName === "database drop" && !allowDrop) {
+                breakAdminClient(adminClient);
+                throw new Error("synthetic setup cleanup drop failure");
+              }
+            },
+            onAdminClientConnected: ({ processId, purpose }) => {
+              if (purpose === "cleanup") cleanupProcessIds.push(processId);
+            },
+          },
+          timeouts: {
+            adminEndMs: 100,
+            adminOperationMs: 1000,
+            connectionCloseMs: 100,
+            retryDelayMs: 10,
+          },
+        });
+      } catch (error) {
+        setupError = error;
+      }
 
-    try {
-      allowDrop = true;
-      await setupError.retryCleanup();
-      expect(await adminSessionCount()).toBe(0);
+      retryCleanup = setupError?.retryCleanup;
+      let preRetryError;
+      try {
+        try {
+          expect(setupError).toHaveProperty(
+            "message",
+            "synthetic setup failure before cleanup retry",
+          );
+          expect(setupError?.databaseName).toMatch(
+            new RegExp(`^${RESERVED_DATABASE_PREFIX}`),
+          );
+          expect(retryCleanup).toEqual(expect.any(Function));
+          expect(await adminSessionCount(cleanupProcessIds)).toBe(0);
+          expect(await adminSessionCount(concurrentCleanupProcessIds)).toBe(1);
+          expect(await databaseExists(setupError.databaseName)).toBe(true);
+          expect(cleanupProcessIds).toHaveLength(2);
+          expect(new Set(cleanupProcessIds).size).toBe(2);
+          throw new Error("synthetic assertion failure before cleanup retry");
+        } catch (error) {
+          preRetryError = error;
+        }
+      } finally {
+        allowDrop = true;
+        await retryCleanup?.();
+      }
+
+      expect(preRetryError).toHaveProperty(
+        "message",
+        "synthetic assertion failure before cleanup retry",
+      );
+      expect(await adminSessionCount(cleanupProcessIds)).toBe(0);
       expect(await databaseExists(setupError.databaseName)).toBe(false);
       expect(cleanupProcessIds).toHaveLength(3);
       expect(new Set(cleanupProcessIds).size).toBe(3);
+      expect(await adminSessionCount(concurrentCleanupProcessIds)).toBe(1);
     } finally {
       allowDrop = true;
-      await setupError?.retryCleanup?.();
+      releaseConcurrentCleanup.resolve();
+      finalCleanupResults = await Promise.allSettled([
+        retryCleanup?.(),
+        concurrentClosePromise,
+        concurrentDatabase?.close(),
+      ]);
     }
+
+    expect(finalCleanupResults.map(({ status }) => status)).toEqual([
+      "fulfilled",
+      "fulfilled",
+      "fulfilled",
+    ]);
+    expect(await adminSessionCount(cleanupProcessIds)).toBe(0);
+    expect(await adminSessionCount(concurrentCleanupProcessIds)).toBe(0);
+    expect(await databaseExists(concurrentDatabase.databaseName)).toBe(false);
   });
 
   it("bounds stalled setup and removes its partially configured database", async () => {
