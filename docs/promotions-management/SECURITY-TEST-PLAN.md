@@ -5,8 +5,8 @@
   - parent feature #28: `DRAFT`
   - PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32): `DONE`
   - PRM-309 (#31): `DONE`
-  - PRM-312 (#33): `DONE`; PRM-311 (#34): `IN_REVIEW`
-  - PRM-313 (#35): `DRAFT` and dependency-gated
+  - PRM-312 (#33) and PRM-311 (#34): `DONE`
+  - PRM-313 (#35): `IN REVIEW`; it owns the committed CI gates below
 
 Each child gate owns separate proof. Completing one child does not complete the
 parent feature or any dependency-gated successor.
@@ -83,9 +83,8 @@ TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.tes
 - PRM-309 (#31) below preserves its distinct server-action and initial-page
   proof, including authentication, delegation, revalidation, and safe action
   wrapping.
-- The PRM-312 UI failure/recovery gate (#33) is merged. The PRM-311 checkout
-  lifecycle gate (#34) is in review; CI enforcement (#35) remains draft and
-  dependency-gated.
+- The PRM-312 UI failure/recovery and PRM-311 checkout lifecycle gates are
+  merged. PRM-313 CI enforcement preserves their independent evidence.
 
 Future assurance changes must preserve #30 eligibility evidence, #29
 validation/lifecycle evidence, #31 action/page evidence, #32 PostgreSQL
@@ -197,10 +196,9 @@ The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
 80% branches. The issue #31 implementation recorded 100% statements and 100%
 branches for both boundary files across 26 focused tests.
 
-The parent assurance feature remains in `DRAFT`; PRM-307, PRM-308, PRM-309,
-PRM-310, and PRM-312 are merged. PRM-311 checkout lifecycle coverage is in
-review, and CI enforcement remains dependency-gated. Focused boundary results
-do not imply that the repository-wide Jest baseline is green.
+The parent assurance feature remains in `DRAFT`; PRM-307 through PRM-312 are
+merged. PRM-313 enforces their focused CI coverage without implying that the
+repository-wide Jest baseline is green.
 
 ## Promotions UI failure and recovery gate
 
@@ -237,6 +235,79 @@ npx jest src/app/admin/promotions/__tests__/PromotionManager.test.jsx src/app/ad
 The required `PromotionManager` branch coverage is at least 80%. The initial
 PRM-312 implementation recorded 85.61% branches across 19 component tests;
 the paired page suite adds three page-boundary tests.
+
+## PRM-313 GitHub CI quality gates
+
+[`.github/workflows/promotion-quality-gates.yml`](../../.github/workflows/promotion-quality-gates.yml)
+runs on every pull request to `main` and can also be started manually. It uses
+`npm ci`, Node 24, dependency caching keyed by `package-lock.json`, bounded
+job/process timeouts, and only safe synthetic configuration. It never caches a
+database, environment file, or secret.
+
+The blocking jobs are:
+
+- **Promotion coverage gate** — `npm run test:promotions:coverage` executes 9
+  focused suites. Its promotion-owned aggregate threshold is at least 85%
+  statements and 75% branches; `src/lib/actions/promotions.js` retains its
+  stronger 90% statement and 80% branch threshold.
+- **Promotion PostgreSQL migration and integration gate** —
+  `npm run test:promotions:postgres` runs the disposable-database harness,
+  promotion schema migration contract, redemption contention suite, and
+  checkout lifecycle suite against PostgreSQL 16. The following `always()`
+  cleanup step runs `npm run cleanup:disposable-postgres`, which only drops
+  names beginning with `mw_codex_test_`.
+
+The non-blocking, explicitly named **Repository-wide Jest baseline
+(informational)** job always runs `npm run test:jest:full` with the same
+synthetic PostgreSQL service. It is informational only because the existing
+unrelated PropertyCard mobile-autoscroll and OAuth expectations are not part
+of promotion ownership; it does not reduce or bypass either blocking promotion
+gate. On 2026-07-21, the local serial baseline with a disposable PostgreSQL
+server reported 176/182 suites and 1007/1025 tests passing; the 6 failed
+suites and 18 failed tests were those unrelated areas.
+
+All CI values are test-only; the workflow does not run an environment dump or
+upload any values:
+
+- `NODE_ENV`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- `MW_TEST_POSTGRES_ADMIN_OPT_IN`, `MW_TEST_POSTGRES_ADMIN_HOST`,
+  `MW_TEST_POSTGRES_ADMIN_PORT`, `MW_TEST_POSTGRES_ADMIN_USER`,
+  `MW_TEST_POSTGRES_ADMIN_PASSWORD`, `MW_TEST_POSTGRES_ADMIN_DATABASE`
+- `JWT_SECRET`, `NEXT_PUBLIC_BASE_URL`, `STRIPE_SECRET_KEY`, and
+  `STRIPE_WEBHOOK_SECRET`
+
+`DB_*` and `MW_TEST_POSTGRES_ADMIN_*` identify only the disposable service;
+the explicit opt-in is `CREATE_DROP_RESERVED_DATABASES`. JWT and Stripe values
+are synthetic strings, and the hostname is loopback-only. Failure artifacts
+contain only the Jest coverage directory and are retained for seven days; no
+environment dump, database dump, webhook payload, or credential is uploaded.
+
+To reproduce the blocking jobs locally, point these variables at a disposable
+PostgreSQL instance (never a shared or production server), then run:
+
+```sh
+export NODE_ENV=test
+export DB_HOST=127.0.0.1 DB_PORT=5432 DB_NAME=milkywayy_ci DB_USER=postgres DB_PASSWORD=postgres
+export MW_TEST_POSTGRES_ADMIN_OPT_IN=CREATE_DROP_RESERVED_DATABASES
+export MW_TEST_POSTGRES_ADMIN_HOST=127.0.0.1 MW_TEST_POSTGRES_ADMIN_PORT=5432
+export MW_TEST_POSTGRES_ADMIN_USER=postgres MW_TEST_POSTGRES_ADMIN_PASSWORD=postgres
+export MW_TEST_POSTGRES_ADMIN_DATABASE=postgres
+export JWT_SECRET=ci-test-only-jwt-signing-secret-not-for-production
+export NEXT_PUBLIC_BASE_URL=http://127.0.0.1:3000
+export STRIPE_SECRET_KEY=sk_test_ci_not_a_real_stripe_key
+export STRIPE_WEBHOOK_SECRET=whsec_ci_not_a_real_webhook_secret
+npm ci
+npm run test:promotions:coverage
+npm run test:promotions:postgres
+npm run cleanup:disposable-postgres
+```
+
+The reproducible deliberate-failure proof is
+`npm run test:promotions:quality-gate-proof`. It temporarily injects an
+impossible 101% statement threshold into a child Jest process, asserts that
+the coverage command exits nonzero, and then exits successfully without
+changing tracked code. The normal coverage gate is run first and remains the
+review-head result.
 
 ## Manual gates
 

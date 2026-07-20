@@ -92,6 +92,22 @@ the pending payment rather than silently applying a stale benefit.
 - Legacy coupon validation reads remain available for compatibility until
   destructive cleanup is scheduled.
 
+## CI quality-gate recovery
+
+- Pull requests run the promotion coverage gate and the disposable PostgreSQL
+  migration/integration gate from
+  [the committed workflow](../../.github/workflows/promotion-quality-gates.yml).
+  Reproduce a failing gate with the commands and synthetic-variable inventory
+  in [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md); never substitute a
+  shared or production database.
+- The disposable PostgreSQL cleanup command removes only databases prefixed
+  `mw_codex_test_` and runs even after a failed integration suite. Investigate
+  a cleanup failure before retrying; do not manually broaden its database
+  target.
+- The repository-wide Jest baseline is visible as an informational CI job.
+  Existing unrelated PropertyCard and OAuth failures do not waive the blocking
+  promotion coverage or PostgreSQL gates.
+
 ## Rollback
 
 - Disable new evaluation and return reads to legacy behavior while dual data remains.

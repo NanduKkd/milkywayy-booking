@@ -151,6 +151,11 @@ configuration.
 | `npm test -- --runInBand` | Run Jest serially. |
 | `npm run test:watch` | Run Jest in watch mode. |
 | `npm run test:ci` | Run Jest with CI settings and coverage. |
+| `npm run test:promotions:coverage` | Run the blocking focused promotion coverage gate. |
+| `npm run test:promotions:postgres` | Run promotion migration and integration suites against a disposable PostgreSQL instance. |
+| `npm run test:jest:full` | Run the full serial Jest baseline. |
+| `npm run test:promotions:quality-gate-proof` | Safely verify that an intentional promotion coverage-threshold breach stops the gate. |
+| `npm run cleanup:disposable-postgres` | Remove only reserved disposable PostgreSQL databases after a test run. |
 | `npm run lint` | Run Biome checks without rewriting files. |
 | `npm run format` | Rewrite supported files with Biome formatting. |
 | `npm run verify:whatsapp-inbound-config` | Check the Twilio inbound auto-reply environment values before attaching the live webhook. |
@@ -163,6 +168,9 @@ OAuth provisioning, verification, and cleanup commands are listed in
 The repository-wide Jest and Biome baselines are not currently green. Consult
 [`docs/PROJECT-STATUS.md`](./PROJECT-STATUS.md) before interpreting failures;
 do not report a green baseline unless the relevant commands actually pass.
+Promotion CI commands, their synthetic test-only variables, and the separate
+full-suite baseline policy are documented in
+[`docs/promotions-management/SECURITY-TEST-PLAN.md`](./promotions-management/SECURITY-TEST-PLAN.md).
 
 ## Where to make changes
 
