@@ -1,6 +1,6 @@
 # Promotions management security test plan
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-20
 - Release gate status: `DONE`
 
 ## Automated gates
@@ -15,11 +15,37 @@
   only when strictly better, and wallet separation.
 - Migration parity fixtures cover preserved generic-coupon, launch-credit, and
   wallet-separation outcomes plus the accepted direct-discount non-stacking cutover.
-- Concurrent reservation tests cannot exceed per-user or global limits.
+- Real PostgreSQL contention tests use separate backend transactions and prove
+  exactly one reservation plus one deterministic rejection at per-user and
+  global limits of one.
+- The active-transaction partial unique index rejects concurrent active
+  redemptions even when attempts target different promotions.
+- Database-backed lifecycle tests prove `RESERVED` and `APPLIED` consume limits,
+  `RELEASED` and `EXPIRED` do not, retries are idempotent, forbidden state
+  changes fail, and rollback leaves no redemption or transaction attachment.
+- The disposable PostgreSQL harness proves database cleanup after both a
+  successful run and an injected setup failure.
 - Failed, expired, cancelled, and replayed payment flows release/finalize exactly once.
 - Transaction and invoice calculations use the stored promotion snapshot rather
   than mutable current configuration.
 - Code-validation responses do not expose private customer assignments or useful enumeration detail.
+
+## Repeatable PostgreSQL gate
+
+Run the service integration suite against a local disposable PostgreSQL server:
+
+```sh
+npx jest src/lib/services/__tests__/promotionRedemptions.postgres.test.js --runInBand
+```
+
+Capture redemption-service coverage with:
+
+```sh
+npx jest src/lib/services/__tests__/promotionRedemptions.postgres.test.js --runInBand --coverage --collectCoverageFrom=src/lib/services/promotionRedemptions.js
+```
+
+Both commands use synthetic identifiers and create and remove their own
+database. They must never point `DB_NAME` at a live application database.
 
 ## Manual gates
 

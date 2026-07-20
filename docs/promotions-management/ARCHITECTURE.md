@@ -1,6 +1,6 @@
 # Promotions management architecture
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-20
 
 ## Domain model
 
@@ -82,6 +82,23 @@ Concurrency contract:
 - active-count queries only include `RESERVED` and `APPLIED`
 - a transaction may own at most one non-released redemption row
 - released or expired rows remain for audit and reconciliation
+
+Reservation enforcement locks the selected `promotions` row with
+`FOR UPDATE` before counting or inserting redemptions. Competing PostgreSQL
+transactions therefore serialize on one promotion, then the later transaction
+rechecks committed `RESERVED` and `APPLIED` rows before it can reserve. A
+partial unique index on `promotion_redemptions.transaction_id` independently
+prevents two active redemptions for one transaction, including attempts that
+target different promotions.
+
+Checkout attaches `promotion_id`, `promotion_redemption_id`, and the immutable
+snapshot in the same database transaction that creates the reservation. A
+rollback removes both the redemption and the transaction attachment. The
+database-backed integration harness builds only the required synthetic base
+tables plus the production promotion migration in a disposable database, uses
+independent connection-pool transactions for contention, applies bounded
+statement/lock/idle-transaction timeouts, and drops the database after success
+or setup failure.
 
 ### promotion_audit_events
 
