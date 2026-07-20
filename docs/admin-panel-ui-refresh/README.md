@@ -62,7 +62,7 @@ proof data.
 - Portfolio and Reviews load their authenticated admin lists directly through the shared content data service instead of making deployment-sensitive HTTP requests back into the same application.
 - Keep persisted legacy exact/full-day blocks identifiable and clearable without displaying exact block times.
 - Dashboard and Reports use the reference KPI hierarchy: tone-coded values, top-right percentage movement, and explicit previous-month values. Expenses and pending/cancelled counts invert the trend color where a decrease is favorable.
-- Dashboard and Reports render live service and booking-status distributions as accessible, responsive donut charts with aligned legends and values. Dashboard Today’s Schedule is based on the current Dubai business date; Recent Bookings uses Property, Client, Date, Services, Amount, and Status and links directly to the bookings queue.
+- Dashboard and Reports render live service and booking-status distributions as accessible, responsive donut charts centered above aligned legend/value rows. Dashboard Today’s Schedule is based on the current Dubai business date; Recent Bookings uses Property, Client, Date, Services, Amount, and Status and links directly to the bookings queue.
 - Expense Tracker follows the reference’s single dense panel with monthly total/count/top-category summary, category share bars, preserved create/edit/delete flows, and five-row pagination.
 - Bookings paginates filtered results ten rows at a time. Pending follows the reference and contains only Awaiting Payment and Shoot Booked records; All remains the complete queue.
 

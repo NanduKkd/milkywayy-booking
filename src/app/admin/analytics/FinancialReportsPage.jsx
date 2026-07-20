@@ -524,11 +524,8 @@ function DonutChart({
 
   return (
     <div
-      className={`grid w-full items-center gap-4 ${
-        compact
-          ? "sm:grid-cols-[132px_minmax(0,1fr)]"
-          : "sm:grid-cols-[150px_minmax(0,1fr)]"
-      }`}
+      className="flex w-full flex-col items-center gap-4"
+      data-donut-direction="vertical"
       data-donut-layout={compact ? "compact" : "standard"}
     >
       <div
@@ -581,7 +578,7 @@ function DonutChart({
           </span>
         </div>
       </div>
-      <div className="min-w-0 space-y-2.5">
+      <div className="w-full min-w-0 space-y-2.5">
         {normalized.map((item) => (
           <div
             className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3"

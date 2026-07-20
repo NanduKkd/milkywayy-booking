@@ -452,11 +452,23 @@ describe("FinancialReportsPage", () => {
     ).toHaveAttribute("data-donut-layout", "standard");
     expect(
       screen
+        .getByRole("img", { name: "Booking status for July 2026" })
+        .closest("[data-donut-direction]"),
+    ).toHaveAttribute("data-donut-direction", "vertical");
+    expect(
+      screen
         .getByRole("img", {
           name: "Revenue by service for July 2026",
         })
         .closest("[data-donut-layout]"),
     ).toHaveAttribute("data-donut-layout", "standard");
+    expect(
+      screen
+        .getByRole("img", {
+          name: "Revenue by service for July 2026",
+        })
+        .closest("[data-donut-direction]"),
+    ).toHaveAttribute("data-donut-direction", "vertical");
     expect(screen.getByRole("link", { name: "Export CSV" })).toHaveAttribute(
       "href",
       expect.stringContaining("/api/admin/analytics/reports/export?"),
@@ -588,6 +600,13 @@ describe("FinancialReportsPage", () => {
         })
       ).closest("[data-donut-layout]"),
     ).toHaveAttribute("data-donut-layout", "compact");
+    expect(
+      screen
+        .getByRole("img", {
+          name: "Revenue by service for July 2026",
+        })
+        .closest("[data-donut-direction]"),
+    ).toHaveAttribute("data-donut-direction", "vertical");
     expect(screen.queryByText("Dashboard day buckets")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "View all →" })).toHaveAttribute(
       "href",
