@@ -55,7 +55,7 @@ jobs:
           retention-days: 7
 
   promotion-postgres:
-    name: Promotion PostgreSQL migration and integration gate
+    name: PostgreSQL migration and integration gates
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -82,6 +82,7 @@ jobs:
       - name: Record PostgreSQL version
         run: PGPASSWORD="$DB_PASSWORD" psql --host="$DB_HOST" --username="$DB_USER" --dbname=postgres --command='SHOW server_version;'
       - run: timeout 12m npm run test:promotions:postgres
+      - run: timeout 12m npm run test:invoices:postgres
       - name: Clean disposable PostgreSQL databases
         if: always()
         run: npm run cleanup:disposable-postgres

@@ -24,6 +24,7 @@
     "test:ci": "jest --ci --coverage",
     "test:promotions:coverage": "jest --config jest.promotions.config.js --runInBand --coverage",
     "test:promotions:postgres": "jest --runInBand src/lib/db/testing/__tests__/disposablePostgres.test.js src/lib/services/__tests__/promotionRedemptions.postgres.test.js src/lib/services/__tests__/promotionCheckoutLifecycle.postgres.test.js src/lib/db/migrations/__tests__/20260701010000-create-promotions-core-schema.test.js",
+    "test:invoices:postgres": "jest --runInBand src/lib/db/testing/__tests__/disposablePostgres.test.js src/lib/helpers/__tests__/invoiceNumbering.postgres.test.js",
     "test:jest:full": "jest --ci --runInBand",
     "test:promotions:quality-gate-proof": "node scripts/verify-promotion-quality-gate.mjs",
     "cleanup:disposable-postgres": "node scripts/cleanup-disposable-postgres.mjs"

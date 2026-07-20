@@ -153,6 +153,7 @@ configuration.
 | `npm run test:ci` | Run Jest with CI settings and coverage. |
 | `npm run test:promotions:coverage` | Run the blocking focused promotion coverage gate. |
 | `npm run test:promotions:postgres` | Run promotion migration and integration suites against a disposable PostgreSQL instance. |
+| `npm run test:invoices:postgres` | Run invoice-number allocation concurrency proof against a disposable PostgreSQL instance. |
 | `npm run test:jest:full` | Run the full serial Jest baseline. |
 | `npm run test:promotions:quality-gate-proof` | Safely verify that an intentional promotion coverage-threshold breach stops the gate. |
 | `npm run cleanup:disposable-postgres` | Remove only reserved disposable PostgreSQL databases after a test run. |
