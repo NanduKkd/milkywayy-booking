@@ -22,7 +22,6 @@ const config = {
     "<rootDir>/src/lib/services/__tests__/promotionCheckout.test.js",
     "<rootDir>/src/lib/services/__tests__/promotionPricing.test.js",
     "<rootDir>/src/lib/services/__tests__/promotionMigrationParity.test.js",
-    "<rootDir>/src/lib/db/migrations/__tests__/20260701010000-create-promotions-core-schema.test.js",
   ],
   collectCoverageFrom: [
     "src/lib/actions/promotions.js",

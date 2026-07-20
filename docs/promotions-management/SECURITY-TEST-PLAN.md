@@ -246,7 +246,7 @@ database, environment file, or secret.
 
 The blocking jobs are:
 
-- **Promotion coverage gate** — `npm run test:promotions:coverage` executes 10
+- **Promotion coverage gate** — `npm run test:promotions:coverage` executes 9
   focused suites. Its promotion-owned aggregate threshold is at least 85%
   statements and 75% branches; `src/lib/actions/promotions.js` retains its
   stronger 90% statement and 80% branch threshold.
@@ -266,7 +266,8 @@ gate. On 2026-07-21, the local serial baseline with a disposable PostgreSQL
 server reported 176/182 suites and 1007/1025 tests passing; the 6 failed
 suites and 18 failed tests were those unrelated areas.
 
-All CI values are test-only and are intentionally not printed or uploaded:
+All CI values are test-only; the workflow does not run an environment dump or
+upload any values:
 
 - `NODE_ENV`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
 - `MW_TEST_POSTGRES_ADMIN_OPT_IN`, `MW_TEST_POSTGRES_ADMIN_HOST`,

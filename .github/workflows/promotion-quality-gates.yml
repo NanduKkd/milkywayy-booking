@@ -80,7 +80,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Record PostgreSQL version
-        run: psql --host="$DB_HOST" --username="$DB_USER" --dbname=postgres --command='SHOW server_version;'
+        run: PGPASSWORD="$DB_PASSWORD" psql --host="$DB_HOST" --username="$DB_USER" --dbname=postgres --command='SHOW server_version;'
       - run: timeout 12m npm run test:promotions:postgres
       - name: Clean disposable PostgreSQL databases
         if: always()
