@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import {
   col,
   fn,
@@ -589,10 +590,7 @@ function mergePromotionInput(existingPromotion, input) {
 
   return {
     kind: input.kind ?? existing.kind,
-    code:
-      Object.hasOwn(input, "code") || input.kind === "GENERIC"
-        ? input.code
-        : existing.code,
+    code: Object.hasOwn(input, "code") ? input.code : existing.code,
     name: input.name ?? existing.name,
     adminDescription: Object.hasOwn(input, "adminDescription")
       ? input.adminDescription
@@ -666,9 +664,9 @@ function buildPromotionConfigurationSnapshot(promotion) {
 }
 
 function hasMeaningfulPromotionChanges(beforeState, normalizedInput) {
-  return (
-    JSON.stringify(buildPromotionConfigurationSnapshot(beforeState)) !==
-    JSON.stringify(buildPromotionConfigurationSnapshot(normalizedInput))
+  return !isDeepStrictEqual(
+    buildPromotionConfigurationSnapshot(beforeState),
+    buildPromotionConfigurationSnapshot(normalizedInput),
   );
 }
 

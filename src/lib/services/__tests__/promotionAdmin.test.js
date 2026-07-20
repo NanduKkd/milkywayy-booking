@@ -1559,6 +1559,99 @@ describe("promotionAdmin service", () => {
       ).rejects.toThrow("Generic promotions require a code");
     });
 
+    it("preserves an omitted generic code when kind is repeated as a no-op", async () => {
+      const promotion = buildPromotionRecord({
+        id: 19,
+        kind: "GENERIC",
+        code: "SAVE20",
+        updatedByUserId: 11,
+      });
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+
+      const result = await updatePromotion({
+        actorUser: superadminActor,
+        promotionId: 19,
+        input: { kind: "GENERIC" },
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({ id: 19, kind: "GENERIC", code: "SAVE20" }),
+      );
+      expect(promotion.update).not.toHaveBeenCalled();
+      expect(models.PromotionAuditEvent.create).not.toHaveBeenCalled();
+    });
+
+    it("normalizes and writes an explicit generic code change", async () => {
+      const promotion = buildPromotionRecord({ id: 19, code: "SAVE20" });
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+
+      await updatePromotion({
+        actorUser: superadminActor,
+        promotionId: 19,
+        input: { kind: "GENERIC", code: " next-25 " },
+      });
+
+      expect(promotion.update).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "GENERIC", code: "NEXT-25" }),
+        { transaction: mockTransaction },
+      );
+      expect(models.PromotionAuditEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "UPDATED" }),
+        { transaction: mockTransaction },
+      );
+    });
+
+    it.each([
+      {
+        label: "personal to generic with an explicit code",
+        existing: { kind: "PERSONAL", code: null },
+        input: { kind: "GENERIC", code: " member-30 " },
+        expected: { kind: "GENERIC", code: "MEMBER-30" },
+      },
+      {
+        label: "generic to personal with an explicit code clear",
+        existing: { kind: "GENERIC", code: "SAVE20" },
+        input: { kind: "PERSONAL", code: null },
+        expected: { kind: "PERSONAL", code: null },
+      },
+    ])("allows $label", async ({ existing, input, expected }) => {
+      const promotion = buildPromotionRecord({ id: 19, ...existing });
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+
+      await updatePromotion({
+        actorUser: superadminActor,
+        promotionId: 19,
+        input,
+      });
+
+      expect(promotion.update).toHaveBeenCalledWith(
+        expect.objectContaining(expected),
+        { transaction: mockTransaction },
+      );
+      expect(models.PromotionAuditEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "UPDATED" }),
+        { transaction: mockTransaction },
+      );
+    });
+
+    it("requires an explicit code clear when changing away from generic", async () => {
+      models.Promotion.findByPk.mockResolvedValue(
+        buildPromotionRecord({
+          id: 19,
+          kind: "GENERIC",
+          code: "SAVE20",
+        }),
+      );
+
+      await expect(
+        updatePromotion({
+          actorUser: superadminActor,
+          promotionId: 19,
+          input: { kind: "PERSONAL" },
+        }),
+      ).rejects.toThrow("Only generic promotions may define a code");
+    });
+
     it("treats an empty update as a no-op without update or audit writes", async () => {
       const promotion = buildPromotionRecord({
         id: 19,
@@ -1577,6 +1670,88 @@ describe("promotionAdmin service", () => {
       );
       expect(promotion.update).not.toHaveBeenCalled();
       expect(models.PromotionAuditEvent.create).not.toHaveBeenCalled();
+    });
+
+    it("treats reordered PostgreSQL date-range keys as the same normalized value", async () => {
+      const promotion = buildPromotionRecord({
+        id: 19,
+        kind: "AUTOMATIC",
+        code: null,
+        triggerType: "DATE_RANGE",
+        triggerConfig: {
+          endDate: "2026-07-31",
+          startDate: "2026-07-01",
+          includeEnd: true,
+          includeStart: true,
+        },
+        updatedByUserId: 11,
+      });
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+
+      const result = await updatePromotion({
+        actorUser: superadminActor,
+        promotionId: 19,
+        input: {},
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          id: 19,
+          triggerConfig: {
+            endDate: "2026-07-31",
+            startDate: "2026-07-01",
+            includeEnd: true,
+            includeStart: true,
+          },
+        }),
+      );
+      expect(promotion.update).not.toHaveBeenCalled();
+      expect(models.PromotionAuditEvent.create).not.toHaveBeenCalled();
+    });
+
+    it("writes and audits a real nested date-range change despite reordered keys", async () => {
+      const promotion = buildPromotionRecord({
+        id: 19,
+        kind: "AUTOMATIC",
+        code: null,
+        triggerType: "DATE_RANGE",
+        triggerConfig: {
+          endDate: "2026-07-31",
+          startDate: "2026-07-01",
+          includeEnd: true,
+          includeStart: true,
+        },
+      });
+      models.Promotion.findByPk.mockResolvedValue(promotion);
+
+      await updatePromotion({
+        actorUser: superadminActor,
+        promotionId: 19,
+        input: {
+          triggerConfig: {
+            startDate: "2026-07-01",
+            endDate: "2026-08-01",
+            includeStart: true,
+            includeEnd: true,
+          },
+        },
+      });
+
+      expect(promotion.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          triggerConfig: {
+            startDate: "2026-07-01",
+            endDate: "2026-08-01",
+            includeStart: true,
+            includeEnd: true,
+          },
+        }),
+        { transaction: mockTransaction },
+      );
+      expect(models.PromotionAuditEvent.create).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "UPDATED" }),
+        { transaction: mockTransaction },
+      );
     });
 
     it("rejects direct status updates before loading a promotion", async () => {
