@@ -5,8 +5,8 @@
   - parent feature #28: `DRAFT`
   - PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32): `DONE`
   - PRM-309 (#31): `IN_REVIEW`
-  - successor tasks PRM-312 (#33), PRM-311 (#34), and PRM-313 (#35):
-    `DRAFT` and dependency-gated
+  - PRM-311 (#34): `IN_PROGRESS`; PRM-312 (#33) and PRM-313 (#35) remain
+    dependency-gated
 
 Each child gate owns separate proof. Completing one child does not complete the
 parent feature or any dependency-gated successor.
@@ -89,6 +89,33 @@ TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.tes
 Future assurance changes must preserve #30 eligibility evidence, #29
 validation/lifecycle evidence, #31 action/page evidence, #32 PostgreSQL
 contention/harness evidence, and the authoritative Project state.
+
+## PRM-311 checkout and payment lifecycle gate
+
+`src/lib/services/__tests__/promotionCheckoutLifecycle.postgres.test.js` uses
+the same disposable PostgreSQL contract as PRM-310. It exercises real
+promotion pricing, reservation, redemption, checkout finalization,
+transaction-pricing, and invoice discount summaries. Stripe is represented
+only by a deterministic local SDK-boundary fake; the suite cannot call Stripe
+or any production service.
+
+The suite proves:
+
+- persisted generic evaluation through reservation, cent-accurate Stripe unit
+  amount, payment reconciliation, redemption application, booking confirmation,
+  immutable transaction snapshot, and invoice discount row;
+- generic, personal, and automatic selection precedence while wallet-credit
+  calculation remains independent;
+- reservation-time rejection of stale paused/deactivated, unassigned,
+  expired-window, exhausted-limit, and changed first-booking previews;
+- one-time release for session creation failure/cancellation, one-time expiry,
+  rollback-safe webhook worker retry, and idempotent paid reconciliation.
+
+With the dedicated test-admin environment configured, run:
+
+```sh
+npx jest src/lib/services/__tests__/promotionCheckoutLifecycle.postgres.test.js --runInBand --coverage --collectCoverageFrom=src/lib/services/promotionCheckout.js --collectCoverageFrom=src/lib/services/promotionPricing.js --collectCoverageFrom=src/lib/services/promotionRedemptions.js
+```
 
 ## Repeatable PostgreSQL gate
 

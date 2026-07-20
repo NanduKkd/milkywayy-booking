@@ -3,9 +3,11 @@ import models from "@/lib/db/models";
 import {
   applyPromotionForCheckoutTransaction,
   expirePromotionForCheckoutTransaction,
+  finalizePaidPromotionCheckoutTransaction,
   releasePromotionForCheckoutTransaction,
   reservePromotionForCheckoutTransaction,
 } from "../promotionCheckout";
+import { evaluateCheckoutPromotionPricing } from "../promotionPricing";
 import {
   applyPromotionRedemption,
   expirePromotionRedemption,
@@ -37,6 +39,9 @@ jest.mock("@/lib/db/models", () => ({
     PromotionRedemption: {
       findByPk: jest.fn(),
     },
+    Booking: {
+      update: jest.fn(),
+    },
   },
 }));
 
@@ -47,9 +52,23 @@ jest.mock("../promotionRedemptions", () => ({
   reservePromotionRedemption: jest.fn(),
 }));
 
+jest.mock("../promotionPricing", () => ({
+  evaluateCheckoutPromotionPricing: jest.fn(),
+}));
+
 describe("promotionCheckout service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    evaluateCheckoutPromotionPricing.mockResolvedValue({
+      selectedPromotion: {
+        promotionId: 7,
+        benefitAmount: 237.5,
+        triggerSnapshot: {
+          triggerType: "NONE",
+          triggerConfig: {},
+        },
+      },
+    });
   });
 
   it("attaches a reserved promotion redemption and snapshot to a checkout transaction", async () => {
@@ -104,6 +123,13 @@ describe("promotionCheckout service", () => {
     expect(models.Promotion.findByPk).toHaveBeenCalledWith(7, {
       transaction: mockTransaction,
       lock: mockTransaction.LOCK.UPDATE,
+    });
+    expect(evaluateCheckoutPromotionPricing).toHaveBeenCalledWith({
+      userId: 12,
+      eligibleSubtotal: 950,
+      enteredCode: "VIP25",
+      now: expect.any(Date),
+      transaction: mockTransaction,
     });
     expect(reservePromotionRedemption).toHaveBeenCalledWith({
       promotionId: 7,
@@ -248,6 +274,64 @@ describe("promotionCheckout service", () => {
 
     expect(applyPromotionRedemption).not.toHaveBeenCalled();
     expect(result).toBe(redemption);
+  });
+
+  it("finalizes a paid checkout and confirms draft bookings in one transaction", async () => {
+    const checkoutTransaction = {
+      id: 91,
+      status: "pending",
+      promotionRedemptionId: 3001,
+      update: jest.fn(),
+    };
+    const redemption = { id: 3001, state: "RESERVED" };
+    const paidAt = new Date("2026-07-01T10:10:00.000Z");
+
+    models.Transaction.findByPk.mockResolvedValue(checkoutTransaction);
+    models.PromotionRedemption.findByPk.mockResolvedValue(redemption);
+    applyPromotionRedemption.mockResolvedValue({
+      ...redemption,
+      state: "APPLIED",
+    });
+
+    const result = await finalizePaidPromotionCheckoutTransaction({
+      transactionId: 91,
+      stripePaymentIntentId: "pi_test_91",
+      paidAt,
+    });
+
+    expect(result).toEqual({
+      transaction: checkoutTransaction,
+      alreadyFinalized: false,
+    });
+    expect(checkoutTransaction.update).toHaveBeenCalledWith(
+      {
+        status: "success",
+        stripePaymentIntentId: "pi_test_91",
+        paidAt,
+      },
+      { transaction: mockTransaction },
+    );
+    expect(models.Booking.update).toHaveBeenCalledWith(
+      { status: "CONFIRMED" },
+      {
+        where: { transactionId: 91, status: "DRAFT" },
+        transaction: mockTransaction,
+      },
+    );
+  });
+
+  it("does not repeat customer-visible finalization effects for a paid replay", async () => {
+    const checkoutTransaction = { id: 91, status: "success" };
+    models.Transaction.findByPk.mockResolvedValue(checkoutTransaction);
+
+    await expect(
+      finalizePaidPromotionCheckoutTransaction({ transactionId: 91 }),
+    ).resolves.toEqual({
+      transaction: checkoutTransaction,
+      alreadyFinalized: true,
+    });
+    expect(applyPromotionRedemption).not.toHaveBeenCalled();
+    expect(models.Booking.update).not.toHaveBeenCalled();
   });
 
   it("releases a reserved redemption when checkout fails", async () => {

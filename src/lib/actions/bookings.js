@@ -59,7 +59,7 @@ import {
   requestFileRevisionState,
 } from "@/lib/services/fileDelivery";
 import {
-  applyPromotionForCheckoutTransaction,
+  finalizePaidPromotionCheckoutTransaction,
   PROMOTION_CHECKOUT_RESERVATION_WINDOW_MS,
   releasePromotionForCheckoutTransaction,
   reservePromotionForCheckoutTransaction,
@@ -1114,6 +1114,7 @@ const createTransactionAndPaymentIntentHandler = async (
         transactionId: transaction.id,
         userId,
         bookingIds,
+        enteredCode: normalizedPromotionCode,
         eligibleSubtotal: totalAmount,
         selectedPromotion: promotionPricing.selectedPromotion,
         reservationExpiresAt,
@@ -1352,7 +1353,7 @@ const verifyStripeSessionHandler = async (sessionId) => {
       throw new Error("Missing transaction ID in Stripe session metadata");
     }
 
-    const transaction = await Transaction.findByPk(transactionId);
+    let transaction = await Transaction.findByPk(transactionId);
     if (!transaction) {
       console.error("[PAYMENT] verifyStripeSession transaction missing", {
         sessionId,
@@ -1361,26 +1362,14 @@ const verifyStripeSessionHandler = async (sessionId) => {
       throw new Error(`Transaction not found for id ${transactionId}`);
     }
 
-    const shouldGenerateSideEffects = transaction.status !== "success";
     const confirmationAlreadySent = Boolean(
       transaction.metadata?.bookingConfirmationSentAt,
     );
-    if (shouldGenerateSideEffects) {
-      await transaction.update({
-        status: "success",
-        stripePaymentIntentId: session.payment_intent,
-        paidAt: new Date(),
-      });
-    }
-    await applyPromotionForCheckoutTransaction({
+    const finalizedCheckout = await finalizePaidPromotionCheckoutTransaction({
       transactionId: transaction.id,
+      stripePaymentIntentId: session.payment_intent,
     });
-
-    // Always ensure bookings move out of DRAFT for paid sessions.
-    await Booking.update(
-      { status: "CONFIRMED" },
-      { where: { transactionId: transaction.id } },
-    );
+    transaction = finalizedCheckout.transaction;
     console.log("[PAYMENT] Bookings set to CONFIRMED", {
       sessionId,
       transactionId: transaction.id,

@@ -104,7 +104,12 @@ function buildCodeValidationMessage({
   }
 }
 
-async function loadPromotionEvaluationContext({ userId, normalizedCode }) {
+async function loadPromotionEvaluationContext({
+  userId,
+  normalizedCode,
+  transaction = null,
+  excludeTransactionId = null,
+}) {
   const promotions = [];
 
   const automaticAndPersonalPromotions = await models.Promotion.findAll({
@@ -118,6 +123,7 @@ async function loadPromotionEvaluationContext({ userId, normalizedCode }) {
       ["priority", "DESC"],
       ["id", "ASC"],
     ],
+    transaction,
   });
   promotions.push(...automaticAndPersonalPromotions);
 
@@ -127,6 +133,7 @@ async function loadPromotionEvaluationContext({ userId, normalizedCode }) {
         kind: "GENERIC",
         code: normalizedCode,
       },
+      transaction,
     });
 
     if (
@@ -149,11 +156,19 @@ async function loadPromotionEvaluationContext({ userId, normalizedCode }) {
               unassignedAt: null,
             },
             attributes: ["promotionId"],
+            transaction,
           })
         ).map((assignment) => Number(assignment.promotionId));
 
   const paidBookingCount =
-    userId == null
+    userId == null ||
+    !promotions.some((promotion) =>
+      [
+        "FIRST_PAID_BOOKING",
+        "SECOND_PAID_BOOKING",
+        "ANY_PAID_BOOKING",
+      ].includes(promotion.triggerType),
+    )
       ? 0
       : await Booking.count({
           where: {
@@ -164,9 +179,15 @@ async function loadPromotionEvaluationContext({ userId, normalizedCode }) {
               model: Transaction,
               as: "transaction",
               required: true,
-              where: { status: SUCCESSFUL_TRANSACTION_STATUS },
+              where: {
+                status: SUCCESSFUL_TRANSACTION_STATUS,
+                ...(excludeTransactionId == null
+                  ? {}
+                  : { id: { [Op.ne]: excludeTransactionId } }),
+              },
             },
           ],
+          transaction,
         });
 
   const usageCountsByPromotionId = {};
@@ -176,6 +197,7 @@ async function loadPromotionEvaluationContext({ userId, normalizedCode }) {
       const counts = await getActivePromotionRedemptionCounts({
         promotionId: promotion.id,
         userId,
+        transaction,
       });
 
       usageCountsByPromotionId[promotion.id] = {
@@ -198,6 +220,8 @@ export async function evaluateCheckoutPromotionPricing({
   eligibleSubtotal,
   enteredCode = null,
   now = new Date(),
+  transaction = null,
+  excludeTransactionId = null,
 }) {
   const normalizedSubtotal = normalizeSubtotal(eligibleSubtotal);
   const normalizedCode = normalizePromotionCode(enteredCode);
@@ -209,6 +233,8 @@ export async function evaluateCheckoutPromotionPricing({
   } = await loadPromotionEvaluationContext({
     userId,
     normalizedCode,
+    transaction,
+    excludeTransactionId,
   });
 
   const evaluation = selectPromotionForCheckout({
