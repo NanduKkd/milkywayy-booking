@@ -501,7 +501,7 @@ describe("ensureTransactionInvoiceUrl", () => {
     ],
     ["no booking subset", [{ id: 1, total: 80 }], null],
   ])(
-    "does not render or persist an invoice for %s",
+    "does not allocate, render, or persist invoice state for %s",
     async (_caseName, candidates, priorUrl) => {
       jest.spyOn(console, "warn").mockImplementation(() => {});
       const target = transaction({ invoiceUrl: priorUrl });
@@ -514,6 +514,7 @@ describe("ensureTransactionInvoiceUrl", () => {
       );
 
       expect(mockPuppeteerLaunch).not.toHaveBeenCalled();
+      expect(mockEnsureTransactionInvoiceNumber).not.toHaveBeenCalled();
       expect(target.update).not.toHaveBeenCalled();
     },
   );

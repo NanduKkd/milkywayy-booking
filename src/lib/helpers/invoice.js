@@ -902,10 +902,10 @@ ${bookingTables}
 
 export async function ensureTransactionInvoiceUrl(transaction, user = null) {
   if (!transaction) return null;
-  const invoiceNumber = await ensureTransactionInvoiceNumber(transaction);
   const resolvedBookings = await resolveTransactionBookings(transaction);
   if (resolvedBookings.length === 0) return transaction.invoiceUrl || null;
 
+  const invoiceNumber = await ensureTransactionInvoiceNumber(transaction);
   const hasCurrentInvoiceUrl = isTransactionInvoiceCurrent(
     transaction,
     invoiceNumber,

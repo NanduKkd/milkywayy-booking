@@ -67,8 +67,8 @@ associations take precedence; metadata and time/amount recovery paths are
 bounded by user and transaction ownership and require a unique match before
 writing an association. Stored PDF URLs are reused only when their exact
 generated key, template version, and booking count remain current; empty
-resolution preserves a prior URL rather than generating an empty invoice. See
-the [invoice resolution and freshness contract](./invoices/BOOKING-RESOLUTION.md).
+resolution preserves a prior URL without allocating invoice state or generating
+an empty invoice. See the [invoice resolution and freshness contract](./invoices/BOOKING-RESOLUTION.md).
 
 ### GPT Actions and OAuth
 

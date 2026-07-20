@@ -18,13 +18,13 @@ gross amount does not write a booking association.
 `ensureTransactionInvoiceUrl` reuses an invoice only when its URL contains the
 exact generated invoice-key prefix for the current invoice number and its
 metadata records the current template version and resolved booking count. It
-does not render or persist an invoice if booking resolution is empty; it keeps a
-previous URL when present and otherwise returns `null`. Otherwise it regenerates
-the PDF at the Puppeteer and S3 boundaries, then records the URL plus freshness
-metadata without discarding unrelated transaction metadata. Rendering or upload
-failure keeps a previous URL (if any) and never marks a failed artifact current.
-The helper also supports both Sequelize instances and plain-object transaction
-fallbacks.
+does not allocate an invoice number, render, or persist invoice state if booking
+resolution is empty; it keeps a previous URL when present and otherwise returns
+`null`. Otherwise it regenerates the PDF at the Puppeteer and S3 boundaries,
+then records the URL plus freshness metadata without discarding unrelated
+transaction metadata. Rendering or upload failure keeps a previous URL (if any)
+and never marks a failed artifact current. The helper also supports both
+Sequelize instances and plain-object transaction fallbacks.
 
 ## Verification
 
@@ -37,6 +37,6 @@ npx jest src/lib/helpers/__tests__/invoice.test.js --runInBand --coverage --coll
 The test doubles exercise only synthetic bookings/users and mock AWS S3 and
 Puppeteer before the external boundary. They assert ownership-constrained
 direct/metadata/fallback reads and writes, no render or writes for empty,
-ambiguous, and failure cases, exact-key freshness, stale regeneration, and
-prior-URL preservation. Do not substitute live storage, browser, or database
-credentials for this gate.
+ambiguous, and failure cases, no number allocation for empty resolution,
+exact-key freshness, stale regeneration, and prior-URL preservation. Do not
+substitute live storage, browser, or database credentials for this gate.
