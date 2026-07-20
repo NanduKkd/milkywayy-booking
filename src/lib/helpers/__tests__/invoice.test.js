@@ -187,7 +187,7 @@ describe("buildInvoiceDiscountSummaries", () => {
 
 describe("isTransactionInvoiceCurrent", () => {
   const currentInvoiceNumber = "MW-2026-0607-001";
-  const invoiceUrl = `https://example.com/${currentInvoiceNumber}.pdf`;
+  const invoiceUrl = `https://example.com/invoices/Milkywayy_Invoice_${currentInvoiceNumber}_test-customer_2026-06-07_v3.pdf`;
 
   it("invalidates invoices generated with an older template", () => {
     expect(
@@ -220,6 +220,23 @@ describe("isTransactionInvoiceCurrent", () => {
       ),
     ).toBe(true);
   });
+
+  it("rejects invoice-number prefix collisions", () => {
+    expect(
+      isTransactionInvoiceCurrent(
+        {
+          invoiceUrl:
+            "https://example.com/invoices/Milkywayy_Invoice_MW-2026-0607-0010_test-customer_2026-06-07_v3.pdf",
+          metadata: {
+            invoiceBookingCount: 1,
+            invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
+          },
+        },
+        currentInvoiceNumber,
+        1,
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("resolveTransactionBookings", () => {
@@ -235,7 +252,7 @@ describe("resolveTransactionBookings", () => {
     ).resolves.toEqual(directBookings);
 
     expect(mockBookingFindAll).toHaveBeenCalledWith({
-      where: { transactionId: 81 },
+      where: { transactionId: 81, userId: 7 },
       order: [["id", "ASC"]],
     });
     expect(mockBookingUpdate).not.toHaveBeenCalled();
@@ -259,17 +276,60 @@ describe("resolveTransactionBookings", () => {
     ).resolves.toEqual(recoveredBookings);
 
     expect(mockBookingUpdate).toHaveBeenCalledTimes(1);
-    expect(mockBookingUpdate).toHaveBeenCalledWith(
-      { transactionId: 81, status: "CONFIRMED" },
-      {
-        where: {
-          id: [3, 9],
-          userId: 7,
-        },
-      },
+    const metadataUpdateWhere = mockBookingUpdate.mock.calls[0][1].where;
+    expect(metadataUpdateWhere.id).toEqual([3, 9]);
+    expect(metadataUpdateWhere.userId).toBe(7);
+    expect(metadataUpdateWhere[Op.or]).toEqual([
+      { transactionId: null },
+      { transactionId: 81 },
+    ]);
+    const metadataReadWhere = mockBookingFindAll.mock.calls[1][0].where;
+    expect(metadataReadWhere.id).toEqual([3, 9]);
+    expect(metadataReadWhere.userId).toBe(7);
+    expect(metadataReadWhere[Op.or]).toEqual([
+      { transactionId: null },
+      { transactionId: 81 },
+    ]);
+  });
+
+  it("does not relink metadata bookings already attached to another transaction", async () => {
+    mockBookingFindAll.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+    await expect(
+      resolveTransactionBookings({
+        id: 81,
+        userId: 7,
+        metadata: { bookingIds: [3] },
+      }),
+    ).resolves.toEqual([]);
+
+    const metadataUpdateWhere = mockBookingUpdate.mock.calls[0][1].where;
+    expect(metadataUpdateWhere).toEqual(
+      expect.objectContaining({ id: [3], userId: 7 }),
     );
-    expect(mockBookingFindAll).toHaveBeenLastCalledWith({
-      where: { id: [3, 9], userId: 7 },
+    expect(metadataUpdateWhere[Op.or]).toEqual([
+      { transactionId: null },
+      { transactionId: 81 },
+    ]);
+    const metadataReadWhere = mockBookingFindAll.mock.calls[1][0].where;
+    expect(metadataReadWhere).toEqual(
+      expect.objectContaining({ id: [3], userId: 7 }),
+    );
+    expect(metadataReadWhere[Op.or]).toEqual([
+      { transactionId: null },
+      { transactionId: 81 },
+    ]);
+  });
+
+  it("does not return a corrupt cross-user direct association", async () => {
+    mockBookingFindAll.mockResolvedValueOnce([]);
+
+    await expect(
+      resolveTransactionBookings({ id: 81, userId: 7 }),
+    ).resolves.toEqual([]);
+
+    expect(mockBookingFindAll).toHaveBeenCalledWith({
+      where: { transactionId: 81, userId: 7 },
       order: [["id", "ASC"]],
     });
   });
@@ -372,22 +432,23 @@ describe("resolveTransactionBookings", () => {
   );
 
   it.each([
-    ["an invalid timestamp", { createdAt: "not-a-date", amount: 125 }],
+    ["an invalid timestamp", { createdAt: "not-a-date", amount: 125 }, 1],
     [
       "a missing user",
       { userId: null, createdAt: "2026-07-21T10:00:00.000Z", amount: 125 },
+      0,
     ],
-    ["a zero total", { createdAt: "2026-07-21T10:00:00.000Z", amount: 0 }],
+    ["a zero total", { createdAt: "2026-07-21T10:00:00.000Z", amount: 0 }, 1],
   ])(
     "does not query recovery candidates for %s",
-    async (_caseName, overrides) => {
+    async (_caseName, overrides, expectedFindCalls) => {
       mockBookingFindAll.mockResolvedValueOnce([]);
 
       await expect(
         resolveTransactionBookings({ id: 81, userId: 7, ...overrides }),
       ).resolves.toEqual([]);
 
-      expect(mockBookingFindAll).toHaveBeenCalledTimes(1);
+      expect(mockBookingFindAll).toHaveBeenCalledTimes(expectedFindCalls);
       expect(mockBookingUpdate).not.toHaveBeenCalled();
     },
   );
@@ -410,7 +471,7 @@ describe("ensureTransactionInvoiceUrl", () => {
   const user = { id: 7, fullName: "Test Customer", email: "customer@test" };
 
   it("returns a current invoice URL without rendering or persisting", async () => {
-    const invoiceUrl = `https://example.com/${invoiceNumber}.pdf`;
+    const invoiceUrl = `https://example.com/invoices/Milkywayy_Invoice_${invoiceNumber}_test-customer_2026-07-21_v3.pdf`;
     const target = transaction({
       invoiceUrl,
       metadata: {
@@ -427,6 +488,35 @@ describe("ensureTransactionInvoiceUrl", () => {
     expect(mockPuppeteerLaunch).not.toHaveBeenCalled();
     expect(target.update).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [
+      "an ambiguous booking subset",
+      [
+        { id: 1, total: 125 },
+        { id: 2, total: 75 },
+        { id: 3, total: 50 },
+      ],
+      "https://example.com/prior.pdf",
+    ],
+    ["no booking subset", [{ id: 1, total: 80 }], null],
+  ])(
+    "does not render or persist an invoice for %s",
+    async (_caseName, candidates, priorUrl) => {
+      jest.spyOn(console, "warn").mockImplementation(() => {});
+      const target = transaction({ invoiceUrl: priorUrl });
+      mockBookingFindAll
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(candidates);
+
+      await expect(ensureTransactionInvoiceUrl(target, user)).resolves.toBe(
+        priorUrl,
+      );
+
+      expect(mockPuppeteerLaunch).not.toHaveBeenCalled();
+      expect(target.update).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     [

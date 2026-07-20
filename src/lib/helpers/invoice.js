@@ -261,9 +261,14 @@ export function isTransactionInvoiceCurrent(
   invoiceNumber,
   bookingCount,
 ) {
+  const expectedInvoiceKeyPrefix = invoiceNumber
+    ? `invoices/Milkywayy_Invoice_${invoiceNumber}_`
+    : null;
+
   return Boolean(
     transaction?.invoiceUrl &&
-      (invoiceNumber ? transaction.invoiceUrl.includes(invoiceNumber) : true) &&
+      expectedInvoiceKeyPrefix &&
+      transaction.invoiceUrl.includes(expectedInvoiceKeyPrefix) &&
       Number(transaction?.metadata?.invoiceBookingCount || 0) ===
         bookingCount &&
       Number(transaction?.metadata?.invoiceTemplateVersion || 0) ===
@@ -304,10 +309,14 @@ function findBookingSubsetByAmount(bookings, targetCents) {
 }
 
 export async function resolveTransactionBookings(transaction) {
-  if (!transaction?.id) return [];
+  if (!transaction?.id || !transaction?.userId) return [];
+
+  const unlinkedOrCurrentTransaction = {
+    [Op.or]: [{ transactionId: null }, { transactionId: transaction.id }],
+  };
 
   let bookings = await Booking.findAll({
-    where: { transactionId: transaction.id },
+    where: { transactionId: transaction.id, userId: transaction.userId },
     order: [["id", "ASC"]],
   });
   if (bookings.length > 0) return bookings;
@@ -320,10 +329,20 @@ export async function resolveTransactionBookings(transaction) {
   if (metadataBookingIds.length > 0) {
     await Booking.update(
       { transactionId: transaction.id, status: "CONFIRMED" },
-      { where: { id: metadataBookingIds, userId: transaction.userId } },
+      {
+        where: {
+          id: metadataBookingIds,
+          userId: transaction.userId,
+          ...unlinkedOrCurrentTransaction,
+        },
+      },
     );
     bookings = await Booking.findAll({
-      where: { id: metadataBookingIds, userId: transaction.userId },
+      where: {
+        id: metadataBookingIds,
+        userId: transaction.userId,
+        ...unlinkedOrCurrentTransaction,
+      },
       order: [["id", "ASC"]],
     });
     if (bookings.length > 0) return bookings;
@@ -349,7 +368,7 @@ export async function resolveTransactionBookings(transaction) {
       userId: transaction.userId,
       status: { [Op.in]: ["DRAFT", "CONFIRMED"] },
       createdAt: { [Op.between]: [windowStart, windowEnd] },
-      [Op.or]: [{ transactionId: null }, { transactionId: transaction.id }],
+      ...unlinkedOrCurrentTransaction,
     },
     order: [
       ["createdAt", "DESC"],
@@ -377,7 +396,7 @@ export async function resolveTransactionBookings(transaction) {
       where: {
         id: matchedIds,
         userId: transaction.userId,
-        [Op.or]: [{ transactionId: null }, { transactionId: transaction.id }],
+        ...unlinkedOrCurrentTransaction,
       },
     },
   );
@@ -885,6 +904,8 @@ export async function ensureTransactionInvoiceUrl(transaction, user = null) {
   if (!transaction) return null;
   const invoiceNumber = await ensureTransactionInvoiceNumber(transaction);
   const resolvedBookings = await resolveTransactionBookings(transaction);
+  if (resolvedBookings.length === 0) return transaction.invoiceUrl || null;
+
   const hasCurrentInvoiceUrl = isTransactionInvoiceCurrent(
     transaction,
     invoiceNumber,
