@@ -22,6 +22,14 @@
 
 ![Reference-aligned dashboard narrow](./dashboard-narrow-reference-revision.png)
 
+### Promotions review revision
+
+![Single create action, split constraint columns, and row action menu](./promotions-review-revision.jpg)
+
+### Time Slots review revision
+
+![Visible time controls and compact three-up property settings](./timeslots-review-revision.jpg)
+
 ### Dashboard desktop
 
 ![Dense dashboard desktop](./dashboard-desktop.jpg)
@@ -61,9 +69,12 @@ Every current authenticated route was loaded against the local implementation at
 - Dashboard and Reports use the reference hierarchy and density while retaining live metrics, current filters, and existing actions.
 - Reports opens directly to its own content rather than rendering the Dashboard above it.
 - Promotions uses compact type tabs and a single dense management table without the previous summary/explainer panels.
+- Promotions has one create action for the active tab, dedicated Trigger, Usage, and Window columns, and an accessible overflow menu for row actions.
 - Time Slots contains configuration only. All month-calendar and date-blocking UI remains exclusively in Calendar.
+- Time Slots native clock controls use the dark color scheme, and its three property-weight groups resolve to one desktop row without document overflow.
 - Pricing shows an amber changed-cell outline and an amber property-type tab dot for unsaved edits; both clear after a successful save.
 - Portfolio and Reviews retain icon-only reorder handles without visible `DRAG`, `Order`, or bare rank values.
+- Portfolio and Reviews load successfully through direct admin content reads even when the public base URL uses a different local port.
 - Calendar month cells remain fixed height and show at most two short status markers plus `+N` overflow.
 - Calendar selected-day hierarchy presents bookings and events before availability controls.
 - Calendar exposes named-slot blocking without exact-time or dedicated full-day creation controls; Time Slots only defines the slots and capacity rules.

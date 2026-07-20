@@ -5,32 +5,13 @@ import {
   AdminPageHeader,
 } from "@/components/admin/AdminPrimitives";
 import { getSessionUser } from "@/lib/helpers/auth";
+import { listAdminPortfolioItems } from "@/lib/services/adminContent";
 import PortfolioList from "./PortfolioList";
 
 async function getPortfolioItems() {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/our-works`,
-      {
-        cache: "no-store",
-      },
-    );
-
-    if (!res.ok) {
-      let message = "Failed to fetch portfolio items";
-
-      try {
-        const payload = await res.json();
-        if (payload?.error) {
-          message = payload.error;
-        }
-      } catch {}
-
-      throw new Error(message);
-    }
-
     return {
-      items: await res.json(),
+      items: await listAdminPortfolioItems(),
       error: null,
     };
   } catch (error) {

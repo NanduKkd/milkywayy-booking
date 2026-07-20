@@ -4,6 +4,7 @@ import {
   BadgePercent,
   CirclePause,
   CirclePlay,
+  MoreHorizontal,
   Pencil,
   Plus,
   Sparkles,
@@ -26,6 +27,13 @@ import {
 } from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -378,14 +386,20 @@ function PromotionTable({
             <TableHead className="min-w-[180px] text-[hsl(var(--admin-muted))]">
               Benefit
             </TableHead>
-            <TableHead className="min-w-[260px] text-[hsl(var(--admin-muted))]">
-              Eligibility
+            <TableHead className="min-w-[150px] text-[hsl(var(--admin-muted))]">
+              Trigger
+            </TableHead>
+            <TableHead className="min-w-[170px] text-[hsl(var(--admin-muted))]">
+              Usage
+            </TableHead>
+            <TableHead className="min-w-[210px] text-[hsl(var(--admin-muted))]">
+              Window
             </TableHead>
             <TableHead className="min-w-[140px] text-[hsl(var(--admin-muted))]">
               Status
             </TableHead>
-            <TableHead className="min-w-[220px] text-right text-[hsl(var(--admin-muted))]">
-              Actions
+            <TableHead className="w-16 text-right text-[hsl(var(--admin-muted))]">
+              <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -444,24 +458,24 @@ function PromotionTable({
                     </p>
                   </div>
                 </TableCell>
-                <TableCell className="align-top">
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>{formatTrigger(promotion)}</p>
-                    <p>
-                      Usage:{" "}
-                      {promotion.perUserLimit == null
-                        ? "No per-user limit"
-                        : `${promotion.perUserLimit} per user`}
-                      {" / "}
-                      {promotion.totalLimit == null
-                        ? "No total limit"
-                        : `${promotion.totalLimit} total`}
-                    </p>
-                    <p>
-                      Window: {formatDateTime(promotion.startsAt)} to{" "}
-                      {formatDateTime(promotion.endsAt)}
-                    </p>
-                  </div>
+                <TableCell className="align-top text-sm text-muted-foreground">
+                  {formatTrigger(promotion)}
+                </TableCell>
+                <TableCell className="align-top text-sm text-muted-foreground">
+                  <p>
+                    {promotion.perUserLimit == null
+                      ? "No per-user limit"
+                      : `${promotion.perUserLimit} per user`}
+                  </p>
+                  <p>
+                    {promotion.totalLimit == null
+                      ? "No total limit"
+                      : `${promotion.totalLimit} total`}
+                  </p>
+                </TableCell>
+                <TableCell className="align-top text-sm text-muted-foreground">
+                  <p>{formatDateTime(promotion.startsAt)}</p>
+                  <p>to {formatDateTime(promotion.endsAt)}</p>
                 </TableCell>
                 <TableCell className="align-top">
                   <div className="space-y-2">
@@ -474,68 +488,63 @@ function PromotionTable({
                   </div>
                 </TableCell>
                 <TableCell className="align-top">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {promotion.kind === "PERSONAL" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onAssignCustomer(promotion)}
-                        disabled={isBusy}
+                  <div className="flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          aria-label={`Actions for ${promotion.name}`}
+                          disabled={isBusy}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="min-w-44 border-white/10 bg-zinc-950 text-zinc-100"
                       >
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Assign
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onEdit(promotion)}
-                      disabled={isBusy}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                    {promotion.status === "ACTIVE" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        title="Pause promotion"
-                        onClick={() => onPause(promotion)}
-                        disabled={isBusy}
-                      >
-                        <CirclePause className="mr-2 h-4 w-4" />
-                        Pause
-                      </Button>
-                    ) : promotion.status !== "DEACTIVATED" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        title="Activate promotion"
-                        onClick={() => onActivate(promotion)}
-                        disabled={isBusy}
-                      >
-                        <CirclePlay className="mr-2 h-4 w-4" />
-                        Activate
-                      </Button>
-                    ) : null}
-                    {promotion.status !== "DEACTIVATED" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="border-rose-500/30 text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
-                        title="Deactivate promotion"
-                        onClick={() => onDeactivate(promotion)}
-                        disabled={isBusy}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Deactivate
-                      </Button>
-                    ) : null}
+                        {promotion.kind === "PERSONAL" ? (
+                          <DropdownMenuItem
+                            onSelect={() => onAssignCustomer(promotion)}
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Assign customer
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem onSelect={() => onEdit(promotion)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        {promotion.status === "ACTIVE" ? (
+                          <DropdownMenuItem onSelect={() => onPause(promotion)}>
+                            <CirclePause className="mr-2 h-4 w-4" />
+                            Pause
+                          </DropdownMenuItem>
+                        ) : promotion.status !== "DEACTIVATED" ? (
+                          <DropdownMenuItem
+                            onSelect={() => onActivate(promotion)}
+                          >
+                            <CirclePlay className="mr-2 h-4 w-4" />
+                            Activate
+                          </DropdownMenuItem>
+                        ) : null}
+                        {promotion.status !== "DEACTIVATED" ? (
+                          <>
+                            <DropdownMenuSeparator className="bg-white/10" />
+                            <DropdownMenuItem
+                              className="text-rose-300 focus:bg-rose-500/10 focus:text-rose-200"
+                              onSelect={() => onDeactivate(promotion)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Deactivate
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
@@ -845,16 +854,6 @@ export default function PromotionManager({
           aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
           className="space-y-4"
         >
-          <div className="flex items-center justify-end">
-            <Button
-              type="button"
-              onClick={() => openCreateDialog(activeTabConfig.value)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              New {activeTabConfig.shortLabel}
-            </Button>
-          </div>
-
           <PromotionTable
             promotions={promotions.filter(
               (promotion) => promotion.kind === activeTabConfig.value,

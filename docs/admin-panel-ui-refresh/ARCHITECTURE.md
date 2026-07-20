@@ -74,11 +74,14 @@ download URLs remain unchanged.
 ### Promotions, Calendar, Time Slots, and Pricing
 
 Promotions retains its three current tabs and dense reference table/form
-composition. The operational month view and date-specific block controls exist
-only at `/admin/scheduling-calendar`; `/admin/timeslots` edits rolling windows,
-working days, named period definitions, and weight configuration without
-rendering a second calendar. Pricing continues through its current save action
-and marks changed cells plus affected property tabs until that action succeeds.
+composition. It exposes one active-tab create action, dedicated trigger, usage,
+and window columns, and one row-action menu. The operational month view and
+date-specific block controls exist only at `/admin/scheduling-calendar`;
+`/admin/timeslots` edits rolling windows, working days, named period definitions,
+and weight configuration without rendering a second calendar. Its three property
+weight groups share one compact desktop row. Pricing continues through its
+current save action and marks changed cells plus affected property tabs until
+that action succeeds.
 
 ### Portfolio
 
@@ -86,7 +89,9 @@ Add media-type filters for All Works, Photography, Short Form Video, Long Form
 Video, and 360 Virtual Tour. Existing create/edit/upload/delete/visibility and
 drag-order behavior remain available. Filtering must not corrupt the persisted
 global order. The table exposes an icon-only drag handle; numeric order values
-remain internal persistence state.
+remain internal persistence state. The authenticated page loads all entries,
+including hidden ones, through the shared admin content service rather than an
+HTTP request to the public visible-only endpoint.
 
 ### Reviews
 
@@ -94,7 +99,8 @@ Keep CRUD, visibility, rating, and featured controls. Add drag ordering within
 the Featured and Standard groups and persist the resulting `order` values.
 Featured reviews continue to sort before Standard reviews. Review ordering also
 uses an icon-only handle without a visible order number or `DRAG` label. Do not
-add a review preview column.
+add a review preview column. The authenticated page uses the same direct admin
+content service boundary as Portfolio, avoiding self-referential base-URL fetches.
 
 ## Responsive behavior
 

@@ -6,32 +6,13 @@ import {
 } from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/helpers/auth";
+import { listAdminReviews } from "@/lib/services/adminContent";
 import ReviewList from "./ReviewList";
 
 async function getReviews() {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/admin/reviews`,
-      {
-        cache: "no-store",
-      },
-    );
-
-    if (!res.ok) {
-      let message = "Failed to fetch reviews";
-
-      try {
-        const payload = await res.json();
-        if (payload?.error) {
-          message = payload.error;
-        }
-      } catch {}
-
-      throw new Error(message);
-    }
-
     return {
-      items: await res.json(),
+      items: await listAdminReviews(),
       error: null,
     };
   } catch (error) {

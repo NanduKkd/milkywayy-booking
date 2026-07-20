@@ -31,6 +31,9 @@
 | UI-D023 | `/admin/timeslots` is configuration-only; the calendar and all date-specific availability changes live in `/admin/scheduling-calendar`. | A duplicate calendar adds navigation and maintenance cost without adding capability. |
 | UI-D024 | Pricing highlights changed cells and marks every property-type tab containing unsaved edits until a successful save. | Operators need to see both the precise changed value and unsaved work hidden behind another tab. |
 | UI-D025 | Portfolio and Reviews keep drag ordering but show only an accessible grip handle, not a repeated `DRAG` label or persisted order number. | The row position already communicates sequence; repeated labels and often-stale numeric values add noise. |
+| UI-D026 | Promotions shows one active-tab create action, splits trigger, usage, and active window into separate columns, and places row mutations in an accessible overflow menu. | This removes the duplicate create affordance and makes both constraints and actions faster to scan. |
+| UI-D027 | Time Slots uses dark native time controls and places Apartment, Villa/Townhouse, and Commercial property-weight groups in one compact desktop row. | Visible picker icons and three-up composition improve contrast and reduce scrolling without changing configuration behavior. |
+| UI-D028 | Portfolio and Reviews server pages read through a shared admin content service rather than fetching the application's own HTTP routes through `NEXT_PUBLIC_BASE_URL`. | Direct model-backed reads are independent of deployment host/port configuration and ensure the admin Portfolio includes hidden entries. |
 
 ## Implementation discretion
 

@@ -45,6 +45,7 @@ proof data.
 - Keep `/admin` as the live analytics Dashboard and `/admin/analytics` as the detailed Reports page.
 - Label the existing `/admin/users` destination as **Customers**; the route does not change.
 - Keep Generic Codes, Personal Auto-Apply, and Automatic Discounts as tabs inside the existing Promotions page. Legacy Discounts and Coupons routes continue to redirect there.
+- Promotions exposes one create action for the active tab, separates trigger, usage, and window constraints into scan-friendly columns, and keeps row mutations in an overflow menu.
 - Style the current login page in the same visual language without restructuring its authentication flow.
 - Use a fixed 52-pixel desktop header, a 208-pixel desktop sidebar, compact page gutters, small radii, neutral zinc surfaces, and dense table/form controls.
 - Keep routine copy scan-first. Page titles, operational labels, validation, destructive confirmation, empty/error recovery, and accessibility text remain; repeated introductions, decorative summaries, and documentation-like explanations do not.
@@ -57,6 +58,8 @@ proof data.
 - Highlight each edited Pricing cell and mark every property-type tab that contains unsaved edits; clear those indicators only after a successful save.
 - Use bounded Calendar month cells with at most two short color-coded markers and a `+N` overflow count. Calendar availability mutation is named-slot-only; no clock-time or dedicated full-day block creation control is presented there.
 - Keep the calendar exclusively in `/admin/scheduling-calendar`; `/admin/timeslots` is configuration-only.
+- On desktop, Time Slots presents Apartment, Villa/Townhouse, and Commercial property weights in one compact row and uses dark native time controls with visible picker icons.
+- Portfolio and Reviews load their authenticated admin lists directly through the shared content data service instead of making deployment-sensitive HTTP requests back into the same application.
 - Keep persisted legacy exact/full-day blocks identifiable and clearable without displaying exact block times.
 
 ## Explicit non-goals

@@ -153,6 +153,19 @@ describe("Admin Time Slots Page", () => {
     expect(screen.queryByText(/booked/i)).not.toBeInTheDocument();
   });
 
+  it("uses visible time controls and a three-column desktop property grid", async () => {
+    render(<TimeSlotsPage />);
+
+    const morningStart = await screen.findByLabelText(/morning start time/i);
+    expect(morningStart).toHaveClass("[color-scheme:dark]");
+    expect(screen.getByTestId("property-weight-grid")).toHaveClass(
+      "xl:grid-cols-3",
+    );
+    expect(screen.getByText("Apartments")).toBeInTheDocument();
+    expect(screen.getByText("Villas / Townhouses")).toBeInTheDocument();
+    expect(screen.getByText("Commercial")).toBeInTheDocument();
+  });
+
   it("shows a retryable error state when the initial load fails", async () => {
     global.fetch
       .mockResolvedValueOnce({

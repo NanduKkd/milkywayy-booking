@@ -380,7 +380,7 @@ export default function TimeSlotsManager() {
                         },
                       }))
                     }
-                    className={INPUT_CLASS}
+                    className={cn(INPUT_CLASS, "[color-scheme:dark]")}
                   />
                   <Input
                     aria-label={`${labelizePeriod(period)} end time`}
@@ -406,7 +406,7 @@ export default function TimeSlotsManager() {
                         },
                       }))
                     }
-                    className={INPUT_CLASS}
+                    className={cn(INPUT_CLASS, "[color-scheme:dark]")}
                   />
                 </div>
               </div>
@@ -476,87 +476,78 @@ export default function TimeSlotsManager() {
       <AdminCard>
         <AdminCardHeader>
           <AdminCardTitle>Property settings</AdminCardTitle>
-          <AdminCardDescription>
-            Preserve the current configuration fields while aligning apartments,
-            villas, and commercial references to the shared admin system.
-          </AdminCardDescription>
         </AdminCardHeader>
-        <AdminCardContent className="space-y-6">
-          <div className="grid gap-6 xl:grid-cols-2">
-            {PROPERTY_WEIGHT_GROUPS.map((group) => (
-              <AdminCard key={group.type} tone="muted">
-                <AdminCardHeader className="pb-4">
-                  <AdminCardTitle className="text-lg">
-                    {group.label}
-                  </AdminCardTitle>
-                  <AdminCardDescription>
-                    Property weights for {group.type.toLowerCase()} scheduling.
-                  </AdminCardDescription>
-                </AdminCardHeader>
-                <AdminCardContent>
-                  <AdminTablePanel>
-                    <div className="grid min-w-[360px] grid-cols-[minmax(180px,1fr)_140px]">
-                      <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
-                        Size
-                      </div>
-                      <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
-                        Weight
-                      </div>
-                      {group.sizes.map((size) => (
-                        <div key={size} className="contents">
-                          <div
-                            className={cn(
-                              TABLE_CELL_CLASS,
-                              "px-5 py-4 text-sm",
-                            )}
-                          >
-                            {size}
-                          </div>
-                          <div className={cn(TABLE_CELL_CLASS, "px-5 py-3")}>
-                            <Input
-                              aria-label={`${group.label} ${size} weight`}
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              value={
-                                config.systemSettings?.weightModel
-                                  ?.propertyWeights?.[group.type]?.[size] ?? 0
-                              }
-                              onChange={(e) =>
-                                updatePropertyWeight(
-                                  group.type,
-                                  size,
-                                  e.target.value,
-                                )
-                              }
-                              className={cn(INPUT_CLASS, "h-10")}
-                            />
-                          </div>
-                        </div>
-                      ))}
+        <AdminCardContent
+          className="grid gap-4 xl:grid-cols-3"
+          data-testid="property-weight-grid"
+        >
+          {PROPERTY_WEIGHT_GROUPS.map((group) => (
+            <AdminCard key={group.type} tone="muted">
+              <AdminCardHeader className="p-4 pb-2">
+                <AdminCardTitle className="text-sm">
+                  {group.label}
+                </AdminCardTitle>
+              </AdminCardHeader>
+              <AdminCardContent className="p-4 pt-0">
+                <AdminTablePanel>
+                  <div className="grid min-w-[260px] grid-cols-[minmax(100px,1fr)_88px]">
+                    <div className={cn(TABLE_HEAD_CLASS, "px-3 py-2")}>
+                      Size
                     </div>
-                  </AdminTablePanel>
-                </AdminCardContent>
-              </AdminCard>
-            ))}
-          </div>
+                    <div className={cn(TABLE_HEAD_CLASS, "px-3 py-2")}>
+                      Weight
+                    </div>
+                    {group.sizes.map((size) => (
+                      <div key={size} className="contents">
+                        <div
+                          className={cn(TABLE_CELL_CLASS, "px-3 py-2 text-xs")}
+                        >
+                          {size}
+                        </div>
+                        <div className={cn(TABLE_CELL_CLASS, "px-2 py-1.5")}>
+                          <Input
+                            aria-label={`${group.label} ${size} weight`}
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            value={
+                              config.systemSettings?.weightModel
+                                ?.propertyWeights?.[group.type]?.[size] ?? 0
+                            }
+                            onChange={(e) =>
+                              updatePropertyWeight(
+                                group.type,
+                                size,
+                                e.target.value,
+                              )
+                            }
+                            className={cn(INPUT_CLASS, "h-8 px-2 text-xs")}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </AdminTablePanel>
+              </AdminCardContent>
+            </AdminCard>
+          ))}
 
           <AdminCard tone="muted">
-            <AdminCardHeader className="pb-4">
-              <AdminCardTitle className="text-lg">Commercial</AdminCardTitle>
-              <AdminCardDescription>
-                Commercial scales continue to act as property-weight references.
-              </AdminCardDescription>
+            <AdminCardHeader className="p-4 pb-2">
+              <AdminCardTitle className="text-sm">Commercial</AdminCardTitle>
             </AdminCardHeader>
-            <AdminCardContent>
+            <AdminCardContent className="p-4 pt-0">
               <AdminTablePanel>
-                <div className="grid min-w-[480px] grid-cols-[minmax(180px,1fr)_140px_120px]">
-                  <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>Scale</div>
-                  <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
+                <div className="grid min-w-[280px] grid-cols-[minmax(90px,1fr)_76px_56px]">
+                  <div className={cn(TABLE_HEAD_CLASS, "px-3 py-2")}>Scale</div>
+                  <div className={cn(TABLE_HEAD_CLASS, "px-3 py-2")}>
                     Weight
                   </div>
-                  <div className={cn(TABLE_HEAD_CLASS, "px-5 py-3")}>
-                    Active
+                  <div
+                    className={cn(TABLE_HEAD_CLASS, "px-2 py-2")}
+                    title="Active"
+                  >
+                    On
                   </div>
                   {COMMERCIAL_SCALES.map((scale) => {
                     const value =
@@ -565,11 +556,11 @@ export default function TimeSlotsManager() {
                     return (
                       <div key={scale} className="contents">
                         <div
-                          className={cn(TABLE_CELL_CLASS, "px-5 py-4 text-sm")}
+                          className={cn(TABLE_CELL_CLASS, "px-3 py-2 text-xs")}
                         >
                           {scale}
                         </div>
-                        <div className={cn(TABLE_CELL_CLASS, "px-5 py-3")}>
+                        <div className={cn(TABLE_CELL_CLASS, "px-2 py-1.5")}>
                           <Input
                             aria-label={`${scale} commercial weight`}
                             type="number"
@@ -583,10 +574,10 @@ export default function TimeSlotsManager() {
                                 e.target.value,
                               )
                             }
-                            className={cn(INPUT_CLASS, "h-10")}
+                            className={cn(INPUT_CLASS, "h-8 px-2 text-xs")}
                           />
                         </div>
-                        <div className={cn(TABLE_CELL_CLASS, "px-5 py-4")}>
+                        <div className={cn(TABLE_CELL_CLASS, "px-2 py-2")}>
                           <Switch
                             checked={value > 0}
                             onCheckedChange={(checked) =>

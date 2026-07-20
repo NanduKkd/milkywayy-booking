@@ -19,6 +19,8 @@ The validation covers automated admin and shared-component tests plus manual bro
 
 The 2026-07-20 review pass aligns Promotions, Dashboard, and Reports more closely to `design-reference.jsx`; removes the duplicate calendar from Time Slots; adds unsaved-edit indicators to Pricing; and removes visible drag/rank labels from Portfolio and Reviews. Dashboard and Reports reuse the reference hierarchy and density while continuing to render live application data and the existing operational actions.
 
+The subsequent review revision removes the duplicate Promotions create action, moves row mutations into an overflow menu, separates promotion constraints into Trigger, Usage, and Window columns, increases native time-control contrast, and places all three property-weight groups in one desktop row. It also replaces the Portfolio and Reviews self-HTTP fetches with a direct shared admin content service so local host/port configuration cannot break their initial render.
+
 ---
 
 ## Automated Test Run Summary
@@ -29,9 +31,9 @@ npx jest src/app/admin src/components/admin --runInBand
 ```
 
 ### Results
-- **Test Suites**: 22 passed, 22 total
-- **Tests**: 92 passed, 92 total
-- **Focused Biome check**: 11 changed source/test files passed
+- **Test Suites**: 23 passed, 23 total
+- **Tests**: 97 passed, 97 total
+- **Focused Biome check**: 10 changed source/test files passed
 - **Production build**: passed (`next build`); the authenticated Promotions route is correctly reported as dynamic because it reads cookies
 - **Coverage Included**:
   - Sidebar navigation state and mobile drawer responsive triggers.
