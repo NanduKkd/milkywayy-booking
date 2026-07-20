@@ -4,8 +4,8 @@
 - Test-assurance Project snapshot (2026-07-21):
   - parent feature #28: `DRAFT`
   - PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32): `DONE`
-  - PRM-309 (#31): `IN_REVIEW`
-  - successor tasks PRM-312 (#33), PRM-311 (#34), and PRM-313 (#35):
+  - PRM-309 (#31): `DONE`
+  - PRM-311 (#34) and PRM-312 (#33): `IN_REVIEW`; PRM-313 (#35):
     `DRAFT` and dependency-gated
 
 Each child gate owns separate proof. Completing one child does not complete the
@@ -169,11 +169,46 @@ The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
 80% branches. The issue #31 implementation recorded 100% statements and 100%
 branches for both boundary files across 26 focused tests.
 
-The parent assurance feature remains in `DRAFT`; PRM-307, PRM-308, and PRM-310
-are merged, while PRM-309 remains in review. Further checkout lifecycle, UI
-failure/recovery, and CI enforcement work remains draft and dependency-gated.
-Focused boundary results do not imply that the repository-wide Jest baseline
-is green.
+The parent assurance feature remains in `DRAFT`; PRM-307, PRM-308, PRM-309,
+and PRM-310 are merged. Checkout lifecycle and UI failure/recovery are in
+review, and CI enforcement remains dependency-gated. Focused boundary
+results do not imply that the repository-wide Jest baseline is green.
+
+## Promotions UI failure and recovery gate
+
+`src/app/admin/promotions/__tests__/PromotionManager.test.jsx` proves that the
+client preserves operator state and reports safe action results:
+
+- A page load failure is an accessible alert with a named retry control; the
+  catalog tabs and empty state are withheld until a successful page render.
+- A successful empty catalog still renders the tab-specific empty state without
+  an error.
+- Failed and rejected create/update actions retain entered form values and do
+  not alter catalog rows. A successful retry updates only the returned row and
+  clears the stale alert.
+- Failed or rejected lifecycle actions preserve the current status; failed
+  search, assign, and unassign actions preserve current assignments and expose
+  an accessible retryable error. Successful assignment changes use named status
+  feedback.
+- Per-operation client locks and disabled controls prevent rapid duplicate form,
+  lifecycle, assignment, and unassignment submissions while a request is
+  pending.
+
+Run the focused UI/page gate with:
+
+```sh
+npx jest src/app/admin/promotions/__tests__/PromotionManager.test.jsx src/app/admin/promotions/__tests__/page.test.jsx --runInBand
+```
+
+Capture coverage with:
+
+```sh
+npx jest src/app/admin/promotions/__tests__/PromotionManager.test.jsx src/app/admin/promotions/__tests__/page.test.jsx --runInBand --coverage --collectCoverageFrom=src/app/admin/promotions/PromotionManager.jsx --collectCoverageFrom=src/app/admin/promotions/page.jsx
+```
+
+The required `PromotionManager` branch coverage is at least 80%. The initial
+PRM-312 implementation recorded 85.61% branches across 19 component tests;
+the paired page suite adds three page-boundary tests.
 
 ## Manual gates
 

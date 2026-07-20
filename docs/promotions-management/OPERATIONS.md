@@ -50,6 +50,23 @@ finalization failures, and customer support reports.
   guidance. Other database errors, private assignment details, and account
   internals must not be surfaced to the client.
 
+## Admin UI failure recovery
+
+- If the Promotions catalog fails to load, the page shows the safe server
+  message and a **Retry loading promotions** control instead of a successful
+  empty catalog. Retry after the underlying access or service condition is
+  resolved.
+- Form validation or mutation rejection leaves the create/edit dialog and its
+  entered values open. Correct the safe message's indicated field or retry the
+  same operation; rows change only after a successful response.
+- Lifecycle and assignment rejections leave the existing status and assignment
+  rows intact. Operators may retry the named action once the temporary failure
+  is resolved; successful assignment changes announce status feedback.
+- While a create, update, lifecycle, assignment, or unassignment request is in
+  flight, its matching control is disabled. Do not work around that protection
+  with parallel browser tabs, because server-side authorization and validation
+  remain authoritative.
+
 ## Current cutover state
 
 - Checkout pricing, reservation, transaction snapshotting, and invoice

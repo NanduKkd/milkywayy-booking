@@ -13,7 +13,8 @@ import {
   UserPlus,
   UserRound,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import {
   AdminBadge,
   AdminConfirmDialog,
@@ -354,6 +355,10 @@ function formatPromotionWindow(promotion) {
   )}`;
 }
 
+function getSafeActionMessage(result, fallbackMessage) {
+  return result?.message || fallbackMessage;
+}
+
 function PromotionStatusCell({ promotion }) {
   return (
     <TableCell className="align-top">
@@ -641,6 +646,7 @@ export default function PromotionManager({
   initialPromotions,
   loadError = null,
 }) {
+  const router = useRouter();
   const [promotions, setPromotions] = useState(
     sortPromotions(initialPromotions || []),
   );
@@ -658,6 +664,7 @@ export default function PromotionManager({
   const [errorMessage, setErrorMessage] = useState(loadError);
   const [pendingKey, setPendingKey] = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const pendingOperations = useRef(new Set());
 
   useEffect(() => {
     setPromotions(sortPromotions(initialPromotions || []));
@@ -685,7 +692,20 @@ export default function PromotionManager({
       setAssignmentSearchPending(true);
       setAssignmentMessage(null);
 
-      const result = await searchPromotionAssignableCustomers(normalizedQuery);
+      let result;
+
+      try {
+        result = await searchPromotionAssignableCustomers(normalizedQuery);
+      } catch {
+        if (cancelled) {
+          return;
+        }
+
+        setAssignmentSearchPending(false);
+        setAssignmentResults([]);
+        setAssignmentMessage("Unable to search for customers.");
+        return;
+      }
 
       if (cancelled) {
         return;
@@ -739,6 +759,19 @@ export default function PromotionManager({
     );
   };
 
+  const beginPendingOperation = (operationKey) => {
+    if (pendingOperations.current.has(operationKey)) {
+      return false;
+    }
+
+    pendingOperations.current.add(operationKey);
+    return true;
+  };
+
+  const endPendingOperation = (operationKey) => {
+    pendingOperations.current.delete(operationKey);
+  };
+
   const openCreateDialog = (kind) => {
     setErrorMessage(null);
     setFormMode("create");
@@ -765,6 +798,12 @@ export default function PromotionManager({
   };
 
   const handleSubmit = async () => {
+    const operationKey = `form:${formMode}:${formData.id ?? "new"}`;
+
+    if (!beginPendingOperation(operationKey)) {
+      return;
+    }
+
     setPendingKey("dialog");
     setErrorMessage(null);
 
@@ -772,37 +811,58 @@ export default function PromotionManager({
       includeStatus: formMode === "create",
     });
 
-    const result =
-      formMode === "create"
-        ? await createAdminPromotion(payload)
-        : await updateAdminPromotion(formData.id, payload);
+    try {
+      const result =
+        formMode === "create"
+          ? await createAdminPromotion(payload)
+          : await updateAdminPromotion(formData.id, payload);
 
-    setPendingKey(null);
+      if (!result?.success) {
+        setErrorMessage(
+          getSafeActionMessage(result, "Unable to save this promotion."),
+        );
+        return;
+      }
 
-    if (!result.success) {
-      setErrorMessage(result.message);
-      return;
+      upsertPromotion(result.data);
+      setDialogOpen(false);
+    } catch {
+      setErrorMessage("Unable to save this promotion.");
+    } finally {
+      endPendingOperation(operationKey);
+      setPendingKey(null);
     }
-
-    upsertPromotion(result.data);
-    setDialogOpen(false);
   };
 
   const handleStatusChange = async (promotion, action) => {
-    setPendingKey(`promotion:${promotion.id}`);
-    setErrorMessage(null);
+    const operationKey = `promotion:${promotion.id}`;
 
-    const result = await action(promotion.id);
-
-    setPendingKey(null);
-
-    if (!result.success) {
-      setErrorMessage(result.message);
+    if (!beginPendingOperation(operationKey)) {
       return false;
     }
 
-    upsertPromotion(result.data);
-    return true;
+    setPendingKey(`promotion:${promotion.id}`);
+    setErrorMessage(null);
+
+    try {
+      const result = await action(promotion.id);
+
+      if (!result?.success) {
+        setErrorMessage(
+          getSafeActionMessage(result, "Unable to update this promotion."),
+        );
+        return false;
+      }
+
+      upsertPromotion(result.data);
+      return true;
+    } catch {
+      setErrorMessage("Unable to update this promotion.");
+      return false;
+    } finally {
+      endPendingOperation(operationKey);
+      setPendingKey(null);
+    }
   };
 
   const handleDeactivate = async (promotion) => {
@@ -821,28 +881,41 @@ export default function PromotionManager({
       return;
     }
 
-    setAssignmentPendingUserId(customer.id);
-    setAssignmentMessage(null);
+    const operationKey = `assignment:${assignmentPromotion.id}:${customer.id}`;
 
-    const result = await assignAdminPromotionCustomer(
-      assignmentPromotion.id,
-      customer.id,
-    );
-
-    setAssignmentPendingUserId(null);
-
-    if (!result.success) {
-      setAssignmentMessage(result.message);
+    if (!beginPendingOperation(operationKey)) {
       return;
     }
 
-    upsertPromotion(result.data);
-    setAssignmentPromotion(result.data);
-    setAssignmentQuery("");
-    setAssignmentResults([]);
-    setAssignmentMessage(
-      `${formatCustomerDisplayName(customer)} assigned successfully.`,
-    );
+    setAssignmentPendingUserId(customer.id);
+    setAssignmentMessage(null);
+
+    try {
+      const result = await assignAdminPromotionCustomer(
+        assignmentPromotion.id,
+        customer.id,
+      );
+
+      if (!result?.success) {
+        setAssignmentMessage(
+          getSafeActionMessage(result, "Unable to assign this customer."),
+        );
+        return;
+      }
+
+      upsertPromotion(result.data);
+      setAssignmentPromotion(result.data);
+      setAssignmentQuery("");
+      setAssignmentResults([]);
+      setAssignmentMessage(
+        `${formatCustomerDisplayName(customer)} assigned successfully.`,
+      );
+    } catch {
+      setAssignmentMessage("Unable to assign this customer.");
+    } finally {
+      endPendingOperation(operationKey);
+      setAssignmentPendingUserId(null);
+    }
   };
 
   const handleUnassignCustomer = async (assignment) => {
@@ -850,26 +923,39 @@ export default function PromotionManager({
       return;
     }
 
-    setAssignmentPendingUserId(assignment.userId);
-    setAssignmentMessage(null);
+    const operationKey = `assignment:${assignmentPromotion.id}:${assignment.userId}`;
 
-    const result = await unassignAdminPromotionCustomer(
-      assignmentPromotion.id,
-      assignment.userId,
-    );
-
-    setAssignmentPendingUserId(null);
-
-    if (!result.success) {
-      setAssignmentMessage(result.message);
+    if (!beginPendingOperation(operationKey)) {
       return;
     }
 
-    upsertPromotion(result.data);
-    setAssignmentPromotion(result.data);
-    setAssignmentMessage(
-      `${formatCustomerDisplayName(assignment.user)} removed successfully.`,
-    );
+    setAssignmentPendingUserId(assignment.userId);
+    setAssignmentMessage(null);
+
+    try {
+      const result = await unassignAdminPromotionCustomer(
+        assignmentPromotion.id,
+        assignment.userId,
+      );
+
+      if (!result?.success) {
+        setAssignmentMessage(
+          getSafeActionMessage(result, "Unable to remove this customer."),
+        );
+        return;
+      }
+
+      upsertPromotion(result.data);
+      setAssignmentPromotion(result.data);
+      setAssignmentMessage(
+        `${formatCustomerDisplayName(assignment.user)} removed successfully.`,
+      );
+    } catch {
+      setAssignmentMessage("Unable to remove this customer.");
+    } finally {
+      endPendingOperation(operationKey);
+      setAssignmentPendingUserId(null);
+    }
   };
 
   const activeTabConfig =
@@ -888,71 +974,103 @@ export default function PromotionManager({
         }
       />
 
-      {errorMessage ? (
-        <AdminInlineMessage
-          title="Unable to update promotions"
-          description={errorMessage}
-          tone="danger"
-        />
-      ) : null}
-
-      <div className="space-y-5">
+      {errorMessage && !dialogOpen ? (
         <div
-          role="tablist"
-          aria-label="Promotion kinds"
-          className="flex flex-wrap gap-2"
+          role="alert"
+          aria-live="assertive"
+          aria-label={
+            loadError
+              ? "Unable to load promotions"
+              : "Unable to update promotions"
+          }
         >
-          {TAB_CONFIG.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = tab.value === activeTab;
-
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                role="tab"
-                id={`promotion-tab-${tab.value}`}
-                aria-selected={isActive}
-                aria-controls={`promotion-panel-${tab.value}`}
-                className={cn(
-                  "inline-flex items-center justify-center whitespace-nowrap rounded-lg border px-4 py-1.5 text-xs font-semibold transition-colors",
-                  isActive
-                    ? "border-white bg-white text-black"
-                    : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-white",
-                )}
-                onClick={() => setActiveTab(tab.value)}
-              >
-                <Icon className="mr-2 h-4 w-4" />
-                {tab.label} ({countsByKind[tab.value] || 0})
-              </button>
-            );
-          })}
-        </div>
-
-        <div
-          role="tabpanel"
-          id={`promotion-panel-${activeTabConfig.value}`}
-          aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
-          className="space-y-4"
-        >
-          <PromotionTable
-            promotions={promotions.filter(
-              (promotion) => promotion.kind === activeTabConfig.value,
-            )}
-            onEdit={openEditDialog}
-            onAssignCustomer={openAssignmentDialog}
-            onActivate={(promotion) =>
-              handleStatusChange(promotion, activateAdminPromotion)
+          <AdminInlineMessage
+            title={
+              loadError
+                ? "Unable to load promotions"
+                : "Unable to update promotions"
             }
-            onPause={(promotion) =>
-              handleStatusChange(promotion, pauseAdminPromotion)
-            }
-            onDeactivate={setDeactivateTarget}
-            pendingKey={pendingKey}
-            tab={activeTabConfig}
+            description={errorMessage}
+            tone="danger"
           />
         </div>
-      </div>
+      ) : null}
+
+      {loadError ? (
+        <output
+          className="flex flex-wrap items-center gap-3"
+          aria-label="Promotions catalog load status"
+        >
+          <p className="text-sm text-muted-foreground">
+            The catalog was not loaded, so no promotion rows are shown.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.refresh()}
+          >
+            Retry loading promotions
+          </Button>
+        </output>
+      ) : (
+        <div className="space-y-5">
+          <div
+            role="tablist"
+            aria-label="Promotion kinds"
+            className="flex flex-wrap gap-2"
+          >
+            {TAB_CONFIG.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = tab.value === activeTab;
+
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  role="tab"
+                  id={`promotion-tab-${tab.value}`}
+                  aria-selected={isActive}
+                  aria-controls={`promotion-panel-${tab.value}`}
+                  className={cn(
+                    "inline-flex items-center justify-center whitespace-nowrap rounded-lg border px-4 py-1.5 text-xs font-semibold transition-colors",
+                    isActive
+                      ? "border-white bg-white text-black"
+                      : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-white",
+                  )}
+                  onClick={() => setActiveTab(tab.value)}
+                >
+                  <Icon className="mr-2 h-4 w-4" />
+                  {tab.label} ({countsByKind[tab.value] || 0})
+                </button>
+              );
+            })}
+          </div>
+
+          <div
+            role="tabpanel"
+            id={`promotion-panel-${activeTabConfig.value}`}
+            aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
+            className="space-y-4"
+          >
+            <PromotionTable
+              promotions={promotions.filter(
+                (promotion) => promotion.kind === activeTabConfig.value,
+              )}
+              onEdit={openEditDialog}
+              onAssignCustomer={openAssignmentDialog}
+              onActivate={(promotion) =>
+                handleStatusChange(promotion, activateAdminPromotion)
+              }
+              onPause={(promotion) =>
+                handleStatusChange(promotion, pauseAdminPromotion)
+              }
+              onDeactivate={setDeactivateTarget}
+              pendingKey={pendingKey}
+              tab={activeTabConfig}
+            />
+          </div>
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <AdminDialogContent
@@ -960,6 +1078,19 @@ export default function PromotionManager({
           title={formMode === "create" ? "Create promotion" : "Edit promotion"}
           description={`Configure deterministic promotion behavior for the ${activeTabConfig.label.toLowerCase()} tab.`}
         >
+          {errorMessage ? (
+            <div
+              role="alert"
+              aria-live="assertive"
+              aria-label="Unable to update promotions"
+            >
+              <AdminInlineMessage
+                title="Unable to update promotions"
+                description={errorMessage}
+                tone="danger"
+              />
+            </div>
+          ) : null}
           <div className="grid gap-5 py-2 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="promotion-name">Promotion name</Label>
@@ -1381,11 +1512,27 @@ export default function PromotionManager({
               </div>
 
               {assignmentMessage ? (
-                <AdminInlineMessage
-                  title="Assignment update"
-                  description={assignmentMessage}
-                  tone="info"
-                />
+                assignmentMessage.endsWith("successfully.") ? (
+                  <output aria-label="Assignment update">
+                    <AdminInlineMessage
+                      title="Assignment update"
+                      description={assignmentMessage}
+                      tone="info"
+                    />
+                  </output>
+                ) : (
+                  <div
+                    role="alert"
+                    aria-live="polite"
+                    aria-label="Assignment update"
+                  >
+                    <AdminInlineMessage
+                      title="Assignment update"
+                      description={assignmentMessage}
+                      tone="info"
+                    />
+                  </div>
+                )
               ) : null}
 
               <div className="space-y-2">
@@ -1446,12 +1593,14 @@ export default function PromotionManager({
                   className="rounded-xl border border-dashed border-white/10 bg-white/[0.03] px-4 py-6"
                 />
               ) : assignmentSearchPending ? (
-                <AdminInlineMessage
-                  title="Searching customer accounts"
-                  description="Matching active customers are loading now."
-                  tone="info"
-                  loading
-                />
+                <output aria-label="Searching customer accounts">
+                  <AdminInlineMessage
+                    title="Searching customer accounts"
+                    description="Matching active customers are loading now."
+                    tone="info"
+                    loading
+                  />
+                </output>
               ) : assignmentResults.length ? (
                 <div className="space-y-2">
                   {assignmentResults.map((customer) => (
