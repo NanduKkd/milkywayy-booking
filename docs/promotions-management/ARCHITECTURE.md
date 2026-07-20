@@ -83,6 +83,32 @@ Concurrency contract:
 - a transaction may own at most one non-released redemption row
 - released or expired rows remain for audit and reconciliation
 
+Reservation enforcement locks the selected `promotions` row with
+`FOR UPDATE` before counting or inserting redemptions. Competing PostgreSQL
+transactions therefore serialize on one promotion, then the later transaction
+rechecks committed `RESERVED` and `APPLIED` rows before it can reserve. A
+partial unique index on `promotion_redemptions.transaction_id` independently
+prevents two active redemptions for one transaction, including attempts that
+target different promotions.
+
+Checkout attaches `promotion_id`, `promotion_redemption_id`, and the immutable
+snapshot in the same database transaction that creates the reservation. A
+rollback removes both the redemption and the transaction attachment. The
+database-backed integration harness builds only the required synthetic base
+tables plus the production promotion migration in a disposable database, uses
+independent connection-pool transactions for contention, applies bounded
+statement/lock/idle-transaction timeouts, and drops the database after success
+or setup failure. Cluster DDL is available only under `NODE_ENV=test` with an
+explicit opt-in and dedicated test-admin connection settings; application
+database settings are never used for database creation or removal. Every
+created database has the fixed `mw_codex_test_` prefix, which is revalidated
+immediately before creation, connection termination, alteration, and removal.
+Connection and administrative shutdowns are bounded, and failed removal keeps
+the cleanup handle retryable until the database is confirmed removed. Every
+provisioning or cleanup attempt ends or forcibly destroys its short-lived admin
+connection in `finally`; a later cleanup retry creates a fresh admin connection
+from immutable test configuration rather than reusing the failed client.
+
 ### promotion_audit_events
 
 `promotion_audit_events` is append-only and records every admin mutation that
