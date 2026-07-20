@@ -60,6 +60,12 @@ The main implementation is in
 defined by the booking delivery models and migrations under
 [`src/lib/db/`](../src/lib/db/).
 
+### Invoice generation
+
+Invoice HTML is built through a pure customer-visible rendering boundary before
+Puppeteer produces and storage receives the PDF. The invoice architecture and
+content-security test contract are documented in [the invoice guide](./invoices/README.md).
+
 ### GPT Actions and OAuth
 
 Milkywayy implements an OAuth 2.0 authorization-code flow for a ChatGPT Custom
