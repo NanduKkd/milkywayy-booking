@@ -1,6 +1,6 @@
 # Promotions management architecture
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-20
 
 ## Domain model
 
@@ -184,6 +184,36 @@ for each promotion kind, assignment lookup, usage totals, and audit history.
 Until `admin-access-control` resumes, the compatibility authorization mode is
 `SUPERADMIN`-only rather than the deferred role-permission matrix. Deletion of
 used/system promotions becomes deactivation rather than physical deletion.
+
+### Service-boundary validation
+
+`promotionAdmin` normalizes codes to trimmed uppercase values, trims required
+names and optional text, normalizes supported enum values to uppercase, and
+converts numeric/date inputs before persistence. The service rejects invalid
+promotion kinds, benefit types and values, caps, minimum spends, lifecycle
+statuses, booleans, priorities, usage limits, eligibility dates, trigger types,
+and trigger configuration with stable operator-safe errors. Calendar dates must
+exist rather than merely match an ISO-shaped string, and both eligibility and
+date-range trigger windows must be ordered.
+
+Kind-specific invariants are enforced before database writes: generic
+promotions require a code and `NONE` trigger, personal promotions reject codes
+and require `NONE`, and automatic promotions reject codes and require a
+non-`NONE` trigger. Percentage benefits cannot exceed 100, fixed benefits
+cannot define a cap, and active generic codes are compared case-insensitively
+on create, update, and activation. Database constraints remain defense in depth
+for these service rules.
+
+Status changes on existing promotions are accepted only through lifecycle
+actions. Activation moves a draft or paused promotion to active; pause accepts
+only an active promotion; deactivation accepts any non-deactivated status and
+is terminal. Repeating the action for the current status is a no-op and does
+not append an audit event.
+
+Assignment mutations reject missing promotions or customers, non-personal
+promotions, duplicate active assignments, and missing active assignments.
+Unassignment timestamps the active assignment and appends an audit event; it
+never deletes or rewrites historical assignment rows.
 
 ## Approval outcome for PRM-003
 

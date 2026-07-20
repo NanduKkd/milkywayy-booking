@@ -128,6 +128,21 @@ function normalizeOptionalPositiveAmount(value, label) {
   return normalizePositiveAmount(value, label);
 }
 
+function isValidCalendarDate(value) {
+  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})(?:$|T)/);
+
+  if (!match) {
+    return true;
+  }
+
+  const normalized = new Date(`${match[1]}T00:00:00.000Z`);
+
+  return (
+    !Number.isNaN(normalized.getTime()) &&
+    normalized.toISOString().slice(0, 10) === match[1]
+  );
+}
+
 function normalizeOptionalDate(value, label) {
   if (value == null || value === "") {
     return null;
@@ -135,7 +150,7 @@ function normalizeOptionalDate(value, label) {
 
   const normalized = new Date(value);
 
-  if (Number.isNaN(normalized.getTime())) {
+  if (Number.isNaN(normalized.getTime()) || !isValidCalendarDate(value)) {
     throw new Error(`${label} must be a valid date`);
   }
 
@@ -247,8 +262,16 @@ function normalizeDateRangeTriggerConfig(triggerConfig) {
     throw new Error("Date-range start date must use YYYY-MM-DD");
   }
 
+  if (!isValidCalendarDate(startDate)) {
+    throw new Error("Date-range start date must be a valid date");
+  }
+
   if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
     throw new Error("Date-range end date must use YYYY-MM-DD");
+  }
+
+  if (!isValidCalendarDate(endDate)) {
+    throw new Error("Date-range end date must be a valid date");
   }
 
   if (endDate < startDate) {
@@ -914,6 +937,10 @@ async function transitionPromotionStatus({
       throw new Error("Deactivated promotions cannot change status");
     }
 
+    if (normalizedTargetStatus === "PAUSED" && promotion.status !== "ACTIVE") {
+      throw new Error("Only active promotions may be paused");
+    }
+
     if (normalizedTargetStatus === "ACTIVE" && promotion.kind === "GENERIC") {
       await assertNoActiveGenericCodeConflict({
         code: promotion.code,
@@ -1045,35 +1072,37 @@ export async function assignPromotionCustomer({
       lock: activeTransaction.LOCK.UPDATE,
     });
 
-    if (!existingAssignment) {
-      const assignment = await models.PromotionAssignment.create(
-        {
-          promotionId: promotion.id,
-          userId: normalizedUserId,
-          assignedAt: new Date(),
-          assignedByUserId: actor.id,
-          notes: normalizedNotes,
-        },
-        { transaction: activeTransaction },
-      );
-
-      await createPromotionAuditEvent({
-        promotionId: promotion.id,
-        promotionAssignmentId: assignment.id,
-        actorUserId: actor.id,
-        action: "ASSIGNED",
-        beforeState: null,
-        afterState: buildPromotionAssignmentSnapshot({
-          ...assignment.get({ plain: true }),
-          user: customer,
-        }),
-        reason,
-        metadata: {
-          customerUserId: normalizedUserId,
-        },
-        transaction: activeTransaction,
-      });
+    if (existingAssignment) {
+      throw new Error("Customer already has an active promotion assignment");
     }
+
+    const assignment = await models.PromotionAssignment.create(
+      {
+        promotionId: promotion.id,
+        userId: normalizedUserId,
+        assignedAt: new Date(),
+        assignedByUserId: actor.id,
+        notes: normalizedNotes,
+      },
+      { transaction: activeTransaction },
+    );
+
+    await createPromotionAuditEvent({
+      promotionId: promotion.id,
+      promotionAssignmentId: assignment.id,
+      actorUserId: actor.id,
+      action: "ASSIGNED",
+      beforeState: null,
+      afterState: buildPromotionAssignmentSnapshot({
+        ...assignment.get({ plain: true }),
+        user: customer,
+      }),
+      reason,
+      metadata: {
+        customerUserId: normalizedUserId,
+      },
+      transaction: activeTransaction,
+    });
 
     const refreshedPromotion = await findPromotionForAdminView(
       promotion.id,
@@ -1131,6 +1160,11 @@ export async function unassignPromotionCustomer({
       },
       transaction: activeTransaction,
     });
+
+    if (!customer) {
+      throw new Error("Customer account not found");
+    }
+
     const beforeState = buildPromotionAssignmentSnapshot({
       ...assignment.get({ plain: true }),
       user: customer,

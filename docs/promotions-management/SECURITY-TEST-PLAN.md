@@ -1,6 +1,6 @@
 # Promotions management security test plan
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-20
 - Release gate status: `DONE`
 
 ## Automated gates
@@ -9,6 +9,16 @@
 - Personal customer lookup excludes staff and disabled customers.
 - Codes, labels, percentages, amounts, caps, minimums, dates, priorities, and
   limits reject malformed/out-of-range input.
+- Table-driven `promotionAdmin` service tests independently cover create
+  normalization, update merge/clear behavior, kind/code/trigger invariants,
+  benefit and limit boundaries, real calendar dates and ordered ranges, status
+  isolation, and boolean trigger flags.
+- Active generic-code conflicts are tested case-insensitively across create,
+  update, and activation. Lifecycle tests cover allowed, repeated no-op,
+  forbidden, and terminal-deactivation paths.
+- Assignment and unassignment tests reject wrong kinds, missing promotions or
+  customers, duplicate active assignments, and missing active assignments while
+  proving successful unassignment preserves the historical row.
 - Eligibility tests cover active dates, first/second booking, customer assignment,
   minimum spend, per-user limits, total limits, and disabled promotions.
 - Precedence tests prove one promotion only, personal over automatic, generic
@@ -20,6 +30,12 @@
 - Transaction and invoice calculations use the stored promotion snapshot rather
   than mutable current configuration.
 - Code-validation responses do not expose private customer assignments or useful enumeration detail.
+
+The focused repeatable gate is:
+
+```sh
+npm test -- src/lib/services/__tests__/promotionAdmin.test.js --runInBand --coverage --collectCoverageFrom=src/lib/services/promotionAdmin.js
+```
 
 ## Manual gates
 
