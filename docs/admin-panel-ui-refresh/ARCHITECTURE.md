@@ -51,7 +51,10 @@ or financial calculations.
 `/admin` consumes the bounded Dashboard response supplied by
 `admin-analytics-finance`. `/admin/analytics` retains detailed reports, expense
 management, drill-down, and export behavior. Shared calculations remain in the
-analytics service.
+analytics service. The Dashboard response also includes presentation-ready
+property, service, slot, and start-time fields for its recent-booking rows plus a
+current-Dubai-business-day schedule. Custom SVG donut components render live
+service/status distributions without adding a charting dependency.
 
 ### Bookings
 
@@ -74,8 +77,9 @@ download URLs remain unchanged.
 ### Promotions, Calendar, Time Slots, and Pricing
 
 Promotions retains its three current tabs and dense reference table/form
-composition. It exposes one active-tab create action, dedicated trigger, usage,
-and window columns, and one row-action menu. The operational month view and
+composition. It exposes one active-tab create action, one row-action menu, and
+tab-specific schemas: code/minimum-spend/limits for Generic, customer assignment
+for Personal, and trigger/requirements for Automatic. The operational month view and
 date-specific block controls exist only at `/admin/scheduling-calendar`;
 `/admin/timeslots` edits rolling windows, working days, named period definitions,
 and weight configuration without rendering a second calendar. Its three property

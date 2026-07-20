@@ -129,24 +129,40 @@ describe("PromotionManager", () => {
     expect(screen.getByText("First paid booking")).toBeInTheDocument();
   });
 
-  it("shows one create action and separates promotion constraints into columns", () => {
+  it("shows one create action and tab-specific promotion columns", async () => {
     render(<PromotionManager initialPromotions={mockPromotions} />);
 
     expect(
       screen.getAllByRole("button", { name: "Create Generic" }),
     ).toHaveLength(1);
     expect(
-      screen.getByRole("columnheader", { name: "Trigger" }),
+      screen.getByRole("columnheader", { name: "Min spend" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "Usage" }),
+      screen.getByRole("columnheader", { name: "Limits" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "Window" }),
+      screen.getByRole("columnheader", { name: "Validity" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("columnheader", { name: "Eligibility" }),
+      screen.queryByRole("columnheader", { name: "Trigger" }),
     ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    expect(
+      await screen.findByRole("columnheader", { name: "Customer(s)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Trigger" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Automatic Discounts/i }));
+    expect(
+      await screen.findByRole("columnheader", { name: "Trigger" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Requirements" }),
+    ).toBeInTheDocument();
   });
 
   it("creates a generic promotion from the active tab", async () => {

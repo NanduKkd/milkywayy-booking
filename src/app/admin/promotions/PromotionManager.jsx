@@ -344,6 +344,51 @@ function formatCustomerSecondaryLine(customer) {
   return [customer?.email, customer?.phone].filter(Boolean).join(" • ");
 }
 
+function formatPromotionWindow(promotion) {
+  if (!promotion.startsAt && !promotion.endsAt) {
+    return "Always";
+  }
+
+  return `${formatDateTime(promotion.startsAt)} – ${formatDateTime(
+    promotion.endsAt,
+  )}`;
+}
+
+function PromotionStatusCell({ promotion }) {
+  return (
+    <TableCell className="align-top">
+      <div className="space-y-1">
+        <AdminBadge tone={getStatusTone(promotion.status)}>
+          {formatStatusLabel(promotion.status)}
+        </AdminBadge>
+        <p className="text-xs text-muted-foreground">
+          Priority {promotion.priority || 0}
+        </p>
+      </div>
+    </TableCell>
+  );
+}
+
+function PromotionLimitsCell({ promotion, includeMinimumSpend = false }) {
+  const limits = [
+    includeMinimumSpend && Number(promotion.minimumSpend || 0) > 0
+      ? `${formatCurrency(promotion.minimumSpend)} min`
+      : null,
+    promotion.perUserLimit == null
+      ? "Unlimited/customer"
+      : `${promotion.perUserLimit}/customer`,
+    promotion.totalLimit == null
+      ? "Unlimited total"
+      : `${promotion.totalLimit} total`,
+  ].filter(Boolean);
+
+  return (
+    <TableCell className="align-top text-sm text-muted-foreground">
+      {limits.join(" • ")}
+    </TableCell>
+  );
+}
+
 function PromotionTable({
   promotions,
   onEdit,
@@ -380,21 +425,31 @@ function PromotionTable({
       <Table>
         <TableHeader className="bg-white/[0.03]">
           <TableRow className="border-white/8 hover:bg-transparent">
-            <TableHead className="min-w-[280px] text-[hsl(var(--admin-muted))]">
-              Promotion
-            </TableHead>
-            <TableHead className="min-w-[180px] text-[hsl(var(--admin-muted))]">
-              Benefit
-            </TableHead>
-            <TableHead className="min-w-[150px] text-[hsl(var(--admin-muted))]">
-              Trigger
-            </TableHead>
-            <TableHead className="min-w-[170px] text-[hsl(var(--admin-muted))]">
-              Usage
-            </TableHead>
-            <TableHead className="min-w-[210px] text-[hsl(var(--admin-muted))]">
-              Window
-            </TableHead>
+            {tab.value === "GENERIC" ? (
+              <>
+                <TableHead className="min-w-[190px]">Code</TableHead>
+                <TableHead className="min-w-[160px]">Discount</TableHead>
+                <TableHead className="min-w-[130px]">Min spend</TableHead>
+                <TableHead className="min-w-[190px]">Limits</TableHead>
+                <TableHead className="min-w-[220px]">Validity</TableHead>
+              </>
+            ) : tab.value === "PERSONAL" ? (
+              <>
+                <TableHead className="min-w-[220px]">Customer(s)</TableHead>
+                <TableHead className="min-w-[210px]">Promotion</TableHead>
+                <TableHead className="min-w-[160px]">Discount</TableHead>
+                <TableHead className="min-w-[190px]">Limits</TableHead>
+                <TableHead className="min-w-[220px]">Validity</TableHead>
+              </>
+            ) : (
+              <>
+                <TableHead className="min-w-[220px]">Promotion</TableHead>
+                <TableHead className="min-w-[180px]">Trigger</TableHead>
+                <TableHead className="min-w-[160px]">Discount</TableHead>
+                <TableHead className="min-w-[260px]">Requirements</TableHead>
+                <TableHead className="min-w-[220px]">Validity</TableHead>
+              </>
+            )}
             <TableHead className="min-w-[140px] text-[hsl(var(--admin-muted))]">
               Status
             </TableHead>
@@ -409,84 +464,110 @@ function PromotionTable({
 
             return (
               <TableRow key={promotion.id} className="border-white/8">
-                <TableCell className="align-top">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {promotion.code ? (
-                        <AdminBadge className="tracking-[0.16em]">
-                          {promotion.code}
-                        </AdminBadge>
-                      ) : null}
-                      <span className="font-medium text-foreground">
+                {tab.value === "GENERIC" ? (
+                  <>
+                    <TableCell className="align-top">
+                      <p className="font-mono text-sm font-bold text-white">
+                        {promotion.code || "—"}
+                      </p>
+                      <p
+                        className="mt-1 truncate text-xs text-muted-foreground"
+                        title={promotion.name}
+                      >
                         {promotion.name}
-                      </span>
-                    </div>
-                    {promotion.adminDescription ? (
-                      <p className="max-w-md text-sm text-muted-foreground">
-                        {promotion.adminDescription}
                       </p>
-                    ) : null}
-                    {promotion.customerMessage ? (
-                      <p className="text-xs text-sky-300/80">
-                        Customer: {promotion.customerMessage}
-                      </p>
-                    ) : null}
-                    {promotion.kind === "PERSONAL" ? (
-                      promotion.assignments?.length ? (
-                        <div className="flex flex-wrap gap-2">
-                          {promotion.assignments.map((assignment) => (
-                            <AdminBadge key={assignment.id} tone="info">
-                              {formatCustomerDisplayName(assignment.user)}
-                            </AdminBadge>
-                          ))}
+                    </TableCell>
+                    <TableCell className="align-top text-sm font-semibold text-white">
+                      {formatBenefit(promotion)}
+                    </TableCell>
+                    <TableCell className="align-top text-sm text-muted-foreground">
+                      {Number(promotion.minimumSpend || 0) > 0
+                        ? formatCurrency(promotion.minimumSpend)
+                        : "—"}
+                    </TableCell>
+                    <PromotionLimitsCell promotion={promotion} />
+                    <TableCell className="align-top text-sm text-muted-foreground">
+                      {formatPromotionWindow(promotion)}
+                    </TableCell>
+                    <PromotionStatusCell promotion={promotion} />
+                  </>
+                ) : tab.value === "PERSONAL" ? (
+                  <>
+                    <TableCell className="align-top">
+                      {promotion.assignments?.length ? (
+                        <div>
+                          <p className="text-sm font-medium text-white">
+                            {formatCustomerDisplayName(
+                              promotion.assignments[0].user,
+                            )}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {promotion.assignments.length > 1
+                              ? `+${promotion.assignments.length - 1} more assigned`
+                              : formatCustomerSecondaryLine(
+                                  promotion.assignments[0].user,
+                                ) || "1 customer assigned"}
+                          </p>
                         </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground">
-                          No customers assigned yet.
+                        <p className="text-sm font-medium text-amber-400">
+                          Unassigned
                         </p>
-                      )
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="space-y-1 text-sm">
-                    <p className="font-medium text-foreground">
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <p className="text-sm font-medium text-white">
+                        {promotion.name}
+                      </p>
+                      {promotion.adminDescription ? (
+                        <p
+                          className="mt-1 truncate text-xs text-muted-foreground"
+                          title={promotion.adminDescription}
+                        >
+                          {promotion.adminDescription}
+                        </p>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="align-top text-sm font-semibold text-white">
                       {formatBenefit(promotion)}
-                    </p>
-                    <p className="text-muted-foreground">
-                      Minimum spend: {formatCurrency(promotion.minimumSpend)}
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell className="align-top text-sm text-muted-foreground">
-                  {formatTrigger(promotion)}
-                </TableCell>
-                <TableCell className="align-top text-sm text-muted-foreground">
-                  <p>
-                    {promotion.perUserLimit == null
-                      ? "No per-user limit"
-                      : `${promotion.perUserLimit} per user`}
-                  </p>
-                  <p>
-                    {promotion.totalLimit == null
-                      ? "No total limit"
-                      : `${promotion.totalLimit} total`}
-                  </p>
-                </TableCell>
-                <TableCell className="align-top text-sm text-muted-foreground">
-                  <p>{formatDateTime(promotion.startsAt)}</p>
-                  <p>to {formatDateTime(promotion.endsAt)}</p>
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="space-y-2">
-                    <AdminBadge tone={getStatusTone(promotion.status)}>
-                      {formatStatusLabel(promotion.status)}
-                    </AdminBadge>
-                    <p className="text-xs text-muted-foreground">
-                      Priority {promotion.priority || 0}
-                    </p>
-                  </div>
-                </TableCell>
+                    </TableCell>
+                    <PromotionLimitsCell promotion={promotion} />
+                    <TableCell className="align-top text-sm text-muted-foreground">
+                      {formatPromotionWindow(promotion)}
+                    </TableCell>
+                    <PromotionStatusCell promotion={promotion} />
+                  </>
+                ) : (
+                  <>
+                    <TableCell className="align-top">
+                      <p className="text-sm font-medium text-white">
+                        {promotion.name}
+                      </p>
+                      {promotion.adminDescription ? (
+                        <p
+                          className="mt-1 truncate text-xs text-muted-foreground"
+                          title={promotion.adminDescription}
+                        >
+                          {promotion.adminDescription}
+                        </p>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="align-top text-sm text-amber-300">
+                      {formatTrigger(promotion)}
+                    </TableCell>
+                    <TableCell className="align-top text-sm font-semibold text-white">
+                      {formatBenefit(promotion)}
+                    </TableCell>
+                    <PromotionLimitsCell
+                      includeMinimumSpend
+                      promotion={promotion}
+                    />
+                    <TableCell className="align-top text-sm text-muted-foreground">
+                      {formatPromotionWindow(promotion)}
+                    </TableCell>
+                    <PromotionStatusCell promotion={promotion} />
+                  </>
+                )}
                 <TableCell className="align-top">
                   <div className="flex justify-end">
                     <DropdownMenu>

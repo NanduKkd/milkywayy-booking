@@ -1120,6 +1120,19 @@ function serializeRecentBooking(booking) {
   const plain =
     typeof booking?.get === "function" ? booking.get({ plain: true }) : booking;
   const user = plain?.user || null;
+  const propertyDetails = plain?.propertyDetails || {};
+  const shootDetails = plain?.shootDetails || {};
+  const propertyType =
+    propertyDetails.type || propertyDetails.propertyType || null;
+  const propertySize =
+    propertyDetails.size || propertyDetails.propertySize || null;
+  const propertyLocation = [
+    propertyDetails.unit || propertyDetails.unitNumber,
+    propertyDetails.building,
+    propertyDetails.community,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return {
     id: Number(plain?.id),
@@ -1128,6 +1141,19 @@ function serializeRecentBooking(booking) {
       ? new Date(plain.createdAt).toISOString()
       : null,
     date: plain?.date || null,
+    property: {
+      label:
+        propertyLocation ||
+        [propertySize, propertyType].filter(Boolean).join(" ") ||
+        null,
+      size: propertySize,
+      type: propertyType,
+    },
+    services: Array.isArray(shootDetails.services)
+      ? shootDetails.services.filter(Boolean)
+      : [],
+    slot: plain?.slot ?? null,
+    startTime: plain?.startTime || null,
     status: plain?.status || null,
     total: roundMetricValue(plain?.total),
     workflowStatus: plain?.workflowStatus || null,
@@ -2075,22 +2101,26 @@ export function buildFinancialReports({
 
   const kpis = {
     averageBookingValue: currentOverview.averages.averageBookingValue,
+    cancelledBookings: currentOverview.counts.cancelledBookings,
     completedBookings: currentOverview.counts.completedBookings,
     expenses: currentOverview.totals.expenses,
     grossPayments: currentOverview.totals.grossPayments,
     lostValue: currentOverview.totals.lostValue,
     netProfit: currentOverview.totals.netProfit,
     netRevenue: currentOverview.totals.netRevenue,
+    pendingBookings: currentOverview.counts.pendingBookings,
     refunds: currentOverview.totals.refunds,
   };
   const previousKpis = {
     averageBookingValue: previousOverview.averages.averageBookingValue,
+    cancelledBookings: previousOverview.counts.cancelledBookings,
     completedBookings: previousOverview.counts.completedBookings,
     expenses: previousOverview.totals.expenses,
     grossPayments: previousOverview.totals.grossPayments,
     lostValue: previousOverview.totals.lostValue,
     netProfit: previousOverview.totals.netProfit,
     netRevenue: previousOverview.totals.netRevenue,
+    pendingBookings: previousOverview.counts.pendingBookings,
     refunds: previousOverview.totals.refunds,
   };
 
@@ -2140,6 +2170,7 @@ export function buildDashboardAnalytics({
   transactions = [],
   expenses = [],
   pricingConfig = {},
+  currentBusinessDate = null,
   filters: rawFilters,
 } = {}) {
   const filters = normalizeDashboardAnalyticsFilters(rawFilters);
@@ -2169,6 +2200,23 @@ export function buildDashboardAnalytics({
       return rightTime - leftTime;
     })
     .slice(0, MAX_DASHBOARD_RECENT_BOOKINGS)
+    .map((booking) => serializeRecentBooking(booking));
+  const todayBusinessDate = currentBusinessDate || formatDubaiDate(new Date());
+  const todaySchedule = bookings
+    .map((booking) =>
+      typeof booking?.get === "function"
+        ? booking.get({ plain: true })
+        : booking,
+    )
+    .filter(
+      (booking) =>
+        booking?.status !== "DRAFT" && booking?.date === todayBusinessDate,
+    )
+    .sort((left, right) =>
+      String(left?.startTime || "").localeCompare(
+        String(right?.startTime || ""),
+      ),
+    )
     .map((booking) => serializeRecentBooking(booking));
 
   const kpis = {
@@ -2216,6 +2264,16 @@ export function buildDashboardAnalytics({
     revenueByService: currentOverview.breakdowns.serviceRevenue,
     revenueTrend,
     scheduleSummary,
+    todaySchedule: {
+      businessDate: todayBusinessDate,
+      bookings: todaySchedule,
+      total: roundMetricValue(
+        todaySchedule.reduce(
+          (sum, booking) => sum + Number(booking.total || 0),
+          0,
+        ),
+      ),
+    },
   };
 }
 

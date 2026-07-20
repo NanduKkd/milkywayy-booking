@@ -1,6 +1,14 @@
 "use client";
 
-import { BarChart3, Download, Eye, RefreshCcw, TrendingUp } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  CalendarDays,
+  Download,
+  RefreshCcw,
+  TrendingUp,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -32,13 +40,43 @@ import ExpenseTrackerSection from "./ExpenseTrackerSection";
 const REPORT_TIMEZONE = "Asia/Dubai";
 const DASHBOARD_DRILLDOWN_PAGE_SIZE = 10;
 const DASHBOARD_KPI_CARDS = [
-  { isCount: false, key: "netRevenue", label: "Total Revenue" },
-  { isCount: true, key: "completedBookings", label: "Completed Bookings" },
-  { isCount: true, key: "pendingBookings", label: "Pending Shoots" },
-  { isAverage: true, key: "averageBookingValue", label: "Avg Booking Value" },
-  { isCount: false, key: "expenses", label: "Expenses" },
-  { isCount: false, key: "netProfit", label: "Net Profit" },
+  { key: "netRevenue", label: "Total Revenue", tone: "emerald" },
+  {
+    isCount: true,
+    key: "completedBookings",
+    label: "Completed Bookings",
+    tone: "blue",
+  },
+  {
+    isCount: true,
+    invertTrend: true,
+    key: "pendingBookings",
+    label: "Pending Shoots",
+    tone: "amber",
+  },
+  {
+    drilldownKey: "netRevenue",
+    key: "averageBookingValue",
+    label: "Avg Booking Value",
+    tone: "violet",
+  },
+  {
+    invertTrend: true,
+    key: "expenses",
+    label: "Expenses",
+    tone: "rose",
+  },
+  { key: "netProfit", label: "Net Profit", tone: "cyan" },
 ];
+const CHART_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899"];
+const KPI_TONE_CLASSES = {
+  amber: "text-amber-400",
+  blue: "text-blue-400",
+  cyan: "text-cyan-400",
+  emerald: "text-emerald-400",
+  rose: "text-rose-400",
+  violet: "text-violet-400",
+};
 const DRILLDOWN_LABELS = {
   cancelledBookings: "Cancelled Bookings",
   completedBookings: "Completed Bookings",
@@ -103,15 +141,71 @@ function formatPercent(value) {
   return `${Number(value || 0).toFixed(2)}%`;
 }
 
-function formatDelta(entry, formatter) {
-  if (!entry) {
-    return "No prior period";
+function getComparisonPercentage(comparison) {
+  if (!comparison) {
+    return 0;
   }
 
-  const delta = Number(entry.delta || 0);
-  const prefix = delta > 0 ? "+" : delta < 0 ? "-" : "";
+  if (comparison.deltaPercentage != null) {
+    return Math.abs(Number(comparison.deltaPercentage || 0));
+  }
 
-  return `${prefix}${formatter(Math.abs(delta))} vs previous period`;
+  const current = Number(comparison.current || 0);
+  const previous = Number(comparison.previous || 0);
+
+  if (previous === 0) {
+    return current === 0 ? 0 : 100;
+  }
+
+  return Math.abs(((current - previous) / previous) * 100);
+}
+
+function formatCompactPercent(value) {
+  const rounded = Math.round(Number(value || 0) * 10) / 10;
+  return `${rounded.toLocaleString("en", { maximumFractionDigits: 1 })}%`;
+}
+
+function ComparisonBadge({ comparison, invertTrend = false }) {
+  const direction =
+    comparison?.direction ||
+    (Number(comparison?.delta || 0) > 0
+      ? "up"
+      : Number(comparison?.delta || 0) < 0
+        ? "down"
+        : "flat");
+
+  if (direction === "flat") {
+    return (
+      <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-bold text-zinc-500">
+        0%
+      </span>
+    );
+  }
+
+  const isUp = direction === "up";
+  const isPositive = invertTrend ? !isUp : isUp;
+  const Icon = isUp ? ArrowUp : ArrowDown;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 rounded border px-1.5 py-0.5 text-[10px] font-bold ${
+        isPositive
+          ? "border-emerald-900 bg-emerald-950 text-emerald-400"
+          : "border-rose-900 bg-rose-950 text-rose-400"
+      }`}
+    >
+      <Icon className="h-3 w-3" />
+      {formatCompactPercent(getComparisonPercentage(comparison))}
+    </span>
+  );
+}
+
+function ComparisonFooter({ comparison, formatter }) {
+  return (
+    <p className="border-t border-zinc-800 pt-3 text-xs text-[hsl(var(--admin-muted))]">
+      vs {formatter(comparison?.previous || 0)} last month
+    </p>
+  );
 }
 
 function formatBusinessDate(value) {
@@ -141,6 +235,71 @@ function formatDateTime(value) {
 
 function formatDateRange(rangeStart, rangeEnd) {
   return `${formatBusinessDate(rangeStart)} to ${formatBusinessDate(rangeEnd)}`;
+}
+
+function formatStatusLabel(value) {
+  return String(value || "Unknown")
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function BookingStatusBadge({ booking }) {
+  const status = booking.workflowStatus || booking.status || "UNKNOWN";
+  const tone = status.includes("CANCEL")
+    ? "border-rose-800 bg-rose-950 text-rose-300"
+    : status.includes("COMPLET") || status.includes("DELIVER")
+      ? "border-emerald-800 bg-emerald-950 text-emerald-300"
+      : "border-amber-800 bg-amber-950 text-amber-300";
+
+  return (
+    <span
+      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${tone}`}
+    >
+      {formatStatusLabel(status)}
+    </span>
+  );
+}
+
+function ServiceBadges({ services = [] }) {
+  if (!services.length) {
+    return <span className="text-xs text-zinc-600">No services</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {services.map((service, index) => (
+        <span
+          className="rounded-full border px-2 py-0.5 text-[10px] font-bold"
+          key={service}
+          style={{
+            backgroundColor: `${CHART_COLORS[index % CHART_COLORS.length]}18`,
+            borderColor: `${CHART_COLORS[index % CHART_COLORS.length]}55`,
+            color: CHART_COLORS[index % CHART_COLORS.length],
+          }}
+        >
+          {service}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function formatScheduleTime(value) {
+  if (!value) {
+    return "Time TBD";
+  }
+
+  const [hours, minutes] = String(value).split(":").map(Number);
+  if (!Number.isFinite(hours)) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(2026, 0, 1, hours, minutes || 0)));
 }
 
 function hasReportActivity(report) {
@@ -333,19 +492,130 @@ function TrendChart({ buckets = [], title, valueKey = "netRevenue" }) {
   );
 }
 
-function ReportKpiCard({ label, value, comparison, isCount = false }) {
+function DonutChart({
+  centerLabel,
+  centerValue,
+  data = [],
+  formatValue = formatCount,
+  title,
+}) {
+  const normalized = data
+    .map((item, index) => ({
+      ...item,
+      color: item.color || CHART_COLORS[index % CHART_COLORS.length],
+      value: Math.max(Number(item.value || 0), 0),
+    }))
+    .filter((item) => item.value > 0);
+  const total = normalized.reduce((sum, item) => sum + item.value, 0);
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+
+  if (total === 0) {
+    return (
+      <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-zinc-800 text-sm text-muted-foreground">
+        No data for this month
+      </div>
+    );
+  }
+
   return (
-    <AdminCard>
-      <AdminCardHeader className="pb-3">
-        <AdminCardDescription>{label}</AdminCardDescription>
-        <AdminCardTitle className="text-2xl">
-          {isCount ? formatCount(value) : formatCurrency(value)}
+    <div className="grid items-center gap-5 sm:grid-cols-[180px_1fr]">
+      <div className="relative mx-auto h-[170px] w-[170px]">
+        <svg
+          aria-label={title}
+          className="h-full w-full -rotate-90"
+          role="img"
+          viewBox="0 0 140 140"
+        >
+          <circle
+            cx="70"
+            cy="70"
+            fill="none"
+            r={radius}
+            stroke="#27272a"
+            strokeWidth="18"
+          />
+          {normalized.map((item) => {
+            const length = (item.value / total) * circumference;
+            const segment = (
+              <circle
+                cx="70"
+                cy="70"
+                fill="none"
+                key={item.key || item.label}
+                r={radius}
+                stroke={item.color}
+                strokeDasharray={`${Math.max(length - 3, 0)} ${circumference}`}
+                strokeDashoffset={-offset}
+                strokeLinecap="round"
+                strokeWidth="18"
+              />
+            );
+            offset += length;
+            return segment;
+          })}
+        </svg>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+          <span className="text-base font-bold text-white">
+            {centerValue || formatValue(total)}
+          </span>
+          <span className="mt-0.5 text-[10px] text-zinc-500">
+            {centerLabel}
+          </span>
+        </div>
+      </div>
+      <div className="space-y-2.5">
+        {normalized.map((item) => (
+          <div
+            className="flex items-center justify-between gap-4"
+            key={item.key || item.label}
+          >
+            <span className="flex min-w-0 items-center gap-2 text-xs text-zinc-400">
+              <span
+                aria-hidden="true"
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: item.color }}
+              />
+              <span className="truncate">{item.label}</span>
+            </span>
+            <span className="whitespace-nowrap text-xs font-bold text-white">
+              {formatValue(item.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReportKpiCard({
+  comparison,
+  invertTrend = false,
+  isCount = false,
+  label,
+  tone = "emerald",
+  value,
+}) {
+  const formatter = isCount ? formatCount : formatCurrency;
+
+  return (
+    <AdminCard className="rounded-xl border-zinc-800 bg-zinc-900">
+      <AdminCardHeader className="p-5 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <AdminCardDescription className="text-[10px] font-semibold uppercase tracking-widest">
+            {label}
+          </AdminCardDescription>
+          <ComparisonBadge comparison={comparison} invertTrend={invertTrend} />
+        </div>
+        <AdminCardTitle
+          className={`text-2xl ${KPI_TONE_CLASSES[tone] || "text-white"}`}
+        >
+          {formatter(value)}
         </AdminCardTitle>
       </AdminCardHeader>
-      <AdminCardContent>
-        <p className="text-xs text-[hsl(var(--admin-muted))]">
-          {formatDelta(comparison, isCount ? formatCount : formatCurrency)}
-        </p>
+      <AdminCardContent className="px-5 pb-5">
+        <ComparisonFooter comparison={comparison} formatter={formatter} />
       </AdminCardContent>
     </AdminCard>
   );
@@ -353,11 +623,15 @@ function ReportKpiCard({ label, value, comparison, isCount = false }) {
 
 function DashboardKpiCard({
   comparison,
+  invertTrend = false,
   isCount = false,
   label,
   onViewDetails,
+  tone = "emerald",
   value,
 }) {
+  const formatter = isCount ? formatCount : formatCurrency;
+
   return (
     <AdminCard className="overflow-hidden rounded-xl border-zinc-800 bg-zinc-900 transition-colors hover:border-zinc-600">
       <button
@@ -367,17 +641,23 @@ function DashboardKpiCard({
         type="button"
       >
         <AdminCardHeader className="p-5 pb-3">
-          <AdminCardDescription className="text-[10px] font-semibold uppercase tracking-widest">
-            {label}
-          </AdminCardDescription>
-          <AdminCardTitle className="text-2xl">
-            {isCount ? formatCount(value) : formatCurrency(value)}
+          <div className="flex items-start justify-between gap-3">
+            <AdminCardDescription className="text-[10px] font-semibold uppercase tracking-widest">
+              {label}
+            </AdminCardDescription>
+            <ComparisonBadge
+              comparison={comparison}
+              invertTrend={invertTrend}
+            />
+          </div>
+          <AdminCardTitle
+            className={`text-2xl ${KPI_TONE_CLASSES[tone] || "text-white"}`}
+          >
+            {formatter(value)}
           </AdminCardTitle>
         </AdminCardHeader>
         <AdminCardContent className="px-5 pb-5">
-          <p className="border-t border-zinc-800 pt-3 text-xs text-[hsl(var(--admin-muted))]">
-            {formatDelta(comparison, isCount ? formatCount : formatCurrency)}
-          </p>
+          <ComparisonFooter comparison={comparison} formatter={formatter} />
         </AdminCardContent>
       </button>
     </AdminCard>
@@ -1087,34 +1367,48 @@ export default function FinancialReportsPage({ mode = "full" }) {
   const reportCompleted = Number(
     report?.kpis?.completedBookings ?? reportStatusCounts.completed ?? 0,
   );
-  const reportAverageValue =
-    Number(report?.kpis?.netRevenue || 0) / Math.max(reportCompleted, 1);
   const reportKpis = [
     {
       comparison: report?.comparison?.netRevenue,
       label: "Revenue",
+      tone: "emerald",
       value: report?.kpis?.netRevenue,
     },
     {
       comparison: report?.comparison?.completedBookings,
       isCount: true,
       label: "Completed",
+      tone: "blue",
       value: reportCompleted,
     },
     {
+      comparison: report?.comparison?.cancelledBookings,
+      invertTrend: true,
       isCount: true,
       label: "Cancelled",
-      value: reportStatusCounts.cancelled,
+      tone: "rose",
+      value:
+        report?.kpis?.cancelledBookings ?? reportStatusCounts.cancelled ?? 0,
     },
     {
+      comparison: report?.comparison?.pendingBookings,
+      invertTrend: true,
       isCount: true,
       label: "Pending",
-      value: reportStatusCounts.pending,
+      tone: "amber",
+      value: report?.kpis?.pendingBookings ?? reportStatusCounts.pending ?? 0,
     },
-    { label: "Avg Value", value: reportAverageValue },
+    {
+      comparison: report?.comparison?.averageBookingValue,
+      label: "Avg Value",
+      tone: "violet",
+      value: report?.kpis?.averageBookingValue,
+    },
     {
       comparison: report?.comparison?.expenses,
+      invertTrend: true,
       label: "Expenses",
+      tone: "rose",
       value: report?.kpis?.expenses,
     },
   ];
@@ -1248,23 +1542,15 @@ export default function FinancialReportsPage({ mode = "full" }) {
                 {DASHBOARD_KPI_CARDS.map((card) => (
                   <DashboardKpiCard
                     key={card.key}
-                    comparison={
-                      card.isAverage ? null : dashboard.comparison?.[card.key]
-                    }
+                    comparison={dashboard.comparison?.[card.key]}
+                    invertTrend={card.invertTrend}
                     isCount={card.isCount}
                     label={card.label}
                     onViewDetails={() =>
-                      openDrilldown(card.isAverage ? "netRevenue" : card.key)
+                      openDrilldown(card.drilldownKey || card.key)
                     }
-                    value={
-                      card.isAverage
-                        ? Number(dashboard.kpis?.netRevenue || 0) /
-                          Math.max(
-                            Number(dashboard.kpis?.completedBookings || 0),
-                            1,
-                          )
-                        : dashboard.kpis?.[card.key]
-                    }
+                    tone={card.tone}
+                    value={dashboard.kpis?.[card.key]}
                   />
                 ))}
               </div>
@@ -1288,44 +1574,29 @@ export default function FinancialReportsPage({ mode = "full" }) {
                 </AdminCard>
 
                 <AdminCard>
-                  <AdminCardHeader className="p-5 pb-2">
+                  <AdminCardHeader className="p-5 pb-1">
                     <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <AdminCardTitle className="text-sm">
-                          Revenue by Service
-                        </AdminCardTitle>
-                      </div>
-                      <Button
-                        className="h-8 rounded-lg text-xs"
-                        onClick={() => openDrilldown("revenueByService")}
-                        type="button"
-                        variant="outline"
-                      >
-                        <Eye className="h-4 w-4" />
-                        View rows
-                      </Button>
+                      <AdminCardTitle className="text-sm">
+                        Revenue by Service
+                      </AdminCardTitle>
+                      <span className="text-[10px] text-zinc-500">
+                        {selectedMonthLabel}
+                      </span>
                     </div>
                   </AdminCardHeader>
-                  <AdminCardContent className="space-y-3">
-                    {(dashboard.revenueByService || []).length > 0 ? (
-                      dashboard.revenueByService.map((service) => (
-                        <div
-                          key={service.key}
-                          className="flex items-center justify-between border-b border-zinc-800 py-2.5 last:border-0"
-                        >
-                          <span className="text-sm text-[hsl(var(--admin-muted))]">
-                            {service.label}
-                          </span>
-                          <span className="text-sm font-medium">
-                            {formatCurrency(service.amount)}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-[hsl(var(--admin-muted))]">
-                        No attributable paid service revenue for this range.
-                      </p>
-                    )}
+                  <AdminCardContent className="p-5 pt-1">
+                    <DonutChart
+                      centerLabel="total revenue"
+                      data={(dashboard.revenueByService || []).map(
+                        (service) => ({
+                          key: service.key,
+                          label: service.label,
+                          value: service.amount,
+                        }),
+                      )}
+                      formatValue={formatCurrency}
+                      title={`Revenue by service for ${selectedMonthLabel}`}
+                    />
                   </AdminCardContent>
                 </AdminCard>
               </div>
@@ -1334,98 +1605,91 @@ export default function FinancialReportsPage({ mode = "full" }) {
                 <AdminCard>
                   <AdminCardHeader className="border-b border-zinc-800 p-5 py-4">
                     <div className="flex items-center justify-between gap-3">
-                      <AdminCardTitle className="text-sm">
-                        Today&apos;s Schedule
-                      </AdminCardTitle>
+                      <div>
+                        <AdminCardTitle className="text-sm">
+                          Today&apos;s Schedule
+                        </AdminCardTitle>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {formatBusinessDate(
+                            dashboard.todaySchedule?.businessDate,
+                          )}
+                          {" · "}
+                          {formatCount(
+                            dashboard.todaySchedule?.bookings?.length,
+                          )}{" "}
+                          shoots ·{" "}
+                          {formatCurrency(dashboard.todaySchedule?.total)}
+                        </p>
+                      </div>
                       <Button
+                        asChild
                         className="h-8 rounded-lg text-xs"
-                        onClick={() => openDrilldown("scheduleSummary")}
-                        type="button"
-                        variant="outline"
+                        variant="ghost"
                       >
-                        <Eye className="h-4 w-4" />
-                        View rows
+                        <Link href="/admin/scheduling-calendar">
+                          Full calendar →
+                        </Link>
                       </Button>
                     </div>
                   </AdminCardHeader>
-                  <AdminCardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-zinc-800 lg:grid-cols-4">
-                      <div className="bg-zinc-900 p-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                          Total
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-[hsl(var(--admin-foreground))]">
-                          {formatCount(
-                            dashboard.scheduleSummary?.totals?.total,
-                          )}
-                        </p>
-                      </div>
-                      <div className="bg-zinc-900 p-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                          Pending
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-amber-400">
-                          {formatCount(
-                            dashboard.scheduleSummary?.totals?.pending,
-                          )}
-                        </p>
-                      </div>
-                      <div className="bg-zinc-900 p-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                          Completed
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-emerald-400">
-                          {formatCount(
-                            dashboard.scheduleSummary?.totals?.completed,
-                          )}
-                        </p>
-                      </div>
-                      <div className="bg-zinc-900 p-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                          Cancelled
-                        </p>
-                        <p className="mt-1 text-lg font-semibold text-red-400">
-                          {formatCount(
-                            dashboard.scheduleSummary?.totals?.cancelled,
-                          )}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {(dashboard.scheduleSummary?.recentDayDetails || [])
-                        .length > 0 ? (
-                        dashboard.scheduleSummary.recentDayDetails.map(
-                          (day) => (
-                            <div
-                              key={day.bucketStartBusinessDate}
-                              className="flex items-center justify-between border-b border-zinc-800 px-1 py-2.5 last:border-0"
-                            >
-                              <div>
-                                <p className="font-medium text-[hsl(var(--admin-foreground))]">
-                                  {formatBusinessDate(
-                                    day.bucketStartBusinessDate,
-                                  )}
-                                </p>
-                                <p className="text-xs text-[hsl(var(--admin-muted))]">
-                                  {formatCount(day.total)} bookings ·{" "}
-                                  {formatCount(day.pending)} pending ·{" "}
-                                  {formatCount(day.completed)} completed ·{" "}
-                                  {formatCount(day.cancelled)} cancelled
-                                </p>
-                              </div>
-                              <span className="text-sm font-medium">
-                                {formatCount(day.total)}
-                              </span>
+                  <AdminCardContent className="p-0">
+                    {(dashboard.todaySchedule?.bookings || []).length > 0 ? (
+                      <div className="divide-y divide-zinc-800">
+                        {dashboard.todaySchedule.bookings.map((booking) => (
+                          <div
+                            className="grid gap-4 border-l-2 border-l-amber-500 px-5 py-4 md:grid-cols-[120px_1fr_1.2fr_180px] md:items-start"
+                            key={booking.id}
+                          >
+                            <div>
+                              <p className="font-bold text-white">
+                                {formatScheduleTime(booking.startTime)}
+                              </p>
+                              <p className="mt-0.5 text-[10px] uppercase tracking-wider text-zinc-600">
+                                Slot {booking.slot || "—"}
+                              </p>
                             </div>
-                          ),
-                        )
-                      ) : (
-                        <p className="text-sm text-[hsl(var(--admin-muted))]">
-                          No scheduled bookings intersect this range.
+                            <div>
+                              <p className="text-sm font-semibold text-white">
+                                {booking.property?.label ||
+                                  booking.bookingCode ||
+                                  `Booking #${booking.id}`}
+                              </p>
+                              <p className="mt-0.5 text-xs text-zinc-500">
+                                {[
+                                  booking.property?.type,
+                                  booking.property?.size,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ") || "Property details pending"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="mb-1.5 text-sm text-zinc-300">
+                                {booking.customer?.fullName ||
+                                  booking.customer?.email ||
+                                  "No customer"}
+                              </p>
+                              <ServiceBadges services={booking.services} />
+                            </div>
+                            <div className="md:text-right">
+                              <p className="font-bold text-white">
+                                {formatCurrency(booking.total)}
+                              </p>
+                              <div className="mt-1">
+                                <BookingStatusBadge booking={booking} />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-10 text-center">
+                        <CalendarDays className="mx-auto h-5 w-5 text-zinc-600" />
+                        <p className="mt-2 text-sm text-zinc-500">
+                          No shoots scheduled today
                         </p>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </AdminCardContent>
                 </AdminCard>
 
@@ -1433,22 +1697,21 @@ export default function FinancialReportsPage({ mode = "full" }) {
                   title="Recent Bookings"
                   actions={
                     <Button
+                      asChild
                       className="h-8 rounded-lg text-xs"
-                      onClick={() => openDrilldown("recentBookings")}
-                      type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
-                      <Eye className="h-4 w-4" />
-                      View rows
+                      <Link href="/admin/bookings">View all →</Link>
                     </Button>
                   }
                 >
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Booking</TableHead>
+                        <TableHead>Property</TableHead>
                         <TableHead>Client</TableHead>
                         <TableHead>Date</TableHead>
+                        <TableHead>Services</TableHead>
                         <TableHead>Amount</TableHead>
                         <TableHead>Status</TableHead>
                       </TableRow>
@@ -1457,8 +1720,22 @@ export default function FinancialReportsPage({ mode = "full" }) {
                       {(dashboard.recentBookings || []).length > 0 ? (
                         dashboard.recentBookings.map((booking) => (
                           <TableRow key={booking.id}>
-                            <TableCell className="font-medium">
-                              {booking.bookingCode || `Booking #${booking.id}`}
+                            <TableCell>
+                              <p className="font-medium text-white">
+                                {booking.property?.label ||
+                                  booking.bookingCode ||
+                                  `Booking #${booking.id}`}
+                              </p>
+                              <p className="mt-0.5 text-xs text-zinc-500">
+                                {[
+                                  booking.property?.type,
+                                  booking.property?.size,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ") ||
+                                  booking.bookingCode ||
+                                  "—"}
+                              </p>
                             </TableCell>
                             <TableCell>
                               {booking.customer?.fullName ||
@@ -1468,19 +1745,20 @@ export default function FinancialReportsPage({ mode = "full" }) {
                             <TableCell>
                               {formatBusinessDate(booking.date)}
                             </TableCell>
+                            <TableCell>
+                              <ServiceBadges services={booking.services} />
+                            </TableCell>
                             <TableCell className="font-semibold">
                               {formatCurrency(booking.total)}
                             </TableCell>
                             <TableCell>
-                              {booking.workflowStatus ||
-                                booking.status ||
-                                "Unknown"}
+                              <BookingStatusBadge booking={booking} />
                             </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <EmptyTableRow
-                          colSpan={5}
+                          colSpan={6}
                           message="No recent bookings in this range."
                         />
                       )}
@@ -1708,61 +1986,57 @@ export default function FinancialReportsPage({ mode = "full" }) {
 
                 <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <AdminCard>
-                    <AdminCardHeader>
+                    <AdminCardHeader className="pb-2">
                       <AdminCardTitle className="text-xl">
                         Booking Status
                       </AdminCardTitle>
                       <AdminCardDescription>
-                        Operational counts tied to the same live reporting
-                        range.
+                        {selectedMonthLabel}
                       </AdminCardDescription>
                     </AdminCardHeader>
-                    <AdminCardContent className="space-y-3">
-                      {(report.bookingStatus?.buckets || []).map((bucket) => (
-                        <div
-                          key={bucket.key}
-                          className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
-                        >
-                          <span className="text-sm text-[hsl(var(--admin-muted))]">
-                            {bucket.label}
-                          </span>
-                          <span className="text-sm font-medium">
-                            {formatCount(bucket.count)}
-                          </span>
-                        </div>
-                      ))}
+                    <AdminCardContent>
+                      <DonutChart
+                        centerLabel="bookings"
+                        data={(report.bookingStatus?.buckets || []).map(
+                          (bucket) => ({
+                            color:
+                              bucket.key === "completed"
+                                ? "#10b981"
+                                : bucket.key === "cancelled"
+                                  ? "#f43f5e"
+                                  : "#f59e0b",
+                            key: bucket.key,
+                            label: bucket.label,
+                            value: bucket.count,
+                          }),
+                        )}
+                        title={`Booking status for ${selectedMonthLabel}`}
+                      />
                     </AdminCardContent>
                   </AdminCard>
 
                   <AdminCard>
-                    <AdminCardHeader>
+                    <AdminCardHeader className="pb-2">
                       <AdminCardTitle className="text-xl">
                         Revenue by Service
                       </AdminCardTitle>
                       <AdminCardDescription>
-                        Paid-service contribution from the same live dataset.
+                        {selectedMonthLabel}
                       </AdminCardDescription>
                     </AdminCardHeader>
-                    <AdminCardContent className="space-y-3">
-                      {(report.revenueByService || []).length > 0 ? (
-                        report.revenueByService.map((service) => (
-                          <div
-                            key={service.key}
-                            className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
-                          >
-                            <span className="text-sm text-[hsl(var(--admin-muted))]">
-                              {service.label}
-                            </span>
-                            <span className="text-sm font-medium">
-                              {formatCurrency(service.amount)}
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-sm text-[hsl(var(--admin-muted))]">
-                          No attributable paid service revenue for this range.
-                        </p>
-                      )}
+                    <AdminCardContent>
+                      <DonutChart
+                        centerLabel="total revenue"
+                        data={(report.revenueByService || []).map(
+                          (service) => ({
+                            key: service.key,
+                            label: service.label,
+                            value: service.amount,
+                          }),
+                        )}
+                        formatValue={formatCurrency}
+                        title={`Revenue by service for ${selectedMonthLabel}`}
+                      />
                     </AdminCardContent>
                   </AdminCard>
                 </div>

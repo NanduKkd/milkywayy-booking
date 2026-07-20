@@ -19,26 +19,35 @@ The validation covers automated admin and shared-component tests plus manual bro
 
 The 2026-07-20 review pass aligns Promotions, Dashboard, and Reports more closely to `design-reference.jsx`; removes the duplicate calendar from Time Slots; adds unsaved-edit indicators to Pricing; and removes visible drag/rank labels from Portfolio and Reviews. Dashboard and Reports reuse the reference hierarchy and density while continuing to render live application data and the existing operational actions.
 
-The subsequent review revision removes the duplicate Promotions create action, moves row mutations into an overflow menu, separates promotion constraints into Trigger, Usage, and Window columns, increases native time-control contrast, and places all three property-weight groups in one desktop row. It also replaces the Portfolio and Reviews self-HTTP fetches with a direct shared admin content service so local host/port configuration cannot break their initial render.
+The subsequent review revision removes the duplicate Promotions create action, moves row mutations into an overflow menu, gives each promotion type a purpose-built dense table schema, increases native time-control contrast, and places all three property-weight groups in one desktop row. It also replaces the Portfolio and Reviews self-HTTP fetches with a direct shared admin content service so local host/port configuration cannot break their initial render.
+
+The final annotation pass adds reference-style KPI delta badges, dashboard and report donut charts, a true current-day schedule, richer recent-booking fields with direct Bookings navigation, and a compact paginated expense panel. Promotion tables now expose the distinctions that matter operationally: generic codes show code and minimum spend, personal offers lead with customer assignment, and automatic discounts show trigger and requirements.
 
 ---
 
 ## Automated Test Run Summary
 
-Run against the unit testing suite under `src/app/admin` and `src/components/admin` using Jest:
+Focused checks for the revised analytics, promotions, API, and aggregation paths:
 ```bash
-npx jest src/app/admin src/components/admin --runInBand
+npm test -- --runInBand \
+  src/app/admin/analytics/__tests__/FinancialReportsPage.test.jsx \
+  src/app/admin/promotions/__tests__/PromotionManager.test.jsx \
+  src/app/api/admin/analytics/dashboard/__tests__/route.test.js \
+  src/lib/services/__tests__/financialAggregation.test.js \
+  src/lib/services/__tests__/financialAnalyticsData.test.js
 ```
 
 ### Results
-- **Test Suites**: 23 passed, 23 total
-- **Tests**: 97 passed, 97 total
-- **Focused Biome check**: 10 changed source/test files passed
+- **Focused test suites**: 5 passed, 5 total
+- **Focused tests**: 41 passed, 41 total
+- **Repository-wide baseline**: 171 suites / 813 tests passed; 6 suites / 18 tests failed in pre-existing booking autoscroll, OAuth database, and environment-hostname assertions. None of the failing suites touches the changed admin analytics or promotions paths.
+- **Focused Biome check**: all changed source/test files passed
 - **Production build**: passed (`next build`); the authenticated Promotions route is correctly reported as dynamic because it reads cookies
 - **Coverage Included**:
-  - Sidebar navigation state and mobile drawer responsive triggers.
-  - Custom UI filters, total logic, dialog forms, and drag-and-drop ordering behaviors.
-  - Async state notifications, loaders, and error-fallback retry handlers.
+  - Dashboard and reports KPI comparisons, donut charts, current-day schedule, recent bookings, and direct navigation.
+  - Expense create/edit/delete behavior plus five-row pagination.
+  - Generic, personal, and automatic promotion table schemas and row actions.
+  - Dashboard API and financial aggregation behavior, including the enriched current-day payload.
 
 ---
 

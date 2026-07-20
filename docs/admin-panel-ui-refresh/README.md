@@ -45,7 +45,7 @@ proof data.
 - Keep `/admin` as the live analytics Dashboard and `/admin/analytics` as the detailed Reports page.
 - Label the existing `/admin/users` destination as **Customers**; the route does not change.
 - Keep Generic Codes, Personal Auto-Apply, and Automatic Discounts as tabs inside the existing Promotions page. Legacy Discounts and Coupons routes continue to redirect there.
-- Promotions exposes one create action for the active tab, separates trigger, usage, and window constraints into scan-friendly columns, and keeps row mutations in an overflow menu.
+- Promotions exposes one create action for the active tab, uses a distinct operator-focused column set for Generic, Personal, and Automatic offers, and keeps row mutations in an overflow menu. Limits are labeled as limits because the current payload does not expose redemption counts.
 - Style the current login page in the same visual language without restructuring its authentication flow.
 - Use a fixed 52-pixel desktop header, a 208-pixel desktop sidebar, compact page gutters, small radii, neutral zinc surfaces, and dense table/form controls.
 - Keep routine copy scan-first. Page titles, operational labels, validation, destructive confirmation, empty/error recovery, and accessibility text remain; repeated introductions, decorative summaries, and documentation-like explanations do not.
@@ -61,6 +61,9 @@ proof data.
 - On desktop, Time Slots presents Apartment, Villa/Townhouse, and Commercial property weights in one compact row and uses dark native time controls with visible picker icons.
 - Portfolio and Reviews load their authenticated admin lists directly through the shared content data service instead of making deployment-sensitive HTTP requests back into the same application.
 - Keep persisted legacy exact/full-day blocks identifiable and clearable without displaying exact block times.
+- Dashboard and Reports use the reference KPI hierarchy: tone-coded values, top-right percentage movement, and explicit previous-month values. Expenses and pending/cancelled counts invert the trend color where a decrease is favorable.
+- Dashboard and Reports render live service and booking-status distributions as accessible donut charts. Dashboard Today’s Schedule is based on the current Dubai business date; Recent Bookings uses Property, Client, Date, Services, Amount, and Status and links directly to the bookings queue.
+- Expense Tracker follows the reference’s single dense panel with monthly total/count/top-category summary, category share bars, preserved create/edit/delete flows, and five-row pagination.
 
 ## Explicit non-goals
 
