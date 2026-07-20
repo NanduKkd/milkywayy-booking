@@ -85,8 +85,10 @@ tab-specific schemas: code/minimum-spend/limits for Generic, customer assignment
 for Personal, and trigger/requirements for Automatic. The operational month view and
 date-specific block controls exist only at `/admin/scheduling-calendar`;
 each fixed-height date cell reserves Morning, Afternoon, and Evening tracks and
-colors only occupied or blocked periods. Selected-day slot mutations use three
-flat rows with name, configured time, status, and one block/open action.
+colors only occupied or blocked periods. Blocked tracks use the header legend's
+red. Selected-day slot mutations use three flat rows with configured time below
+the slot name, followed by status and one block/open action; redundant day/block
+summary panels are omitted.
 `/admin/timeslots` edits rolling windows, working days, named period definitions,
 and weight configuration without rendering a second calendar. Its three property
 weight groups share one compact desktop row. Pricing continues through its

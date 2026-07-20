@@ -75,7 +75,8 @@ Every current authenticated route was loaded against the local implementation at
 - Pricing shows an amber changed-cell outline and an amber property-type tab dot for unsaved edits; both clear after a successful save.
 - Portfolio and Reviews retain icon-only reorder handles without visible `DRAG`, `Order`, or bare rank values.
 - Portfolio and Reviews load successfully through direct admin content reads even when the public base URL uses a different local port.
-- Calendar month cells remain fixed height and reserve three positional Morning/Afternoon/Evening tracks without slot-count text.
+- Calendar month cells remain fixed height and reserve three positional Morning/Afternoon/Evening tracks without slot-count text; blocked tracks use the red header-legend color.
+- Selected-day slot rows keep time beneath the slot name and omit the redundant day-status badges and Block Status/Entries summary.
 - Calendar selected-day hierarchy presents bookings and events before availability controls.
 - Calendar exposes named-slot blocking without exact-time or dedicated full-day creation controls; Time Slots only defines the slots and capacity rules.
 - The mobile drawer exposes every current navigation group and route.

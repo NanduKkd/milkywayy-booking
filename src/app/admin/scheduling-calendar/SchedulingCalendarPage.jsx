@@ -261,46 +261,6 @@ function buildDayAriaLabel(day, counts, _eventsForDay) {
   return parts.join(". ");
 }
 
-function buildSelectedDaySummary(day) {
-  if (!day) return [];
-
-  const badges = [];
-  const blockedTimeRanges = Array.isArray(day.block?.blockedTimeRanges)
-    ? day.block.blockedTimeRanges
-    : [];
-
-  badges.push({
-    label: day.isWorkingDay ? "Working day" : "Non-working day",
-    variant: day.isWorkingDay ? "secondary" : "destructive",
-  });
-
-  if (day.block.fullDayBlocked) {
-    badges.push({ label: "Full-day block", variant: "destructive" });
-  } else if (day.block.blockedPeriods.length > 0) {
-    badges.push({
-      label: `Blocked: ${formatBlockedPeriods(day.block.blockedPeriods)}`,
-      variant: "outline",
-    });
-  }
-
-  if (blockedTimeRanges.length > 0) {
-    badges.push({
-      label: "Legacy exact block active",
-      variant: "outline",
-    });
-  }
-
-  if (
-    !day.block.fullDayBlocked &&
-    day.block.blockedPeriods.length === 0 &&
-    blockedTimeRanges.length === 0
-  ) {
-    badges.push({ label: "No active blocks", variant: "outline" });
-  }
-
-  return badges;
-}
-
 function getCalendarMarkerClass(item) {
   const status = String(item?.status || "").toUpperCase();
 
@@ -334,7 +294,7 @@ function getCalendarSlotTrack({ bookings, day, events, period }) {
     day?.block?.blockedPeriods?.includes(period)
   ) {
     return {
-      className: "bg-orange-500",
+      className: "bg-red-500",
       kind: "block",
       status: "blocked",
     };
@@ -776,7 +736,6 @@ export default function SchedulingCalendarPage() {
   const selectedDay = dayMap.get(selectedDateKey) || null;
   const selectedBookings = bookingsByDate.get(selectedDateKey) || [];
   const selectedEvents = eventsByDate.get(selectedDateKey) || [];
-  const selectedBadges = buildSelectedDaySummary(selectedDay);
   const selectedBlockDefinitions = selectedDay?.block?.blockDefinitions || {};
   const selectedBlockedPeriods = selectedDay?.block?.blockedPeriods || [];
   const selectedBlockedTimeRanges = selectedDay?.block?.blockedTimeRanges || [];
@@ -1405,7 +1364,7 @@ export default function SchedulingCalendarPage() {
                 ["Completed", "bg-emerald-500"],
                 ["Awaiting", "bg-amber-500"],
                 ["Event", "bg-violet-500"],
-                ["Blocked", "bg-orange-500"],
+                ["Blocked", "bg-red-500"],
               ].map(([label, color]) => (
                 <span
                   key={label}
@@ -1594,60 +1553,10 @@ export default function SchedulingCalendarPage() {
                   </Button>
                 </div>
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                {selectedBadges.map((badge) => (
-                  <Badge
-                    key={badge.label}
-                    variant={badge.variant}
-                    className="rounded-full"
-                  >
-                    {badge.label}
-                  </Badge>
-                ))}
-              </div>
             </AdminCardHeader>
 
             <AdminCardContent className="flex flex-col gap-4">
               <div className={cn(CALENDAR_SUBPANEL_CLASS, "order-3")}>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                      Block status
-                    </p>
-                    <p className="mt-1 text-sm">
-                      {selectedDay?.block?.fullDayBlocked
-                        ? "Full day blocked"
-                        : [
-                            formatBlockedPeriods(
-                              selectedDay?.block?.blockedPeriods || [],
-                            ),
-                            selectedDay?.block?.blockedTimeRanges?.length > 0
-                              ? "Legacy exact block active"
-                              : "",
-                          ]
-                            .filter(
-                              (value) =>
-                                value && value !== "No blocked periods",
-                            )
-                            .join(" • ") || "No active blocks"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                      Entries
-                    </p>
-                    <p className="mt-1 text-sm">
-                      {selectedBookings.length} booking
-                      {selectedBookings.length === 1 ? "" : "s"},{" "}
-                      {selectedEvents.length} event
-                      {selectedEvents.length === 1 ? "" : "s"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className={cn(CALENDAR_SUBPANEL_CLASS, "order-4")}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <h2 className="text-sm font-semibold">Slot blocking</h2>
@@ -1685,21 +1594,17 @@ export default function SchedulingCalendarPage() {
                       <div
                         key={period}
                         data-slot-block-row={period}
-                        className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 py-2 sm:grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_auto_auto] sm:gap-3"
+                        className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 py-2"
                       >
                         <div className="min-w-0">
                           <p className="font-medium">
                             {labelizePeriod(period)}
                           </p>
-                          <p className="mt-0.5 text-[10px] text-muted-foreground sm:hidden">
+                          <p className="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">
                             {definition.startTime || "--:--"} -{" "}
                             {definition.endTime || "--:--"}
                           </p>
                         </div>
-                        <p className="hidden text-xs text-muted-foreground sm:block">
-                          {definition.startTime || "--:--"} -{" "}
-                          {definition.endTime || "--:--"}
-                        </p>
                         <Badge
                           variant={isBlocked ? "destructive" : "outline"}
                           className="shrink-0 whitespace-nowrap rounded-full"
@@ -1752,6 +1657,11 @@ export default function SchedulingCalendarPage() {
                   <p className="mt-3 text-sm text-muted-foreground">
                     A legacy full-day block is active. Clear it before editing
                     individual slots.
+                  </p>
+                ) : null}
+                {selectedBlockedTimeRanges.length > 0 ? (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    A legacy exact block is active. Clear blocks to remove it.
                   </p>
                 ) : null}
               </div>

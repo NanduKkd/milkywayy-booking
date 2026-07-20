@@ -626,6 +626,10 @@ describe("SchedulingCalendarPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("July 2026")).toBeInTheDocument();
     expect(screen.getByText(/Calendar legend/i)).toBeInTheDocument();
+    const legend = screen.getByText("Calendar legend").closest("fieldset");
+    expect(
+      within(legend).getByText("Blocked").querySelector("span"),
+    ).toHaveClass("bg-red-500");
 
     await waitFor(() => {
       expect(
@@ -679,6 +683,15 @@ describe("SchedulingCalendarPage", () => {
     expect(tracks[2]).toHaveClass("bg-blue-500");
     expect(busyDay).not.toHaveTextContent(/slots?|\+\d+/i);
     expect(busyDay).toHaveClass("h-[68px]", "sm:h-[76px]");
+
+    const fullyBlockedDay = screen.getByRole("button", {
+      name: /Sunday, July 5, 2026\..*fully blocked/i,
+    });
+    fullyBlockedDay
+      .querySelectorAll("[data-calendar-slot-track]")
+      .forEach((track) => {
+        expect(track).toHaveClass("bg-red-500");
+      });
   });
 
   it("renders slot blocking as three flat operational rows", async () => {
@@ -695,7 +708,15 @@ describe("SchedulingCalendarPage", () => {
     expect(rows[2]).toHaveAttribute("data-slot-block-row", "evening");
     rows.forEach((row) => {
       expect(row).not.toHaveClass("rounded-lg", "border");
+      expect(row).not.toHaveClass(
+        "sm:grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_auto_auto]",
+      );
+      expect(row.children).toHaveLength(3);
     });
+    expect(rows[0].children[0].querySelectorAll("p")).toHaveLength(2);
+    expect(rows[0].children[0].querySelectorAll("p")[1]).not.toHaveClass(
+      "hidden",
+    );
     expect(
       screen.getByRole("button", { name: "Block Morning" }),
     ).toHaveTextContent("Block");
@@ -705,6 +726,16 @@ describe("SchedulingCalendarPage", () => {
     expect(
       screen.getByRole("button", { name: "Block Evening" }),
     ).toHaveTextContent("Block");
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /Sunday, July 5, 2026\..*fully blocked/i,
+      }),
+    );
+    expect(screen.queryByText("Non-working day")).not.toBeInTheDocument();
+    expect(screen.queryByText("Full-day block")).not.toBeInTheDocument();
+    expect(screen.queryByText("Block status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Entries")).not.toBeInTheDocument();
   });
 
   it("navigates months and refetches the bounded range", async () => {
@@ -900,7 +931,7 @@ describe("SchedulingCalendarPage", () => {
       screen.queryByRole("button", { name: /Add exact block/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getAllByText(/Legacy exact block active/).length,
+      screen.getAllByText(/legacy exact block is active/i).length,
     ).toBeGreaterThan(0);
     expect(screen.queryByText(/10:00\s*-\s*10:30/)).not.toBeInTheDocument();
     expect(
