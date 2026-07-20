@@ -2,11 +2,12 @@
 
 - Last updated: 2026-07-21
 - Test-assurance Project snapshot (2026-07-21):
-  - parent feature #28: `DRAFT`
+  - parent feature #28: final closeout is tracked in its GitHub issue; the
+    merged assurance evidence below is independent of that workflow transition
   - PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32): `DONE`
   - PRM-309 (#31): `DONE`
   - PRM-312 (#33) and PRM-311 (#34): `DONE`
-  - PRM-313 (#35): `IN REVIEW`; it owns the committed CI gates below
+  - PRM-313 (#35): `DONE`; it owns the committed CI gates below
 
 Each child gate owns separate proof. Completing one child does not complete the
 parent feature or any dependency-gated successor.
@@ -196,9 +197,10 @@ The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
 80% branches. The issue #31 implementation recorded 100% statements and 100%
 branches for both boundary files across 26 focused tests.
 
-The parent assurance feature remains in `DRAFT`; PRM-307 through PRM-312 are
-merged. PRM-313 enforces their focused CI coverage without implying that the
-repository-wide Jest baseline is green.
+All seven assurance children are merged and `DONE`. PRM-313 enforces their
+focused CI coverage without implying that the repository-wide Jest baseline is
+green; the parent feature's final workflow state remains authoritative in
+GitHub Project 1.
 
 ## Promotions UI failure and recovery gate
 
