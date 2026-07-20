@@ -2,7 +2,10 @@
 
 - Last updated: 2026-07-20
 - Core promotions release gate status: `DONE`
-- Test-assurance expansion status: `IN PROGRESS` (GitHub feature #28)
+- Test-assurance Project snapshot (2026-07-20):
+  - parent feature #28: `DRAFT`
+  - authorized child tasks PRM-307 (#30), PRM-308 (#29), PRM-309 (#31),
+    and PRM-310 (#32): `IN REVIEW`
 
 ## Automated gates
 
@@ -61,10 +64,11 @@ The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
 80% branches. The issue #31 implementation recorded 100% statements and 100%
 branches for both boundary files across 26 focused tests.
 
-The broader assurance program remains in progress until its real PostgreSQL,
-checkout lifecycle, UI failure/recovery, and CI enforcement issues are reviewed
-and merged. Focused boundary results do not imply that the repository-wide Jest
-baseline is green.
+The parent assurance feature remains in `DRAFT`; the four authorized child
+tasks above are in review, not complete. Further checkout lifecycle, UI
+failure/recovery, and CI enforcement work remains draft and dependency-gated.
+Focused boundary results do not imply that the repository-wide Jest baseline is
+green.
 
 ## Manual gates
 
