@@ -62,8 +62,8 @@ TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.tes
 
 ## Sibling assurance boundaries
 
-- PRM-307 (#30) separately owns disabled-customer search and direct-assignment
-  enforcement. This branch does not claim that open sibling change as complete.
+- The PRM-307 (#30) and PRM-308 (#29) gates above preserve their distinct
+  eligibility and validation/lifecycle evidence after integration.
 - PRM-309 (#31) separately owns direct server-action and initial-page boundary
   proof, including authentication, delegation, revalidation, and safe action
   wrapping.
@@ -73,10 +73,9 @@ TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.tes
 - Checkout lifecycle, UI failure/recovery, and CI enforcement remain draft and
   dependency-gated under #34, #33, and #35 respectively.
 
-When sibling pull requests are integrated, reconciliation of this shared file
-must preserve #30 eligibility evidence, #29 validation/lifecycle evidence, #31
-action/page evidence, #32 PostgreSQL contention/harness evidence, and the
-authoritative Project snapshot above.
+Further sibling integration must preserve #30 eligibility evidence, #29
+validation/lifecycle evidence, #31 action/page evidence, #32 PostgreSQL
+contention/harness evidence, and the authoritative Project snapshot above.
 
 ## Manual gates
 
