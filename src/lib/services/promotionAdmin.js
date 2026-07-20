@@ -1,4 +1,11 @@
-import { col, fn, Op, where as sequelizeWhere } from "sequelize";
+import { isDeepStrictEqual } from "node:util";
+import {
+  col,
+  fn,
+  Op,
+  where as sequelizeWhere,
+  UniqueConstraintError,
+} from "sequelize";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { sequelize } from "@/lib/db/db";
 import models from "@/lib/db/models";
@@ -20,6 +27,15 @@ const TRIGGER_TYPES = new Set([
   "DATE_RANGE",
 ]);
 const DEFAULT_ASSIGNABLE_CUSTOMER_LIMIT = 8;
+const ACTIVE_GENERIC_CODE_CONFLICT_MESSAGE =
+  "An active generic promotion already uses that code";
+const DUPLICATE_ACTIVE_ASSIGNMENT_MESSAGE =
+  "Customer already has an active promotion assignment";
+const ACTIVE_GENERIC_CODE_CONSTRAINT = "promotions_active_generic_code_unique";
+const ACTIVE_ASSIGNMENT_CONSTRAINT =
+  "promotion_assignments_active_promotion_user_unique";
+const PROMOTION_DATE_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?(Z|([+-])(\d{2}):(\d{2}))?)?$/;
 
 export const PROMOTION_ADMIN_AUTHORIZATION_MODE = "SUPERADMIN_COMPAT";
 
@@ -128,18 +144,86 @@ function normalizeOptionalPositiveAmount(value, label) {
   return normalizePositiveAmount(value, label);
 }
 
+function isLeapYear(year) {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function getDaysInMonth(year, month) {
+  const days = [
+    31,
+    isLeapYear(year) ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ];
+  return days[month - 1] || 0;
+}
+
+function parsePromotionDate(value, label) {
+  if (typeof value !== "string") {
+    throw new Error(`${label} must use YYYY-MM-DD or an ISO 8601 date-time`);
+  }
+
+  const match = value.match(PROMOTION_DATE_PATTERN);
+
+  if (!match) {
+    throw new Error(`${label} must use YYYY-MM-DD or an ISO 8601 date-time`);
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4] || 0);
+  const minute = Number(match[5] || 0);
+  const second = Number(match[6] || 0);
+  const millisecond = Number((match[7] || "").padEnd(3, "0") || 0);
+  const offsetSign = match[9] || null;
+  const offsetHour = Number(match[10] || 0);
+  const offsetMinute = Number(match[11] || 0);
+
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > getDaysInMonth(year, month) ||
+    hour > 23 ||
+    minute > 59 ||
+    second > 59 ||
+    offsetHour > 14 ||
+    offsetMinute > 59 ||
+    (offsetHour === 14 && offsetMinute !== 0)
+  ) {
+    throw new Error(`${label} must be a valid date`);
+  }
+
+  const normalized = new Date(0);
+  normalized.setUTCFullYear(year, month - 1, day);
+  normalized.setUTCHours(hour, minute, second, millisecond);
+
+  if (offsetSign) {
+    const offsetMilliseconds = (offsetHour * 60 + offsetMinute) * 60 * 1000;
+    normalized.setTime(
+      normalized.getTime() +
+        (offsetSign === "+" ? -offsetMilliseconds : offsetMilliseconds),
+    );
+  }
+
+  return normalized;
+}
+
 function normalizeOptionalDate(value, label) {
   if (value == null || value === "") {
     return null;
   }
 
-  const normalized = new Date(value);
-
-  if (Number.isNaN(normalized.getTime())) {
-    throw new Error(`${label} must be a valid date`);
-  }
-
-  return normalized;
+  return parsePromotionDate(value, label);
 }
 
 function normalizePromotionCode(value) {
@@ -247,9 +331,13 @@ function normalizeDateRangeTriggerConfig(triggerConfig) {
     throw new Error("Date-range start date must use YYYY-MM-DD");
   }
 
+  parsePromotionDate(startDate, "Date-range start date");
+
   if (!/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
     throw new Error("Date-range end date must use YYYY-MM-DD");
   }
+
+  parsePromotionDate(endDate, "Date-range end date");
 
   if (endDate < startDate) {
     throw new Error("Date-range end date must be on or after start date");
@@ -502,10 +590,7 @@ function mergePromotionInput(existingPromotion, input) {
 
   return {
     kind: input.kind ?? existing.kind,
-    code:
-      Object.hasOwn(input, "code") || input.kind === "GENERIC"
-        ? input.code
-        : existing.code,
+    code: Object.hasOwn(input, "code") ? input.code : existing.code,
     name: input.name ?? existing.name,
     adminDescription: Object.hasOwn(input, "adminDescription")
       ? input.adminDescription
@@ -551,8 +636,54 @@ function mergePromotionInput(existingPromotion, input) {
   };
 }
 
-function hasMeaningfulPromotionChanges(beforeState, afterState) {
-  return JSON.stringify(beforeState) !== JSON.stringify(afterState);
+function buildPromotionConfigurationSnapshot(promotion) {
+  const snapshot = buildPromotionSnapshot(promotion);
+
+  return {
+    kind: snapshot.kind,
+    code: snapshot.code,
+    name: snapshot.name,
+    adminDescription: snapshot.adminDescription,
+    customerMessage: snapshot.customerMessage,
+    benefitType: snapshot.benefitType,
+    benefitValue: snapshot.benefitValue,
+    benefitCap: snapshot.benefitCap,
+    minimumSpend: snapshot.minimumSpend,
+    startsAt: snapshot.startsAt,
+    endsAt: snapshot.endsAt,
+    status: snapshot.status,
+    systemFlag: snapshot.systemFlag,
+    priority: snapshot.priority,
+    perUserLimit: snapshot.perUserLimit,
+    totalLimit: snapshot.totalLimit,
+    triggerType: snapshot.triggerType,
+    triggerConfig: snapshot.triggerConfig,
+    legacySourceType: snapshot.legacySourceType,
+    legacySourceId: snapshot.legacySourceId,
+  };
+}
+
+function hasMeaningfulPromotionChanges(beforeState, normalizedInput) {
+  return !isDeepStrictEqual(
+    buildPromotionConfigurationSnapshot(beforeState),
+    buildPromotionConfigurationSnapshot(normalizedInput),
+  );
+}
+
+function rethrowKnownUniqueConstraint(error, constraint, publicMessage) {
+  const constraintNames = [
+    error?.parent?.constraint,
+    error?.original?.constraint,
+  ];
+
+  if (
+    error instanceof UniqueConstraintError &&
+    constraintNames.includes(constraint)
+  ) {
+    throw new Error(publicMessage);
+  }
+
+  throw error;
 }
 
 async function assertNoActiveGenericCodeConflict({
@@ -582,7 +713,7 @@ async function assertNoActiveGenericCodeConflict({
   });
 
   if (existingPromotion) {
-    throw new Error("An active generic promotion already uses that code");
+    throw new Error(ACTIVE_GENERIC_CODE_CONFLICT_MESSAGE);
   }
 }
 
@@ -750,6 +881,7 @@ export async function searchAssignableCustomers({
     ],
     where: {
       role: USER_ROLES.CUSTOMER,
+      disabledAt: null,
       [Op.or]: searchConditions,
     },
     order: [
@@ -789,14 +921,31 @@ export async function createPromotion({
       });
     }
 
-    const promotion = await models.Promotion.create(
-      {
-        ...normalizedInput,
-        createdByUserId: actor.id,
-        updatedByUserId: actor.id,
-      },
-      { transaction: activeTransaction },
-    );
+    let promotion;
+
+    try {
+      promotion = await models.Promotion.create(
+        {
+          ...normalizedInput,
+          createdByUserId: actor.id,
+          updatedByUserId: actor.id,
+        },
+        { transaction: activeTransaction },
+      );
+    } catch (error) {
+      if (
+        normalizedInput.kind === "GENERIC" &&
+        normalizedInput.status === "ACTIVE"
+      ) {
+        rethrowKnownUniqueConstraint(
+          error,
+          ACTIVE_GENERIC_CODE_CONSTRAINT,
+          ACTIVE_GENERIC_CODE_CONFLICT_MESSAGE,
+        );
+      }
+
+      throw error;
+    }
 
     const afterState = buildPromotionSnapshot(promotion);
 
@@ -845,6 +994,10 @@ export async function updatePromotion({
       existingPromotion: promotion,
     });
 
+    if (!hasMeaningfulPromotionChanges(beforeState, normalizedInput)) {
+      return beforeState;
+    }
+
     if (
       normalizedInput.kind === "GENERIC" &&
       normalizedInput.status === "ACTIVE"
@@ -856,27 +1009,40 @@ export async function updatePromotion({
       });
     }
 
-    await promotion.update(
-      {
-        ...normalizedInput,
-        updatedByUserId: actor.id,
-      },
-      { transaction: activeTransaction },
-    );
+    try {
+      await promotion.update(
+        {
+          ...normalizedInput,
+          updatedByUserId: actor.id,
+        },
+        { transaction: activeTransaction },
+      );
+    } catch (error) {
+      if (
+        normalizedInput.kind === "GENERIC" &&
+        normalizedInput.status === "ACTIVE"
+      ) {
+        rethrowKnownUniqueConstraint(
+          error,
+          ACTIVE_GENERIC_CODE_CONSTRAINT,
+          ACTIVE_GENERIC_CODE_CONFLICT_MESSAGE,
+        );
+      }
+
+      throw error;
+    }
 
     const afterState = buildPromotionSnapshot(promotion);
 
-    if (hasMeaningfulPromotionChanges(beforeState, afterState)) {
-      await createPromotionAuditEvent({
-        promotionId: promotion.id,
-        actorUserId: actor.id,
-        action: "UPDATED",
-        beforeState,
-        afterState,
-        reason,
-        transaction: activeTransaction,
-      });
-    }
+    await createPromotionAuditEvent({
+      promotionId: promotion.id,
+      actorUserId: actor.id,
+      action: "UPDATED",
+      beforeState,
+      afterState,
+      reason,
+      transaction: activeTransaction,
+    });
 
     return afterState;
   });
@@ -924,13 +1090,25 @@ async function transitionPromotionStatus({
 
     const beforeState = buildPromotionSnapshot(promotion);
 
-    await promotion.update(
-      {
-        status: normalizedTargetStatus,
-        updatedByUserId: actor.id,
-      },
-      { transaction: activeTransaction },
-    );
+    try {
+      await promotion.update(
+        {
+          status: normalizedTargetStatus,
+          updatedByUserId: actor.id,
+        },
+        { transaction: activeTransaction },
+      );
+    } catch (error) {
+      if (normalizedTargetStatus === "ACTIVE" && promotion.kind === "GENERIC") {
+        rethrowKnownUniqueConstraint(
+          error,
+          ACTIVE_GENERIC_CODE_CONSTRAINT,
+          ACTIVE_GENERIC_CODE_CONFLICT_MESSAGE,
+        );
+      }
+
+      throw error;
+    }
 
     const afterState = buildPromotionSnapshot(promotion);
 
@@ -1026,6 +1204,7 @@ export async function assignPromotionCustomer({
       where: {
         id: normalizedUserId,
         role: USER_ROLES.CUSTOMER,
+        disabledAt: null,
       },
       transaction: activeTransaction,
       lock: activeTransaction.LOCK.UPDATE,
@@ -1045,8 +1224,14 @@ export async function assignPromotionCustomer({
       lock: activeTransaction.LOCK.UPDATE,
     });
 
-    if (!existingAssignment) {
-      const assignment = await models.PromotionAssignment.create(
+    if (existingAssignment) {
+      throw new Error(DUPLICATE_ACTIVE_ASSIGNMENT_MESSAGE);
+    }
+
+    let assignment;
+
+    try {
+      assignment = await models.PromotionAssignment.create(
         {
           promotionId: promotion.id,
           userId: normalizedUserId,
@@ -1056,24 +1241,30 @@ export async function assignPromotionCustomer({
         },
         { transaction: activeTransaction },
       );
-
-      await createPromotionAuditEvent({
-        promotionId: promotion.id,
-        promotionAssignmentId: assignment.id,
-        actorUserId: actor.id,
-        action: "ASSIGNED",
-        beforeState: null,
-        afterState: buildPromotionAssignmentSnapshot({
-          ...assignment.get({ plain: true }),
-          user: customer,
-        }),
-        reason,
-        metadata: {
-          customerUserId: normalizedUserId,
-        },
-        transaction: activeTransaction,
-      });
+    } catch (error) {
+      rethrowKnownUniqueConstraint(
+        error,
+        ACTIVE_ASSIGNMENT_CONSTRAINT,
+        DUPLICATE_ACTIVE_ASSIGNMENT_MESSAGE,
+      );
     }
+
+    await createPromotionAuditEvent({
+      promotionId: promotion.id,
+      promotionAssignmentId: assignment.id,
+      actorUserId: actor.id,
+      action: "ASSIGNED",
+      beforeState: null,
+      afterState: buildPromotionAssignmentSnapshot({
+        ...assignment.get({ plain: true }),
+        user: customer,
+      }),
+      reason,
+      metadata: {
+        customerUserId: normalizedUserId,
+      },
+      transaction: activeTransaction,
+    });
 
     const refreshedPromotion = await findPromotionForAdminView(
       promotion.id,
@@ -1131,6 +1322,11 @@ export async function unassignPromotionCustomer({
       },
       transaction: activeTransaction,
     });
+
+    if (!customer) {
+      throw new Error("Customer account not found");
+    }
+
     const beforeState = buildPromotionAssignmentSnapshot({
       ...assignment.get({ plain: true }),
       user: customer,

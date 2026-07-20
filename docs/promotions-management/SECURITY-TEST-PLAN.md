@@ -1,22 +1,68 @@
 # Promotions management security test plan
 
-- Last updated: 2026-07-20
-- Overall release-assurance status: `IN_PROGRESS` — parent feature #28 remains
-  open with validation, action-boundary, checkout, UI, and CI work outstanding.
-- PRM-310 PostgreSQL contention gate: automated and in review.
+- Last updated: 2026-07-21
+- Test-assurance Project snapshot (2026-07-21):
+  - parent feature #28: `DRAFT`
+  - PRM-307 (#30) and PRM-308 (#29): `DONE`
+  - PRM-309 (#31) and PRM-310 (#32): `IN_REVIEW`
+  - successor tasks PRM-312 (#33), PRM-311 (#34), and PRM-313 (#35):
+    `DRAFT` and dependency-gated
 
-## Automated gates
+Each child gate owns separate proof. Completing one child does not complete the
+parent feature or any dependency-gated successor.
 
-- Promotion CRUD and assignment permissions are enforced server-side.
-- Personal customer lookup excludes staff and disabled customers.
-- Codes, labels, percentages, amounts, caps, minimums, dates, priorities, and
-  limits reject malformed/out-of-range input.
-- Eligibility tests cover active dates, first/second booking, customer assignment,
-  minimum spend, per-user limits, total limits, and disabled promotions.
-- Precedence tests prove one promotion only, personal over automatic, generic
-  only when strictly better, and wallet separation.
-- Migration parity fixtures cover preserved generic-coupon, launch-credit, and
-  wallet-separation outcomes plus the accepted direct-discount non-stacking cutover.
+## PRM-307 disabled-customer eligibility gate
+
+- Personal customer lookup requires `role = CUSTOMER` and `disabledAt = null`,
+  excluding staff and disabled customers.
+- Direct personal-promotion assignment enforces the same eligibility predicate;
+  disabled, staff, and missing users receive the same non-enumerating
+  `Customer account not found` error and create no assignment or audit event.
+- Enabled customers remain searchable and assignable, while disabling an
+  account leaves historical assignment rows intact for audit.
+
+Run the focused gate with:
+
+```sh
+npm test -- --runInBand src/lib/services/__tests__/promotionAdmin.test.js
+```
+
+## PRM-308 validation and lifecycle gate
+
+- Table-driven `promotionAdmin` service tests independently cover create
+  normalization; update preserve, set, clear, inactive-conflict, and no-op
+  behavior; kind/code/trigger invariants; benefit and limit boundaries; explicit
+  timestamp grammar and ordered ranges; status isolation; and boolean trigger
+  flags.
+- Active generic-code conflicts are tested case-insensitively across create,
+  update, and activation. Known race-time unique-constraint failures at those
+  writes map to the same stable conflict message, while unrelated errors remain
+  unchanged.
+- Lifecycle unit tests cover draft/paused activation, draft/active pause,
+  repeated no-op actions, direct-update rejection, and terminal deactivation.
+- Assignment and unassignment tests reject wrong kinds, missing promotions or
+  customers, duplicate active assignments, and missing active assignments while
+  proving successful unassignment preserves the historical row. A known
+  assignment unique-constraint race maps to the stable duplicate message;
+  unexpected errors are retained.
+- Eligibility timestamp tests run under `Pacific/Kiritimati` and
+  `America/Los_Angeles` to prove date-only, offset-free admin values, and
+  offset-bearing inputs normalize independently of the server time zone.
+
+The PRM-308 cases are mocked service-boundary unit tests. Real database
+contention is covered separately by PRM-310 below; action/page coverage remains
+owned by PRM-309.
+
+Run the focused gate with:
+
+```sh
+npm test -- src/lib/services/__tests__/promotionAdmin.test.js --runInBand --coverage --collectCoverageFrom=src/lib/services/promotionAdmin.js
+TZ=Pacific/Kiritimati npm test -- src/lib/services/__tests__/promotionAdmin.test.js --runInBand
+TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.test.js --runInBand
+```
+
+## PRM-310 PostgreSQL contention and lifecycle gate
+
 - Real PostgreSQL contention tests use separate backend transactions and prove
   exactly one reservation plus one deterministic rejection at per-user and
   global limits of one.
@@ -25,15 +71,24 @@
 - Database-backed lifecycle tests prove `RESERVED` and `APPLIED` consume limits,
   `RELEASED` and `EXPIRED` do not, retries are idempotent, forbidden state
   changes fail, and rollback leaves no redemption or transaction attachment.
-- The disposable PostgreSQL harness proves database cleanup after both a
-  successful run and an injected setup failure, bounds stalled or throwing
-  connection shutdown, and retries a failed database removal without losing
-  cleanup state. Each failed cleanup attempt leaves zero admin sessions and a
-  retry uses a newly connected admin client.
-- Failed, expired, cancelled, and replayed payment flows release/finalize exactly once.
-- Transaction and invoice calculations use the stored promotion snapshot rather
-  than mutable current configuration.
-- Code-validation responses do not expose private customer assignments or useful enumeration detail.
+- The disposable PostgreSQL harness proves database cleanup after successful and
+  failed setup, bounds stalled or throwing connection shutdown, and preserves
+  retryable cleanup state after failed removal. Each failed cleanup attempt
+  leaves zero tagged admin sessions, and a retry uses a fresh admin client.
+
+## Sibling assurance boundaries
+
+- The PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32) gates above preserve
+  their distinct eligibility, validation/lifecycle, and real-PostgreSQL proof.
+- PRM-309 (#31) separately owns direct server-action and initial-page boundary
+  proof, including authentication, delegation, revalidation, and safe action
+  wrapping.
+- Checkout lifecycle, UI failure/recovery, and CI enforcement remain draft and
+  dependency-gated under #34, #33, and #35 respectively.
+
+Further sibling integration must preserve #30 eligibility evidence, #29
+validation/lifecycle evidence, #31 action/page evidence, #32 PostgreSQL
+contention/harness evidence, and the authoritative Project snapshot above.
 
 ## Repeatable PostgreSQL gate
 
