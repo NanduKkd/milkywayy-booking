@@ -104,7 +104,10 @@ database settings are never used for database creation or removal. Every
 created database has the fixed `mw_codex_test_` prefix, which is revalidated
 immediately before creation, connection termination, alteration, and removal.
 Connection and administrative shutdowns are bounded, and failed removal keeps
-the cleanup handle retryable until the database is confirmed removed.
+the cleanup handle retryable until the database is confirmed removed. Every
+provisioning or cleanup attempt ends or forcibly destroys its short-lived admin
+connection in `finally`; a later cleanup retry creates a fresh admin connection
+from immutable test configuration rather than reusing the failed client.
 
 ### promotion_audit_events
 

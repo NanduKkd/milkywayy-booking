@@ -209,9 +209,12 @@ describe("promotion redemptions with real PostgreSQL contention", () => {
   });
 
   afterAll(async () => {
-    await database?.close();
-    replaceApplicationDatabaseEnvironment(originalDbEnvironment);
-    jest.resetModules();
+    try {
+      await database?.close();
+    } finally {
+      replaceApplicationDatabaseEnvironment(originalDbEnvironment);
+      jest.resetModules();
+    }
   });
 
   beforeEach(async () => {

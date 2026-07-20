@@ -28,7 +28,8 @@
 - The disposable PostgreSQL harness proves database cleanup after both a
   successful run and an injected setup failure, bounds stalled or throwing
   connection shutdown, and retries a failed database removal without losing
-  cleanup state.
+  cleanup state. Each failed cleanup attempt leaves zero admin sessions and a
+  retry uses a newly connected admin client.
 - Failed, expired, cancelled, and replayed payment flows release/finalize exactly once.
 - Transaction and invoice calculations use the stored promotion snapshot rather
   than mutable current configuration.
