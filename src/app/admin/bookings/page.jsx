@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCcw, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -55,6 +55,7 @@ const BOOKING_FILTERS = [
   { id: "COMPLETED", label: "Completed" },
   { id: "CANCELLED", label: "Cancelled" },
 ];
+const BOOKING_PAGE_SIZE = 10;
 
 const DETAIL_PANEL_CLASS =
   "admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.76)] p-4";
@@ -150,7 +151,12 @@ const matchesBookingFilter = (booking, filterId) => {
     return isCancelledBooking(booking);
   }
   if (filterId === "PENDING") {
-    return !isCancelledBooking(booking) && !isCompletedBooking(booking);
+    return (
+      !isCancelledBooking(booking) &&
+      !isCompletedBooking(booking) &&
+      (booking?.status === "DRAFT" ||
+        getWorkflowStatus(booking) === BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED)
+    );
   }
   return true;
 };
@@ -204,6 +210,7 @@ const fetchAdminBookings = async () => {
 export default function BookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -237,6 +244,19 @@ export default function BookingsPage() {
   const filteredBookings = bookings.filter((booking) =>
     matchesBookingFilter(booking, activeFilter),
   );
+  const totalPages = Math.max(
+    Math.ceil(filteredBookings.length / BOOKING_PAGE_SIZE),
+    1,
+  );
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * BOOKING_PAGE_SIZE;
+  const paginatedBookings = filteredBookings.slice(
+    pageStart,
+    pageStart + BOOKING_PAGE_SIZE,
+  );
+  const visibleRange = filteredBookings.length
+    ? `${pageStart + 1}-${pageStart + paginatedBookings.length} of ${filteredBookings.length}`
+    : "0 visible";
 
   useEffect(() => {
     let cancelled = false;
@@ -640,7 +660,7 @@ export default function BookingsPage() {
                 ? "Sync failed"
                 : isLoading
                   ? "Refreshing"
-                  : `${filteredBookings.length} visible`}
+                  : visibleRange}
             </AdminBadge>
             <Button
               type="button"
@@ -663,7 +683,10 @@ export default function BookingsPage() {
               <AdminFilterChip
                 key={filter.id}
                 active={activeFilter === filter.id}
-                onClick={() => setActiveFilter(filter.id)}
+                onClick={() => {
+                  setActiveFilter(filter.id);
+                  setPage(1);
+                }}
                 aria-pressed={activeFilter === filter.id}
               >
                 <span>{filter.label}</span>
@@ -705,87 +728,119 @@ export default function BookingsPage() {
             description="Change the status filter or refresh the queue to review a different set of bookings."
           />
         ) : (
-          <Table className="min-w-[940px]">
-            <TableHeader className="bg-white/[0.03] [&_tr]:border-white/8">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Booking
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Customer
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Services
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Schedule
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Total
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Status
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="[&_tr:last-child]:border-white/8">
-              {filteredBookings.map((booking) => {
-                const bookingStatus = getBookingStatusMeta(booking);
+          <>
+            <Table className="min-w-[940px]">
+              <TableHeader className="bg-white/[0.03] [&_tr]:border-white/8">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Booking
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Customer
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Services
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Schedule
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Total
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Status
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="[&_tr:last-child]:border-white/8">
+                {paginatedBookings.map((booking) => {
+                  const bookingStatus = getBookingStatusMeta(booking);
 
-                return (
-                  <TableRow
-                    key={booking.id}
-                    className="cursor-pointer border-white/8 text-[hsl(var(--admin-foreground))] hover:bg-white/[0.03]"
-                    onClick={() => handleRowClick(booking)}
-                  >
-                    <TableCell className="space-y-0.5 py-3">
-                      <p className="text-sm font-semibold">#{booking.id}</p>
-                      <p className="text-sm text-[hsl(var(--admin-foreground))]">
-                        {getPropertyLabel(booking)}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--admin-muted))]">
-                        {booking.propertyDetails?.type ||
-                          "Property type pending"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="space-y-0.5 py-3">
-                      <p className="text-sm font-medium">
-                        {booking.user?.fullName || "Customer not assigned"}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--admin-muted))]">
-                        {booking.user?.email || "No email provided"}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--admin-muted))]">
-                        {booking.user?.phone || "No phone provided"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="py-3 text-sm text-[hsl(var(--admin-muted))]">
-                      {getBookingServices(booking).join(", ") ||
-                        "No services specified"}
-                    </TableCell>
-                    <TableCell className="space-y-0.5 py-3">
-                      <p className="text-sm">
-                        {booking.date || "Date pending"}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--admin-muted))]">
-                        {booking.slot
-                          ? `Slot: ${booking.slot}`
-                          : "Slot pending"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="py-3 text-sm font-medium">
-                      AED {booking.total ?? 0}
-                    </TableCell>
-                    <TableCell className="py-3">
-                      <AdminBadge tone={bookingStatus.tone}>
-                        {bookingStatus.label}
-                      </AdminBadge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                  return (
+                    <TableRow
+                      key={booking.id}
+                      className="cursor-pointer border-white/8 text-[hsl(var(--admin-foreground))] hover:bg-white/[0.03]"
+                      onClick={() => handleRowClick(booking)}
+                    >
+                      <TableCell className="space-y-0.5 py-3">
+                        <p className="text-sm font-semibold">#{booking.id}</p>
+                        <p className="text-sm text-[hsl(var(--admin-foreground))]">
+                          {getPropertyLabel(booking)}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {booking.propertyDetails?.type ||
+                            "Property type pending"}
+                        </p>
+                      </TableCell>
+                      <TableCell className="space-y-0.5 py-3">
+                        <p className="text-sm font-medium">
+                          {booking.user?.fullName || "Customer not assigned"}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {booking.user?.email || "No email provided"}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {booking.user?.phone || "No phone provided"}
+                        </p>
+                      </TableCell>
+                      <TableCell className="py-3 text-sm text-[hsl(var(--admin-muted))]">
+                        {getBookingServices(booking).join(", ") ||
+                          "No services specified"}
+                      </TableCell>
+                      <TableCell className="space-y-0.5 py-3">
+                        <p className="text-sm">
+                          {booking.date || "Date pending"}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {booking.slot
+                            ? `Slot: ${booking.slot}`
+                            : "Slot pending"}
+                        </p>
+                      </TableCell>
+                      <TableCell className="py-3 text-sm font-medium">
+                        AED {booking.total ?? 0}
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <AdminBadge tone={bookingStatus.tone}>
+                          {bookingStatus.label}
+                        </AdminBadge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <div className="flex items-center justify-between border-t border-white/8 px-4 py-3">
+              <p className="text-xs text-[hsl(var(--admin-muted))]">
+                Page {currentPage} of {totalPages} · {filteredBookings.length}{" "}
+                bookings
+              </p>
+              <div className="flex gap-1">
+                <Button
+                  aria-label="Previous bookings page"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage((value) => Math.max(value - 1, 1))}
+                  size="icon"
+                  type="button"
+                  variant="outline"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  aria-label="Next bookings page"
+                  disabled={currentPage === totalPages}
+                  onClick={() =>
+                    setPage((value) => Math.min(value + 1, totalPages))
+                  }
+                  size="icon"
+                  type="button"
+                  variant="outline"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </AdminTablePanel>
 

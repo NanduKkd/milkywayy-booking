@@ -37,6 +37,7 @@
 | UI-D029 | Dashboard and Reports use tone-coded KPI values, a top-right percentage badge, and an explicit “vs … last month” baseline. Expense, pending, and cancelled movements invert favorable-color semantics. | The reference communicates direction at a glance while the explicit baseline prevents an unlabeled or ambiguous “No prior period” state. |
 | UI-D030 | Revenue by Service and Booking Status use accessible SVG donut charts backed by the existing live aggregates. | This matches the reference without adding a charting dependency or introducing sample data. |
 | UI-D031 | Dashboard Today’s Schedule contains only current-Dubai-business-day bookings; Recent Bookings adopts the reference fields and its View All action navigates to `/admin/bookings`. Expense Tracker is one compact panel with five-row client pagination while retaining all CRUD and audit behavior. | Titles and actions must describe their actual content, and dense operational tables should not turn into long unbounded pages. |
+| UI-D032 | Bookings uses ten-row client pagination, and Pending means only Awaiting Payment or Shoot Booked rather than every non-terminal workflow stage. | All and Pending must remain meaningfully distinct even when no bookings are completed or cancelled; later active stages remain discoverable through All. |
 
 ## Implementation discretion
 

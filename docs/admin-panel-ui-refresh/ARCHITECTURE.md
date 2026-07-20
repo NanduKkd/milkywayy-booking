@@ -58,10 +58,13 @@ service/status distributions without adding a charting dependency.
 
 ### Bookings
 
-Add All, Completed, Pending, and Cancelled filtering to the existing list. The
-current detail dialog, workflow updates, notifications, invoice links, uploads,
-versions, revisions, publishing, and completion controls remain wired to their
-existing services. No New Booking control is added.
+Add All, Completed, Pending, and Cancelled filtering to the existing list.
+Pending follows the reference contract and includes only Awaiting Payment and
+Shoot Booked records; later active workflow stages remain available through All.
+The filtered list uses compact ten-row client pagination. The current detail
+dialog, workflow updates, notifications, invoice links, uploads, versions,
+revisions, publishing, and completion controls remain wired to their existing
+services. No New Booking control is added.
 
 ### Customers
 

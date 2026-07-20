@@ -110,6 +110,27 @@ describe("Admin Bookings Page", () => {
           status: "CANCELLED",
           cancelledAt: "2026-06-11T10:00:00.000Z",
         },
+        {
+          ...baseBooking,
+          id: 4,
+          propertyDetails: {
+            unit: "404",
+            building: "Tower D",
+            community: "Business Bay",
+          },
+          status: "DRAFT",
+          workflowStatus: "SHOOT_BOOKED",
+        },
+        {
+          ...baseBooking,
+          id: 5,
+          propertyDetails: {
+            unit: "505",
+            building: "Tower E",
+            community: "Marina",
+          },
+          workflowStatus: "SHOOT_BOOKED",
+        },
       ],
     });
 
@@ -118,6 +139,12 @@ describe("Admin Bookings Page", () => {
     expect(await screen.findByText("101, Tower A, Marina")).toBeInTheDocument();
     expect(screen.getByText("202, Tower B, JLT")).toBeInTheDocument();
     expect(screen.getByText("303, Tower C, Downtown")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /pending/i }));
+
+    expect(screen.queryByText("101, Tower A, Marina")).not.toBeInTheDocument();
+    expect(screen.getByText("404, Tower D, Business Bay")).toBeInTheDocument();
+    expect(screen.getByText("505, Tower E, Marina")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /completed/i }));
 
@@ -131,6 +158,42 @@ describe("Admin Bookings Page", () => {
 
     expect(screen.queryByText("202, Tower B, JLT")).not.toBeInTheDocument();
     expect(screen.getByText("303, Tower C, Downtown")).toBeInTheDocument();
+  });
+
+  it("paginates the filtered booking list ten rows at a time", async () => {
+    const bookings = Array.from({ length: 11 }, (_, index) => ({
+      ...baseBooking,
+      id: index + 1,
+      propertyDetails: {
+        unit: `Unit ${String(index + 1).padStart(2, "0")}`,
+        building: "Pagination Tower",
+        community: "Test District",
+      },
+    }));
+    global.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => bookings,
+    });
+
+    render(<BookingsPage />);
+
+    expect(
+      await screen.findByText("Unit 01, Pagination Tower, Test District"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Unit 11, Pagination Tower, Test District"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Page 1 of 2 · 11 bookings")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next bookings page" }));
+
+    expect(
+      screen.getByText("Unit 11, Pagination Tower, Test District"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Unit 01, Pagination Tower, Test District"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Page 2 of 2 · 11 bookings")).toBeInTheDocument();
   });
 
   it("shows a pending replacement when a customer requested changes", async () => {

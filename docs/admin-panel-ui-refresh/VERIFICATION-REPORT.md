@@ -23,6 +23,8 @@ The subsequent review revision removes the duplicate Promotions create action, m
 
 The final annotation pass adds reference-style KPI delta badges, dashboard and report donut charts, a true current-day schedule, richer recent-booking fields with direct Bookings navigation, and a compact paginated expense panel. Promotion tables now expose the distinctions that matter operationally: generic codes show code and minimum spend, personal offers lead with customer assignment, and automatic discounts show trigger and requirements.
 
+The Bookings follow-up adds compact ten-row pagination and narrows Pending to the reference-defined Awaiting Payment and Shoot Booked states. This keeps All as the complete queue and prevents both filters from appearing identical when the queue has no terminal bookings.
+
 ---
 
 ## Automated Test Run Summary
@@ -35,11 +37,14 @@ npm test -- --runInBand \
   src/app/api/admin/analytics/dashboard/__tests__/route.test.js \
   src/lib/services/__tests__/financialAggregation.test.js \
   src/lib/services/__tests__/financialAnalyticsData.test.js
+
+npm test -- --runInBand src/app/admin/bookings/__tests__/page.test.jsx
 ```
 
 ### Results
 - **Focused test suites**: 5 passed, 5 total
 - **Focused tests**: 41 passed, 41 total
+- **Bookings follow-up**: 1 suite / 8 tests passed, covering reference-aligned Pending semantics and ten-row pagination
 - **Repository-wide baseline**: 171 suites / 813 tests passed; 6 suites / 18 tests failed in pre-existing booking autoscroll, OAuth database, and environment-hostname assertions. None of the failing suites touches the changed admin analytics or promotions paths.
 - **Focused Biome check**: all changed source/test files passed
 - **Production build**: passed (`next build`); the authenticated Promotions route is correctly reported as dynamic because it reads cookies
@@ -48,6 +53,7 @@ npm test -- --runInBand \
   - Expense create/edit/delete behavior plus five-row pagination.
   - Generic, personal, and automatic promotion table schemas and row actions.
   - Dashboard API and financial aggregation behavior, including the enriched current-day payload.
+  - Booking filter boundaries, page navigation, and filter-to-page reset behavior.
 
 ---
 
@@ -57,7 +63,7 @@ Tests were conducted using local mock datasets covering every critical mutation 
 
 | Domain | Target Path | Workflows Checked | Verified Behaviors | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Bookings** | `/admin/bookings` | Booking queue summary, status filtering, detail drawer, status updates, invoice generation/download, WhatsApp notification trigger, upload/replacement, and deletion workflows. | Queue cards dynamically reflect totals; filters (`All`, `Pending`, `Completed`, `Cancelled`) operate without error; status transitions fire notifications; files upload/delete correctly. | `PASSED` |
+| **Bookings** | `/admin/bookings` | Status filtering, ten-row pagination, detail drawer, status updates, invoice generation/download, WhatsApp notification trigger, upload/replacement, and deletion workflows. | `All` retains the complete queue; `Pending` contains only Awaiting Payment and Shoot Booked records; pagination resets on filter changes; status transitions and file operations remain functional. | `PASSED` |
 | **Customers** | `/admin/users` | Customer live search directory, customer account creation wizard, cancel actions, and directory pagination. | Route labeled "Customers" (points to `/admin/users`); creation form submits successfully; cancel button returns to list safely; pagination navigates cleanly. | `PASSED` |
 | **Invoices** | `/admin/invoices` | Text search (invoice number, booking reference, customer name), footer totals recalculation, and secure download Link generation. | Search filters client-side data instantly; footer summary row correctly computes totals based on the visible/filtered items only; download URLs are intact. | `PASSED` |
 | **Reports & Expenses**| `/admin/analytics` | Financial charts, Expense CRUD tracker (Add/Edit/Delete expense), file exports, and dashboard drill-down triggers. | Dashboard links preserve routing parameters; report spreadsheet export triggers correctly; expense dialog handles validation, insert, and delete workflows. | `PASSED` |
