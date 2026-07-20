@@ -1,7 +1,9 @@
 # Promotions management security test plan
 
 - Last updated: 2026-07-20
-- Release gate status: `DONE`
+- Overall release-assurance status: `IN_PROGRESS` — parent feature #28 remains
+  open with validation, action-boundary, checkout, UI, and CI work outstanding.
+- PRM-310 PostgreSQL contention gate: automated and in review.
 
 ## Automated gates
 
@@ -24,7 +26,9 @@
   `RELEASED` and `EXPIRED` do not, retries are idempotent, forbidden state
   changes fail, and rollback leaves no redemption or transaction attachment.
 - The disposable PostgreSQL harness proves database cleanup after both a
-  successful run and an injected setup failure.
+  successful run and an injected setup failure, bounds stalled or throwing
+  connection shutdown, and retries a failed database removal without losing
+  cleanup state.
 - Failed, expired, cancelled, and replayed payment flows release/finalize exactly once.
 - Transaction and invoice calculations use the stored promotion snapshot rather
   than mutable current configuration.
@@ -32,9 +36,31 @@
 
 ## Repeatable PostgreSQL gate
 
-Run the service integration suite against a local disposable PostgreSQL server:
+The harness fails closed unless `NODE_ENV=test`, the opt-in value is exactly
+`CREATE_DROP_RESERVED_DATABASES`, and every dedicated test-admin setting below
+is present. The configured role must be a test-only role on a disposable test
+cluster with permission to create/drop databases and terminate its own test
+connections. Do not use production or shared application credentials.
+
+- `MW_TEST_POSTGRES_ADMIN_OPT_IN`
+- `MW_TEST_POSTGRES_ADMIN_HOST`
+- `MW_TEST_POSTGRES_ADMIN_PORT`
+- `MW_TEST_POSTGRES_ADMIN_USER`
+- `MW_TEST_POSTGRES_ADMIN_PASSWORD` (optional when the test server does not use
+  password authentication)
+- `MW_TEST_POSTGRES_ADMIN_DATABASE` (must be `postgres`)
+
+The cluster DDL path ignores application `DB_HOST`, `DB_PORT`, `DB_USER`,
+`DB_PASSWORD`, and `DB_NAME`. It generates only names under the fixed
+`mw_codex_test_` prefix and rechecks that invariant immediately before every
+create, terminate, alter, or drop operation. The integration suite points the
+application model connection at that generated database only after safe
+creation, then restores the prior application environment after cleanup.
+
+With the dedicated test-admin environment configured, run:
 
 ```sh
+npx jest src/lib/db/testing/__tests__/disposablePostgres.test.js --runInBand
 npx jest src/lib/services/__tests__/promotionRedemptions.postgres.test.js --runInBand
 ```
 
@@ -45,7 +71,8 @@ npx jest src/lib/services/__tests__/promotionRedemptions.postgres.test.js --runI
 ```
 
 Both commands use synthetic identifiers and create and remove their own
-database. They must never point `DB_NAME` at a live application database.
+database. A missing opt-in or incomplete dedicated configuration is a hard
+failure; there is no fallback to application database credentials.
 
 ## Manual gates
 

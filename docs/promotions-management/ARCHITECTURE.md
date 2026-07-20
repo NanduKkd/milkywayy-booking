@@ -98,7 +98,13 @@ database-backed integration harness builds only the required synthetic base
 tables plus the production promotion migration in a disposable database, uses
 independent connection-pool transactions for contention, applies bounded
 statement/lock/idle-transaction timeouts, and drops the database after success
-or setup failure.
+or setup failure. Cluster DDL is available only under `NODE_ENV=test` with an
+explicit opt-in and dedicated test-admin connection settings; application
+database settings are never used for database creation or removal. Every
+created database has the fixed `mw_codex_test_` prefix, which is revalidated
+immediately before creation, connection termination, alteration, and removal.
+Connection and administrative shutdowns are bounded, and failed removal keeps
+the cleanup handle retryable until the database is confirmed removed.
 
 ### promotion_audit_events
 

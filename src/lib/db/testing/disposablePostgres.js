@@ -2,117 +2,391 @@ const { randomUUID } = require("node:crypto");
 const { Client } = require("pg");
 const { Sequelize } = require("sequelize");
 
+const RESERVED_DATABASE_PREFIX = "mw_codex_test_";
 const DATABASE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/;
-const DEFAULT_DATABASE_PREFIX = "mw_test";
+const TEST_ADMIN_OPT_IN_VALUE = "CREATE_DROP_RESERVED_DATABASES";
+const DEFAULT_TIMEOUTS = Object.freeze({
+  adminAttempts: 2,
+  adminEndMs: 1000,
+  adminOperationMs: 3000,
+  connectionCloseMs: 1000,
+  retryDelayMs: 25,
+  setupMs: 8000,
+});
 
-function getAdminConfig() {
+function requireEnvironmentValue(name) {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(
+      `Disposable PostgreSQL tests require the dedicated ${name} setting`,
+    );
+  }
+
+  return value;
+}
+
+function getTestAdminConfig() {
+  if (process.env.NODE_ENV !== "test") {
+    throw new Error(
+      "Disposable PostgreSQL databases are restricted to NODE_ENV=test",
+    );
+  }
+
+  if (process.env.MW_TEST_POSTGRES_ADMIN_OPT_IN !== TEST_ADMIN_OPT_IN_VALUE) {
+    throw new Error(
+      "Disposable PostgreSQL database DDL requires explicit test-admin opt-in",
+    );
+  }
+
+  const database = requireEnvironmentValue("MW_TEST_POSTGRES_ADMIN_DATABASE");
+  const host = requireEnvironmentValue("MW_TEST_POSTGRES_ADMIN_HOST");
+  const port = Number(requireEnvironmentValue("MW_TEST_POSTGRES_ADMIN_PORT"));
+  const user = requireEnvironmentValue("MW_TEST_POSTGRES_ADMIN_USER");
+
+  if (database !== "postgres") {
+    throw new Error(
+      "MW_TEST_POSTGRES_ADMIN_DATABASE must name the postgres maintenance database",
+    );
+  }
+
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("MW_TEST_POSTGRES_ADMIN_PORT must be a valid TCP port");
+  }
+
   return {
-    host: process.env.DB_HOST || "localhost",
-    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432,
-    user: process.env.DB_USER || undefined,
-    password: process.env.DB_PASSWORD || undefined,
-    database: "postgres",
-    connectionTimeoutMillis: 5000,
-    query_timeout: 5000,
+    host,
+    port,
+    user,
+    password: process.env.MW_TEST_POSTGRES_ADMIN_PASSWORD || undefined,
+    database,
   };
 }
 
-function buildDatabaseName(prefix = DEFAULT_DATABASE_PREFIX) {
-  const normalizedPrefix = String(prefix)
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "_")
-    .replace(/^[^a-z]+/, "")
-    .slice(0, 32);
-  const safePrefix = normalizedPrefix || DEFAULT_DATABASE_PREFIX;
-  const suffix = `${Date.now()}_${process.pid}_${randomUUID().slice(0, 8)}`;
-  const databaseName = `${safePrefix}_${suffix}`.slice(0, 63);
+function normalizeTimeout(value, fallback, label, maximum = 10000) {
+  const normalized = value == null ? fallback : Number(value);
 
-  if (!DATABASE_NAME_PATTERN.test(databaseName)) {
-    throw new Error(
-      "Could not build a safe disposable PostgreSQL database name",
-    );
+  if (!Number.isInteger(normalized) || normalized < 1 || normalized > maximum) {
+    throw new Error(`${label} must be an integer from 1 to ${maximum}`);
   }
 
+  return normalized;
+}
+
+function normalizeTimeouts(overrides = {}) {
+  return {
+    adminAttempts: normalizeTimeout(
+      overrides.adminAttempts,
+      DEFAULT_TIMEOUTS.adminAttempts,
+      "Admin attempts",
+      5,
+    ),
+    adminEndMs: normalizeTimeout(
+      overrides.adminEndMs,
+      DEFAULT_TIMEOUTS.adminEndMs,
+      "Admin end timeout",
+    ),
+    adminOperationMs: normalizeTimeout(
+      overrides.adminOperationMs,
+      DEFAULT_TIMEOUTS.adminOperationMs,
+      "Admin operation timeout",
+    ),
+    connectionCloseMs: normalizeTimeout(
+      overrides.connectionCloseMs,
+      DEFAULT_TIMEOUTS.connectionCloseMs,
+      "Connection close timeout",
+    ),
+    retryDelayMs: normalizeTimeout(
+      overrides.retryDelayMs,
+      DEFAULT_TIMEOUTS.retryDelayMs,
+      "Retry delay",
+      1000,
+    ),
+    setupMs: normalizeTimeout(
+      overrides.setupMs,
+      DEFAULT_TIMEOUTS.setupMs,
+      "Setup timeout",
+      30000,
+    ),
+  };
+}
+
+function buildDatabaseName(label = "database") {
+  const normalizedLabel = String(label)
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 24);
+  const safeLabel = normalizedLabel || "database";
+  const suffix = `${Date.now()}_${process.pid}_${randomUUID().slice(0, 8)}`;
+  const databaseName =
+    `${RESERVED_DATABASE_PREFIX}${safeLabel}_${suffix}`.slice(0, 63);
+
+  assertReservedDatabaseName(databaseName, "database-name generation");
   return databaseName;
 }
 
+function assertReservedDatabaseName(databaseName, operation) {
+  if (
+    typeof databaseName !== "string" ||
+    !databaseName.startsWith(RESERVED_DATABASE_PREFIX) ||
+    databaseName.length <= RESERVED_DATABASE_PREFIX.length ||
+    databaseName.length > 63 ||
+    !DATABASE_NAME_PATTERN.test(databaseName)
+  ) {
+    throw new Error(
+      `Refusing ${operation}: database name is outside the reserved test prefix`,
+    );
+  }
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function withTimeout(operation, milliseconds, label) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`${label} exceeded ${milliseconds}ms`)),
+      milliseconds,
+    );
+  });
+
+  try {
+    return await Promise.race([Promise.resolve().then(operation), timeout]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function forceDestroyClient(client) {
+  client?.once?.("error", () => {});
+  client?.connection?.stream?.destroy();
+}
+
 async function createDisposablePostgresDatabase({
-  databasePrefix = DEFAULT_DATABASE_PREFIX,
+  databaseLabel = "database",
   setup = null,
+  testHooks = {},
+  timeouts: timeoutOverrides = {},
 } = {}) {
-  const databaseName = buildDatabaseName(databasePrefix);
-  const adminClient = new Client(getAdminConfig());
+  const adminConfig = getTestAdminConfig();
+  const timeouts = normalizeTimeouts(timeoutOverrides);
+  const databaseName = buildDatabaseName(databaseLabel);
+  const adminClient = new Client({
+    ...adminConfig,
+    connectionTimeoutMillis: timeouts.adminOperationMs,
+    query_timeout: timeouts.adminOperationMs,
+  });
   const managedConnections = new Set();
-  let databaseCreated = false;
+  let acceptingConnections = true;
   let adminConnected = false;
-  let closed = false;
+  let cleanupComplete = false;
+  let cleanupPromise = null;
+  let databaseCreated = false;
 
-  async function close() {
-    if (closed) return;
-    closed = true;
+  async function runAdminOperation(
+    operationName,
+    operation,
+    { attempts = timeouts.adminAttempts } = {},
+  ) {
+    let lastError;
 
-    let cleanupError = null;
-
-    for (const connection of [...managedConnections].reverse()) {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
-        await connection.close();
-      } catch (error) {
-        cleanupError ||= error;
-      }
-    }
-    managedConnections.clear();
-
-    if (adminConnected && databaseCreated) {
-      try {
-        await adminClient.query(
-          `
-            SELECT pg_terminate_backend(pid)
-            FROM pg_stat_activity
-            WHERE datname = $1 AND pid <> pg_backend_pid()
-          `,
-          [databaseName],
+        return await withTimeout(
+          async () => {
+            if (typeof testHooks.beforeAdminOperation === "function") {
+              await testHooks.beforeAdminOperation({ attempt, operationName });
+            }
+            return operation();
+          },
+          timeouts.adminOperationMs,
+          `Disposable PostgreSQL ${operationName}`,
         );
-        await adminClient.query(`DROP DATABASE IF EXISTS "${databaseName}"`);
-        databaseCreated = false;
       } catch (error) {
-        cleanupError ||= error;
+        lastError = error;
+        if (attempt < attempts) {
+          await wait(timeouts.retryDelayMs);
+        }
       }
     }
 
-    if (adminConnected) {
-      try {
-        await adminClient.end();
-        adminConnected = false;
-      } catch (error) {
-        cleanupError ||= error;
-      }
+    throw new Error(
+      `Disposable PostgreSQL ${operationName} failed after ${attempts} attempt(s)`,
+      { cause: lastError },
+    );
+  }
+
+  async function closeManagedConnections() {
+    const failures = [];
+
+    await Promise.all(
+      [...managedConnections].reverse().map(async (connection) => {
+        try {
+          await withTimeout(
+            () => connection.close(),
+            timeouts.connectionCloseMs,
+            "Disposable PostgreSQL registered connection close",
+          );
+          managedConnections.delete(connection);
+        } catch (error) {
+          failures.push(error);
+        }
+      }),
+    );
+
+    return failures;
+  }
+
+  async function removeDatabase() {
+    if (!databaseCreated) return;
+
+    await runAdminOperation("connection termination", async () => {
+      assertReservedDatabaseName(databaseName, "connection termination");
+      return adminClient.query(
+        `
+          SELECT pg_terminate_backend(pid)
+          FROM pg_stat_activity
+          WHERE datname = $1 AND pid <> pg_backend_pid()
+        `,
+        [databaseName],
+      );
+    });
+
+    await runAdminOperation("database drop", async () => {
+      assertReservedDatabaseName(databaseName, "database drop");
+      return adminClient.query(`DROP DATABASE IF EXISTS "${databaseName}"`);
+    });
+
+    databaseCreated = false;
+  }
+
+  async function endAdminClient() {
+    if (!adminConnected) return;
+
+    try {
+      await withTimeout(
+        () =>
+          typeof testHooks.endAdminClient === "function"
+            ? testHooks.endAdminClient()
+            : adminClient.end(),
+        timeouts.adminEndMs,
+        "Disposable PostgreSQL admin connection end",
+      );
+    } catch (_error) {
+      forceDestroyClient(adminClient);
+    } finally {
+      adminConnected = false;
+    }
+  }
+
+  async function performCleanup() {
+    acceptingConnections = false;
+    const connectionCloseFailures = await closeManagedConnections();
+
+    await removeDatabase();
+    managedConnections.clear();
+    await endAdminClient();
+    cleanupComplete = true;
+
+    return { connectionCloseFailures };
+  }
+
+  function close() {
+    if (cleanupComplete) {
+      return Promise.resolve({ connectionCloseFailures: [] });
     }
 
-    if (cleanupError) throw cleanupError;
+    if (!cleanupPromise) {
+      cleanupPromise = performCleanup().finally(() => {
+        cleanupPromise = null;
+      });
+    }
+
+    return cleanupPromise;
   }
 
   try {
-    await adminClient.connect();
-    adminConnected = true;
-    await adminClient.query(`CREATE DATABASE "${databaseName}"`);
-    databaseCreated = true;
-    await adminClient.query(
-      `ALTER DATABASE "${databaseName}" SET statement_timeout = '5s'`,
+    try {
+      await withTimeout(
+        () => adminClient.connect(),
+        timeouts.adminOperationMs,
+        "Disposable PostgreSQL admin connection",
+      );
+      adminConnected = true;
+    } catch (connectionError) {
+      forceDestroyClient(adminClient);
+      throw connectionError;
+    }
+    await runAdminOperation(
+      "admin timeout configuration",
+      () =>
+        adminClient.query(
+          `SET statement_timeout = '${timeouts.adminOperationMs}ms'`,
+        ),
+      { attempts: 1 },
     );
-    await adminClient.query(
-      `ALTER DATABASE "${databaseName}" SET lock_timeout = '3s'`,
+    await runAdminOperation(
+      "admin lock-timeout configuration",
+      () => adminClient.query("SET lock_timeout = '3s'"),
+      { attempts: 1 },
     );
-    await adminClient.query(
-      `ALTER DATABASE "${databaseName}" SET idle_in_transaction_session_timeout = '5s'`,
-    );
+    try {
+      await runAdminOperation(
+        "database creation",
+        async () => {
+          assertReservedDatabaseName(databaseName, "database creation");
+          return adminClient.query(`CREATE DATABASE "${databaseName}"`);
+        },
+        { attempts: 1 },
+      );
+      databaseCreated = true;
+    } catch (creationError) {
+      try {
+        const existenceResult = await runAdminOperation(
+          "database creation verification",
+          () =>
+            adminClient.query("SELECT 1 FROM pg_database WHERE datname = $1", [
+              databaseName,
+            ]),
+          { attempts: 1 },
+        );
+        databaseCreated = existenceResult.rowCount > 0;
+      } catch (_verificationError) {
+        databaseCreated = true;
+      }
+      throw creationError;
+    }
+
+    for (const [setting, value] of [
+      ["statement_timeout", "5s"],
+      ["lock_timeout", "3s"],
+      ["idle_in_transaction_session_timeout", "5s"],
+    ]) {
+      await runAdminOperation(
+        `database ${setting} configuration`,
+        async () => {
+          assertReservedDatabaseName(
+            databaseName,
+            `database ${setting} configuration`,
+          );
+          return adminClient.query(
+            `ALTER DATABASE "${databaseName}" SET ${setting} = '${value}'`,
+          );
+        },
+        { attempts: 1 },
+      );
+    }
 
     const sequelize = new Sequelize(
       databaseName,
-      process.env.DB_USER || undefined,
-      process.env.DB_PASSWORD || undefined,
+      adminConfig.user,
+      adminConfig.password,
       {
-        host: process.env.DB_HOST || "localhost",
-        port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432,
+        host: adminConfig.host,
+        port: adminConfig.port,
         dialect: "postgres",
         logging: false,
         pool: {
@@ -133,12 +407,24 @@ async function createDisposablePostgresDatabase({
     await sequelize.authenticate();
 
     const disposableDatabase = {
+      applicationDatabaseEnvironment: {
+        DB_HOST: adminConfig.host,
+        DB_PORT: String(adminConfig.port),
+        DB_USER: adminConfig.user,
+        DB_PASSWORD: adminConfig.password,
+        DB_NAME: databaseName,
+      },
       databaseName,
       sequelize,
       queryInterface: sequelize.getQueryInterface(),
       registerConnection(connection) {
-        if (closed) {
-          throw new Error("Cannot register a connection after cleanup");
+        if (!acceptingConnections || cleanupComplete) {
+          throw new Error("Cannot register a connection after cleanup starts");
+        }
+        if (!connection || typeof connection.close !== "function") {
+          throw new Error(
+            "Registered disposable database connections require close()",
+          );
         }
         managedConnections.add(connection);
         return connection;
@@ -147,20 +433,36 @@ async function createDisposablePostgresDatabase({
     };
 
     if (setup) {
-      await setup(disposableDatabase);
+      await withTimeout(
+        () => setup(disposableDatabase),
+        timeouts.setupMs,
+        "Disposable PostgreSQL setup",
+      );
     }
 
     return disposableDatabase;
   } catch (error) {
-    try {
-      await close();
-    } catch (cleanupError) {
+    let cleanupError = null;
+
+    for (let attempt = 1; attempt <= 2 && !cleanupComplete; attempt += 1) {
+      try {
+        await close();
+      } catch (currentCleanupError) {
+        cleanupError = currentCleanupError;
+      }
+    }
+
+    if (cleanupError && !cleanupComplete) {
       error.cleanupError = cleanupError;
+      error.retryCleanup = close;
     }
     throw error;
   }
 }
 
 module.exports = {
+  RESERVED_DATABASE_PREFIX,
+  TEST_ADMIN_OPT_IN_VALUE,
+  assertReservedDatabaseName,
   createDisposablePostgresDatabase,
 };

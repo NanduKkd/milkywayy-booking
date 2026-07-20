@@ -3,6 +3,7 @@
 const { QueryTypes } = require("sequelize");
 
 const {
+  RESERVED_DATABASE_PREFIX,
   createDisposablePostgresDatabase,
 } = require("../../db/testing/disposablePostgres");
 const {
@@ -12,7 +13,12 @@ const {
 jest.setTimeout(30000);
 
 describe("promotion redemptions with real PostgreSQL contention", () => {
-  const originalDbName = process.env.DB_NAME;
+  const originalDbEnvironment = Object.fromEntries(
+    ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME"].map((name) => [
+      name,
+      process.env[name],
+    ]),
+  );
   let appSequelize;
   let database;
   let models;
@@ -23,6 +29,16 @@ describe("promotion redemptions with real PostgreSQL contention", () => {
   let reservePromotionForCheckoutTransaction;
   let reservePromotionRedemption;
   let fixtureSequence = 0;
+
+  function replaceApplicationDatabaseEnvironment(environment) {
+    for (const [name, value] of Object.entries(environment)) {
+      if (value == null) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
 
   async function createUser() {
     const [user] = await database.sequelize.query(
@@ -167,10 +183,12 @@ describe("promotion redemptions with real PostgreSQL contention", () => {
 
   beforeAll(async () => {
     database = await createDisposablePostgresDatabase({
-      databasePrefix: "mw_promotion_redemptions",
+      databaseLabel: "promotion_redemptions",
       setup: applyPromotionPostgresSchema,
     });
-    process.env.DB_NAME = database.databaseName;
+    replaceApplicationDatabaseEnvironment(
+      database.applicationDatabaseEnvironment,
+    );
     jest.resetModules();
 
     appSequelize = require("../../db/db").sequelize;
@@ -191,9 +209,9 @@ describe("promotion redemptions with real PostgreSQL contention", () => {
   });
 
   afterAll(async () => {
-    process.env.DB_NAME = originalDbName;
-    jest.resetModules();
     await database?.close();
+    replaceApplicationDatabaseEnvironment(originalDbEnvironment);
+    jest.resetModules();
   });
 
   beforeEach(async () => {
@@ -491,9 +509,9 @@ describe("promotion redemptions with real PostgreSQL contention", () => {
   });
 
   it("drops disposable databases after success and setup failure", async () => {
-    const successPrefix = `mw_cleanup_success_${process.pid}`;
+    const successLabel = `cleanup_success_${process.pid}`;
     const successDatabase = await createDisposablePostgresDatabase({
-      databasePrefix: successPrefix,
+      databaseLabel: successLabel,
     });
     const successDatabaseName = successDatabase.databaseName;
     await successDatabase.close();
@@ -507,10 +525,10 @@ describe("promotion redemptions with real PostgreSQL contention", () => {
     );
     expect(successRows).toEqual([]);
 
-    const failurePrefix = `mw_cleanup_failure_${process.pid}`;
+    const failureLabel = `cleanup_failure_${process.pid}`;
     await expect(
       createDisposablePostgresDatabase({
-        databasePrefix: failurePrefix,
+        databaseLabel: failureLabel,
         setup: async () => {
           throw new Error("synthetic setup failure");
         },
@@ -520,7 +538,9 @@ describe("promotion redemptions with real PostgreSQL contention", () => {
     const failureRows = await database.sequelize.query(
       "SELECT datname FROM pg_database WHERE datname LIKE :databasePrefix",
       {
-        replacements: { databasePrefix: `${failurePrefix}%` },
+        replacements: {
+          databasePrefix: `${RESERVED_DATABASE_PREFIX}${failureLabel}%`,
+        },
         type: QueryTypes.SELECT,
       },
     );
