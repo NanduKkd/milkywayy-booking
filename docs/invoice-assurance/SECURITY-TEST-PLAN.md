@@ -10,7 +10,9 @@ download-path validation.
 `src/lib/helpers/__tests__/numbering.test.js` verifies persisted-number reuse,
 paid-time precedence, exact UTC query replacements, controlled-clock fallback,
 invalid count rejection, ORM updates, direct allocation for a previously
-unnumbered plain object without `update`, and bounded unique-error retry.
+unnumbered plain object without `update`, its constrained persistence query and
+failure behavior before in-memory synchronization, and bounded unique-error
+retry.
 
 `src/lib/helpers/__tests__/invoiceNumbering.postgres.test.js` creates a
 reserved, disposable PostgreSQL database through the shared harness. It runs
@@ -21,7 +23,9 @@ same transaction-scoped daily advisory lock from one real backend and verifies
 through `pg_stat_activity` that the second allocator backend is actively
 waiting on that lock before release; a bounded timeout fails rather than
 hanging. After release, the second allocator persists the next distinct
-number. It never uses production credentials or customer records.
+number. A methodless-object case reloads the real row to prove durable number
+persistence and verifies the real unique constraint rejects a duplicate. It
+never uses production credentials or customer records.
 
 Run focused unit coverage with:
 

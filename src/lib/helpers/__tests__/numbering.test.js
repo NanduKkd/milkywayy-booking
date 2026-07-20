@@ -82,18 +82,41 @@ describe("ensureTransactionInvoiceNumber", () => {
     );
   });
 
-  it("falls back to the controlled clock and updates an unnumbered plain object without update", async () => {
-    configureSuccessfulAllocation(1);
+  it("persists and then synchronizes an unnumbered plain object without update", async () => {
+    const databaseTransaction = configureSuccessfulAllocation(1);
     const transaction = {
       id: 9,
       paidAt: "not-a-date",
     };
+    db.query.mockResolvedValueOnce([{ invoiceNumber: "MW-2026-0721-001" }]);
 
     await expect(ensureTransactionInvoiceNumber(transaction)).resolves.toBe(
       "MW-2026-0721-001",
     );
     expect(transaction.invoiceNumber).toBe("MW-2026-0721-001");
     expect(transaction.update).toBeUndefined();
+    expect(db.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("UPDATE transactions"),
+      expect.objectContaining({
+        replacements: {
+          invoiceNumber: "MW-2026-0721-001",
+          transactionId: 9,
+        },
+        transaction: databaseTransaction,
+      }),
+    );
+  });
+
+  it("does not mutate a plain object when durable persistence fails", async () => {
+    configureSuccessfulAllocation(1);
+    const transaction = { id: 12 };
+    db.query.mockResolvedValueOnce([]);
+
+    await expect(ensureTransactionInvoiceNumber(transaction)).rejects.toThrow(
+      "Invoice number persistence did not update the transaction",
+    );
+    expect(transaction.invoiceNumber).toBeUndefined();
   });
 
   it("does not persist unusable count results", async () => {

@@ -104,7 +104,28 @@ export async function ensureTransactionInvoiceNumber(transaction) {
               { transaction: databaseTransaction },
             );
           } else {
-            transaction.invoiceNumber = candidate;
+            const [persisted] = await db.query(
+              `
+                UPDATE transactions
+                SET invoice_number = :invoiceNumber
+                WHERE id = :transactionId
+                  AND invoice_number IS NULL
+                RETURNING invoice_number AS "invoiceNumber"
+              `,
+              {
+                replacements: {
+                  invoiceNumber: candidate,
+                  transactionId: transaction.id,
+                },
+                transaction: databaseTransaction,
+                type: QueryTypes.SELECT,
+              },
+            );
+            if (persisted?.invoiceNumber !== candidate) {
+              throw new Error(
+                "Invoice number persistence did not update the transaction",
+              );
+            }
           }
           return candidate;
         },

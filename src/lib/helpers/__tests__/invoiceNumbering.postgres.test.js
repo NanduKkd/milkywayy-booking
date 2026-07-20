@@ -161,6 +161,35 @@ describe("invoice numbering with disposable PostgreSQL", () => {
     );
   });
 
+  it("durably persists a methodless transaction object through the unique row", async () => {
+    const userId = await createUser();
+    const persistedTransaction = await createSuccessfulTransaction(userId);
+    const transaction = {
+      id: persistedTransaction.id,
+      paidAt: sameDay,
+    };
+
+    await expect(ensureTransactionInvoiceNumber(transaction)).resolves.toBe(
+      "MW-2026-0721-001",
+    );
+    expect(transaction.invoiceNumber).toBe("MW-2026-0721-001");
+    await persistedTransaction.reload();
+    expect(persistedTransaction.invoiceNumber).toBe("MW-2026-0721-001");
+    expect(
+      await models.Transaction.count({
+        where: { invoiceNumber: transaction.invoiceNumber },
+      }),
+    ).toBe(1);
+
+    const duplicate = await createSuccessfulTransaction(userId);
+    await expect(
+      duplicate.update({ invoiceNumber: transaction.invoiceNumber }),
+    ).rejects.toMatchObject({ name: "SequelizeUniqueConstraintError" });
+    console.info(
+      `[invoice-numbering-postgres] methodless_persisted=${transaction.invoiceNumber} unique=true`,
+    );
+  });
+
   it("holds the daily advisory lock until a separate allocator backend is visibly waiting", async () => {
     const [firstUserId, secondUserId] = await Promise.all([
       createUser(),

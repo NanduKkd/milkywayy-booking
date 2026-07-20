@@ -31,9 +31,11 @@ integrity boundary. If another writer still wins a collision, allocation rolls
 back and retries a bounded number of times with a valid next sequence; an
 unresolved database error is surfaced rather than silently persisting an
 ambiguous identifier. ORM instances persist through `update` and retain their
-`setDataValue` representation. Plain transaction objects without `update` are
-assigned the candidate directly so helper-only callers receive the number
-without requiring an ORM method.
+`setDataValue` representation. Plain transaction objects without `update` use
+a constrained `UPDATE … WHERE id = :transactionId AND invoice_number IS NULL
+RETURNING` in the same allocation transaction. The returned row must match the
+candidate before the plain object is synchronized after commit, so reloads
+retain the allocation and the unique constraint remains effective.
 
 The combined plain-object URL-plus-number path is intentionally not implemented
 here: it depends on the unmerged invoice-URL fallback work from #51. After that
