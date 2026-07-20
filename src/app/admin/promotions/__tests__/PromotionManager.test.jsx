@@ -556,4 +556,438 @@ describe("PromotionManager", () => {
       screen.getAllByText("No customers assigned yet.").length,
     ).toBeGreaterThan(0);
   });
+
+  it("shows a safe initial-load error without rendering a successful empty catalog", () => {
+    render(
+      <PromotionManager
+        initialPromotions={[]}
+        loadError="Promotions are temporarily unavailable."
+      />,
+    );
+
+    expect(
+      screen.getByRole("alert", { name: /Unable to load promotions/i }),
+    ).toHaveTextContent("Promotions are temporarily unavailable.");
+    expect(
+      screen.getByRole("button", { name: "Retry loading promotions" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("No generic codes yet")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+  });
+
+  it("renders the genuine empty state when the catalog loads successfully", () => {
+    render(<PromotionManager initialPromotions={[]} />);
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("No generic codes yet")).toBeInTheDocument();
+  });
+
+  it("preserves a failed create form and updates the correct row after retry", async () => {
+    const createdPromotion = {
+      id: 303,
+      kind: "GENERIC",
+      code: "WELCOME15",
+      name: "Welcome 15",
+      benefitType: "PERCENTAGE",
+      benefitValue: 15,
+      benefitCap: null,
+      minimumSpend: 300,
+      startsAt: null,
+      endsAt: null,
+      status: "DRAFT",
+      priority: 0,
+      perUserLimit: null,
+      totalLimit: null,
+      triggerType: "NONE",
+      triggerConfig: {},
+      createdAt: "2026-07-01T11:00:00.000Z",
+    };
+    createAdminPromotion
+      .mockResolvedValueOnce({
+        success: false,
+        message: "Promotion code is already in use.",
+      })
+      .mockResolvedValueOnce({ success: true, data: createdPromotion });
+
+    render(<PromotionManager initialPromotions={[]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Generic" }));
+    expect(
+      screen.getByRole("dialog", { name: "Create promotion" }),
+    ).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Promotion name"), {
+      target: { value: "Welcome 15" },
+    });
+    fireEvent.change(screen.getByLabelText("Promotion code"), {
+      target: { value: "welcome15" },
+    });
+    fireEvent.change(screen.getByLabelText("Discount percentage"), {
+      target: { value: "15" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create promotion" }));
+
+    expect(
+      await screen.findByRole("alert", {
+        name: /Unable to update promotions/i,
+      }),
+    ).toHaveTextContent("Promotion code is already in use.");
+    expect(screen.getByLabelText("Promotion name")).toHaveValue("Welcome 15");
+    expect(screen.getByLabelText("Promotion code")).toHaveValue("WELCOME15");
+    expect(screen.queryByText("WELCOME15")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create promotion" }));
+
+    await waitFor(() => {
+      expect(createAdminPromotion).toHaveBeenCalledTimes(2);
+    });
+    expect(await screen.findByText("WELCOME15")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("prevents a rapid duplicate create submission while the first request is pending", async () => {
+    let resolveCreate;
+    const pendingCreate = new Promise((resolve) => {
+      resolveCreate = resolve;
+    });
+    createAdminPromotion.mockReturnValue(pendingCreate);
+
+    render(<PromotionManager initialPromotions={[]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Generic" }));
+    fireEvent.change(screen.getByLabelText("Promotion name"), {
+      target: { value: "One request only" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create promotion" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create promotion" }));
+
+    expect(createAdminPromotion).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: "Create promotion" }),
+    ).toBeDisabled();
+
+    await act(async () => {
+      resolveCreate({
+        success: true,
+        data: {
+          ...mockPromotions[0],
+          id: 303,
+          name: "One request only",
+          code: "ONE",
+        },
+      });
+    });
+
+    expect(await screen.findByText("ONE")).toBeInTheDocument();
+  });
+
+  it("preserves lifecycle status after failure and clears the failure after a retry", async () => {
+    pauseAdminPromotion
+      .mockResolvedValueOnce({
+        success: false,
+        message: "Promotion cannot be paused right now.",
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { ...mockPromotions[1], status: "PAUSED" },
+      });
+
+    render(<PromotionManager initialPromotions={mockPromotions} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    fireEvent.pointerDown(
+      await screen.findByRole("button", {
+        name: "Actions for VIP repeat customer",
+      }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Pause" }));
+
+    expect(
+      await screen.findByRole("alert", {
+        name: /Unable to update promotions/i,
+      }),
+    ).toHaveTextContent("Promotion cannot be paused right now.");
+    expect(screen.getByText("Active")).toBeInTheDocument();
+
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for VIP repeat customer" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Pause" }));
+
+    expect(await screen.findByText("Paused")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("keeps assignments intact when assignment changes fail and exposes retryable feedback", async () => {
+    const assignedPromotion = {
+      ...mockPromotions[1],
+      assignments: [
+        {
+          id: 901,
+          promotionId: 151,
+          userId: 801,
+          user: {
+            id: 801,
+            displayName: "Noura Buyer",
+            email: "noura@example.com",
+          },
+        },
+      ],
+    };
+    unassignAdminPromotionCustomer
+      .mockResolvedValueOnce({
+        success: false,
+        message: "Customer assignment could not be removed.",
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { ...assignedPromotion, assignments: [] },
+      });
+
+    render(
+      <PromotionManager
+        initialPromotions={[
+          mockPromotions[0],
+          assignedPromotion,
+          mockPromotions[2],
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for VIP repeat customer" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Assign customer" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(
+      await screen.findByRole("alert", { name: "Assignment update" }),
+    ).toHaveTextContent("Customer assignment could not be removed.");
+    expect(screen.getAllByText("Noura Buyer").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    expect(
+      await screen.findByRole("status", { name: "Assignment update" }),
+    ).toHaveTextContent("Noura Buyer removed successfully.");
+    expect(screen.getByText("No customers assigned yet.")).toBeInTheDocument();
+  });
+
+  it("keeps edit values after a rejected action and uses a safe fallback message", async () => {
+    updateAdminPromotion.mockRejectedValue(new Error("database details"));
+
+    render(<PromotionManager initialPromotions={mockPromotions} />);
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for Save 20" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Promotion name"), {
+      target: { value: "Still saved locally" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    expect(
+      await screen.findByRole("alert", { name: "Unable to update promotions" }),
+    ).toHaveTextContent("Unable to save this promotion.");
+    expect(screen.getByLabelText("Promotion name")).toHaveValue(
+      "Still saved locally",
+    );
+    expect(screen.queryByText("Still saved locally")).not.toBeInTheDocument();
+  });
+
+  it("keeps the current status when a lifecycle request rejects", async () => {
+    pauseAdminPromotion.mockRejectedValue(new Error("database details"));
+
+    render(<PromotionManager initialPromotions={mockPromotions} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    fireEvent.pointerDown(
+      await screen.findByRole("button", {
+        name: "Actions for VIP repeat customer",
+      }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Pause" }));
+
+    expect(
+      await screen.findByRole("alert", { name: "Unable to update promotions" }),
+    ).toHaveTextContent("Unable to update this promotion.");
+    expect(screen.getByText("Active")).toBeInTheDocument();
+  });
+
+  it("reports failed customer searches without changing assignments", async () => {
+    jest.useFakeTimers();
+    searchPromotionAssignableCustomers.mockResolvedValue({
+      success: false,
+      message: "Customer search is temporarily unavailable.",
+    });
+
+    render(<PromotionManager initialPromotions={mockPromotions} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    fireEvent.pointerDown(
+      await screen.findByRole("button", {
+        name: "Actions for VIP repeat customer",
+      }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Assign customer" }),
+    );
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search customers" }),
+      {
+        target: { value: "No" },
+      },
+    );
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+
+    expect(
+      await screen.findByRole("alert", { name: "Assignment update" }),
+    ).toHaveTextContent("Customer search is temporarily unavailable.");
+    expect(screen.getByText("No customers assigned yet.")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Assign" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("recovers from a rejected customer search with a safe retryable message", async () => {
+    jest.useFakeTimers();
+    searchPromotionAssignableCustomers.mockRejectedValue(
+      new Error("database details"),
+    );
+
+    render(<PromotionManager initialPromotions={mockPromotions} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    fireEvent.pointerDown(
+      await screen.findByRole("button", {
+        name: "Actions for VIP repeat customer",
+      }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Assign customer" }),
+    );
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Search customers" }),
+      { target: { value: "No" } },
+    );
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+
+    expect(
+      await screen.findByRole("alert", { name: "Assignment update" }),
+    ).toHaveTextContent("Unable to search for customers.");
+    expect(screen.getByText("No customers assigned yet.")).toBeInTheDocument();
+  });
+
+  it("renders status, trigger, customer, and catalog fallbacks without treating them as errors", async () => {
+    const edgePromotions = [
+      {
+        id: 401,
+        kind: "GENERIC",
+        name: "Code fallback",
+        benefitType: "PERCENTAGE",
+        benefitValue: 0,
+        benefitCap: null,
+        minimumSpend: 0,
+        startsAt: "not-a-date",
+        endsAt: null,
+        perUserLimit: null,
+        totalLimit: null,
+        createdAt: "not-a-date",
+      },
+      {
+        id: 402,
+        kind: "PERSONAL",
+        name: "Multiple customer fallback",
+        benefitType: "PERCENTAGE",
+        benefitValue: 10,
+        benefitCap: null,
+        assignments: [
+          { id: 1, userId: 1, user: { fullName: "Full name only" } },
+          { id: 2, userId: 2, user: { email: "second@example.com" } },
+        ],
+      },
+      {
+        id: 403,
+        kind: "AUTOMATIC",
+        name: "Second booking",
+        benefitType: "FIXED",
+        benefitValue: 75,
+        minimumSpend: 0,
+        triggerType: "SECOND_PAID_BOOKING",
+        triggerConfig: {},
+      },
+      {
+        id: 404,
+        kind: "AUTOMATIC",
+        name: "Date range fallback",
+        benefitType: "PERCENTAGE",
+        benefitValue: 5,
+        triggerType: "DATE_RANGE",
+        triggerConfig: {},
+      },
+      {
+        id: 405,
+        kind: "AUTOMATIC",
+        name: "Unknown trigger",
+        benefitType: "PERCENTAGE",
+        benefitValue: 5,
+        triggerType: "UNKNOWN",
+        triggerConfig: {},
+      },
+    ];
+
+    render(<PromotionManager initialPromotions={edgePromotions} />);
+
+    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getByText("Invalid date – Always on")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    expect(await screen.findByText("Full name only")).toBeInTheDocument();
+    expect(screen.getByText("+1 more assigned")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Automatic Discounts/i }));
+    expect(await screen.findByText("Second paid booking")).toBeInTheDocument();
+    expect(screen.getByText("? to ?")).toBeInTheDocument();
+    expect(screen.getByText("No trigger")).toBeInTheDocument();
+  });
+
+  it("normalizes incomplete edit data into an accessible editable form", async () => {
+    const incompletePromotion = {
+      id: 406,
+      kind: "AUTOMATIC",
+      name: "Incomplete automatic",
+      startsAt: "not-a-date",
+      endsAt: "not-a-date",
+      triggerConfig: {},
+    };
+
+    render(<PromotionManager initialPromotions={[incompletePromotion]} />);
+    fireEvent.click(screen.getByRole("tab", { name: /Automatic Discounts/i }));
+    fireEvent.pointerDown(
+      await screen.findByRole("button", {
+        name: "Actions for Incomplete automatic",
+      }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Edit promotion" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Discount percentage")).toHaveValue(null);
+    expect(screen.getByLabelText("Minimum spend")).toHaveValue(0);
+    expect(screen.getByLabelText("Starts at (optional)")).toHaveValue("");
+    expect(screen.getByLabelText("Ends at (optional)")).toHaveValue("");
+  });
 });

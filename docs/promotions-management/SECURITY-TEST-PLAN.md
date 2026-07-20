@@ -4,9 +4,9 @@
 - Test-assurance Project snapshot (2026-07-21):
   - parent feature #28: `DRAFT`
   - PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32): `DONE`
-  - PRM-309 (#31): `IN_REVIEW`
-  - PRM-311 (#34): `IN_PROGRESS`; PRM-312 (#33) and PRM-313 (#35) remain
-    dependency-gated
+  - PRM-309 (#31): `DONE`
+  - PRM-312 (#33): `DONE`; PRM-311 (#34): `IN_REVIEW`
+  - PRM-313 (#35): `DRAFT` and dependency-gated
 
 Each child gate owns separate proof. Completing one child does not complete the
 parent feature or any dependency-gated successor.
@@ -83,8 +83,9 @@ TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.tes
 - PRM-309 (#31) below preserves its distinct server-action and initial-page
   proof, including authentication, delegation, revalidation, and safe action
   wrapping.
-- Checkout lifecycle, UI failure/recovery, and CI enforcement remain draft and
-  dependency-gated under #34, #33, and #35 respectively.
+- The PRM-312 UI failure/recovery gate (#33) is merged. The PRM-311 checkout
+  lifecycle gate (#34) is in review; CI enforcement (#35) remains draft and
+  dependency-gated.
 
 Future assurance changes must preserve #30 eligibility evidence, #29
 validation/lifecycle evidence, #31 action/page evidence, #32 PostgreSQL
@@ -196,11 +197,46 @@ The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
 80% branches. The issue #31 implementation recorded 100% statements and 100%
 branches for both boundary files across 26 focused tests.
 
-The parent assurance feature remains in `DRAFT`; PRM-307, PRM-308, and PRM-310
-are merged, while PRM-309 remains in review. Further checkout lifecycle, UI
-failure/recovery, and CI enforcement work remains draft and dependency-gated.
-Focused boundary results do not imply that the repository-wide Jest baseline
-is green.
+The parent assurance feature remains in `DRAFT`; PRM-307, PRM-308, PRM-309,
+PRM-310, and PRM-312 are merged. PRM-311 checkout lifecycle coverage is in
+review, and CI enforcement remains dependency-gated. Focused boundary results
+do not imply that the repository-wide Jest baseline is green.
+
+## Promotions UI failure and recovery gate
+
+`src/app/admin/promotions/__tests__/PromotionManager.test.jsx` proves that the
+client preserves operator state and reports safe action results:
+
+- A page load failure is an accessible alert with a named retry control; the
+  catalog tabs and empty state are withheld until a successful page render.
+- A successful empty catalog still renders the tab-specific empty state without
+  an error.
+- Failed and rejected create/update actions retain entered form values and do
+  not alter catalog rows. A successful retry updates only the returned row and
+  clears the stale alert.
+- Failed or rejected lifecycle actions preserve the current status; failed
+  search, assign, and unassign actions preserve current assignments and expose
+  an accessible retryable error. Successful assignment changes use named status
+  feedback.
+- Per-operation client locks and disabled controls prevent rapid duplicate form,
+  lifecycle, assignment, and unassignment submissions while a request is
+  pending.
+
+Run the focused UI/page gate with:
+
+```sh
+npx jest src/app/admin/promotions/__tests__/PromotionManager.test.jsx src/app/admin/promotions/__tests__/page.test.jsx --runInBand
+```
+
+Capture coverage with:
+
+```sh
+npx jest src/app/admin/promotions/__tests__/PromotionManager.test.jsx src/app/admin/promotions/__tests__/page.test.jsx --runInBand --coverage --collectCoverageFrom=src/app/admin/promotions/PromotionManager.jsx --collectCoverageFrom=src/app/admin/promotions/page.jsx
+```
+
+The required `PromotionManager` branch coverage is at least 80%. The initial
+PRM-312 implementation recorded 85.61% branches across 19 component tests;
+the paired page suite adds three page-boundary tests.
 
 ## Manual gates
 
