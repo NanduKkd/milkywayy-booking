@@ -881,6 +881,7 @@ export async function searchAssignableCustomers({
     ],
     where: {
       role: USER_ROLES.CUSTOMER,
+      disabledAt: null,
       [Op.or]: searchConditions,
     },
     order: [
@@ -1203,6 +1204,7 @@ export async function assignPromotionCustomer({
       where: {
         id: normalizedUserId,
         role: USER_ROLES.CUSTOMER,
+        disabledAt: null,
       },
       transaction: activeTransaction,
       lock: activeTransaction.LOCK.UPDATE,

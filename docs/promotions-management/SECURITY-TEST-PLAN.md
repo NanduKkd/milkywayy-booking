@@ -1,15 +1,31 @@
 # Promotions management security test plan
 
-- Last updated: 2026-07-20
-- Test-assurance Project snapshot (2026-07-20):
+- Last updated: 2026-07-21
+- Test-assurance Project snapshot (2026-07-21):
   - parent feature #28: `DRAFT`
-  - authorized child tasks PRM-307 (#30), PRM-308 (#29), PRM-309 (#31),
-    and PRM-310 (#32): `IN_REVIEW`
+  - PRM-308 (#29): `DONE`
+  - PRM-307 (#30), PRM-309 (#31), and PRM-310 (#32): `IN_REVIEW`
   - successor tasks PRM-312 (#33), PRM-311 (#34), and PRM-313 (#35):
     `DRAFT` and dependency-gated
 
-These statuses describe work under review, not completed or merged assurance.
-Each child branch owns separate proof and the parent remains open.
+Each child gate owns separate proof. Completing one child does not complete the
+parent feature or any dependency-gated successor.
+
+## PRM-307 disabled-customer eligibility gate
+
+- Personal customer lookup requires `role = CUSTOMER` and `disabledAt = null`,
+  excluding staff and disabled customers.
+- Direct personal-promotion assignment enforces the same eligibility predicate;
+  disabled, staff, and missing users receive the same non-enumerating
+  `Customer account not found` error and create no assignment or audit event.
+- Enabled customers remain searchable and assignable, while disabling an
+  account leaves historical assignment rows intact for audit.
+
+Run the focused gate with:
+
+```sh
+npm test -- --runInBand src/lib/services/__tests__/promotionAdmin.test.js
+```
 
 ## PRM-308 validation and lifecycle gate
 
@@ -46,8 +62,8 @@ TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.tes
 
 ## Sibling assurance boundaries
 
-- PRM-307 (#30) separately owns disabled-customer search and direct-assignment
-  enforcement. This branch does not claim that open sibling change as complete.
+- The PRM-307 (#30) and PRM-308 (#29) gates above preserve their distinct
+  eligibility and validation/lifecycle evidence after integration.
 - PRM-309 (#31) separately owns direct server-action and initial-page boundary
   proof, including authentication, delegation, revalidation, and safe action
   wrapping.
@@ -57,10 +73,9 @@ TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.tes
 - Checkout lifecycle, UI failure/recovery, and CI enforcement remain draft and
   dependency-gated under #34, #33, and #35 respectively.
 
-When sibling pull requests are integrated, reconciliation of this shared file
-must preserve #30 eligibility evidence, #29 validation/lifecycle evidence, #31
-action/page evidence, #32 PostgreSQL contention/harness evidence, and the
-authoritative Project snapshot above.
+Further sibling integration must preserve #30 eligibility evidence, #29
+validation/lifecycle evidence, #31 action/page evidence, #32 PostgreSQL
+contention/harness evidence, and the authoritative Project snapshot above.
 
 ## Manual gates
 
