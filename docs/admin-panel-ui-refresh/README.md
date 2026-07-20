@@ -1,16 +1,20 @@
-# Admin panel UI refresh delivery plan
+# Admin panel UI design contract
 
-- Last updated: 2026-07-12
+- Last updated: 2026-07-20
 - Planning status at GitHub migration: `DONE`
 - Implementation status at GitHub migration: `IN_PROGRESS`
-- Current acceptance/release issue: [#14](https://github.com/NanduKkd/milkywayy-booking/issues/14)
-- Target: make the complete current Super Admin interface visually consistent with the approved prototype direction while preserving working behavior.
+- Current acceptance/release issue: [#26](https://github.com/NanduKkd/milkywayy-booking/issues/26)
+- Target: reproduce the owner-supplied dense admin reference across the complete current Super Admin interface while preserving working behavior.
 
 ## Purpose
 
-Refresh the styling of every current admin page with one dark visual system. The
-prototype is inspiration rather than a pixel specification. Existing routes,
-data, forms, and operational workflows remain authoritative.
+The owner-supplied `design-reference.jsx` is the visual specification for the
+admin, not merely inspiration. Its compact zinc shell, typography hierarchy,
+spacing, borders, radii, navigation, filters, tables, dialogs, and responsive
+patterns should be reproduced wherever compatible with the live product.
+Existing routes, authorization, live data, forms, validation, and operational
+workflows remain authoritative. Reference fixture records are never runtime or
+proof data.
 
 ## Document index
 
@@ -41,18 +45,32 @@ data, forms, and operational workflows remain authoritative.
 - Keep `/admin` as the live analytics Dashboard and `/admin/analytics` as the detailed Reports page.
 - Label the existing `/admin/users` destination as **Customers**; the route does not change.
 - Keep Generic Codes, Personal Auto-Apply, and Automatic Discounts as tabs inside the existing Promotions page. Legacy Discounts and Coupons routes continue to redirect there.
+- Promotions exposes one create action for the active tab, uses a distinct operator-focused column set for Generic, Personal, and Automatic offers, and keeps row mutations in an overflow menu. Limits are labeled as limits because the current payload does not expose redemption counts.
 - Style the current login page in the same visual language without restructuring its authentication flow.
+- Use a fixed 52-pixel desktop header, a 208-pixel desktop sidebar, compact page gutters, small radii, neutral zinc surfaces, and dense table/form controls.
+- Keep routine copy scan-first. Page titles, operational labels, validation, destructive confirmation, empty/error recovery, and accessibility text remain; repeated introductions, decorative summaries, and documentation-like explanations do not.
 - Add Bookings status filters, Invoice search with filtered totals, and Portfolio media-type filters.
 - Preserve Portfolio drag ordering and add drag ordering for Reviews. Featured reviews remain ordered ahead of standard reviews, with drag ordering within each group.
+- Keep reorder handles icon-only on Portfolio and Reviews; persisted order numbers remain implementation data and are not repeated in every row.
 - Use a mobile navigation drawer. Wide data tables remain tables and scroll horizontally on narrow screens.
 - Preserve all existing forms, mutations, downloads, uploads, workflow controls, analytics, calendar behavior, configuration editing, and visibility controls, except that Pricing now intentionally exposes only price fields in the approved prototype matrix. Its save still submits the complete configuration so hidden slot and evening-rule metadata is preserved.
 - Match the `adminPrototype.jsx` Pricing Configuration layout: one header save action, property-type tabs, and one horizontally scrollable price matrix backed by live configuration data.
+- Highlight each edited Pricing cell and mark every property-type tab that contains unsaved edits; clear those indicators only after a successful save.
+- Use bounded Calendar month cells with fixed Morning, Afternoon, and Evening tracks; only occupied or blocked tracks become colored, blocked is red, and cells have no slot counts or overflow copy. Calendar availability mutation is named-slot-only and uses three flat rows with time below the slot name; redundant selected-day summary badges/panels, clock-time creation, and dedicated full-day creation are omitted.
+- Keep the calendar exclusively in `/admin/scheduling-calendar`; `/admin/timeslots` is configuration-only.
+- On desktop, Time Slots presents Apartment, Villa/Townhouse, and Commercial property weights in one compact row and uses dark native time controls with visible picker icons.
+- Portfolio and Reviews load their authenticated admin lists directly through the shared content data service instead of making deployment-sensitive HTTP requests back into the same application.
+- Keep persisted legacy exact/full-day blocks identifiable and clearable without displaying exact block times.
+- Dashboard and Reports use the reference KPI hierarchy: tone-coded values, top-right percentage movement, and explicit previous-month values. Expenses and pending/cancelled counts invert the trend color where a decrease is favorable.
+- Dashboard and Reports render live service and booking-status distributions as accessible, responsive donut charts centered above aligned legend/value rows. Dashboard Today’s Schedule is based on the current Dubai business date; Recent Bookings uses Property, Client, Date, Services, Amount, and Status and links directly to the bookings queue.
+- Expense Tracker follows the reference’s single dense panel with monthly total/count/top-category summary, category share bars, preserved create/edit/delete flows, and five-row pagination.
+- Bookings paginates filtered results ten rows at a time. Pending follows the reference and contains only Awaiting Payment and Shoot Booked records; All remains the complete queue.
 
 ## Explicit non-goals
 
 - Adding Admin, Accounts, Settings, or configurable permissions; this release supports the current Super Admin surface only.
 - A light or system theme.
-- Pixel-perfect reproduction of `adminPrototype.jsx` across the full admin. The Pricing Configuration page is the explicit exception and follows its prototype layout while adapting the columns to the live data shape.
+- Replacing live behavior with prototype logic when an exact visual copy would create an inert, inaccessible, unauthorized, or misleading control.
 - Adding unsupported prototype actions such as **New Booking**.
 - Adding a review-text preview column.
 - Replacing mobile tables with purpose-built record cards.
@@ -82,9 +100,11 @@ commits to keep review and debugging manageable.
 ## Completion definition
 
 - Every current admin page uses the same dark shell and shared visual language.
+- Routine surfaces are compact and operational rather than onboarding-oriented.
 - `/admin` renders live Dashboard analytics; `/admin/analytics` remains Reports.
 - Requested search, filter, and ordering controls operate on live data.
 - Existing operational actions remain available and pass focused regression tests.
 - Mobile navigation uses a drawer and wide tables can be deliberately scrolled.
 - No unsupported prototype control or hard-coded prototype business data is introduced.
+- Calendar exposes named-slot blocking only, while legacy exact/full-day blocks remain safely clearable.
 - The owner completes final visual acceptance before release.

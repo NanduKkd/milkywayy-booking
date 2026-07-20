@@ -74,9 +74,10 @@ describe("AdminSidebarNav", () => {
     mockUsePathname.mockReturnValue("/admin");
     const { container } = render(<AdminSidebarNav mobile={true} />);
 
-    // Mobile navigation utilizes specific padding/rounded classes on list wrappers
-    const mobileContainer = container.querySelector(".admin-panel-subtle");
+    const mobileContainer = container.querySelector(
+      ".rounded-xl.border-zinc-800",
+    );
     expect(mobileContainer).toBeInTheDocument();
-    expect(mobileContainer).toHaveClass("rounded-[1.6rem]", "px-2.5", "py-2.5");
+    expect(mobileContainer).toHaveClass("rounded-xl", "bg-zinc-900", "py-1");
   });
 });

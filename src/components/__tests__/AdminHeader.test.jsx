@@ -38,18 +38,18 @@ describe("AdminHeader", () => {
     render(<AdminHeader />);
 
     expect(screen.getByText("Milky Way Ops")).toBeInTheDocument();
-    expect(screen.getByText("ops@milkywayy.com")).toBeInTheDocument();
+    expect(screen.getByText("SUPERADMIN")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Open navigation/i }));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Navigation")).toBeInTheDocument();
+    expect(screen.getAllByText("MILKYWAYY")).toHaveLength(2);
     expect(screen.getByRole("link", { name: /Customers/i })).toHaveAttribute(
       "href",
       "/admin/users",
     );
-    expect(screen.getByText("Workspace")).toBeInTheDocument();
-    expect(screen.getAllByText("Milky Way Ops")).toHaveLength(2);
+    expect(screen.getAllByText("Workspace")).toHaveLength(2);
+    expect(screen.getByText("Milky Way Ops")).toBeInTheDocument();
   });
 
   it("logs out and returns to admin login", async () => {

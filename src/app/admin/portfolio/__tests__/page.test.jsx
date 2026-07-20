@@ -1,9 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "../../../../test-utils";
 import PortfolioManagement from "../page";
 
-// Mock global fetch
-global.fetch = jest.fn();
-
 // Mock Next.js navigation
 const mockRefresh = jest.fn();
 jest.mock("next/navigation", () => ({
@@ -19,22 +16,29 @@ jest.mock("../../../../lib/helpers/auth", () => ({
   getSessionUser: jest.fn(),
 }));
 
+jest.mock("@/lib/services/adminContent", () => ({
+  listAdminPortfolioItems: jest.fn(),
+}));
+
 describe("Portfolio Management Page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    console.error.mockRestore();
   });
 
   it("renders portfolio items after fetching", async () => {
     const { getSessionUser } = require("../../../../lib/helpers/auth");
+    const { listAdminPortfolioItems } = require("@/lib/services/adminContent");
     getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
 
     const mockItems = [
       { id: 1, title: "Work 1", type: "IMAGE", isVisible: true, order: 0 },
     ];
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => mockItems,
-    });
+    listAdminPortfolioItems.mockResolvedValue(mockItems);
 
     // Since it's an async server component, we render it
     const page = await PortfolioManagement({
@@ -52,12 +56,9 @@ describe("Portfolio Management Page", () => {
 
   it("shows empty state when no items", async () => {
     const { getSessionUser } = require("../../../../lib/helpers/auth");
+    const { listAdminPortfolioItems } = require("@/lib/services/adminContent");
     getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
-
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    });
+    listAdminPortfolioItems.mockResolvedValue([]);
 
     const page = await PortfolioManagement({
       searchParams: Promise.resolve({}),
@@ -71,12 +72,11 @@ describe("Portfolio Management Page", () => {
 
   it("shows the inline fetch error state while preserving the refreshed shell", async () => {
     const { getSessionUser } = require("../../../../lib/helpers/auth");
+    const { listAdminPortfolioItems } = require("@/lib/services/adminContent");
     getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
-
-    global.fetch.mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: "Portfolio API unavailable" }),
-    });
+    listAdminPortfolioItems.mockRejectedValue(
+      new Error("Portfolio data unavailable"),
+    );
 
     const page = await PortfolioManagement({
       searchParams: Promise.resolve({}),
@@ -88,10 +88,10 @@ describe("Portfolio Management Page", () => {
         screen.getByText(/unable to load every portfolio entry/i),
       ).toBeInTheDocument();
     });
-    expect(screen.getByText("Portfolio API unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Portfolio data unavailable")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("heading", { name: "Unavailable" }),
-    ).toHaveLength(3);
+      screen.getByRole("heading", { name: "Portfolio unavailable" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/portfolio entries are unavailable/i),
     ).toBeInTheDocument();

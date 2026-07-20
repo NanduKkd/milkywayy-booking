@@ -4,6 +4,7 @@ import {
   BadgePercent,
   CirclePause,
   CirclePlay,
+  MoreHorizontal,
   Pencil,
   Plus,
   Sparkles,
@@ -15,11 +16,6 @@ import {
 import { useEffect, useState } from "react";
 import {
   AdminBadge,
-  AdminCard,
-  AdminCardContent,
-  AdminCardDescription,
-  AdminCardHeader,
-  AdminCardTitle,
   AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
@@ -31,6 +27,13 @@ import {
 } from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -341,9 +344,53 @@ function formatCustomerSecondaryLine(customer) {
   return [customer?.email, customer?.phone].filter(Boolean).join(" • ");
 }
 
+function formatPromotionWindow(promotion) {
+  if (!promotion.startsAt && !promotion.endsAt) {
+    return "Always";
+  }
+
+  return `${formatDateTime(promotion.startsAt)} – ${formatDateTime(
+    promotion.endsAt,
+  )}`;
+}
+
+function PromotionStatusCell({ promotion }) {
+  return (
+    <TableCell className="align-top">
+      <div className="space-y-1">
+        <AdminBadge tone={getStatusTone(promotion.status)}>
+          {formatStatusLabel(promotion.status)}
+        </AdminBadge>
+        <p className="text-xs text-muted-foreground">
+          Priority {promotion.priority || 0}
+        </p>
+      </div>
+    </TableCell>
+  );
+}
+
+function PromotionLimitsCell({ promotion, includeMinimumSpend = false }) {
+  const limits = [
+    includeMinimumSpend && Number(promotion.minimumSpend || 0) > 0
+      ? `${formatCurrency(promotion.minimumSpend)} min`
+      : null,
+    promotion.perUserLimit == null
+      ? "Unlimited/customer"
+      : `${promotion.perUserLimit}/customer`,
+    promotion.totalLimit == null
+      ? "Unlimited total"
+      : `${promotion.totalLimit} total`,
+  ].filter(Boolean);
+
+  return (
+    <TableCell className="align-top text-sm text-muted-foreground">
+      {limits.join(" • ")}
+    </TableCell>
+  );
+}
+
 function PromotionTable({
   promotions,
-  onCreate,
   onEdit,
   onActivate,
   onAssignCustomer,
@@ -356,33 +403,17 @@ function PromotionTable({
 
   if (promotions.length === 0) {
     return (
-      <AdminTablePanel
-        title={`${tab.label} catalog`}
-        description="Create or maintain promotions without changing the existing eligibility and mutation flows."
-        actions={
-          <Button type="button" variant="outline" onClick={onCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            New {tab.shortLabel}
-          </Button>
-        }
-      >
-        <div className="p-6">
-          <div className="flex flex-col gap-4 text-center">
-            <div className="mx-auto rounded-full border border-white/10 bg-white/[0.03] p-3">
+      <AdminTablePanel>
+        <div className="py-16 text-center">
+          <div className="flex flex-col gap-3 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-800">
               <EmptyIcon className="h-5 w-5 text-muted-foreground" />
             </div>
             <AdminEmptyState
               title={tab.emptyTitle}
-              description={tab.emptyCopy}
               icon={EmptyIcon}
-              className="border-0 bg-transparent py-0"
+              className="border-0 bg-transparent p-0 [&>div:first-child]:hidden"
             />
-            <div>
-              <Button type="button" onClick={onCreate}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create {tab.shortLabel}
-              </Button>
-            </div>
           </div>
         </div>
       </AdminTablePanel>
@@ -390,33 +421,40 @@ function PromotionTable({
   }
 
   return (
-    <AdminTablePanel
-      title={`${tab.label} catalog`}
-      description="Existing promotion logic, priorities, activation rules, and assignment flows stay unchanged under the refreshed shell."
-      actions={
-        <Button type="button" variant="outline" onClick={onCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          New {tab.shortLabel}
-        </Button>
-      }
-    >
+    <AdminTablePanel>
       <Table>
         <TableHeader className="bg-white/[0.03]">
           <TableRow className="border-white/8 hover:bg-transparent">
-            <TableHead className="min-w-[280px] text-[hsl(var(--admin-muted))]">
-              Promotion
-            </TableHead>
-            <TableHead className="min-w-[180px] text-[hsl(var(--admin-muted))]">
-              Benefit
-            </TableHead>
-            <TableHead className="min-w-[260px] text-[hsl(var(--admin-muted))]">
-              Eligibility
-            </TableHead>
+            {tab.value === "GENERIC" ? (
+              <>
+                <TableHead className="min-w-[190px]">Code</TableHead>
+                <TableHead className="min-w-[160px]">Discount</TableHead>
+                <TableHead className="min-w-[130px]">Min spend</TableHead>
+                <TableHead className="min-w-[190px]">Limits</TableHead>
+                <TableHead className="min-w-[220px]">Validity</TableHead>
+              </>
+            ) : tab.value === "PERSONAL" ? (
+              <>
+                <TableHead className="min-w-[220px]">Customer(s)</TableHead>
+                <TableHead className="min-w-[210px]">Promotion</TableHead>
+                <TableHead className="min-w-[160px]">Discount</TableHead>
+                <TableHead className="min-w-[190px]">Limits</TableHead>
+                <TableHead className="min-w-[220px]">Validity</TableHead>
+              </>
+            ) : (
+              <>
+                <TableHead className="min-w-[220px]">Promotion</TableHead>
+                <TableHead className="min-w-[180px]">Trigger</TableHead>
+                <TableHead className="min-w-[160px]">Discount</TableHead>
+                <TableHead className="min-w-[260px]">Requirements</TableHead>
+                <TableHead className="min-w-[220px]">Validity</TableHead>
+              </>
+            )}
             <TableHead className="min-w-[140px] text-[hsl(var(--admin-muted))]">
               Status
             </TableHead>
-            <TableHead className="min-w-[220px] text-right text-[hsl(var(--admin-muted))]">
-              Actions
+            <TableHead className="w-16 text-right text-[hsl(var(--admin-muted))]">
+              <span className="sr-only">Actions</span>
             </TableHead>
           </TableRow>
         </TableHeader>
@@ -426,147 +464,168 @@ function PromotionTable({
 
             return (
               <TableRow key={promotion.id} className="border-white/8">
-                <TableCell className="align-top">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {promotion.code ? (
-                        <AdminBadge className="tracking-[0.16em]">
-                          {promotion.code}
-                        </AdminBadge>
-                      ) : null}
-                      <span className="font-medium text-foreground">
+                {tab.value === "GENERIC" ? (
+                  <>
+                    <TableCell className="align-top">
+                      <p className="font-mono text-sm font-bold text-white">
+                        {promotion.code || "—"}
+                      </p>
+                      <p
+                        className="mt-1 truncate text-xs text-muted-foreground"
+                        title={promotion.name}
+                      >
                         {promotion.name}
-                      </span>
-                    </div>
-                    {promotion.adminDescription ? (
-                      <p className="max-w-md text-sm text-muted-foreground">
-                        {promotion.adminDescription}
                       </p>
-                    ) : null}
-                    {promotion.customerMessage ? (
-                      <p className="text-xs text-sky-300/80">
-                        Customer: {promotion.customerMessage}
-                      </p>
-                    ) : null}
-                    {promotion.kind === "PERSONAL" ? (
-                      promotion.assignments?.length ? (
-                        <div className="flex flex-wrap gap-2">
-                          {promotion.assignments.map((assignment) => (
-                            <AdminBadge key={assignment.id} tone="info">
-                              {formatCustomerDisplayName(assignment.user)}
-                            </AdminBadge>
-                          ))}
+                    </TableCell>
+                    <TableCell className="align-top text-sm font-semibold text-white">
+                      {formatBenefit(promotion)}
+                    </TableCell>
+                    <TableCell className="align-top text-sm text-muted-foreground">
+                      {Number(promotion.minimumSpend || 0) > 0
+                        ? formatCurrency(promotion.minimumSpend)
+                        : "—"}
+                    </TableCell>
+                    <PromotionLimitsCell promotion={promotion} />
+                    <TableCell className="align-top text-sm text-muted-foreground">
+                      {formatPromotionWindow(promotion)}
+                    </TableCell>
+                    <PromotionStatusCell promotion={promotion} />
+                  </>
+                ) : tab.value === "PERSONAL" ? (
+                  <>
+                    <TableCell className="align-top">
+                      {promotion.assignments?.length ? (
+                        <div>
+                          <p className="text-sm font-medium text-white">
+                            {formatCustomerDisplayName(
+                              promotion.assignments[0].user,
+                            )}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {promotion.assignments.length > 1
+                              ? `+${promotion.assignments.length - 1} more assigned`
+                              : formatCustomerSecondaryLine(
+                                  promotion.assignments[0].user,
+                                ) || "1 customer assigned"}
+                          </p>
                         </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground">
-                          No customers assigned yet.
+                        <p className="text-sm font-medium text-amber-400">
+                          Unassigned
                         </p>
-                      )
-                    ) : null}
-                  </div>
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="space-y-1 text-sm">
-                    <p className="font-medium text-foreground">
+                      )}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <p className="text-sm font-medium text-white">
+                        {promotion.name}
+                      </p>
+                      {promotion.adminDescription ? (
+                        <p
+                          className="mt-1 truncate text-xs text-muted-foreground"
+                          title={promotion.adminDescription}
+                        >
+                          {promotion.adminDescription}
+                        </p>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="align-top text-sm font-semibold text-white">
                       {formatBenefit(promotion)}
-                    </p>
-                    <p className="text-muted-foreground">
-                      Minimum spend: {formatCurrency(promotion.minimumSpend)}
-                    </p>
-                  </div>
-                </TableCell>
+                    </TableCell>
+                    <PromotionLimitsCell promotion={promotion} />
+                    <TableCell className="align-top text-sm text-muted-foreground">
+                      {formatPromotionWindow(promotion)}
+                    </TableCell>
+                    <PromotionStatusCell promotion={promotion} />
+                  </>
+                ) : (
+                  <>
+                    <TableCell className="align-top">
+                      <p className="text-sm font-medium text-white">
+                        {promotion.name}
+                      </p>
+                      {promotion.adminDescription ? (
+                        <p
+                          className="mt-1 truncate text-xs text-muted-foreground"
+                          title={promotion.adminDescription}
+                        >
+                          {promotion.adminDescription}
+                        </p>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="align-top text-sm text-amber-300">
+                      {formatTrigger(promotion)}
+                    </TableCell>
+                    <TableCell className="align-top text-sm font-semibold text-white">
+                      {formatBenefit(promotion)}
+                    </TableCell>
+                    <PromotionLimitsCell
+                      includeMinimumSpend
+                      promotion={promotion}
+                    />
+                    <TableCell className="align-top text-sm text-muted-foreground">
+                      {formatPromotionWindow(promotion)}
+                    </TableCell>
+                    <PromotionStatusCell promotion={promotion} />
+                  </>
+                )}
                 <TableCell className="align-top">
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>{formatTrigger(promotion)}</p>
-                    <p>
-                      Usage:{" "}
-                      {promotion.perUserLimit == null
-                        ? "No per-user limit"
-                        : `${promotion.perUserLimit} per user`}
-                      {" / "}
-                      {promotion.totalLimit == null
-                        ? "No total limit"
-                        : `${promotion.totalLimit} total`}
-                    </p>
-                    <p>
-                      Window: {formatDateTime(promotion.startsAt)} to{" "}
-                      {formatDateTime(promotion.endsAt)}
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="space-y-2">
-                    <AdminBadge tone={getStatusTone(promotion.status)}>
-                      {formatStatusLabel(promotion.status)}
-                    </AdminBadge>
-                    <p className="text-xs text-muted-foreground">
-                      Priority {promotion.priority || 0}
-                    </p>
-                  </div>
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {promotion.kind === "PERSONAL" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onAssignCustomer(promotion)}
-                        disabled={isBusy}
+                  <div className="flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          aria-label={`Actions for ${promotion.name}`}
+                          disabled={isBusy}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="min-w-44 border-white/10 bg-zinc-950 text-zinc-100"
                       >
-                        <UserPlus className="mr-2 h-4 w-4" />
-                        Assign
-                      </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onEdit(promotion)}
-                      disabled={isBusy}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                    {promotion.status === "ACTIVE" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        title="Pause promotion"
-                        onClick={() => onPause(promotion)}
-                        disabled={isBusy}
-                      >
-                        <CirclePause className="mr-2 h-4 w-4" />
-                        Pause
-                      </Button>
-                    ) : promotion.status !== "DEACTIVATED" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        title="Activate promotion"
-                        onClick={() => onActivate(promotion)}
-                        disabled={isBusy}
-                      >
-                        <CirclePlay className="mr-2 h-4 w-4" />
-                        Activate
-                      </Button>
-                    ) : null}
-                    {promotion.status !== "DEACTIVATED" ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="border-rose-500/30 text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
-                        title="Deactivate promotion"
-                        onClick={() => onDeactivate(promotion)}
-                        disabled={isBusy}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Deactivate
-                      </Button>
-                    ) : null}
+                        {promotion.kind === "PERSONAL" ? (
+                          <DropdownMenuItem
+                            onSelect={() => onAssignCustomer(promotion)}
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Assign customer
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem onSelect={() => onEdit(promotion)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        {promotion.status === "ACTIVE" ? (
+                          <DropdownMenuItem onSelect={() => onPause(promotion)}>
+                            <CirclePause className="mr-2 h-4 w-4" />
+                            Pause
+                          </DropdownMenuItem>
+                        ) : promotion.status !== "DEACTIVATED" ? (
+                          <DropdownMenuItem
+                            onSelect={() => onActivate(promotion)}
+                          >
+                            <CirclePlay className="mr-2 h-4 w-4" />
+                            Activate
+                          </DropdownMenuItem>
+                        ) : null}
+                        {promotion.status !== "DEACTIVATED" ? (
+                          <>
+                            <DropdownMenuSeparator className="bg-white/10" />
+                            <DropdownMenuItem
+                              className="text-rose-300 focus:bg-rose-500/10 focus:text-rose-200"
+                              onSelect={() => onDeactivate(promotion)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Deactivate
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
@@ -669,18 +728,6 @@ export default function PromotionManager({
     ).length;
     return accumulator;
   }, {});
-  const activePromotionsCount = promotions.filter(
-    (promotion) => promotion.status === "ACTIVE",
-  ).length;
-  const assignedCustomersCount = promotions.reduce(
-    (count, promotion) => count + (promotion.assignments?.length || 0),
-    0,
-  );
-  const dateRangeRuleCount = promotions.filter(
-    (promotion) =>
-      promotion.kind === "AUTOMATIC" && promotion.triggerType === "DATE_RANGE",
-  ).length;
-
   const upsertPromotion = (nextPromotion) => {
     setPromotions((currentPromotions) =>
       sortPromotions([
@@ -833,59 +880,13 @@ export default function PromotionManager({
       <AdminPageHeader
         eyebrow="Operations"
         title="Promotion Management"
-        description="Manage generic codes, personal offers, and automatic rules in one deterministic admin surface while keeping the existing promotion engine, redirects, and mutations intact."
         actions={
           <Button type="button" onClick={() => openCreateDialog(activeTab)}>
             <Plus className="mr-2 h-4 w-4" />
             Create {activeTabConfig.shortLabel}
           </Button>
         }
-      >
-        <div className="flex flex-wrap gap-2">
-          <AdminBadge tone="success">Unified mutations live</AdminBadge>
-          <AdminBadge tone="info">Legacy redirects preserved</AdminBadge>
-        </div>
-      </AdminPageHeader>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>
-              Generic / personal / automatic
-            </AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {countsByKind.GENERIC || 0} / {countsByKind.PERSONAL || 0} /{" "}
-              {countsByKind.AUTOMATIC || 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            The three current tabs stay consolidated under one live route.
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Promotions active now</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {activePromotionsCount}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            Draft, paused, and deactivated states still transition explicitly.
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Customer assignments</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {assignedCustomersCount}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            {dateRangeRuleCount} automatic date-range rules are currently
-            configured.
-          </AdminCardContent>
-        </AdminCard>
-      </section>
+      />
 
       {errorMessage ? (
         <AdminInlineMessage
@@ -895,110 +896,63 @@ export default function PromotionManager({
         />
       ) : null}
 
-      <AdminCard>
-        <AdminCardHeader className="gap-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <AdminCardTitle>Unified promotions</AdminCardTitle>
-              <AdminCardDescription>
-                One best promotion applies; wallet credit remains separate.
-              </AdminCardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {TAB_CONFIG.map((tab) => (
-                <AdminBadge key={tab.value}>
-                  {tab.shortLabel}: {countsByKind[tab.value] || 0}
-                </AdminBadge>
-              ))}
-            </div>
-          </div>
-        </AdminCardHeader>
-        <AdminCardContent className="space-y-6">
-          <div
-            role="tablist"
-            aria-label="Promotion kinds"
-            className="flex flex-wrap gap-2"
-          >
-            {TAB_CONFIG.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = tab.value === activeTab;
+      <div className="space-y-5">
+        <div
+          role="tablist"
+          aria-label="Promotion kinds"
+          className="flex flex-wrap gap-2"
+        >
+          {TAB_CONFIG.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = tab.value === activeTab;
 
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  role="tab"
-                  id={`promotion-tab-${tab.value}`}
-                  aria-selected={isActive}
-                  aria-controls={`promotion-panel-${tab.value}`}
-                  className={cn(
-                    "inline-flex items-center justify-center whitespace-nowrap rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
-                    isActive
-                      ? "border-white/20 bg-white/10 text-foreground"
-                      : "border-white/10 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-foreground",
-                  )}
-                  onClick={() => setActiveTab(tab.value)}
-                >
-                  <Icon className="mr-2 h-4 w-4" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-
-          <div
-            role="tabpanel"
-            id={`promotion-panel-${activeTabConfig.value}`}
-            aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
-            className="space-y-4"
-          >
-            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold">
-                  {activeTabConfig.label}
-                </h2>
-                <p className="max-w-3xl text-sm text-muted-foreground">
-                  {activeTabConfig.description}
-                </p>
-              </div>
-              <Button
+            return (
+              <button
+                key={tab.value}
                 type="button"
-                variant="outline"
-                onClick={() => openCreateDialog(activeTabConfig.value)}
+                role="tab"
+                id={`promotion-tab-${tab.value}`}
+                aria-selected={isActive}
+                aria-controls={`promotion-panel-${tab.value}`}
+                className={cn(
+                  "inline-flex items-center justify-center whitespace-nowrap rounded-lg border px-4 py-1.5 text-xs font-semibold transition-colors",
+                  isActive
+                    ? "border-white bg-white text-black"
+                    : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:text-white",
+                )}
+                onClick={() => setActiveTab(tab.value)}
               >
-                <Plus className="mr-2 h-4 w-4" />
-                New {activeTabConfig.shortLabel}
-              </Button>
-            </div>
+                <Icon className="mr-2 h-4 w-4" />
+                {tab.label} ({countsByKind[tab.value] || 0})
+              </button>
+            );
+          })}
+        </div>
 
-            {activeTabConfig.value === "PERSONAL" ? (
-              <AdminInlineMessage
-                title="Customer-only assignment"
-                description="Personal promotion assignment now filters to customer accounts only, so staff users never appear in search or assignment results."
-                tone="info"
-              />
-            ) : null}
-
-            <PromotionTable
-              promotions={promotions.filter(
-                (promotion) => promotion.kind === activeTabConfig.value,
-              )}
-              onCreate={() => openCreateDialog(activeTabConfig.value)}
-              onEdit={openEditDialog}
-              onAssignCustomer={openAssignmentDialog}
-              onActivate={(promotion) =>
-                handleStatusChange(promotion, activateAdminPromotion)
-              }
-              onPause={(promotion) =>
-                handleStatusChange(promotion, pauseAdminPromotion)
-              }
-              onDeactivate={setDeactivateTarget}
-              pendingKey={pendingKey}
-              tab={activeTabConfig}
-            />
-          </div>
-        </AdminCardContent>
-      </AdminCard>
+        <div
+          role="tabpanel"
+          id={`promotion-panel-${activeTabConfig.value}`}
+          aria-labelledby={`promotion-tab-${activeTabConfig.value}`}
+          className="space-y-4"
+        >
+          <PromotionTable
+            promotions={promotions.filter(
+              (promotion) => promotion.kind === activeTabConfig.value,
+            )}
+            onEdit={openEditDialog}
+            onAssignCustomer={openAssignmentDialog}
+            onActivate={(promotion) =>
+              handleStatusChange(promotion, activateAdminPromotion)
+            }
+            onPause={(promotion) =>
+              handleStatusChange(promotion, pauseAdminPromotion)
+            }
+            onDeactivate={setDeactivateTarget}
+            pendingKey={pendingKey}
+            tab={activeTabConfig}
+          />
+        </div>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <AdminDialogContent

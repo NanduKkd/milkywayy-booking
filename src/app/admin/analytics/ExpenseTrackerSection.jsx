@@ -1,18 +1,23 @@
 "use client";
 
-import { Pencil, Plus, ReceiptText, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  ReceiptText,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AdminCard,
-  AdminCardContent,
   AdminCardDescription,
   AdminCardHeader,
   AdminCardTitle,
   AdminDialogContent,
   AdminEmptyState,
   AdminInlineMessage,
-  AdminTablePanel,
 } from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
@@ -26,6 +31,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+
+const EXPENSE_PAGE_SIZE = 5;
+const EXPENSE_COLORS = ["#f43f5e", "#f59e0b", "#8b5cf6", "#3b82f6", "#10b981"];
 
 function formatCurrency(value) {
   return new Intl.NumberFormat("en", {
@@ -110,11 +118,11 @@ function LoadingState() {
         {["expense-kpi-1", "expense-kpi-2", "expense-kpi-3"].map((key) => (
           <div
             key={key}
-            className="h-28 rounded-2xl border border-white/10 bg-white/[0.04]"
+            className="h-28 rounded-lg border border-white/10 bg-white/[0.04]"
           />
         ))}
       </div>
-      <div className="h-72 rounded-2xl border border-white/10 bg-white/[0.04]" />
+      <div className="h-72 rounded-lg border border-white/10 bg-white/[0.04]" />
     </section>
   );
 }
@@ -253,7 +261,7 @@ function DeleteExpenseDialog({
         description="This removes the expense from live reporting by soft deletion and requires a reason for the audit trail."
         title="Delete expense"
       >
-        <div className="admin-panel-subtle rounded-2xl border border-[hsl(var(--admin-border)/0.72)] p-4">
+        <div className="admin-panel-subtle rounded-lg border border-[hsl(var(--admin-border)/0.72)] p-4">
           <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
             {expense?.categoryLabel || expense?.category || "Expense"}
           </p>
@@ -319,6 +327,7 @@ export default function ExpenseTrackerSection({
     rangeStart,
   });
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -352,6 +361,7 @@ export default function ExpenseTrackerSection({
 
         setCategories(normalized.categories);
         setExpenses(normalized.items);
+        setPage(1);
       } catch (requestError) {
         if (requestError?.name === "AbortError") {
           return;
@@ -405,6 +415,15 @@ export default function ExpenseTrackerSection({
       .filter((entry) => entry.amount > 0)
       .sort((left, right) => right.amount - left.amount);
   }, [categories, expenses]);
+  const totalPages = Math.max(
+    Math.ceil(expenses.length / EXPENSE_PAGE_SIZE),
+    1,
+  );
+  const currentPage = Math.min(page, totalPages);
+  const paginatedExpenses = expenses.slice(
+    (currentPage - 1) * EXPENSE_PAGE_SIZE,
+    currentPage * EXPENSE_PAGE_SIZE,
+  );
 
   function closeDialogs() {
     setDeleteReason("");
@@ -512,35 +531,7 @@ export default function ExpenseTrackerSection({
   }
 
   return (
-    <section className="space-y-4" aria-labelledby="expense-tracker-heading">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Expenses
-          </p>
-          <h2
-            className="text-2xl font-semibold tracking-tight"
-            id="expense-tracker-heading"
-          >
-            Expense Tracker
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Logged expenses for {selectedMonthLabel}, with live totals feeding
-            the finance KPIs above.
-          </p>
-        </div>
-
-        <Button
-          className="rounded-xl"
-          disabled={loading || categories.length === 0}
-          onClick={openCreateDialog}
-          type="button"
-        >
-          <Plus className="h-4 w-4" />
-          Add expense
-        </Button>
-      </div>
-
+    <section aria-labelledby="expense-tracker-heading">
       {loading ? <LoadingState /> : null}
 
       {!loading && error ? (
@@ -557,130 +548,213 @@ export default function ExpenseTrackerSection({
       ) : null}
 
       {!loading && !error ? (
-        <>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <AdminCard>
-              <AdminCardHeader>
-                <AdminCardDescription>
-                  Total tracked expenses
-                </AdminCardDescription>
-                <AdminCardTitle className="text-2xl">
-                  {formatCurrency(totalExpenses)}
-                </AdminCardTitle>
-              </AdminCardHeader>
-              <AdminCardContent>
-                <p className="text-xs text-[hsl(var(--admin-muted))]">
-                  {formatCount(expenses.length)} expense entries in{" "}
-                  {selectedMonthLabel}
-                </p>
-              </AdminCardContent>
-            </AdminCard>
-
-            <AdminCard className="lg:col-span-2">
-              <AdminCardHeader>
-                <div className="flex items-center gap-2">
-                  <ReceiptText className="h-4 w-4 text-emerald-300" />
-                  <AdminCardTitle className="text-xl">
-                    Category Breakdown
+        <AdminCard className="overflow-hidden rounded-xl border-zinc-800 bg-zinc-900">
+          <AdminCardHeader className="border-b border-zinc-800 p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-950">
+                  <ReceiptText className="h-4 w-4 text-rose-400" />
+                </span>
+                <div>
+                  <AdminCardTitle
+                    id="expense-tracker-heading"
+                    className="text-sm"
+                  >
+                    Expense Tracker
                   </AdminCardTitle>
+                  <AdminCardDescription className="mt-0.5 text-xs">
+                    Log and categorise business expenses · {selectedMonthLabel}
+                  </AdminCardDescription>
                 </div>
-                <AdminCardDescription>
-                  Expense totals grouped by the configured finance categories.
-                </AdminCardDescription>
-              </AdminCardHeader>
-              <AdminCardContent className="space-y-3">
-                {categoryBreakdown.length > 0 ? (
-                  categoryBreakdown.map((category) => (
-                    <div
-                      key={category.key}
-                      className="admin-panel-subtle flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-[hsl(var(--admin-foreground))]">
-                          {category.label}
-                        </p>
-                        <p className="text-xs text-[hsl(var(--admin-muted))]">
-                          {formatCount(category.count)} entries
-                        </p>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {formatCurrency(category.amount)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-[hsl(var(--admin-muted))]">
-                    No expenses have been tracked for this month yet.
-                  </p>
-                )}
-              </AdminCardContent>
-            </AdminCard>
+              </div>
+              <Button
+                className="rounded-lg bg-rose-600 text-white hover:bg-rose-500"
+                disabled={categories.length === 0}
+                onClick={openCreateDialog}
+                type="button"
+              >
+                <Plus className="h-4 w-4" />
+                Add expense
+              </Button>
+            </div>
+          </AdminCardHeader>
+
+          <div className="grid grid-cols-1 gap-px border-b border-zinc-800 bg-zinc-800 sm:grid-cols-3">
+            {[
+              {
+                color: "text-rose-400",
+                label: "Total Expenses",
+                value: formatCurrency(totalExpenses),
+              },
+              {
+                color: "text-white",
+                label: "Count",
+                value: formatCount(expenses.length),
+              },
+              {
+                color: "text-amber-400",
+                label: "Top Category",
+                value: categoryBreakdown[0]?.label || "—",
+              },
+            ].map((stat) => (
+              <div
+                className="bg-zinc-900 px-5 py-3.5 text-center"
+                key={stat.label}
+              >
+                <p className={`text-lg font-bold ${stat.color}`}>
+                  {stat.value}
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-500">{stat.label}</p>
+              </div>
+            ))}
           </div>
 
-          <AdminTablePanel
-            description="Add, revise, or remove monthly expense entries with audit-safe soft deletion."
-            title="Tracked Expenses"
-          >
+          {categoryBreakdown.length > 0 ? (
+            <div className="space-y-3 border-b border-zinc-800 px-5 py-4">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
+                Breakdown by Category
+              </p>
+              {categoryBreakdown.map((category, index) => {
+                const percentage =
+                  totalExpenses > 0
+                    ? Math.round((category.amount / totalExpenses) * 100)
+                    : 0;
+                const color = EXPENSE_COLORS[index % EXPENSE_COLORS.length];
+
+                return (
+                  <div key={category.key}>
+                    <div className="mb-1 flex items-center justify-between gap-4 text-xs">
+                      <span className="flex items-center gap-2 text-zinc-300">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: color }}
+                        />
+                        {category.label}
+                      </span>
+                      <span className="font-semibold text-white">
+                        {formatCurrency(category.amount)}{" "}
+                        <span className="font-normal text-zinc-500">
+                          ({percentage}%)
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          backgroundColor: color,
+                          width: `${percentage}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          <div>
+            <div className="border-b border-zinc-800 px-5 py-3">
+              <p className="text-sm font-semibold text-white">
+                Tracked Expenses
+              </p>
+            </div>
             {expenses.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {expenses.map((expense) => (
-                    <TableRow key={expense.id}>
-                      <TableCell className="font-medium">
-                        {formatBusinessDate(expense.expenseDate)}
-                      </TableCell>
-                      <TableCell>
-                        {expense.categoryLabel || expense.category}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {expense.description || "No description"}
-                      </TableCell>
-                      <TableCell>{formatCurrency(expense.amount)}</TableCell>
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            aria-label={`Edit expense ${expense.id}`}
-                            onClick={() => openEditDialog(expense)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Pencil className="h-4 w-4" />
-                            Edit
-                          </Button>
-                          <Button
-                            aria-label={`Delete expense ${expense.id}`}
-                            onClick={() => openDeleteDialog(expense)}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
+              <>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedExpenses.map((expense) => (
+                      <TableRow key={expense.id}>
+                        <TableCell className="font-medium">
+                          {formatBusinessDate(expense.expenseDate)}
+                        </TableCell>
+                        <TableCell>
+                          <span className="rounded-full border border-amber-800 bg-amber-950 px-2 py-0.5 text-xs font-semibold text-amber-300">
+                            {expense.categoryLabel || expense.category}
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-w-xs text-muted-foreground">
+                          <span className="block truncate">
+                            {expense.description || "No description"}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-bold text-rose-400">
+                          {formatCurrency(expense.amount)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              aria-label={`Edit expense ${expense.id}`}
+                              onClick={() => openEditDialog(expense)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              aria-label={`Delete expense ${expense.id}`}
+                              onClick={() => openDeleteDialog(expense)}
+                              size="icon"
+                              type="button"
+                              variant="ghost"
+                            >
+                              <Trash2 className="h-4 w-4 text-rose-400" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="flex items-center justify-between border-t border-zinc-800 px-5 py-3">
+                  <p className="text-xs text-zinc-500">
+                    Page {currentPage} of {totalPages} · {expenses.length}{" "}
+                    entries
+                  </p>
+                  <div className="flex gap-1">
+                    <Button
+                      aria-label="Previous expense page"
+                      disabled={currentPage === 1}
+                      onClick={() => setPage((value) => Math.max(value - 1, 1))}
+                      size="icon"
+                      type="button"
+                      variant="outline"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      aria-label="Next expense page"
+                      disabled={currentPage === totalPages}
+                      onClick={() =>
+                        setPage((value) => Math.min(value + 1, totalPages))
+                      }
+                      size="icon"
+                      type="button"
+                      variant="outline"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </>
             ) : (
               <AdminEmptyState
                 description={`No expenses have been added for ${selectedMonthLabel}.`}
                 title="No tracked expenses yet"
               />
             )}
-          </AdminTablePanel>
-        </>
+          </div>
+        </AdminCard>
       ) : null}
 
       <ExpenseDialog

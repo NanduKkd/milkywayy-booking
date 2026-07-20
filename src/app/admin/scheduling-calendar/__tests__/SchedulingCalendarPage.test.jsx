@@ -626,6 +626,10 @@ describe("SchedulingCalendarPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("July 2026")).toBeInTheDocument();
     expect(screen.getByText(/Calendar legend/i)).toBeInTheDocument();
+    const legend = screen.getByText("Calendar legend").closest("fieldset");
+    expect(
+      within(legend).getByText("Blocked").querySelector("span"),
+    ).toHaveClass("bg-red-500");
 
     await waitFor(() => {
       expect(
@@ -657,6 +661,81 @@ describe("SchedulingCalendarPage", () => {
     expect(screen.getByText("Waiting for confirmation")).toBeInTheDocument();
     expect(screen.getAllByText("Informational").length).toBeGreaterThan(0);
     expect(screen.getByText("Read-only past event")).toBeInTheDocument();
+  });
+
+  it("renders three fixed slot tracks without text counts in every month cell", async () => {
+    render(<SchedulingCalendarPage />);
+
+    const busyDay = await screen.findByRole("button", {
+      name: /Friday, July 3, 2026\..*1 booking/i,
+    });
+    const tracks = busyDay.querySelectorAll("[data-calendar-slot-track]");
+
+    expect(tracks).toHaveLength(3);
+    expect(tracks[0]).toHaveAttribute("data-calendar-slot-track", "morning");
+    expect(tracks[0]).toHaveClass("bg-transparent");
+    expect(tracks[0]).not.toHaveAttribute("data-calendar-marker");
+    expect(tracks[1]).toHaveAttribute("data-calendar-slot-track", "afternoon");
+    expect(tracks[1]).toHaveAttribute("data-calendar-marker", "booking");
+    expect(tracks[1]).toHaveClass("bg-blue-500");
+    expect(tracks[2]).toHaveAttribute("data-calendar-slot-track", "evening");
+    expect(tracks[2]).toHaveAttribute("data-calendar-marker", "booking");
+    expect(tracks[2]).toHaveClass("bg-blue-500");
+    expect(busyDay).not.toHaveTextContent(/slots?|\+\d+/i);
+    expect(busyDay).toHaveClass("h-[68px]", "sm:h-[76px]");
+
+    const fullyBlockedDay = screen.getByRole("button", {
+      name: /Sunday, July 5, 2026\..*fully blocked/i,
+    });
+    fullyBlockedDay
+      .querySelectorAll("[data-calendar-slot-track]")
+      .forEach((track) => {
+        expect(track).toHaveClass("bg-red-500");
+      });
+  });
+
+  it("renders slot blocking as three flat operational rows", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Scheduling Calendar/i }),
+    ).toBeInTheDocument();
+
+    const rows = document.querySelectorAll("[data-slot-block-row]");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveAttribute("data-slot-block-row", "morning");
+    expect(rows[1]).toHaveAttribute("data-slot-block-row", "afternoon");
+    expect(rows[2]).toHaveAttribute("data-slot-block-row", "evening");
+    rows.forEach((row) => {
+      expect(row).not.toHaveClass("rounded-lg", "border");
+      expect(row).not.toHaveClass(
+        "sm:grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_auto_auto]",
+      );
+      expect(row.children).toHaveLength(3);
+    });
+    expect(rows[0].children[0].querySelectorAll("p")).toHaveLength(2);
+    expect(rows[0].children[0].querySelectorAll("p")[1]).not.toHaveClass(
+      "hidden",
+    );
+    expect(
+      screen.getByRole("button", { name: "Block Morning" }),
+    ).toHaveTextContent("Block");
+    expect(
+      screen.getByRole("button", { name: "Block Afternoon" }),
+    ).toHaveTextContent("Block");
+    expect(
+      screen.getByRole("button", { name: "Block Evening" }),
+    ).toHaveTextContent("Block");
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /Sunday, July 5, 2026\..*fully blocked/i,
+      }),
+    );
+    expect(screen.queryByText("Non-working day")).not.toBeInTheDocument();
+    expect(screen.queryByText("Full-day block")).not.toBeInTheDocument();
+    expect(screen.queryByText("Block status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Entries")).not.toBeInTheDocument();
   });
 
   it("navigates months and refetches the bounded range", async () => {
@@ -792,7 +871,7 @@ describe("SchedulingCalendarPage", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: /Block full day/i,
+        name: /Block Afternoon/i,
       }),
     );
 
@@ -819,14 +898,16 @@ describe("SchedulingCalendarPage", () => {
       timeSlots: expect.objectContaining({
         dateOverrides: expect.objectContaining({
           "2026-07-03": expect.objectContaining({
-            fullDayBlocked: true,
+            blocks: expect.objectContaining({
+              afternoon: "blocked",
+            }),
           }),
         }),
       }),
     });
   });
 
-  it("adds an exact 30-minute time block for the selected day", async () => {
+  it("hides exact-time controls while keeping legacy blocks clearable", async () => {
     render(<SchedulingCalendarPage />);
 
     expect(
@@ -844,36 +925,18 @@ describe("SchedulingCalendarPage", () => {
       }),
     );
 
-    fireEvent.change(screen.getByLabelText("From"), {
-      target: { value: "10:30" },
-    });
-    fireEvent.change(screen.getByLabelText("To"), {
-      target: { value: "11:00" },
-    });
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /Add exact block/i }));
-    });
-
-    await waitFor(() => {
-      expect(timeSlotPutBodies).toHaveLength(1);
-    });
-
-    expect(timeSlotPutBodies[0]).toMatchObject({
-      allowConflictOverride: false,
-      timeSlots: expect.objectContaining({
-        dateOverrides: expect.objectContaining({
-          "2026-07-02": expect.objectContaining({
-            timeBlocks: expect.arrayContaining([
-              expect.objectContaining({
-                startTime: "10:30",
-                endTime: "11:00",
-              }),
-            ]),
-          }),
-        }),
-      }),
-    });
+    expect(screen.queryByLabelText("From")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("To")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Add exact block/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText(/legacy exact block is active/i).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/10:00\s*-\s*10:30/)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Clear blocks/i }),
+    ).toBeInTheDocument();
   });
 
   it("creates, edits, cancels, and restores a calendar-only event from the selected day", async () => {

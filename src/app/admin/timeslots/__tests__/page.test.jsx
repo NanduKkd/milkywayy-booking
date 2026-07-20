@@ -75,7 +75,7 @@ describe("Admin Time Slots Page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch.mockImplementation((url, options) => {
-      if (typeof url === "string" && url.startsWith("/api/admin/timeslots?")) {
+      if (url === "/api/admin/timeslots" && options?.method === "GET") {
         return Promise.resolve({
           ok: true,
           json: async () => mockResponse,
@@ -93,16 +93,23 @@ describe("Admin Time Slots Page", () => {
     });
   });
 
-  it("renders the refreshed scheduling shell with live summary cards", async () => {
+  it("renders the dense scheduling shell without summary cards", async () => {
     render(<TimeSlotsPage />);
 
     expect(screen.getByText(/loading time slot settings/i)).toBeInTheDocument();
+    expect(await screen.findByText("System settings")).toBeInTheDocument();
     expect(
-      await screen.findByText("Booked periods in view"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Calendar")).toBeInTheDocument();
-    expect(screen.getByText("90")).toBeInTheDocument();
-    expect(screen.getByText("2 booked")).toBeInTheDocument();
+      screen.queryByText("Booked periods in view"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Calendar")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Block Full Day/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/rolling window length/i)).toHaveValue(90);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/admin/timeslots",
+      expect.objectContaining({ method: "GET" }),
+    );
   });
 
   it("preserves save behavior when updating the rolling window", async () => {
@@ -134,26 +141,29 @@ describe("Admin Time Slots Page", () => {
     expect(payload.timeSlots.systemSettings.rollingWindowDays).toBe(120);
   });
 
-  it("only offers to unblock a day that has manual blocks", async () => {
+  it("keeps date blocking out of the time slot configuration route", async () => {
     render(<TimeSlotsPage />);
 
-    await screen.findByText("Calendar");
+    await screen.findByText("System settings");
 
-    const unblockedDayButtons = screen.getAllByRole("button", { name: /^14/ });
-    fireEvent.click(unblockedDayButtons[0]);
-
+    expect(screen.queryByText("Calendar")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /unblock day/i }),
+      screen.queryByRole("button", { name: /clear blocks/i }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText(/booked/i)).not.toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+  it("uses visible time controls and a three-column desktop property grid", async () => {
+    render(<TimeSlotsPage />);
 
-    const blockedDayButtons = screen.getAllByRole("button", { name: /^15/ });
-    fireEvent.click(blockedDayButtons[0]);
-
-    expect(
-      screen.getByRole("button", { name: /unblock day/i }),
-    ).toBeInTheDocument();
+    const morningStart = await screen.findByLabelText(/morning start time/i);
+    expect(morningStart).toHaveClass("[color-scheme:dark]");
+    expect(screen.getByTestId("property-weight-grid")).toHaveClass(
+      "xl:grid-cols-3",
+    );
+    expect(screen.getByText("Apartments")).toBeInTheDocument();
+    expect(screen.getByText("Villas / Townhouses")).toBeInTheDocument();
+    expect(screen.getByText("Commercial")).toBeInTheDocument();
   });
 
   it("shows a retryable error state when the initial load fails", async () => {
@@ -175,8 +185,6 @@ describe("Admin Time Slots Page", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /retry/i }));
 
-    expect(
-      await screen.findByText("Booked periods in view"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("System settings")).toBeInTheDocument();
   });
 });

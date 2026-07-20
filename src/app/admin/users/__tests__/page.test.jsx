@@ -51,7 +51,7 @@ describe("UserManagement", () => {
     expect(redirect).toHaveBeenCalledWith("/admin/login");
   });
 
-  it("renders the refreshed customers shell with the live directory summary", async () => {
+  it("renders the dense customers shell without redundant summary cards", async () => {
     mockGetSessionUser.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
     mockFindAndCountAll.mockResolvedValue({
       count: 14,
@@ -86,9 +86,7 @@ describe("UserManagement", () => {
     expect(
       screen.getByRole("heading", { name: /customers/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/total records/i)).toBeInTheDocument();
-    expect(screen.getByText("14")).toBeInTheDocument();
-    expect(screen.getByText("3-4")).toBeInTheDocument();
+    expect(screen.queryByText(/total records/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("user-table")).toHaveAttribute("data-page", "2");
     expect(mockFindAndCountAll).toHaveBeenCalledWith(
       expect.objectContaining({

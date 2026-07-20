@@ -1,38 +1,18 @@
 import { redirect } from "next/navigation";
 import {
-  AdminBadge,
   AdminInlineMessage,
   AdminPage,
   AdminPageHeader,
 } from "@/components/admin/AdminPrimitives";
 import { Button } from "@/components/ui/button";
 import { getSessionUser } from "@/lib/helpers/auth";
+import { listAdminReviews } from "@/lib/services/adminContent";
 import ReviewList from "./ReviewList";
 
 async function getReviews() {
   try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/admin/reviews`,
-      {
-        cache: "no-store",
-      },
-    );
-
-    if (!res.ok) {
-      let message = "Failed to fetch reviews";
-
-      try {
-        const payload = await res.json();
-        if (payload?.error) {
-          message = payload.error;
-        }
-      } catch {}
-
-      throw new Error(message);
-    }
-
     return {
-      items: await res.json(),
+      items: await listAdminReviews(),
       error: null,
     };
   } catch (error) {
@@ -54,15 +34,8 @@ export default async function ReviewsManagement() {
   const { items, error } = await getReviews();
 
   return (
-    <AdminPage className="px-4 py-6 sm:px-6 lg:px-8">
-      <AdminPageHeader
-        eyebrow="Content"
-        title="Reviews"
-        description="Manage the live testimonial set shown on the landing page. Featured reviews stay ahead of standard reviews, and drag ordering now persists within each group without changing the current CRUD or visibility workflow."
-        actions={
-          <AdminBadge tone="info">Grouped ordering stays live</AdminBadge>
-        }
-      />
+    <AdminPage>
+      <AdminPageHeader eyebrow="Content" title="Reviews" />
 
       {error ? (
         <div className="space-y-4">

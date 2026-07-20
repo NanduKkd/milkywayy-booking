@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-const adminCardVariants = cva("admin-panel rounded-[1.75rem]", {
+const adminCardVariants = cva("admin-panel min-w-0 rounded-xl", {
   variants: {
     tone: {
       default: "",
@@ -36,7 +36,7 @@ const adminCardVariants = cva("admin-panel rounded-[1.75rem]", {
 });
 
 const adminBadgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.14em]",
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[0.6875rem] font-semibold",
   {
     variants: {
       tone: {
@@ -58,7 +58,7 @@ const adminBadgeVariants = cva(
 );
 
 const adminMessageVariants = cva(
-  "admin-panel-subtle rounded-[1.4rem] border px-4 py-4",
+  "admin-panel-subtle rounded-xl border px-3 py-3",
   {
     variants: {
       tone: {
@@ -75,7 +75,7 @@ const adminMessageVariants = cva(
 );
 
 export function AdminPage({ className, ...props }) {
-  return <div className={cn("space-y-8", className)} {...props} />;
+  return <div className={cn("space-y-5", className)} {...props} />;
 }
 
 export function AdminPageHeader({
@@ -86,15 +86,10 @@ export function AdminPageHeader({
   children,
 }) {
   return (
-    <section
-      className={cn(
-        "admin-toolbar gap-4 rounded-[1.8rem] border border-white/8 bg-white/[0.02] px-5 py-4 sm:px-6",
-        className,
-      )}
-    >
-      <div className="space-y-2">
+    <section className={cn("admin-toolbar min-h-10 gap-4", className)}>
+      <div>
         {eyebrow ? <p className="admin-kicker">{eyebrow}</p> : null}
-        {title ? <h1 className="admin-title">{title}</h1> : null}
+        {title ? <h1 className="admin-title mt-0.5">{title}</h1> : null}
         {children}
       </div>
       {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
@@ -116,13 +111,13 @@ export function AdminCard({ className, tone, ...props }) {
 }
 
 export function AdminCardHeader({ className, ...props }) {
-  return <CardHeader className={cn("gap-3 p-6", className)} {...props} />;
+  return <CardHeader className={cn("gap-2 p-4", className)} {...props} />;
 }
 
 export function AdminCardTitle({ className, ...props }) {
   return (
     <CardTitle
-      className={cn("text-xl font-semibold tracking-[-0.025em]", className)}
+      className={cn("text-sm font-semibold tracking-[-0.015em]", className)}
       {...props}
     />
   );
@@ -132,7 +127,7 @@ export function AdminCardDescription({ className, ...props }) {
   return (
     <CardDescription
       className={cn(
-        "text-sm leading-6 text-[hsl(var(--admin-muted))]",
+        "text-xs leading-4 text-[hsl(var(--admin-muted))]",
         className,
       )}
       {...props}
@@ -141,7 +136,7 @@ export function AdminCardDescription({ className, ...props }) {
 }
 
 export function AdminCardContent({ className, ...props }) {
-  return <CardContent className={cn("p-6 pt-0", className)} {...props} />;
+  return <CardContent className={cn("p-4 pt-0", className)} {...props} />;
 }
 
 export function AdminBadge({ className, tone, ...props }) {
@@ -181,7 +176,7 @@ export function AdminSearchField({
   ...props
 }) {
   return (
-    <div className={cn("relative min-w-[220px] flex-1", className)}>
+    <div className={cn("relative min-w-[200px] flex-1", className)}>
       <Search
         className={cn(
           "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--admin-muted))]",
@@ -189,7 +184,10 @@ export function AdminSearchField({
         )}
       />
       <Input
-        className={cn("admin-input h-11 rounded-2xl pl-10", inputClassName)}
+        className={cn(
+          "admin-input h-9 rounded-lg pl-10 text-sm",
+          inputClassName,
+        )}
         {...props}
       />
     </div>
@@ -206,18 +204,14 @@ export function AdminTablePanel({
   return (
     <section className={cn("admin-table-shell", className)}>
       {title || description || actions ? (
-        <div className="admin-toolbar gap-4 border-b border-white/8 px-5 py-4 sm:px-6">
-          <div className="space-y-1.5">
+        <div className="admin-toolbar gap-3 border-b border-white/8 px-4 py-3">
+          <div>
             {title ? (
-              <h2 className="text-base font-semibold tracking-[-0.02em] text-[hsl(var(--admin-foreground))]">
+              <h2 className="text-sm font-semibold tracking-[-0.015em] text-[hsl(var(--admin-foreground))]">
                 {title}
               </h2>
             ) : null}
-            {description ? (
-              <p className="text-sm text-[hsl(var(--admin-muted))]">
-                {description}
-              </p>
-            ) : null}
+            {description ? <p className="sr-only">{description}</p> : null}
           </div>
           {actions ? (
             <div className="flex flex-wrap gap-3">{actions}</div>
@@ -240,12 +234,12 @@ export function AdminEmptyState({
       <div className="admin-empty-state-icon">
         <Icon className="h-5 w-5" />
       </div>
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <p className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
           {title}
         </p>
         {description ? (
-          <p className="mx-auto max-w-md text-sm leading-6 text-[hsl(var(--admin-muted))]">
+          <p className="mx-auto max-w-md text-xs leading-5 text-[hsl(var(--admin-muted))]">
             {description}
           </p>
         ) : null}
@@ -277,7 +271,7 @@ export function AdminInlineMessage({
             {title}
           </p>
           {description ? (
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
+            <p className="text-xs leading-5 text-[hsl(var(--admin-muted))]">
               {description}
             </p>
           ) : null}
@@ -297,9 +291,9 @@ export function AdminDialogContent({
   return (
     <DialogContent className={cn("admin-dialog", className)} {...props}>
       {title || description ? (
-        <DialogHeader className="space-y-3">
+        <DialogHeader className="space-y-2">
           {title ? (
-            <DialogTitle className="text-xl tracking-[-0.03em] text-[hsl(var(--admin-foreground))]">
+            <DialogTitle className="text-base tracking-[-0.02em] text-[hsl(var(--admin-foreground))]">
               {title}
             </DialogTitle>
           ) : null}

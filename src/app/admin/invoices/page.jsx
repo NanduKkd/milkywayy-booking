@@ -5,11 +5,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   AdminBadge,
-  AdminCard,
-  AdminCardContent,
-  AdminCardDescription,
-  AdminCardHeader,
-  AdminCardTitle,
   AdminEmptyState,
   AdminInlineMessage,
   AdminPage,
@@ -159,11 +154,6 @@ export default function InvoicesPage() {
       ),
     ),
   ).length;
-
-  const showingFilteredResults =
-    normalizedSearchQuery.length > 0 &&
-    filteredInvoices.length !== invoices.length;
-
   return (
     <AdminPage>
       <AdminPageHeader
@@ -172,43 +162,8 @@ export default function InvoicesPage() {
         description="Search live invoice records by invoice number, booking reference, or customer identity while keeping secure downloads unchanged."
       />
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <AdminCard>
-          <AdminCardHeader>
-            <AdminCardDescription>Visible invoices</AdminCardDescription>
-            <AdminCardTitle>{filteredInvoices.length}</AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            {showingFilteredResults
-              ? `Filtered from ${invoices.length} total records`
-              : "Current live result set"}
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard>
-          <AdminCardHeader>
-            <AdminCardDescription>Visible total</AdminCardDescription>
-            <AdminCardTitle>
-              {formatCurrency(visibleTotalAmount)}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            Footer totals stay aligned with the current search result.
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard>
-          <AdminCardHeader>
-            <AdminCardDescription>Download-ready invoices</AdminCardDescription>
-            <AdminCardTitle>{downloadableInvoicesCount}</AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent className="pt-0 text-sm text-[hsl(var(--admin-muted))]">
-            {paidInvoicesCount} paid · {pendingInvoicesCount} pending or failed
-          </AdminCardContent>
-        </AdminCard>
-      </section>
-
       <AdminTablePanel
         title="Invoice ledger"
-        description="Keep the current finance workflow intact while narrowing the live table with client-side search."
         actions={
           <AdminSearchField
             aria-label="Search invoices"
@@ -329,7 +284,7 @@ export default function InvoicesPage() {
                             asChild
                             variant="ghost"
                             size="icon"
-                            className="h-10 w-10 rounded-2xl text-[hsl(var(--admin-info))] hover:bg-[hsl(var(--admin-info)/0.14)] hover:text-[hsl(var(--admin-info))]"
+                            className="h-10 w-10 rounded-lg text-[hsl(var(--admin-info))] hover:bg-[hsl(var(--admin-info)/0.14)] hover:text-[hsl(var(--admin-info))]"
                           >
                             <Link
                               href={downloadUrl}

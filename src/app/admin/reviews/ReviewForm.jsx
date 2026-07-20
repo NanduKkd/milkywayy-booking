@@ -25,11 +25,11 @@ const formSchema = z.object({
 });
 
 const INPUT_CLASS =
-  "admin-input h-11 rounded-2xl border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] px-4 text-[hsl(var(--admin-foreground))]";
+  "admin-input h-9 rounded-lg border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] px-4 text-[hsl(var(--admin-foreground))]";
 const TEXTAREA_CLASS =
-  "admin-input min-h-32 rounded-[1.35rem] border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] px-4 py-3 text-[hsl(var(--admin-foreground))]";
+  "admin-input min-h-32 rounded-xl border-[hsl(var(--admin-border)/0.9)] bg-[hsl(var(--admin-background-deep)/0.66)] px-4 py-3 text-[hsl(var(--admin-foreground))]";
 const TOGGLE_PANEL_CLASS =
-  "admin-panel-muted flex items-center justify-between rounded-[1.3rem] border border-[hsl(var(--admin-border)/0.72)] px-4 py-4";
+  "admin-panel-muted flex items-center justify-between rounded-xl border border-[hsl(var(--admin-border)/0.72)] px-4 py-4";
 const SUBMIT_BUTTON_CLASS =
   "rounded-full border border-[hsl(var(--admin-highlight)/0.45)] bg-[hsl(var(--admin-highlight)/0.18)] px-5 text-[hsl(var(--admin-foreground))] hover:bg-[hsl(var(--admin-highlight)/0.26)] hover:text-[hsl(var(--admin-foreground))]";
 

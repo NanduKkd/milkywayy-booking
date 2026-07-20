@@ -1,6 +1,6 @@
 # Admin scheduling calendar decisions
 
-- Last updated: 2026-07-02
+- Last updated: 2026-07-20
 
 ## Accepted decisions
 
@@ -14,7 +14,7 @@
 | CAL-D006 | Admin booking creation uses shared pricing and availability services. | Duplicate calculation logic would drift from customer checkout. |
 | CAL-D007 | Dubai business time controls scheduling boundaries. | The service operates on Dubai property schedules, independent of server/operator timezone. |
 | CAL-D008 | Server-side conflict checks are mandatory at mutation time. | Calendar views become stale and cannot safely guarantee capacity on their own. |
-| CAL-D009 | Administrators can block an exact `from`/`to` time range in 30-minute increments. Any customer booking whose scheduled interval overlaps the block is unavailable. | Operators need blocks such as 10:00-10:30 and 10:00-12:30 without blocking an unrelated part of the day or entering capacity units. |
+| CAL-D009 | Superseded by CAL-D022. New exact `from`/`to` availability blocks are no longer created from Calendar. | Owner acceptance feedback established named-slot-only blocking for the everyday operator interface. |
 | CAL-D010 | A block cannot be saved while it overlaps an active booking. The Calendar identifies the conflicting booking and directs the administrator to manage it in Bookings before retrying the block. | Blocks must never cancel, move, or silently override an existing booking. Booking cancellation and rescheduling remain explicit actions in the Bookings workflow. |
 | CAL-D011 | Retain calendar-only events as non-blocking informational entries. They require a title, date, and either full-day or 30-minute-aligned start/end selection; description is optional, and past events are read-only. This supersedes the capacity-reserving behavior in CAL-D003. | Informational events are already implemented and remain useful, while customer availability changes belong exclusively to the Block action. |
 | CAL-D012 | An admin can prepare multiple property bookings for either an existing customer or a not-yet-registered customer. | Operational requests can contain multiple properties and should use one handoff. |
@@ -27,6 +27,9 @@
 | CAL-D019 | Calendar access remains Super Admin-only until the deferred access-control feature resumes. | This preserves the current authorization boundary without adding temporary permissions. |
 | CAL-D020 | Calendar events, exact blocking, admin booking preparation, customer handoff, and payment integration release together rather than through separate product stages. | Product requires the complete workflow at launch. |
 | CAL-D021 | A payment link expires after four hours. An admin can generate a replacement link, which starts a new four-hour window using the current booking details and invalidates the superseded link. | Operators need recovery when customers miss the original payment window without allowing multiple active checkout links for the same pending booking. |
+| CAL-D022 | Calendar availability mutation is limited to named Morning, Afternoon, and Evening slots. Exact-time and dedicated full-day creation controls are absent. Existing exact/full-day blocks remain represented by the Time Slots contract, are identified generically in Calendar, and can be cleared without exposing clock ranges. | The admin is a compact repeat-use tool, and named slots are the accepted operational granularity. Backward compatibility avoids silently changing customer availability or stranding persisted blocks. |
+| CAL-D023 | Calendar month cells have fixed height and show no more than two short status-colored markers followed by an accessible `+N` overflow count. The selected-day panel exposes the complete schedule with bookings before informational events and availability controls. | Busy days remain scannable without losing access to any entry. |
+| CAL-D024 | The operational calendar is rendered only at `/admin/scheduling-calendar`; `/admin/timeslots` remains the configuration authority for working days, named period definitions, rolling windows, and weight models without rendering a duplicate month view. | Calendar navigation and date-specific blocking belong in one predictable operator destination. |
 
 ## Deferred decisions
 

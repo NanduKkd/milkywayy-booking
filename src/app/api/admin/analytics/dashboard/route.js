@@ -43,6 +43,7 @@ export async function GET(request) {
       transactions,
       expenses,
       pricingConfig,
+      currentBusinessDate,
       latestActivityMonth,
     } = await loadDashboardAnalyticsDependencies(filters);
 
@@ -51,6 +52,7 @@ export async function GET(request) {
       transactions,
       expenses,
       pricingConfig,
+      currentBusinessDate,
       filters,
     });
 

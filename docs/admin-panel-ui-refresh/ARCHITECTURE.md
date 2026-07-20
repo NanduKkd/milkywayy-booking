@@ -1,6 +1,6 @@
 # Admin panel UI refresh architecture
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-20
 
 ## Boundary
 
@@ -51,14 +51,23 @@ or financial calculations.
 `/admin` consumes the bounded Dashboard response supplied by
 `admin-analytics-finance`. `/admin/analytics` retains detailed reports, expense
 management, drill-down, and export behavior. Shared calculations remain in the
-analytics service.
+analytics service. The Dashboard response also includes presentation-ready
+property, service, slot, and start-time fields for its recent-booking rows plus a
+current-Dubai-business-day schedule. Custom SVG donut components render live
+service/status distributions without adding a charting dependency. Their shared
+responsive composition centers the chart above full-width legend rows with
+right-aligned values, with a compact chart variant for the narrower Dashboard
+card.
 
 ### Bookings
 
-Add All, Completed, Pending, and Cancelled filtering to the existing list. The
-current detail dialog, workflow updates, notifications, invoice links, uploads,
-versions, revisions, publishing, and completion controls remain wired to their
-existing services. No New Booking control is added.
+Add All, Completed, Pending, and Cancelled filtering to the existing list.
+Pending follows the reference contract and includes only Awaiting Payment and
+Shoot Booked records; later active workflow stages remain available through All.
+The filtered list uses compact ten-row client pagination. The current detail
+dialog, workflow updates, notifications, invoice links, uploads, versions,
+revisions, publishing, and completion controls remain wired to their existing
+services. No New Booking control is added.
 
 ### Customers
 
@@ -73,23 +82,40 @@ download URLs remain unchanged.
 
 ### Promotions, Calendar, Time Slots, and Pricing
 
-These pages receive shared styling without changes to their domain behavior.
-Promotions retains its three current tabs. Calendar, scheduling configuration,
-and pricing continue using their current services and validation.
+Promotions retains its three current tabs and dense reference table/form
+composition. It exposes one active-tab create action, one row-action menu, and
+tab-specific schemas: code/minimum-spend/limits for Generic, customer assignment
+for Personal, and trigger/requirements for Automatic. The operational month view and
+date-specific block controls exist only at `/admin/scheduling-calendar`;
+each fixed-height date cell reserves Morning, Afternoon, and Evening tracks and
+colors only occupied or blocked periods. Blocked tracks use the header legend's
+red. Selected-day slot mutations use three flat rows with configured time below
+the slot name, followed by status and one block/open action; redundant day/block
+summary panels are omitted.
+`/admin/timeslots` edits rolling windows, working days, named period definitions,
+and weight configuration without rendering a second calendar. Its three property
+weight groups share one compact desktop row. Pricing continues through its
+current save action and marks changed cells plus affected property tabs until
+that action succeeds.
 
 ### Portfolio
 
 Add media-type filters for All Works, Photography, Short Form Video, Long Form
 Video, and 360 Virtual Tour. Existing create/edit/upload/delete/visibility and
 drag-order behavior remain available. Filtering must not corrupt the persisted
-global order.
+global order. The table exposes an icon-only drag handle; numeric order values
+remain internal persistence state. The authenticated page loads all entries,
+including hidden ones, through the shared admin content service rather than an
+HTTP request to the public visible-only endpoint.
 
 ### Reviews
 
 Keep CRUD, visibility, rating, and featured controls. Add drag ordering within
 the Featured and Standard groups and persist the resulting `order` values.
-Featured reviews continue to sort before Standard reviews. Do not add a review
-preview column.
+Featured reviews continue to sort before Standard reviews. Review ordering also
+uses an icon-only handle without a visible order number or `DRAG` label. Do not
+add a review preview column. The authenticated page uses the same direct admin
+content service boundary as Portfolio, avoiding self-referential base-URL fetches.
 
 ## Responsive behavior
 

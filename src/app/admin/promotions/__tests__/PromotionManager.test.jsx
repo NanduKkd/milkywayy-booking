@@ -29,6 +29,18 @@ jest.mock("@/lib/actions/promotions", () => ({
   updateAdminPromotion: jest.fn(),
 }));
 
+jest.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }) => <div role="menu">{children}</div>,
+  DropdownMenuItem: ({ children, onSelect }) => (
+    <button type="button" role="menuitem" onClick={onSelect}>
+      {children}
+    </button>
+  ),
+  DropdownMenuSeparator: () => <hr />,
+  DropdownMenuTrigger: ({ children }) => children,
+}));
+
 const mockPromotions = [
   {
     id: 101,
@@ -117,6 +129,42 @@ describe("PromotionManager", () => {
     expect(screen.getByText("First paid booking")).toBeInTheDocument();
   });
 
+  it("shows one create action and tab-specific promotion columns", async () => {
+    render(<PromotionManager initialPromotions={mockPromotions} />);
+
+    expect(
+      screen.getAllByRole("button", { name: "Create Generic" }),
+    ).toHaveLength(1);
+    expect(
+      screen.getByRole("columnheader", { name: "Min spend" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Limits" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Validity" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Trigger" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
+    expect(
+      await screen.findByRole("columnheader", { name: "Customer(s)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "Trigger" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: /Automatic Discounts/i }));
+    expect(
+      await screen.findByRole("columnheader", { name: "Trigger" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Requirements" }),
+    ).toBeInTheDocument();
+  });
+
   it("creates a generic promotion from the active tab", async () => {
     createAdminPromotion.mockResolvedValue({
       success: true,
@@ -145,9 +193,7 @@ describe("PromotionManager", () => {
 
     render(<PromotionManager initialPromotions={[]} />);
 
-    fireEvent.click(
-      screen.getAllByRole("button", { name: /Create Generic/i })[0],
-    );
+    fireEvent.click(screen.getByRole("button", { name: /Create Generic/i }));
     fireEvent.change(screen.getByLabelText(/Promotion name/i), {
       target: { value: "Welcome 15" },
     });
@@ -259,7 +305,11 @@ describe("PromotionManager", () => {
 
     render(<PromotionManager initialPromotions={mockPromotions} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Edit/i }));
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for Save 20" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Edit" }));
     fireEvent.change(screen.getByLabelText(/Promotion name/i), {
       target: { value: "Save 25" },
     });
@@ -306,7 +356,11 @@ describe("PromotionManager", () => {
 
     render(<PromotionManager initialPromotions={mockPromotions} />);
 
-    fireEvent.click(screen.getByTitle("Activate promotion"));
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for Save 20" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Activate" }));
 
     await waitFor(() => {
       expect(activateAdminPromotion).toHaveBeenCalledWith(101);
@@ -314,9 +368,11 @@ describe("PromotionManager", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: /Automatic Discounts/i }));
     expect(await screen.findByText("First booking bonus")).toBeInTheDocument();
-    fireEvent.click(
-      within(screen.getByRole("tabpanel")).getByTitle("Pause promotion"),
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for First booking bonus" }),
+      { button: 0, ctrlKey: false },
     );
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Pause" }));
 
     await waitFor(() => {
       expect(pauseAdminPromotion).toHaveBeenCalledWith(202);
@@ -324,8 +380,12 @@ describe("PromotionManager", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: /Generic Codes/i }));
     expect(await screen.findByText("SAVE20")).toBeInTheDocument();
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for Save 20" }),
+      { button: 0, ctrlKey: false },
+    );
     fireEvent.click(
-      within(screen.getByRole("tabpanel")).getByTitle("Deactivate promotion"),
+      await screen.findByRole("menuitem", { name: "Deactivate" }),
     );
     expect(
       screen.getByRole("heading", { name: "Deactivate promotion" }),
@@ -394,7 +454,13 @@ describe("PromotionManager", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
     expect(await screen.findByText("VIP repeat customer")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for VIP repeat customer" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Assign customer" }),
+    );
     fireEvent.change(screen.getByLabelText(/Search customers/i), {
       target: { value: "Noura" },
     });
@@ -471,7 +537,13 @@ describe("PromotionManager", () => {
     );
 
     fireEvent.click(screen.getByRole("tab", { name: /Personal Auto-Apply/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Assign" }));
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for VIP repeat customer" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Assign customer" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
 
     await waitFor(() => {

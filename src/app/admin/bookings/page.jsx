@@ -1,14 +1,10 @@
 "use client";
 
-import { RefreshCcw, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   AdminBadge,
-  AdminCard,
-  AdminCardDescription,
-  AdminCardHeader,
-  AdminCardTitle,
   AdminEmptyState,
   AdminFilterChip,
   AdminFilterRow,
@@ -59,9 +55,10 @@ const BOOKING_FILTERS = [
   { id: "COMPLETED", label: "Completed" },
   { id: "CANCELLED", label: "Cancelled" },
 ];
+const BOOKING_PAGE_SIZE = 10;
 
 const DETAIL_PANEL_CLASS =
-  "admin-panel-subtle rounded-[1.45rem] border border-[hsl(var(--admin-border)/0.76)] p-4 sm:p-5";
+  "admin-panel-subtle rounded-xl border border-[hsl(var(--admin-border)/0.76)] p-4";
 
 const getDeliveryFiles = (booking) =>
   (booking?.deliveryFiles || []).filter((file) => !file.deletedAt);
@@ -154,7 +151,12 @@ const matchesBookingFilter = (booking, filterId) => {
     return isCancelledBooking(booking);
   }
   if (filterId === "PENDING") {
-    return !isCancelledBooking(booking) && !isCompletedBooking(booking);
+    return (
+      !isCancelledBooking(booking) &&
+      !isCompletedBooking(booking) &&
+      (booking?.status === "DRAFT" ||
+        getWorkflowStatus(booking) === BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED)
+    );
   }
   return true;
 };
@@ -208,6 +210,7 @@ const fetchAdminBookings = async () => {
 export default function BookingsPage() {
   const [bookings, setBookings] = useState([]);
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -241,6 +244,19 @@ export default function BookingsPage() {
   const filteredBookings = bookings.filter((booking) =>
     matchesBookingFilter(booking, activeFilter),
   );
+  const totalPages = Math.max(
+    Math.ceil(filteredBookings.length / BOOKING_PAGE_SIZE),
+    1,
+  );
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * BOOKING_PAGE_SIZE;
+  const paginatedBookings = filteredBookings.slice(
+    pageStart,
+    pageStart + BOOKING_PAGE_SIZE,
+  );
+  const visibleRange = filteredBookings.length
+    ? `${pageStart + 1}-${pageStart + paginatedBookings.length} of ${filteredBookings.length}`
+    : "0 visible";
 
   useEffect(() => {
     let cancelled = false;
@@ -644,7 +660,7 @@ export default function BookingsPage() {
                 ? "Sync failed"
                 : isLoading
                   ? "Refreshing"
-                  : `${filteredBookings.length} visible`}
+                  : visibleRange}
             </AdminBadge>
             <Button
               type="button"
@@ -654,55 +670,23 @@ export default function BookingsPage() {
               className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
             >
               <RefreshCcw className="mr-2 h-4 w-4" />
-              Refresh Bookings
+              Refresh
             </Button>
           </div>
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Total Queue</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {bookingCounts.ALL || 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Pending Work</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {bookingCounts.PENDING || 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Completed</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {bookingCounts.COMPLETED || 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Cancelled</AdminCardDescription>
-            <AdminCardTitle className="text-3xl">
-              {bookingCounts.CANCELLED || 0}
-            </AdminCardTitle>
-          </AdminCardHeader>
-        </AdminCard>
-      </div>
-
-      <AdminTablePanel title="Booking Queue">
-        <div className="border-b border-white/8 px-5 py-4 sm:px-6">
+      <AdminTablePanel>
+        <div className="border-b border-white/8 px-4 py-3">
           <AdminFilterRow>
             {BOOKING_FILTERS.map((filter) => (
               <AdminFilterChip
                 key={filter.id}
                 active={activeFilter === filter.id}
-                onClick={() => setActiveFilter(filter.id)}
+                onClick={() => {
+                  setActiveFilter(filter.id);
+                  setPage(1);
+                }}
                 aria-pressed={activeFilter === filter.id}
               >
                 <span>{filter.label}</span>
@@ -744,87 +728,119 @@ export default function BookingsPage() {
             description="Change the status filter or refresh the queue to review a different set of bookings."
           />
         ) : (
-          <Table className="min-w-[940px]">
-            <TableHeader className="bg-white/[0.03] [&_tr]:border-white/8">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Booking
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Customer
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Services
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Schedule
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Total
-                </TableHead>
-                <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
-                  Status
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="[&_tr:last-child]:border-white/8">
-              {filteredBookings.map((booking) => {
-                const bookingStatus = getBookingStatusMeta(booking);
+          <>
+            <Table className="min-w-[940px]">
+              <TableHeader className="bg-white/[0.03] [&_tr]:border-white/8">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Booking
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Customer
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Services
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Schedule
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Total
+                  </TableHead>
+                  <TableHead className="text-[0.72rem] uppercase tracking-[0.18em] text-[hsl(var(--admin-muted))]">
+                    Status
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="[&_tr:last-child]:border-white/8">
+                {paginatedBookings.map((booking) => {
+                  const bookingStatus = getBookingStatusMeta(booking);
 
-                return (
-                  <TableRow
-                    key={booking.id}
-                    className="cursor-pointer border-white/8 text-[hsl(var(--admin-foreground))] hover:bg-white/[0.03]"
-                    onClick={() => handleRowClick(booking)}
-                  >
-                    <TableCell className="space-y-1 py-4">
-                      <p className="text-sm font-semibold">#{booking.id}</p>
-                      <p className="text-sm text-[hsl(var(--admin-foreground))]">
-                        {getPropertyLabel(booking)}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--admin-muted))]">
-                        {booking.propertyDetails?.type ||
-                          "Property type pending"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="space-y-1 py-4">
-                      <p className="text-sm font-medium">
-                        {booking.user?.fullName || "Customer not assigned"}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--admin-muted))]">
-                        {booking.user?.email || "No email provided"}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--admin-muted))]">
-                        {booking.user?.phone || "No phone provided"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="py-4 text-sm text-[hsl(var(--admin-muted))]">
-                      {getBookingServices(booking).join(", ") ||
-                        "No services specified"}
-                    </TableCell>
-                    <TableCell className="space-y-1 py-4">
-                      <p className="text-sm">
-                        {booking.date || "Date pending"}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--admin-muted))]">
-                        {booking.slot
-                          ? `Slot: ${booking.slot}`
-                          : "Slot pending"}
-                      </p>
-                    </TableCell>
-                    <TableCell className="py-4 text-sm font-medium">
-                      AED {booking.total ?? 0}
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <AdminBadge tone={bookingStatus.tone}>
-                        {bookingStatus.label}
-                      </AdminBadge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                  return (
+                    <TableRow
+                      key={booking.id}
+                      className="cursor-pointer border-white/8 text-[hsl(var(--admin-foreground))] hover:bg-white/[0.03]"
+                      onClick={() => handleRowClick(booking)}
+                    >
+                      <TableCell className="space-y-0.5 py-3">
+                        <p className="text-sm font-semibold">#{booking.id}</p>
+                        <p className="text-sm text-[hsl(var(--admin-foreground))]">
+                          {getPropertyLabel(booking)}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {booking.propertyDetails?.type ||
+                            "Property type pending"}
+                        </p>
+                      </TableCell>
+                      <TableCell className="space-y-0.5 py-3">
+                        <p className="text-sm font-medium">
+                          {booking.user?.fullName || "Customer not assigned"}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {booking.user?.email || "No email provided"}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {booking.user?.phone || "No phone provided"}
+                        </p>
+                      </TableCell>
+                      <TableCell className="py-3 text-sm text-[hsl(var(--admin-muted))]">
+                        {getBookingServices(booking).join(", ") ||
+                          "No services specified"}
+                      </TableCell>
+                      <TableCell className="space-y-0.5 py-3">
+                        <p className="text-sm">
+                          {booking.date || "Date pending"}
+                        </p>
+                        <p className="text-xs text-[hsl(var(--admin-muted))]">
+                          {booking.slot
+                            ? `Slot: ${booking.slot}`
+                            : "Slot pending"}
+                        </p>
+                      </TableCell>
+                      <TableCell className="py-3 text-sm font-medium">
+                        AED {booking.total ?? 0}
+                      </TableCell>
+                      <TableCell className="py-3">
+                        <AdminBadge tone={bookingStatus.tone}>
+                          {bookingStatus.label}
+                        </AdminBadge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            <div className="flex items-center justify-between border-t border-white/8 px-4 py-3">
+              <p className="text-xs text-[hsl(var(--admin-muted))]">
+                Page {currentPage} of {totalPages} · {filteredBookings.length}{" "}
+                bookings
+              </p>
+              <div className="flex gap-1">
+                <Button
+                  aria-label="Previous bookings page"
+                  disabled={currentPage === 1}
+                  onClick={() => setPage((value) => Math.max(value - 1, 1))}
+                  size="icon"
+                  type="button"
+                  variant="outline"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  aria-label="Next bookings page"
+                  disabled={currentPage === totalPages}
+                  onClick={() =>
+                    setPage((value) => Math.min(value + 1, totalPages))
+                  }
+                  size="icon"
+                  type="button"
+                  variant="outline"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </AdminTablePanel>
 
@@ -835,19 +851,18 @@ export default function BookingsPage() {
         }}
       >
         <DialogContent className="admin-dialog flex max-h-[90vh] flex-col gap-0 overflow-hidden border-[hsl(var(--admin-border-strong)/0.92)] p-0 text-[hsl(var(--admin-foreground))] sm:max-w-5xl">
-          <DialogHeader className="shrink-0 border-b border-[hsl(var(--admin-border)/0.82)] px-5 py-5 pr-12 sm:px-6">
-            <DialogTitle className="text-xl tracking-[-0.03em] text-[hsl(var(--admin-foreground))]">
-              Booking Details #{selectedBooking?.id}
+          <DialogHeader className="shrink-0 border-b border-[hsl(var(--admin-border)/0.82)] px-5 py-4 pr-12">
+            <DialogTitle className="text-base tracking-[-0.02em] text-[hsl(var(--admin-foreground))]">
+              Booking #{selectedBooking?.id}
             </DialogTitle>
-            <DialogDescription className="text-sm text-[hsl(var(--admin-muted))]">
-              Review live workflow, communication, uploads, and invoice actions
-              without changing the current booking behavior.
+            <DialogDescription className="sr-only">
+              Booking workflow and operational actions
             </DialogDescription>
           </DialogHeader>
 
           {selectedBooking && (
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
-              <div className="grid gap-4 xl:grid-cols-3">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+              <div className="grid gap-4 xl:grid-cols-2">
                 <div className={DETAIL_PANEL_CLASS}>
                   <p className="admin-kicker mb-3">Customer</p>
                   <div className="space-y-1.5">
@@ -937,29 +952,6 @@ export default function BookingsPage() {
                         Address:
                       </span>{" "}
                       {getPropertyLabel(selectedBooking)}
-                    </p>
-                  </div>
-                </div>
-                <div className={DETAIL_PANEL_CLASS}>
-                  <p className="admin-kicker mb-3">Contact Details</p>
-                  <div className="space-y-2 text-sm text-[hsl(var(--admin-muted))]">
-                    <p>
-                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
-                        Name:
-                      </span>{" "}
-                      {selectedBooking.contactDetails?.name || "Not provided"}
-                    </p>
-                    <p>
-                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
-                        Phone:
-                      </span>{" "}
-                      {selectedBooking.contactDetails?.phone || "Not provided"}
-                    </p>
-                    <p>
-                      <span className="font-medium text-[hsl(var(--admin-foreground))]">
-                        Email:
-                      </span>{" "}
-                      {selectedBooking.contactDetails?.email || "Not provided"}
                     </p>
                   </div>
                 </div>
@@ -1217,7 +1209,7 @@ export default function BookingsPage() {
                         return (
                           <div
                             key={file.id}
-                            className="admin-panel-muted rounded-[1.2rem] border border-white/8 p-4"
+                            className="admin-panel-muted rounded-xl border border-white/8 p-4"
                           >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="min-w-0 space-y-2">
@@ -1246,7 +1238,7 @@ export default function BookingsPage() {
                                 </div>
 
                                 {activeRevision ? (
-                                  <div className="rounded-2xl border border-[hsl(var(--admin-warning)/0.28)] bg-[hsl(var(--admin-warning)/0.1)] px-3 py-2.5 text-sm">
+                                  <div className="rounded-lg border border-[hsl(var(--admin-warning)/0.28)] bg-[hsl(var(--admin-warning)/0.1)] px-3 py-2.5 text-sm">
                                     <p className="font-medium text-[hsl(var(--admin-warning))]">
                                       Requested changes
                                     </p>
@@ -1313,9 +1305,9 @@ export default function BookingsPage() {
                     BOOKING_WORKFLOW_STATUS.EDITING,
                     BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
                   ].includes(getWorkflowStatus(selectedBooking)) ? (
-                    <div className="admin-panel-muted mt-5 rounded-[1.2rem] border border-white/8 p-4">
+                    <div className="admin-panel-muted mt-5 rounded-xl border border-white/8 p-4">
                       {replacementFileId ? (
-                        <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-[hsl(var(--admin-warning)/0.26)] bg-[hsl(var(--admin-warning)/0.1)] px-3 py-2 text-xs text-[hsl(var(--admin-warning))]">
+                        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[hsl(var(--admin-warning)/0.26)] bg-[hsl(var(--admin-warning)/0.1)] px-3 py-2 text-xs text-[hsl(var(--admin-warning))]">
                           <span>
                             Uploading replacement for{" "}
                             {getFileName(
@@ -1351,7 +1343,7 @@ export default function BookingsPage() {
                             onChange={(event) =>
                               setDeliverableType(event.target.value)
                             }
-                            className="admin-input h-11 w-full rounded-2xl px-3 text-sm"
+                            className="admin-input h-9 w-full rounded-lg px-3 text-sm"
                           >
                             {Object.values(DELIVERY_FILE_TYPE).map((type) => (
                               <option key={type}>{type}</option>
@@ -1374,7 +1366,7 @@ export default function BookingsPage() {
                             }
                             placeholder="https://bucket.s3.region.amazonaws.com/file"
                             disabled={uploading}
-                            className="admin-input h-11 rounded-2xl"
+                            className="admin-input h-9 rounded-lg"
                           />
                         </div>
                       </div>
@@ -1444,7 +1436,7 @@ export default function BookingsPage() {
                           {uploadItems.map((item, index) => (
                             <div
                               key={`${item.name}-${index}`}
-                              className="rounded-2xl border border-white/8 bg-black/20 px-3 py-2.5 text-xs"
+                              className="rounded-lg border border-white/8 bg-black/20 px-3 py-2.5 text-xs"
                             >
                               <div className="flex justify-between gap-3">
                                 <span className="truncate text-[hsl(var(--admin-foreground))]">

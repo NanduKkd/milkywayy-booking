@@ -83,6 +83,7 @@ describe("Admin dashboard analytics API route", () => {
     expect(response.status).toBe(200);
     expect(buildDashboardAnalytics).toHaveBeenCalledWith({
       bookings: [{ id: 10 }],
+      currentBusinessDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       transactions: [{ id: 20 }],
       expenses: [{ id: 30 }],
       pricingConfig: { Apartment: {} },

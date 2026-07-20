@@ -1,8 +1,6 @@
 import { render, screen, waitFor } from "../../../../test-utils";
 import ReviewsManagement from "../page";
 
-global.fetch = jest.fn();
-
 jest.mock("next/navigation", () => ({
   redirect: jest.fn(),
   useRouter: jest.fn(() => ({
@@ -12,6 +10,10 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("../../../../lib/helpers/auth", () => ({
   getSessionUser: jest.fn(),
+}));
+
+jest.mock("@/lib/services/adminContent", () => ({
+  listAdminReviews: jest.fn(),
 }));
 
 describe("Reviews Management Page", () => {
@@ -26,24 +28,21 @@ describe("Reviews Management Page", () => {
 
   it("renders the refreshed reviews page after fetching data", async () => {
     const { getSessionUser } = require("../../../../lib/helpers/auth");
+    const { listAdminReviews } = require("@/lib/services/adminContent");
     getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
-
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => [
-        {
-          id: 1,
-          name: "Ava Client",
-          role: "Agent",
-          company: "Northline",
-          rating: 5,
-          source: "Google",
-          featured: true,
-          order: 0,
-          isVisible: true,
-        },
-      ],
-    });
+    listAdminReviews.mockResolvedValue([
+      {
+        id: 1,
+        name: "Ava Client",
+        role: "Agent",
+        company: "Northline",
+        rating: 5,
+        source: "Google",
+        featured: true,
+        order: 0,
+        isVisible: true,
+      },
+    ]);
 
     const page = await ReviewsManagement({
       searchParams: Promise.resolve({}),
@@ -60,12 +59,9 @@ describe("Reviews Management Page", () => {
 
   it("shows a retryable unavailable state without misleading empty totals", async () => {
     const { getSessionUser } = require("../../../../lib/helpers/auth");
+    const { listAdminReviews } = require("@/lib/services/adminContent");
     getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
-
-    global.fetch.mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: "Reviews API unavailable" }),
-    });
+    listAdminReviews.mockRejectedValue(new Error("Reviews data unavailable"));
 
     const page = await ReviewsManagement({
       searchParams: Promise.resolve({}),
@@ -75,7 +71,7 @@ describe("Reviews Management Page", () => {
     await waitFor(() => {
       expect(screen.getByText(/reviews are unavailable/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/Reviews API unavailable/)).toBeInTheDocument();
+    expect(screen.getByText(/Reviews data unavailable/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /try again/i })).toHaveAttribute(
       "href",
       "/admin/reviews",
@@ -91,18 +87,16 @@ describe("Reviews Management Page", () => {
 
   it("keeps the genuine empty-review state when the request succeeds", async () => {
     const { getSessionUser } = require("../../../../lib/helpers/auth");
+    const { listAdminReviews } = require("@/lib/services/adminContent");
     getSessionUser.mockResolvedValue({ role: "SUPERADMIN" });
-
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: async () => [],
-    });
+    listAdminReviews.mockResolvedValue([]);
 
     const page = await ReviewsManagement();
     render(page);
 
-    expect(screen.getByText("Total reviews")).toBeInTheDocument();
-    expect(screen.getAllByText("0")).toHaveLength(2);
+    expect(
+      screen.getByRole("heading", { name: "0 reviews" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("No featured reviews found")).toBeInTheDocument();
     expect(screen.getByText("No standard reviews found")).toBeInTheDocument();
     expect(

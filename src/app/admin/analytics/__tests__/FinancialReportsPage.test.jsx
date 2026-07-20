@@ -9,6 +9,18 @@ const expenseCategories = [
   { key: "rent", label: "Rent" },
 ];
 
+function createComparison(current, previous) {
+  const delta = current - previous;
+  return {
+    current,
+    delta,
+    deltaPercentage:
+      previous === 0 ? (current === 0 ? 0 : null) : (delta / previous) * 100,
+    direction: delta === 0 ? "flat" : delta > 0 ? "up" : "down",
+    previous,
+  };
+}
+
 const reportPayload = {
   bookingStatus: {
     buckets: [
@@ -19,16 +31,22 @@ const reportPayload = {
     total: 6,
   },
   comparison: {
-    completedBookings: { delta: 1 },
-    expenses: { delta: 150 },
-    netProfit: { delta: 550 },
-    netRevenue: { delta: 700 },
+    averageBookingValue: createComparison(466.67, 350),
+    cancelledBookings: createComparison(1, 2),
+    completedBookings: createComparison(3, 2),
+    expenses: createComparison(450, 300),
+    netProfit: createComparison(950, 400),
+    netRevenue: createComparison(1400, 700),
+    pendingBookings: createComparison(2, 3),
   },
   kpis: {
+    averageBookingValue: 466.67,
+    cancelledBookings: 1,
     completedBookings: 3,
     expenses: 450,
     netProfit: 950,
     netRevenue: 1400,
+    pendingBookings: 2,
   },
   monthlyComparison: [
     {
@@ -86,16 +104,17 @@ const reportPayload = {
 
 const dashboardPayload = {
   comparison: {
-    cancelledBookings: { delta: 1 },
-    completedBookings: { delta: 2 },
-    expenses: { delta: 150 },
-    grossPayments: { delta: 800 },
-    lostValue: { delta: 300 },
-    netProfit: { delta: 550 },
-    netRevenue: { delta: 700 },
-    outstandingBalance: { delta: 125 },
-    pendingBookings: { delta: 1 },
-    refunds: { delta: 100 },
+    averageBookingValue: createComparison(466.67, 350),
+    cancelledBookings: createComparison(1, 0),
+    completedBookings: createComparison(3, 1),
+    expenses: createComparison(450, 300),
+    grossPayments: createComparison(1500, 700),
+    lostValue: createComparison(300, 0),
+    netProfit: createComparison(950, 400),
+    netRevenue: createComparison(1400, 700),
+    outstandingBalance: createComparison(225, 100),
+    pendingBookings: createComparison(2, 1),
+    refunds: createComparison(100, 0),
   },
   kpis: {
     cancelledBookings: 1,
@@ -122,6 +141,14 @@ const dashboardPayload = {
       },
       date: "2026-06-28",
       id: 201,
+      property: {
+        label: "21 Marina Walk",
+        size: "2 Bed",
+        type: "Apartment",
+      },
+      services: ["Photography", "Videography"],
+      slot: 1,
+      startTime: "09:00",
       status: "CONFIRMED",
       total: 650,
       workflowStatus: "SHOOT_BOOKED",
@@ -160,6 +187,11 @@ const dashboardPayload = {
       pending: 2,
       total: 6,
     },
+  },
+  todaySchedule: {
+    bookings: [],
+    businessDate: "2026-07-20",
+    total: 0,
   },
 };
 
@@ -393,28 +425,50 @@ describe("FinancialReportsPage", () => {
     render(<FinancialReportsPage />);
 
     expect(
-      screen.getByLabelText("Loading dashboard analytics"),
-    ).toBeInTheDocument();
-    expect(
       screen.getByLabelText("Loading financial reports"),
     ).toBeInTheDocument();
     expect(
       screen.getByLabelText("Loading expense tracker"),
     ).toBeInTheDocument();
 
-    expect(await screen.findByText("Dashboard Analytics")).toBeInTheDocument();
     expect(await screen.findByText("Weekly Net Revenue")).toBeInTheDocument();
     expect(await screen.findByText("Expense Tracker")).toBeInTheDocument();
-    expect(screen.getByText("Gross Payments")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "View net revenue details" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Category Breakdown")).toBeInTheDocument();
+      screen.queryByRole("region", { name: "Dashboard analytics" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByText("Net revenue").length).toBeGreaterThan(0);
+    expect(screen.getByText("Breakdown by Category")).toBeInTheDocument();
     expect(screen.getByText("Tracked Expenses")).toBeInTheDocument();
-    expect(screen.getByText("BK-201")).toBeInTheDocument();
     expect(screen.getByText("Campaign shoot boost")).toBeInTheDocument();
     expect(screen.getAllByText("Marketing").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Jun 2026").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("img", { name: "Booking status for July 2026" }),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("img", { name: "Booking status for July 2026" })
+        .closest("[data-donut-layout]"),
+    ).toHaveAttribute("data-donut-layout", "standard");
+    expect(
+      screen
+        .getByRole("img", { name: "Booking status for July 2026" })
+        .closest("[data-donut-direction]"),
+    ).toHaveAttribute("data-donut-direction", "vertical");
+    expect(
+      screen
+        .getByRole("img", {
+          name: "Revenue by service for July 2026",
+        })
+        .closest("[data-donut-layout]"),
+    ).toHaveAttribute("data-donut-layout", "standard");
+    expect(
+      screen
+        .getByRole("img", {
+          name: "Revenue by service for July 2026",
+        })
+        .closest("[data-donut-direction]"),
+    ).toHaveAttribute("data-donut-direction", "vertical");
     expect(screen.getByRole("link", { name: "Export CSV" })).toHaveAttribute(
       "href",
       expect.stringContaining("/api/admin/analytics/reports/export?"),
@@ -442,10 +496,6 @@ describe("FinancialReportsPage", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/admin/analytics/dashboard?"),
-        expect.objectContaining({ cache: "no-store" }),
-      );
-      expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining("/api/admin/analytics/reports?"),
         expect.objectContaining({ cache: "no-store" }),
       );
@@ -468,9 +518,10 @@ describe("FinancialReportsPage", () => {
     });
 
     expect(screen.getByLabelText("Report month")).toHaveValue("2026-03");
-    expect(screen.getAllByText("Mar 1, 2026 to Mar 31, 2026").length).toBe(2);
     expect(
-      screen.getByText(/Logged expenses for March 2026/),
+      await screen.findByText(
+        /Log and categorise business expenses · March 2026/,
+      ),
     ).toBeInTheDocument();
 
     for (const format of ["csv", "xlsx", "pdf"]) {
@@ -491,7 +542,6 @@ describe("FinancialReportsPage", () => {
 
     await waitFor(() => {
       for (const path of [
-        "/api/admin/analytics/dashboard?",
         "/api/admin/analytics/reports?",
         "/api/admin/expenses?",
       ]) {
@@ -510,10 +560,10 @@ describe("FinancialReportsPage", () => {
       expenseItems: [],
     });
 
-    render(<FinancialReportsPage />);
+    render(<FinancialReportsPage mode="dashboard" />);
 
     fireEvent.click(
-      await screen.findByRole("button", { name: "View net revenue details" }),
+      await screen.findByRole("button", { name: "View total revenue details" }),
     );
 
     expect(await screen.findByText("Net Revenue Details")).toBeInTheDocument();
@@ -534,13 +584,38 @@ describe("FinancialReportsPage", () => {
 
     render(<FinancialReportsPage mode="dashboard" />);
 
-    expect(await screen.findByText("Admin Dashboard")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Dashboard" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open Reports" })).toHaveAttribute(
       "href",
       "/admin/analytics",
     );
     expect(screen.queryByText("Financial Reports")).not.toBeInTheDocument();
     expect(screen.queryByText("Expense Tracker")).not.toBeInTheDocument();
+    expect(
+      (
+        await screen.findByRole("img", {
+          name: "Revenue by service for July 2026",
+        })
+      ).closest("[data-donut-layout]"),
+    ).toHaveAttribute("data-donut-layout", "compact");
+    expect(
+      screen
+        .getByRole("img", {
+          name: "Revenue by service for July 2026",
+        })
+        .closest("[data-donut-direction]"),
+    ).toHaveAttribute("data-donut-direction", "vertical");
+    expect(screen.queryByText("Dashboard day buckets")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View all →" })).toHaveAttribute(
+      "href",
+      "/admin/bookings",
+    );
+    expect(
+      screen.getByRole("link", { name: "Full calendar →" }),
+    ).toHaveAttribute("href", "/admin/scheduling-calendar");
+    expect(screen.getByText("Today's Schedule")).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Export CSV" }),
     ).not.toBeInTheDocument();
@@ -640,6 +715,31 @@ describe("FinancialReportsPage", () => {
       ).not.toBeInTheDocument();
     });
     expect(screen.getByText("Campaign shoot boost")).toBeInTheDocument();
+  });
+
+  it("paginates expense rows without changing the tracker totals", async () => {
+    setupFetch({
+      expenseItems: Array.from({ length: 6 }, (_, index) =>
+        createExpense(index + 1, {
+          amount: "25.00",
+          category: "office",
+          description: `Expense row ${index + 1}`,
+          expenseDate: `2026-07-${String(index + 1).padStart(2, "0")}`,
+        }),
+      ),
+    });
+
+    render(<FinancialReportsPage />);
+
+    expect(await screen.findByText("Expense row 1")).toBeInTheDocument();
+    expect(screen.queryByText("Expense row 6")).not.toBeInTheDocument();
+    expect(screen.getByText("Page 1 of 2 · 6 entries")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next expense page" }));
+
+    expect(await screen.findByText("Expense row 6")).toBeInTheDocument();
+    expect(screen.getByText("Page 2 of 2 · 6 entries")).toBeInTheDocument();
+    expect(screen.getAllByText("AED 150.00").length).toBeGreaterThan(0);
   });
 
   it("shows empty report and expense states when no activity exists", async () => {

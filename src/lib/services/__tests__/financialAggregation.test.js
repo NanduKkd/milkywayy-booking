@@ -1,14 +1,14 @@
 import {
   aggregateFinancialOverview,
   buildDashboardAnalytics,
-  buildFinancialReports,
   buildFinancialDrilldown,
+  buildFinancialReports,
   DASHBOARD_COMPARISON_MODE,
   FINANCIAL_REPORT_GROUP_BY_WEEK,
   normalizeDashboardAnalyticsFilters,
   normalizeFinancialAggregationFilters,
-  normalizeFinancialReportFilters,
   normalizeFinancialDrilldownFilters,
+  normalizeFinancialReportFilters,
   REPORTING_TIMEZONE,
 } from "../financialAggregation";
 
@@ -806,6 +806,7 @@ describe("buildDashboardAnalytics", () => {
     };
 
     const result = buildDashboardAnalytics({
+      currentBusinessDate: "2026-06-21",
       bookings: [
         {
           cancelledAt: null,
@@ -1048,6 +1049,14 @@ describe("buildDashboardAnalytics", () => {
       bookingCode: null,
       createdAt: "2026-06-04T11:00:00.000Z",
       date: "2026-06-21",
+      property: {
+        label: null,
+        size: null,
+        type: null,
+      },
+      services: [],
+      slot: null,
+      startTime: null,
       status: "CONFIRMED",
       total: 400,
       workflowStatus: "EDITING",
@@ -1058,6 +1067,13 @@ describe("buildDashboardAnalytics", () => {
         phone: "+971500000004",
       },
     });
+    expect(result.todaySchedule).toMatchObject({
+      businessDate: "2026-06-21",
+      total: 400,
+    });
+    expect(result.todaySchedule.bookings.map((booking) => booking.id)).toEqual([
+      104,
+    ]);
   });
 });
 
@@ -1203,12 +1219,14 @@ describe("buildFinancialReports", () => {
 
     expect(result.kpis).toEqual({
       averageBookingValue: 700,
+      cancelledBookings: 1,
       completedBookings: 1,
       expenses: 150,
       grossPayments: 1500,
       lostValue: 300,
       netProfit: 1250,
       netRevenue: 1400,
+      pendingBookings: 2,
       refunds: 100,
     });
     expect(result.profitAndLoss).toEqual({
@@ -1364,8 +1382,7 @@ describe("buildFinancialReports", () => {
     });
     expect(juneNetRevenueDrilldown.total.value).toBe(450);
     expect(juneNetRevenueDrilldown.rows.map((row) => row.netAmount)).toEqual([
-      -150,
-      600,
+      -150, 600,
     ]);
     expect(junePendingDrilldown.total.value).toBe(2);
     expect(junePendingDrilldown.rows.map((row) => row.id)).toEqual([105, 102]);
@@ -1412,12 +1429,14 @@ describe("buildFinancialReports", () => {
     });
     expect(emptyReports.kpis).toEqual({
       averageBookingValue: 0,
+      cancelledBookings: 0,
       completedBookings: 0,
       expenses: 0,
       grossPayments: 0,
       lostValue: 0,
       netProfit: 0,
       netRevenue: 0,
+      pendingBookings: 0,
       refunds: 0,
     });
     expect(emptyDrilldown.total).toEqual({

@@ -15,11 +15,6 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   AdminBadge,
-  AdminCard,
-  AdminCardContent,
-  AdminCardDescription,
-  AdminCardHeader,
-  AdminCardTitle,
   AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
@@ -50,8 +45,6 @@ const REVIEW_GROUPS = [
   {
     key: "featured",
     title: "Featured reviews",
-    description:
-      "These reviews stay pinned ahead of standard entries across the live landing page.",
     emptyTitle: "No featured reviews found",
     emptyDescription:
       "Feature a review or create a new one to populate the priority testimonial group.",
@@ -60,8 +53,6 @@ const REVIEW_GROUPS = [
   {
     key: "standard",
     title: "Standard reviews",
-    description:
-      "Standard reviews still respect drag order, but always render after featured entries.",
     emptyTitle: "No standard reviews found",
     emptyDescription:
       "Create a review or unfeature an existing testimonial to populate the standard list.",
@@ -151,7 +142,6 @@ function getNextReviewOrder(items, featured) {
 function ReviewGroupTable({
   groupKey,
   title,
-  description,
   emptyTitle,
   emptyDescription,
   badgeTone,
@@ -165,14 +155,13 @@ function ReviewGroupTable({
   return (
     <AdminTablePanel
       title={title}
-      description={description}
       actions={<AdminBadge tone={badgeTone}>{items.length} live</AdminBadge>}
     >
       <Table className="min-w-[860px]">
         <TableHeader>
           <TableRow>
-            <TableHead className={`${TABLE_HEAD_CLASS} w-[72px]`}>
-              Order
+            <TableHead className={`${TABLE_HEAD_CLASS} w-[52px]`}>
+              <span className="sr-only">Reorder</span>
             </TableHead>
             <TableHead className={TABLE_HEAD_CLASS}>Client</TableHead>
             <TableHead className={TABLE_HEAD_CLASS}>Rating</TableHead>
@@ -214,22 +203,14 @@ function ReviewGroupTable({
                           <TableCell
                             {...draggableProvided.dragHandleProps}
                             className={`${TABLE_CELL_CLASS} align-top`}
+                            aria-label={`Reorder ${item.name}`}
+                            title="Drag to reorder"
                           >
-                            <div className="flex items-center gap-3">
-                              <GripVertical
-                                className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
-                                size={18}
-                                aria-hidden="true"
-                              />
-                              <div className="space-y-1">
-                                <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                                  {(item.order ?? index) + 1}
-                                </div>
-                                <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
-                                  Drag
-                                </p>
-                              </div>
-                            </div>
+                            <GripVertical
+                              className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
+                              size={18}
+                              aria-hidden="true"
+                            />
                           </TableCell>
                           <TableCell
                             className={`${TABLE_CELL_CLASS} align-top`}
@@ -382,8 +363,6 @@ export default function ReviewList({ initialItems }) {
     () => buildReviewGroups(items),
     [items],
   );
-  const visibleItems = items.filter((item) => item.isVisible).length;
-  const hiddenItems = items.length - visibleItems;
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -535,50 +514,9 @@ export default function ReviewList({ initialItems }) {
     pendingActionKey === `visibility:${item.id}`;
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Total reviews</AdminCardDescription>
-            <AdminCardTitle>{items.length}</AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              The live landing page still uses the current review dataset and
-              visibility controls.
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Visible on site</AdminCardDescription>
-            <AdminCardTitle>{visibleItems}</AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {hiddenItems} review{hiddenItems === 1 ? "" : "s"} currently stay
-              hidden from the public landing page.
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Ordering groups</AdminCardDescription>
-            <AdminCardTitle>{featuredItems.length} featured</AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {standardItems.length} standard review
-              {standardItems.length === 1 ? "" : "s"} follow after the featured
-              set.
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-      </div>
-
+    <div className="space-y-5">
       <AdminTablePanel
-        title="Review operations"
-        description="Create, edit, hide, feature, and reorder testimonials without changing the current review schema or public rendering logic."
+        title={`${items.length} reviews`}
         actions={
           <Dialog
             open={isModalOpen}
@@ -617,15 +555,7 @@ export default function ReviewList({ initialItems }) {
             </AdminDialogContent>
           </Dialog>
         }
-      >
-        <div className="space-y-4 border-b border-white/8 px-5 py-4 sm:px-6">
-          <AdminInlineMessage
-            tone="info"
-            title="Drag ordering is scoped to each review group"
-            description="Featured and Standard reviews reorder independently. Moving a review between groups places it at the end of the destination group so the current ranking stays predictable."
-          />
-        </div>
-      </AdminTablePanel>
+      ></AdminTablePanel>
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="space-y-5">
@@ -634,7 +564,6 @@ export default function ReviewList({ initialItems }) {
               key={group.key}
               groupKey={group.key}
               title={group.title}
-              description={group.description}
               emptyTitle={group.emptyTitle}
               emptyDescription={group.emptyDescription}
               badgeTone={group.badgeTone}

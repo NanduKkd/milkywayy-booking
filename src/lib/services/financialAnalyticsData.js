@@ -39,6 +39,37 @@ function mergeUniqueRecords(recordLists) {
   return Array.from(recordsById.values());
 }
 
+function getCurrentDubaiBusinessDate() {
+  const parts = new Intl.DateTimeFormat("en", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Dubai",
+    year: "numeric",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(
+    parts.map((part) => [part.type, part.value]),
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function addUtcDays(dateOnly, days) {
+  const date = new Date(`${dateOnly}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildDubaiBusinessDayWindow(businessDate) {
+  const nextBusinessDate = addUtcDays(businessDate, 1);
+
+  return {
+    rangeEnd: new Date(`${nextBusinessDate}T00:00:00+04:00`),
+    rangeEndBusinessDateExclusive: nextBusinessDate,
+    rangeStart: new Date(`${businessDate}T00:00:00+04:00`),
+    rangeStartBusinessDate: businessDate,
+  };
+}
+
 async function loadTransactions(window) {
   const [paidTransactions, refundedTransactions] = await Promise.all([
     models.Transaction.findAll({
@@ -177,6 +208,7 @@ export function buildFinancialReportDependenciesWindow(filters) {
 }
 
 export async function loadDashboardAnalyticsDependencies(filters) {
+  const currentBusinessDate = getCurrentDubaiBusinessDate();
   const [dependencies, latestActivityMonth] = await Promise.all([
     loadFinancialAnalyticsDependencies(
       filters,
@@ -184,8 +216,17 @@ export async function loadDashboardAnalyticsDependencies(filters) {
     ),
     loadLatestActivityMonth(),
   ]);
+  const todayBookings = await loadBookings(
+    buildDubaiBusinessDayWindow(currentBusinessDate),
+    [],
+  );
 
-  return { ...dependencies, latestActivityMonth };
+  return {
+    ...dependencies,
+    bookings: mergeUniqueRecords([dependencies.bookings, todayBookings]),
+    currentBusinessDate,
+    latestActivityMonth,
+  };
 }
 
 export function loadFinancialDrilldownDependencies(filters) {

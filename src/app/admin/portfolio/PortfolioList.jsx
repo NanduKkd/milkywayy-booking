@@ -17,11 +17,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   AdminBadge,
-  AdminCard,
-  AdminCardContent,
-  AdminCardDescription,
-  AdminCardHeader,
-  AdminCardTitle,
   AdminConfirmDialog,
   AdminDialogContent,
   AdminEmptyState,
@@ -153,14 +148,9 @@ export default function PortfolioList({ initialItems, loadError = null }) {
   const [activeFilter, setActiveFilter] = useState(PORTFOLIO_FILTER_ALL);
   const [pendingActionKey, setPendingActionKey] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const totalItems = items.length;
 
   const filteredItems = filterPortfolioItems(items, activeFilter);
-  const totalItems = items.length;
-  const visibleItems = items.filter((item) => item.isVisible).length;
-  const hiddenItems = totalItems - visibleItems;
-  const activeFilterLabel =
-    PORTFOLIO_FILTERS.find((filter) => filter.value === activeFilter)?.label ||
-    "All Works";
 
   const onDragEnd = async (result) => {
     if (!result.destination) return;
@@ -270,58 +260,13 @@ export default function PortfolioList({ initialItems, loadError = null }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Total entries</AdminCardDescription>
-            <AdminCardTitle>
-              {loadError ? "Unavailable" : totalItems}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {loadError
-                ? "Portfolio totals could not be loaded."
-                : "Global drag order persists across all media types."}
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Visible on site</AdminCardDescription>
-            <AdminCardTitle>
-              {loadError ? "Unavailable" : visibleItems}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {loadError
-                ? "Visibility totals could not be loaded."
-                : `${hiddenItems} currently hidden from the public portfolio.`}
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-        <AdminCard tone="subtle">
-          <AdminCardHeader>
-            <AdminCardDescription>Current filter</AdminCardDescription>
-            <AdminCardTitle>
-              {loadError ? "Unavailable" : filteredItems.length}
-            </AdminCardTitle>
-          </AdminCardHeader>
-          <AdminCardContent>
-            <p className="text-sm leading-6 text-[hsl(var(--admin-muted))]">
-              {loadError
-                ? "Filtered results could not be loaded."
-                : `Showing ${activeFilterLabel} results from the live content library.`}
-            </p>
-          </AdminCardContent>
-        </AdminCard>
-      </div>
-
+    <div className="space-y-5">
       <AdminTablePanel
-        title="Portfolio entries"
-        description="Filter by media type, keep visibility in sync, and drag rows to update the single public display order."
+        title={
+          loadError
+            ? "Portfolio unavailable"
+            : `${filteredItems.length} entries`
+        }
         actions={
           <Dialog
             open={isModalOpen}
@@ -372,20 +317,14 @@ export default function PortfolioList({ initialItems, loadError = null }) {
               </AdminFilterChip>
             ))}
           </AdminFilterRow>
-
-          <AdminInlineMessage
-            tone="info"
-            title="Filtered drag ordering remains global"
-            description="Reordering a filtered view only changes the relative sequence of matching entries. Hidden media types keep their place in the overall portfolio order."
-          />
         </div>
 
         <DragDropContext onDragEnd={onDragEnd}>
           <Table className="min-w-[860px]">
             <TableHeader>
               <TableRow>
-                <TableHead className={`${TABLE_HEAD_CLASS} w-[72px]`}>
-                  Order
+                <TableHead className={`${TABLE_HEAD_CLASS} w-[52px]`}>
+                  <span className="sr-only">Reorder</span>
                 </TableHead>
                 <TableHead className={TABLE_HEAD_CLASS}>Title</TableHead>
                 <TableHead className={TABLE_HEAD_CLASS}>Media Type</TableHead>
@@ -459,22 +398,14 @@ export default function PortfolioList({ initialItems, loadError = null }) {
                               <TableCell
                                 {...provided.dragHandleProps}
                                 className={`${TABLE_CELL_CLASS} align-top`}
+                                aria-label={`Reorder ${item.title}`}
+                                title="Drag to reorder"
                               >
-                                <div className="flex items-center gap-3">
-                                  <GripVertical
-                                    className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
-                                    size={18}
-                                    aria-hidden="true"
-                                  />
-                                  <div className="space-y-1">
-                                    <div className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
-                                      {(item.order ?? index) + 1}
-                                    </div>
-                                    <p className="text-xs uppercase tracking-[0.16em] text-[hsl(var(--admin-muted))]">
-                                      Drag
-                                    </p>
-                                  </div>
-                                </div>
+                                <GripVertical
+                                  className="cursor-grab text-[hsl(var(--admin-muted))] active:cursor-grabbing"
+                                  size={18}
+                                  aria-hidden="true"
+                                />
                               </TableCell>
                               <TableCell
                                 className={`${TABLE_CELL_CLASS} align-top`}
