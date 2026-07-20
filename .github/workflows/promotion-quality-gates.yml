@@ -1,0 +1,127 @@
+name: Promotion quality gates
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promotion-quality-gates-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  DB_HOST: 127.0.0.1
+  DB_PORT: 5432
+  DB_NAME: milkywayy_ci
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  MW_TEST_POSTGRES_ADMIN_OPT_IN: CREATE_DROP_RESERVED_DATABASES
+  MW_TEST_POSTGRES_ADMIN_HOST: 127.0.0.1
+  MW_TEST_POSTGRES_ADMIN_PORT: 5432
+  MW_TEST_POSTGRES_ADMIN_USER: postgres
+  MW_TEST_POSTGRES_ADMIN_PASSWORD: postgres
+  MW_TEST_POSTGRES_ADMIN_DATABASE: postgres
+  JWT_SECRET: ci-test-only-jwt-signing-secret-not-for-production
+  NEXT_PUBLIC_BASE_URL: http://127.0.0.1:3000
+  STRIPE_SECRET_KEY: sk_test_ci_not_a_real_stripe_key
+  STRIPE_WEBHOOK_SECRET: whsec_ci_not_a_real_webhook_secret
+
+jobs:
+  promotion-coverage:
+    name: Promotion coverage gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:promotions:coverage
+      - name: Verify deliberate threshold failure
+        run: npm run test:promotions:quality-gate-proof
+      - name: Upload safe coverage artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promotion-coverage-${{ github.run_id }}
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  promotion-postgres:
+    name: Promotion PostgreSQL migration and integration gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Record PostgreSQL version
+        run: psql --host="$DB_HOST" --username="$DB_USER" --dbname=postgres --command='SHOW server_version;'
+      - run: timeout 12m npm run test:promotions:postgres
+      - name: Clean disposable PostgreSQL databases
+        if: always()
+        run: npm run cleanup:disposable-postgres
+      - name: Upload safe PostgreSQL test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: promotion-postgres-${{ github.run_id }}
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  repository-jest-baseline:
+    name: Repository-wide Jest baseline (informational)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run full Jest suite and retain its known unrelated baseline separately
+        continue-on-error: true
+        run: timeout 18m npm run test:jest:full
+      - name: Clean disposable PostgreSQL databases
+        if: always()
+        run: npm run cleanup:disposable-postgres
