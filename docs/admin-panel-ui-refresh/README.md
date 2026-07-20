@@ -56,7 +56,7 @@ proof data.
 - Preserve all existing forms, mutations, downloads, uploads, workflow controls, analytics, calendar behavior, configuration editing, and visibility controls, except that Pricing now intentionally exposes only price fields in the approved prototype matrix. Its save still submits the complete configuration so hidden slot and evening-rule metadata is preserved.
 - Match the `adminPrototype.jsx` Pricing Configuration layout: one header save action, property-type tabs, and one horizontally scrollable price matrix backed by live configuration data.
 - Highlight each edited Pricing cell and mark every property-type tab that contains unsaved edits; clear those indicators only after a successful save.
-- Use bounded Calendar month cells with at most two short color-coded markers and a `+N` overflow count. Calendar availability mutation is named-slot-only; no clock-time or dedicated full-day block creation control is presented there.
+- Use bounded Calendar month cells with fixed Morning, Afternoon, and Evening tracks; only occupied or blocked tracks become colored, with no per-cell slot counts or overflow copy. Calendar availability mutation is named-slot-only and uses three flat operational rows; no clock-time or dedicated full-day block creation control is presented there.
 - Keep the calendar exclusively in `/admin/scheduling-calendar`; `/admin/timeslots` is configuration-only.
 - On desktop, Time Slots presents Apartment, Villa/Townhouse, and Commercial property weights in one compact row and uses dark native time controls with visible picker icons.
 - Portfolio and Reviews load their authenticated admin lists directly through the shared content data service instead of making deployment-sensitive HTTP requests back into the same application.

@@ -318,6 +318,59 @@ function getCalendarMarkerClass(item) {
   return item?.kind === "event" ? "bg-violet-500" : "bg-blue-500";
 }
 
+function getBookingOccupiedPeriods(booking) {
+  const blockedPeriods = booking?.slot?.blockedPeriods;
+
+  if (Array.isArray(blockedPeriods) && blockedPeriods.length > 0) {
+    return blockedPeriods;
+  }
+
+  return booking?.slot?.startPeriod ? [booking.slot.startPeriod] : [];
+}
+
+function getCalendarSlotTrack({ bookings, day, events, period }) {
+  if (
+    day?.block?.fullDayBlocked ||
+    day?.block?.blockedPeriods?.includes(period)
+  ) {
+    return {
+      className: "bg-orange-500",
+      kind: "block",
+      status: "blocked",
+    };
+  }
+
+  const booking = bookings.find(
+    (item) =>
+      String(item?.status || "").toUpperCase() !== "CANCELLED" &&
+      getBookingOccupiedPeriods(item).includes(period),
+  );
+
+  if (booking) {
+    return {
+      className: getCalendarMarkerClass({ ...booking, kind: "booking" }),
+      kind: "booking",
+      status: booking.status || "booked",
+    };
+  }
+
+  const event = events.find(
+    (item) =>
+      item?.status !== "CANCELLED" &&
+      (item?.isAllDay || item?.period === period),
+  );
+
+  if (event) {
+    return {
+      className: getCalendarMarkerClass({ ...event, kind: "event" }),
+      kind: "event",
+      status: event.status || "active",
+    };
+  }
+
+  return null;
+}
+
 function getBookingStatusVariant(status) {
   if (status === "CONFIRMED" || status === "COMPLETED") {
     return "secondary";
@@ -1351,8 +1404,8 @@ export default function SchedulingCalendarPage() {
                 ["Booked", "bg-blue-500"],
                 ["Completed", "bg-emerald-500"],
                 ["Awaiting", "bg-amber-500"],
-                ["Cancelled", "bg-red-500"],
                 ["Event", "bg-violet-500"],
+                ["Blocked", "bg-orange-500"],
               ].map(([label, color]) => (
                 <span
                   key={label}
@@ -1401,15 +1454,15 @@ export default function SchedulingCalendarPage() {
                   };
                   const eventsForDay = eventsByDate.get(dateKey) || [];
                   const bookingsForDay = bookingsByDate.get(dateKey) || [];
-                  const markerItems = [
-                    ...bookingsForDay.map((booking) => ({
-                      ...booking,
-                      kind: "booking",
-                    })),
-                    ...eventsForDay
-                      .filter((event) => event.status !== "CANCELLED")
-                      .map((event) => ({ ...event, kind: "event" })),
-                  ];
+                  const slotTracks = PERIOD_ORDER.map((period) => ({
+                    period,
+                    marker: getCalendarSlotTrack({
+                      bookings: bookingsForDay,
+                      day,
+                      events: eventsForDay,
+                      period,
+                    }),
+                  }));
                   const isCurrentMonth =
                     getMonthKeyFromDateKey(dateKey) === monthKey;
                   const isSelected = selectedDateKey === dateKey;
@@ -1460,33 +1513,22 @@ export default function SchedulingCalendarPage() {
                       >
                         {date.getUTCDate()}
                       </div>
-                      <div className="mt-1 space-y-0.5">
-                        {markerItems.slice(0, 2).map((item, index) => (
+                      <div
+                        className="mt-1.5 space-y-1 px-0.5"
+                        aria-hidden="true"
+                      >
+                        {slotTracks.map(({ marker, period }) => (
                           <span
-                            key={`${item.kind}-${item.id || index}`}
-                            data-calendar-marker={item.kind}
-                            data-calendar-status={item.status || "unknown"}
+                            key={period}
+                            data-calendar-marker={marker?.kind}
+                            data-calendar-slot-track={period}
+                            data-calendar-status={marker?.status}
                             className={cn(
-                              "block h-1.5 rounded-full",
-                              getCalendarMarkerClass(item),
+                              "block h-1 rounded-full bg-transparent",
+                              marker?.className,
                             )}
                           />
                         ))}
-                        {markerItems.length > 2 ? (
-                          <span
-                            data-calendar-overflow={markerItems.length - 2}
-                            className="block text-center text-[8px] leading-3 text-zinc-600"
-                          >
-                            +{markerItems.length - 2}
-                          </span>
-                        ) : null}
-                        {day?.block?.blockedPeriods?.length > 0 &&
-                        !day?.block?.fullDayBlocked ? (
-                          <span className="block truncate text-center text-[8px] leading-3 text-amber-500">
-                            {day.block.blockedPeriods.length} slot
-                            {day.block.blockedPeriods.length === 1 ? "" : "s"}
-                          </span>
-                        ) : null}
                       </div>
                     </button>
                   );
@@ -1634,7 +1676,7 @@ export default function SchedulingCalendarPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-2">
+                <div className="mt-3 divide-y divide-white/8 border-y border-white/8">
                   {PERIOD_ORDER.map((period) => {
                     const isBlocked = selectedBlockedPeriods.includes(period);
                     const definition = selectedBlockDefinitions?.[period] || {};
@@ -1642,30 +1684,38 @@ export default function SchedulingCalendarPage() {
                     return (
                       <div
                         key={period}
-                        className="min-w-0 rounded-lg border border-white/10 p-3"
+                        data-slot-block-row={period}
+                        className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 py-2 sm:grid-cols-[minmax(7rem,1fr)_minmax(7rem,1fr)_auto_auto] sm:gap-3"
                       >
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium">
-                              {labelizePeriod(period)}
-                            </p>
-                            <p className="mt-0.5 text-xs text-muted-foreground">
-                              {definition.startTime || "--:--"} -{" "}
-                              {definition.endTime || "--:--"}
-                            </p>
-                          </div>
-                          <Badge
-                            variant={isBlocked ? "destructive" : "outline"}
-                            className="shrink-0 whitespace-nowrap rounded-full"
-                          >
-                            {isBlocked ? "Blocked" : "Open"}
-                          </Badge>
+                        <div className="min-w-0">
+                          <p className="font-medium">
+                            {labelizePeriod(period)}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-muted-foreground sm:hidden">
+                            {definition.startTime || "--:--"} -{" "}
+                            {definition.endTime || "--:--"}
+                          </p>
                         </div>
+                        <p className="hidden text-xs text-muted-foreground sm:block">
+                          {definition.startTime || "--:--"} -{" "}
+                          {definition.endTime || "--:--"}
+                        </p>
+                        <Badge
+                          variant={isBlocked ? "destructive" : "outline"}
+                          className="shrink-0 whitespace-nowrap rounded-full"
+                        >
+                          {isBlocked ? "Blocked" : "Open"}
+                        </Badge>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="mt-3 w-full"
+                          aria-label={
+                            isBlocked
+                              ? `Open ${labelizePeriod(period)}`
+                              : `Block ${labelizePeriod(period)}`
+                          }
+                          className="h-8 min-w-16"
                           disabled={
                             blockSaving || selectedDay?.block?.fullDayBlocked
                           }
@@ -1691,9 +1741,7 @@ export default function SchedulingCalendarPage() {
                             )
                           }
                         >
-                          {isBlocked
-                            ? `Unblock ${labelizePeriod(period)}`
-                            : `Block ${labelizePeriod(period)}`}
+                          {isBlocked ? "Open" : "Block"}
                         </Button>
                       </div>
                     );

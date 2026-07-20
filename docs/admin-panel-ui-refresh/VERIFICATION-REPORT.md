@@ -25,6 +25,8 @@ The final annotation pass adds reference-style KPI delta badges, dashboard and r
 
 The Bookings follow-up adds compact ten-row pagination and narrows Pending to the reference-defined Awaiting Payment and Shoot Booked states. This keeps All as the complete queue and prevents both filters from appearing identical when the queue has no terminal bookings.
 
+The Calendar follow-up replaces variable entry markers and slot-count text with fixed Morning/Afternoon/Evening tracks. It also removes card styling from selected-day slot controls in favor of three compact operational rows.
+
 ---
 
 ## Automated Test Run Summary
@@ -39,12 +41,15 @@ npm test -- --runInBand \
   src/lib/services/__tests__/financialAnalyticsData.test.js
 
 npm test -- --runInBand src/app/admin/bookings/__tests__/page.test.jsx
+
+npm test -- --runInBand src/app/admin/scheduling-calendar/__tests__/SchedulingCalendarPage.test.jsx
 ```
 
 ### Results
 - **Focused test suites**: 5 passed, 5 total
 - **Focused tests**: 41 passed, 41 total
 - **Bookings follow-up**: 1 suite / 8 tests passed, covering reference-aligned Pending semantics and ten-row pagination
+- **Calendar follow-up**: 1 suite / 11 tests passed, covering fixed period tracks, flat slot rows, slot mutation conflicts, exact-block hiding, events, and booking preparation
 - **Repository-wide baseline**: 171 suites / 813 tests passed; 6 suites / 18 tests failed in pre-existing booking autoscroll, OAuth database, and environment-hostname assertions. None of the failing suites touches the changed admin analytics or promotions paths.
 - **Focused Biome check**: all changed source/test files passed
 - **Production build**: passed (`next build`); the authenticated Promotions route is correctly reported as dynamic because it reads cookies
@@ -68,7 +73,7 @@ Tests were conducted using local mock datasets covering every critical mutation 
 | **Invoices** | `/admin/invoices` | Text search (invoice number, booking reference, customer name), footer totals recalculation, and secure download Link generation. | Search filters client-side data instantly; footer summary row correctly computes totals based on the visible/filtered items only; download URLs are intact. | `PASSED` |
 | **Reports & Expenses**| `/admin/analytics` | Financial charts, Expense CRUD tracker (Add/Edit/Delete expense), file exports, and dashboard drill-down triggers. | Dashboard links preserve routing parameters; report spreadsheet export triggers correctly; expense dialog handles validation, insert, and delete workflows. | `PASSED` |
 | **Promotions** | `/admin/promotions` | Promotion type tabs (Generic, Personal Auto-Apply, Automatic), creation/edit wizard, active/pause/deactivate triggers, and customer assignment. | Tabs partition promotions correctly; toggling active status preserves previous variables; customer-scoped assignments write to database correctly. | `PASSED` |
-| **Calendar** | `/admin/scheduling-calendar` | Calendar grid, month-to-month navigation, day selection detail list, blocked slots configuration, and event/blocking mutations. | Header navigation shifts months smoothly; selecting a date updates active schedule details; adding blocked slot periods operates without visual layout breaking. | `PASSED` |
+| **Calendar** | `/admin/scheduling-calendar` | Calendar grid, positional slot tracks, month navigation, day details, flat slot controls, and event/blocking mutations. | Every date reserves Morning/Afternoon/Evening tracks; only occupied or blocked periods color their corresponding line; selected-day block/open actions preserve conflict handling. | `PASSED` |
 | **Configuration** | `/admin/timeslots`, `/admin/prices` | Fetch/save slot configuration, price list edits, decimal fields validation, and error recovery handling. | Form controls validate pricing input ranges; save actions show pending loader and final success toast; failed configuration loads render the standardized retry view. | `PASSED` |
 | **Portfolio** | `/admin/portfolio` | Media item list grid, drag-and-drop global reordering, filter by type (Photo/Video), upload dialog, and item delete/visibility toggles. | Dnd allows item movement; type filters restrict visible list without breaking global drag-order indices; upload forms handle file streams correctly. | `PASSED` |
 | **Reviews** | `/admin/reviews` | Review groups (Featured vs Standard), drag-and-drop reordering within groups, visibility switches, and rating editing. | Reorder API endpoint persists changes; rating stars select properly; Featured reviews are grouped and reordered separately from Standard reviews. | `PASSED` |

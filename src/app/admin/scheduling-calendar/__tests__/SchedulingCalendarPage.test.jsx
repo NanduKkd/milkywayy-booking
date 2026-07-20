@@ -659,38 +659,52 @@ describe("SchedulingCalendarPage", () => {
     expect(screen.getByText("Read-only past event")).toBeInTheDocument();
   });
 
-  it("caps month-cell markers at two and exposes the remaining count", async () => {
-    currentJulyPayload.events.push(
-      {
-        ...currentJulyPayload.events[0],
-        id: 7,
-        date: "2026-07-03",
-        title: "Internal hold",
-      },
-      {
-        ...currentJulyPayload.events[0],
-        id: 8,
-        date: "2026-07-03",
-        title: "Equipment check",
-      },
-    );
-
+  it("renders three fixed slot tracks without text counts in every month cell", async () => {
     render(<SchedulingCalendarPage />);
 
     const busyDay = await screen.findByRole("button", {
-      name: /Friday, July 3, 2026\..*1 booking.*2 active events/i,
+      name: /Friday, July 3, 2026\..*1 booking/i,
     });
-    const markers = busyDay.querySelectorAll("[data-calendar-marker]");
+    const tracks = busyDay.querySelectorAll("[data-calendar-slot-track]");
 
-    expect(markers).toHaveLength(2);
-    expect(markers[0]).toHaveAttribute("data-calendar-marker", "booking");
-    expect(markers[0]).toHaveClass("bg-blue-500");
-    expect(markers[1]).toHaveAttribute("data-calendar-marker", "event");
-    expect(markers[1]).toHaveClass("bg-violet-500");
-    expect(
-      busyDay.querySelector('[data-calendar-overflow="1"]'),
-    ).toHaveTextContent("+1");
+    expect(tracks).toHaveLength(3);
+    expect(tracks[0]).toHaveAttribute("data-calendar-slot-track", "morning");
+    expect(tracks[0]).toHaveClass("bg-transparent");
+    expect(tracks[0]).not.toHaveAttribute("data-calendar-marker");
+    expect(tracks[1]).toHaveAttribute("data-calendar-slot-track", "afternoon");
+    expect(tracks[1]).toHaveAttribute("data-calendar-marker", "booking");
+    expect(tracks[1]).toHaveClass("bg-blue-500");
+    expect(tracks[2]).toHaveAttribute("data-calendar-slot-track", "evening");
+    expect(tracks[2]).toHaveAttribute("data-calendar-marker", "booking");
+    expect(tracks[2]).toHaveClass("bg-blue-500");
+    expect(busyDay).not.toHaveTextContent(/slots?|\+\d+/i);
     expect(busyDay).toHaveClass("h-[68px]", "sm:h-[76px]");
+  });
+
+  it("renders slot blocking as three flat operational rows", async () => {
+    render(<SchedulingCalendarPage />);
+
+    expect(
+      await screen.findByRole("heading", { name: /Scheduling Calendar/i }),
+    ).toBeInTheDocument();
+
+    const rows = document.querySelectorAll("[data-slot-block-row]");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toHaveAttribute("data-slot-block-row", "morning");
+    expect(rows[1]).toHaveAttribute("data-slot-block-row", "afternoon");
+    expect(rows[2]).toHaveAttribute("data-slot-block-row", "evening");
+    rows.forEach((row) => {
+      expect(row).not.toHaveClass("rounded-lg", "border");
+    });
+    expect(
+      screen.getByRole("button", { name: "Block Morning" }),
+    ).toHaveTextContent("Block");
+    expect(
+      screen.getByRole("button", { name: "Block Afternoon" }),
+    ).toHaveTextContent("Block");
+    expect(
+      screen.getByRole("button", { name: "Block Evening" }),
+    ).toHaveTextContent("Block");
   });
 
   it("navigates months and refetches the bounded range", async () => {
