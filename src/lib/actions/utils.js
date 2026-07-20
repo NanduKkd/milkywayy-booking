@@ -7,7 +7,7 @@ export const actionWrapper = (action) => {
       console.error("Server Action Error:", error);
       return {
         success: false,
-        message: error.message || "An unexpected error occurred",
+        message: error?.message || "An unexpected error occurred",
         data: null,
       };
     }

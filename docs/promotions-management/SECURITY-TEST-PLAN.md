@@ -1,7 +1,8 @@
 # Promotions management security test plan
 
-- Last updated: 2026-07-01
-- Release gate status: `DONE`
+- Last updated: 2026-07-20
+- Core promotions release gate status: `DONE`
+- Test-assurance expansion status: `IN PROGRESS` (GitHub feature #28)
 
 ## Automated gates
 
@@ -20,6 +21,50 @@
 - Transaction and invoice calculations use the stored promotion snapshot rather
   than mutable current configuration.
 - Code-validation responses do not expose private customer assignments or useful enumeration detail.
+
+## Server-action and initial-page gate
+
+`src/lib/actions/__tests__/promotions.test.js` directly covers all nine exports
+from `src/lib/actions/promotions.js`. The gate proves that:
+
+- anonymous sessions, deleted database users, and database-backed customer roles
+  are rejected;
+- every authorized service call receives the numeric actor ID and role from the
+  authenticated database user, regardless of role-like caller input or session
+  claims;
+- the association module is initialized before the promotion list service uses
+  assignment includes;
+- each mutation delegates once and then revalidates `/admin` and
+  `/admin/promotions`, while listing and customer search do not revalidate;
+- successful results and service failures retain the stable `actionWrapper`
+  response shape, including the generic fallback for a rejection without an
+  error message.
+
+`src/app/admin/promotions/__tests__/page.test.jsx` separately proves that a
+successful catalog, a genuine empty catalog, and a safe load error are passed
+to `PromotionManager` without converting a load failure into a successful empty
+state.
+
+Run the focused boundary gate with:
+
+```sh
+npx jest src/lib/actions/__tests__/promotions.test.js src/app/admin/promotions/__tests__/page.test.jsx --runInBand
+```
+
+Collect the action/page boundary coverage with:
+
+```sh
+npx jest src/lib/actions/__tests__/promotions.test.js src/app/admin/promotions/__tests__/page.test.jsx --runInBand --coverage --collectCoverageFrom=src/lib/actions/promotions.js --collectCoverageFrom=src/app/admin/promotions/page.jsx
+```
+
+The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
+80% branches. The issue #31 implementation recorded 100% statements and 100%
+branches for both boundary files across 26 focused tests.
+
+The broader assurance program remains in progress until its real PostgreSQL,
+checkout lifecycle, UI failure/recovery, and CI enforcement issues are reviewed
+and merged. Focused boundary results do not imply that the repository-wide Jest
+baseline is green.
 
 ## Manual gates
 
