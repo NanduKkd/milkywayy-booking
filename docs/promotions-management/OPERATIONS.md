@@ -1,6 +1,6 @@
 # Promotions management operations
 
-- Last updated: 2026-07-01
+- Last updated: 2026-07-20
 
 ## Compatibility rollout
 
@@ -32,6 +32,23 @@ cutover.
 Monitor evaluator differences, rejected codes, redemption reservations,
 reservation expiry, usage-limit conflicts, checkout total changes, webhook
 finalization failures, and customer support reports.
+
+## Admin mutation rejection handling
+
+- Correct malformed promotion fields in the Promotions form; invalid calendar
+  dates, unsupported timestamp forms, and reversed eligibility/trigger windows
+  are rejected before a write. Date-only and offset-free admin values are UTC;
+  explicit `Z` or `±HH:mm` offsets are normalized to UTC.
+- A draft may be created initially paused or paused through the lifecycle
+  action before activation. Repeating the action for the current status is
+  safe, while a deactivated promotion cannot return to service.
+- A duplicate personal assignment is rejected rather than reported as a new
+  success. Unassignment requires both the active assignment and its customer to
+  resolve, and a rejection leaves assignment history unchanged.
+- Known race-time unique conflicts use the same stable active-code or duplicate
+  assignment message as preflight rejection. Treat these messages as operator
+  guidance. Other database errors, private assignment details, and account
+  internals must not be surfaced to the client.
 
 ## Current cutover state
 
