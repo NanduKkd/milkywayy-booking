@@ -30,8 +30,16 @@ ordering.
 integrity boundary. If another writer still wins a collision, allocation rolls
 back and retries a bounded number of times with a valid next sequence; an
 unresolved database error is surfaced rather than silently persisting an
-ambiguous identifier. The model instance and plain-object representations are
-updated only after the persistence transaction succeeds.
+ambiguous identifier. ORM instances persist through `update` and retain their
+`setDataValue` representation. Plain transaction objects without `update` are
+assigned the candidate directly so helper-only callers receive the number
+without requiring an ORM method.
+
+The combined plain-object URL-plus-number path is intentionally not implemented
+here: it depends on the unmerged invoice-URL fallback work from #51. After that
+work merges, #49 must add an integration assertion that a previously unnumbered
+plain transaction completes both number and URL generation without an ORM
+`update` method.
 
 No migration or historical renumbering is part of this behavior: the existing
 unique column is preserved.

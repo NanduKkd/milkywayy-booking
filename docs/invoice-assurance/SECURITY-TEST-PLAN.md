@@ -9,8 +9,8 @@ download-path validation.
 
 `src/lib/helpers/__tests__/numbering.test.js` verifies persisted-number reuse,
 paid-time precedence, exact UTC query replacements, controlled-clock fallback,
-invalid count rejection, ORM/plain in-memory updates, and bounded unique-error
-retry.
+invalid count rejection, ORM updates, direct allocation for a previously
+unnumbered plain object without `update`, and bounded unique-error retry.
 
 `src/lib/helpers/__tests__/invoiceNumbering.postgres.test.js` creates a
 reserved, disposable PostgreSQL database through the shared harness. It runs
@@ -54,3 +54,6 @@ runs cleanup in an `always()` step.
   and concurrent result in the pull request.
 - Treat an unresolved allocation error as a failed generation path; do not
   synthesize a duplicate or malformed invoice number.
+- After #51's invoice-URL plain-object fallback merges, #49 must prove the
+  combined URL-plus-number path for an unnumbered plain transaction; this task
+  deliberately does not import or duplicate that unmerged fallback.

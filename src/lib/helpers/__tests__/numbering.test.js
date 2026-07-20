@@ -82,18 +82,18 @@ describe("ensureTransactionInvoiceNumber", () => {
     );
   });
 
-  it("falls back to the controlled clock for invalid dates and updates plain objects", async () => {
+  it("falls back to the controlled clock and updates an unnumbered plain object without update", async () => {
     configureSuccessfulAllocation(1);
     const transaction = {
       id: 9,
       paidAt: "not-a-date",
-      update: jest.fn().mockResolvedValue(undefined),
     };
 
     await expect(ensureTransactionInvoiceNumber(transaction)).resolves.toBe(
       "MW-2026-0721-001",
     );
     expect(transaction.invoiceNumber).toBe("MW-2026-0721-001");
+    expect(transaction.update).toBeUndefined();
   });
 
   it("does not persist unusable count results", async () => {

@@ -98,10 +98,14 @@ export async function ensureTransactionInvoiceNumber(transaction) {
           const candidate = buildInvoiceNumber(effectiveAt, sequence);
           if (!candidate) return "";
 
-          await transaction.update(
-            { invoiceNumber: candidate },
-            { transaction: databaseTransaction },
-          );
+          if (typeof transaction.update === "function") {
+            await transaction.update(
+              { invoiceNumber: candidate },
+              { transaction: databaseTransaction },
+            );
+          } else {
+            transaction.invoiceNumber = candidate;
+          }
           return candidate;
         },
       );
