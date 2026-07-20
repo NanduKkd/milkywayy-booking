@@ -49,6 +49,11 @@ separate rows so invoices do not silently erase valid historical explanations.
 New checkout selection still permits at most one promotion under PRM-D001; this
 matrix does not re-enable stacking.
 
+For legacy booking itemization, invoice videography selections use
+`propertyDetails.videographySubService` first and fall back to
+`shootDetails.videographySubService`. This matches the persisted booking
+compatibility path and keeps the selected sub-service label and price intact.
+
 ## Verification notes
 
 - Code review of the sources listed above completed on 2026-07-01.

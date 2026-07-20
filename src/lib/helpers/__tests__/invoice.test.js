@@ -114,6 +114,27 @@ describe("buildBookingInvoiceItems", () => {
       ],
     ],
     [
+      "prefers the legacy property videography selection over shoot details",
+      {
+        total: 300.5,
+        propertyDetails: {
+          type: "Apartment",
+          size: "1 Bed",
+          videographySubService: "Long Form.Daylight + Night",
+        },
+        shootDetails: {
+          services: ["Videography"],
+          videographySubService: "Short Form",
+        },
+      },
+      [
+        {
+          label: "Videography - Long Form - Daylight + Night",
+          amount: 300.5,
+        },
+      ],
+    ],
+    [
       "supports legacy root property fields and underscored service labels",
       {
         total: 125,

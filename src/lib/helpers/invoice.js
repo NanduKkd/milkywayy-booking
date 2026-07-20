@@ -93,13 +93,16 @@ function getBookingDisplayTitle(booking) {
 }
 
 function getBookingServiceSummary(booking) {
+  const property = booking.propertyDetails || {};
   const shoot = booking.shootDetails || {};
   const services = Array.isArray(shoot.services)
     ? shoot.services.map((service) => String(service).replace(/_/g, " "))
     : [];
 
-  const videoFormat = shoot.videographySubService
-    ? String(shoot.videographySubService)
+  const videographySubService =
+    property.videographySubService || shoot.videographySubService;
+  const videoFormat = videographySubService
+    ? String(videographySubService)
         .split("|")
         .map((value) => value.replace(/\./g, " - "))
         .join(", ")
@@ -407,6 +410,8 @@ export function buildBookingInvoiceItems(booking, pricingConfig) {
   const bookingTotal = roundCurrency(booking?.total || 0);
   const property = booking?.propertyDetails || {};
   const shoot = booking?.shootDetails || {};
+  const videographySubService =
+    property.videographySubService || shoot.videographySubService;
   const services = Array.isArray(shoot.services) ? shoot.services : [];
   const propertyType =
     property.type || property.propertyType || booking?.propertyType;
@@ -423,7 +428,7 @@ export function buildBookingInvoiceItems(booking, pricingConfig) {
   services.forEach((service) => {
     if (service === "Videography") {
       const videographySelections = parseVideographySelections(
-        shoot.videographySubService,
+        videographySubService,
       );
       const videographyConfig = prices[service];
 
