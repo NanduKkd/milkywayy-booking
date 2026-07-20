@@ -3,8 +3,8 @@
 - Last updated: 2026-07-21
 - Test-assurance Project snapshot (2026-07-21):
   - parent feature #28: `DRAFT`
-  - PRM-307 (#30) and PRM-308 (#29): `DONE`
-  - PRM-309 (#31) and PRM-310 (#32): `IN_REVIEW`
+  - PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32): `DONE`
+  - PRM-309 (#31): `IN_REVIEW`
   - successor tasks PRM-312 (#33), PRM-311 (#34), and PRM-313 (#35):
     `DRAFT` and dependency-gated
 
@@ -76,19 +76,19 @@ TZ=America/Los_Angeles npm test -- src/lib/services/__tests__/promotionAdmin.tes
   retryable cleanup state after failed removal. Each failed cleanup attempt
   leaves zero tagged admin sessions, and a retry uses a fresh admin client.
 
-## Sibling assurance boundaries
+## Integrated assurance boundaries
 
 - The PRM-307 (#30), PRM-308 (#29), and PRM-310 (#32) gates above preserve
   their distinct eligibility, validation/lifecycle, and real-PostgreSQL proof.
-- PRM-309 (#31) separately owns direct server-action and initial-page boundary
+- PRM-309 (#31) below preserves its distinct server-action and initial-page
   proof, including authentication, delegation, revalidation, and safe action
   wrapping.
 - Checkout lifecycle, UI failure/recovery, and CI enforcement remain draft and
   dependency-gated under #34, #33, and #35 respectively.
 
-Further sibling integration must preserve #30 eligibility evidence, #29
+Future assurance changes must preserve #30 eligibility evidence, #29
 validation/lifecycle evidence, #31 action/page evidence, #32 PostgreSQL
-contention/harness evidence, and the authoritative Project snapshot above.
+contention/harness evidence, and the authoritative Project state.
 
 ## Repeatable PostgreSQL gate
 
@@ -129,6 +129,51 @@ npx jest src/lib/services/__tests__/promotionRedemptions.postgres.test.js --runI
 Both commands use synthetic identifiers and create and remove their own
 database. A missing opt-in or incomplete dedicated configuration is a hard
 failure; there is no fallback to application database credentials.
+
+## Server-action and initial-page gate
+
+`src/lib/actions/__tests__/promotions.test.js` directly covers all nine exports
+from `src/lib/actions/promotions.js`. The gate proves that:
+
+- anonymous sessions, deleted database users, and database-backed customer roles
+  are rejected;
+- every authorized service call receives the numeric actor ID and role from the
+  authenticated database user, regardless of role-like caller input or session
+  claims;
+- the association module is initialized before the promotion list service uses
+  assignment includes;
+- each mutation delegates once and then revalidates `/admin` and
+  `/admin/promotions`, while listing and customer search do not revalidate;
+- successful results and service failures retain the stable `actionWrapper`
+  response shape, including the generic fallback for a rejection without an
+  error message.
+
+`src/app/admin/promotions/__tests__/page.test.jsx` separately proves that a
+successful catalog, a genuine empty catalog, and a safe load error are passed
+to `PromotionManager` without converting a load failure into a successful empty
+state.
+
+Run the focused boundary gate with:
+
+```sh
+npx jest src/lib/actions/__tests__/promotions.test.js src/app/admin/promotions/__tests__/page.test.jsx --runInBand
+```
+
+Collect the action/page boundary coverage with:
+
+```sh
+npx jest src/lib/actions/__tests__/promotions.test.js src/app/admin/promotions/__tests__/page.test.jsx --runInBand --coverage --collectCoverageFrom=src/lib/actions/promotions.js --collectCoverageFrom=src/app/admin/promotions/page.jsx
+```
+
+The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
+80% branches. The issue #31 implementation recorded 100% statements and 100%
+branches for both boundary files across 26 focused tests.
+
+The parent assurance feature remains in `DRAFT`; PRM-307, PRM-308, and PRM-310
+are merged, while PRM-309 remains in review. Further checkout lifecycle, UI
+failure/recovery, and CI enforcement work remains draft and dependency-gated.
+Focused boundary results do not imply that the repository-wide Jest baseline
+is green.
 
 ## Manual gates
 

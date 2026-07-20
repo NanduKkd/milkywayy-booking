@@ -32,3 +32,22 @@ The page displays **Unable to update promotions** with `PromotionAssignment is n
 - The promotions server-action entry point now initializes Sequelize associations before querying the assignment include.
 - A fresh browser tab loaded the persisted `2 / 2 / 2` promotion counts and catalogs with zero console errors.
 - All 9 promotion-related automated suites passed (66 tests), including admin CRUD, eligibility, pricing, checkout, redemptions, migration parity, and schema coverage.
+
+## Automated regression evidence
+
+Expanded on July 20, 2026:
+
+- `src/lib/actions/__tests__/promotions.test.js` directly requires relation
+  initialization before the mocked promotion listing service can return rows.
+  Removing `import "@/lib/db/relations"` from the action entry point fails the
+  listing regression assertion with `Promotion associations were not
+  initialized`.
+- The same suite covers all nine promotion action exports, database-derived
+  Super Admin authorization, exact mutation revalidation, read-only behavior,
+  and stable service-error results.
+- `src/app/admin/promotions/__tests__/page.test.jsx` distinguishes successful
+  rows, a successful empty result, and a failed initial load passed to
+  `PromotionManager`.
+- The focused boundary command passes 26 tests. Coverage for both
+  `src/lib/actions/promotions.js` and `src/app/admin/promotions/page.jsx` is 100%
+  statements and 100% branches.
