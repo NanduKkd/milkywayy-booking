@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/helpers/auth";
 import { previewAdminBookingPreparation } from "@/lib/services/adminBookingPreparation";
 import { POST } from "../route";
@@ -79,9 +80,19 @@ describe("Admin scheduling calendar booking preparation POST route", () => {
 
   it("returns validation failures as 400", async () => {
     const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-    previewAdminBookingPreparation.mockRejectedValue(
-      new Error("Customer is required"),
-    );
+    const validationError = new z.ZodError([
+      {
+        code: "custom",
+        path: ["customerId"],
+        message: "Customer is required",
+      },
+      {
+        code: "custom",
+        path: ["properties"],
+        message: "At least one property is required",
+      },
+    ]);
+    previewAdminBookingPreparation.mockRejectedValue(validationError);
 
     const response = await POST({
       json: jest.fn().mockResolvedValue({

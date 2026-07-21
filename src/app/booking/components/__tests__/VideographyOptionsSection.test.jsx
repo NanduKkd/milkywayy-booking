@@ -1,11 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { useForm } from "react-hook-form";
 
 import { PRICING_CONFIG } from "@/lib/config/pricing";
 
 import { VideographyOptionsSection } from "../property-card/VideographyOptionsSection";
 
-function renderSection(selectedLongForm, propertyOverrides = {}) {
+function renderSection(
+  selectedLongForm,
+  propertyOverrides = {},
+  variant = "desktop",
+) {
   const updatePropertyField = jest.fn();
 
   function TestWrapper() {
@@ -33,14 +37,37 @@ function renderSection(selectedLongForm, propertyOverrides = {}) {
         }}
         selectedLongForm={selectedLongForm}
         updatePropertyField={updatePropertyField}
+        variant={variant}
       />
     );
   }
 
   render(<TestWrapper />);
+
+  return updatePropertyField;
 }
 
 describe("VideographyOptionsSection", () => {
+  it("keeps both mobile/tablet video formats selectable", () => {
+    const updatePropertyField = renderSection("", {}, "mobile");
+
+    fireEvent.click(screen.getByText("Short Form"));
+    fireEvent.click(screen.getByText("Long Form"));
+
+    expect(updatePropertyField).toHaveBeenNthCalledWith(
+      1,
+      0,
+      "videographySubService",
+      "Short Form",
+    );
+    expect(updatePropertyField).toHaveBeenNthCalledWith(
+      2,
+      0,
+      "videographySubService",
+      "Long Form.Daylight",
+    );
+  });
+
   it("shows the evening helper text for Night Light", () => {
     renderSection("Long Form.Night Light");
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/helpers/auth";
 import {
   createAdminBookingHandoff,
@@ -100,9 +101,19 @@ describe("Admin booking handoff POST route", () => {
 
   it("returns validation failures as 400", async () => {
     const consoleSpy = jest.spyOn(console, "error").mockImplementation();
-    createAdminBookingHandoff.mockRejectedValue(
-      new Error("Phone number is required"),
-    );
+    const validationError = new z.ZodError([
+      {
+        code: "custom",
+        path: ["phone"],
+        message: "Phone number is required",
+      },
+      {
+        code: "custom",
+        path: ["properties"],
+        message: "At least one property is required",
+      },
+    ]);
+    createAdminBookingHandoff.mockRejectedValue(validationError);
 
     const response = await POST({
       json: jest.fn().mockResolvedValue({

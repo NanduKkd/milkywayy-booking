@@ -163,7 +163,7 @@ export function PropertyServicesSection({
                   serviceName === "Videography" && isSelected
                     ? <div
                         key={`${serviceName}-mobile-options`}
-                        className="lg:hidden"
+                        className="md:col-span-3 lg:hidden"
                       >
                         {mobileVideographyOptions}
                       </div>
