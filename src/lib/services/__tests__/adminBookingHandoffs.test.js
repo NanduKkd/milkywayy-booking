@@ -251,6 +251,64 @@ describe("adminBookingHandoffs transaction locks", () => {
     );
   });
 
+  it("accepts persisted null optional fields for an Individual OTP request", async () => {
+    sendCustomerOtp.mockResolvedValue({ verificationId: "verify-nullable" });
+
+    await sendAdminBookingHandoffOtp({
+      token: "synthetic-handoff-token",
+      customer: {
+        accountType: "INDIVIDUAL",
+        fullName: "Nullable Synthetic Customer",
+        companyName: null,
+        billingAddress: null,
+        trn: null,
+        email: null,
+        phone: "+971500000099",
+      },
+      requestSource: "test-suite",
+    });
+
+    expectScopedTransactionLock();
+    expect(customer.update).toHaveBeenCalledWith(
+      {
+        accountType: "INDIVIDUAL",
+        fullName: "Nullable Synthetic Customer",
+        companyName: null,
+        billingAddress: null,
+        trn: null,
+        email: null,
+        phone: "+971500000099",
+        role: "CUSTOMER",
+      },
+      { transaction: mockTransaction },
+    );
+    expect(sendCustomerOtp).toHaveBeenCalledWith({
+      phone: "+971500000099",
+      requestSource: "test-suite",
+    });
+  });
+
+  it("continues to require applicable Company fields for an OTP request", async () => {
+    await expect(
+      sendAdminBookingHandoffOtp({
+        token: "synthetic-handoff-token",
+        customer: {
+          accountType: "COMPANY",
+          fullName: "Company Contact",
+          companyName: null,
+          billingAddress: null,
+          trn: null,
+          email: null,
+          phone: "+971500000099",
+        },
+        requestSource: "test-suite",
+      }),
+    ).rejects.toThrow("Company name is required");
+
+    expect(customer.update).not.toHaveBeenCalled();
+    expect(sendCustomerOtp).not.toHaveBeenCalled();
+  });
+
   it("uses the same scoped Transaction lock during OTP verification", async () => {
     verifyCustomerOtp.mockResolvedValue({
       id: 12,

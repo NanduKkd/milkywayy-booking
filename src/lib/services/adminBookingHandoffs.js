@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
 import { Op } from "sequelize";
 import Stripe from "stripe";
-import { z } from "zod";
 import { getDiscounts } from "@/lib/actions/discounts";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { sessionConfig } from "@/lib/config/session";
@@ -17,6 +16,7 @@ import {
   formatBookingReference,
 } from "@/lib/helpers/invoice-format";
 import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
+import { adminBookingNewCustomerSchema } from "@/lib/services/adminBookingCustomerValidation";
 import { sendAdminBookingHandoffWhatsApp } from "@/lib/services/adminBookingHandoffNotifications";
 import {
   ADMIN_BOOKING_HANDOFF_TTL_MS,
@@ -50,61 +50,6 @@ const HANDOFF_TOKEN_ISSUER = "milkywayy";
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
-
-const handoffRegistrationSchema = z
-  .object({
-    accountType: z.enum(["INDIVIDUAL", "COMPANY"]),
-    fullName: z.string().optional(),
-    companyName: z.string().optional(),
-    phone: z
-      .string()
-      .trim()
-      .min(1, "Phone number is required")
-      .min(7, "Phone number is too short"),
-    billingAddress: z.string().optional(),
-    email: z
-      .string()
-      .trim()
-      .email("Invalid email address")
-      .optional()
-      .or(z.literal("")),
-    trn: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.accountType === "INDIVIDUAL" && !data.fullName?.trim()) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["fullName"],
-        message: "Full name is required",
-      });
-    }
-
-    if (data.accountType === "COMPANY") {
-      if (!data.companyName?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["companyName"],
-          message: "Company name is required",
-        });
-      }
-
-      if (!data.billingAddress?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["billingAddress"],
-          message: "Billing address is required",
-        });
-      }
-
-      if (!data.email?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["email"],
-          message: "Email is required",
-        });
-      }
-    }
-  });
 
 function assertAuthorizedActor(actorUser) {
   if (!actorUser?.id) {
@@ -343,7 +288,7 @@ async function upsertNewCustomerForHandoff(
   customerInput,
   { existingUser = null, transaction = null } = {},
 ) {
-  const normalized = handoffRegistrationSchema.parse(customerInput || {});
+  const normalized = adminBookingNewCustomerSchema.parse(customerInput || {});
   const payload = {
     accountType: normalized.accountType,
     fullName:

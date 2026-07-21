@@ -12,6 +12,10 @@
   mutation, and unsupported statuses; events never alter availability.
 - Admin booking preparation and customer handoff cannot bypass availability,
   pricing, OTP, or required customer/property validation.
+- Handoff registration accepts persisted `null` values at optional
+  customer-string boundaries, including non-applicable Individual company fields
+  and email, while preserving Company name, billing address, and email
+  requirements.
 - Handoff links are scoped, expiring, revocable, and cannot expose another
   customer's account or prepared properties.
 - Handoff links expire after four hours; regeneration invalidates the previous
