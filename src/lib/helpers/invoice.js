@@ -50,7 +50,14 @@ async function getPublicAssetDataUrl(fileName) {
 }
 
 function formatDisplayDate(date) {
-  return new Intl.DateTimeFormat("en-GB").format(date);
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "UTC" }).format(date);
+}
+
+function getInvoiceIssuedAt(transaction, fallback = 0) {
+  const date = new Date(
+    transaction?.paidAt || transaction?.createdAt || fallback,
+  );
+  return Number.isNaN(date.getTime()) ? new Date(0) : date;
 }
 
 function escapeHtml(value) {
@@ -487,64 +494,55 @@ export function buildBookingInvoiceItems(booking, pricingConfig) {
   return validItems;
 }
 
-export async function generateAndUploadInvoice(
+export function buildInvoiceHtml({
   transaction,
   user,
-  invoiceNumber,
-  resolvedBookings = null,
-) {
-  try {
-    const [logoSrc, signatureSrc] = await Promise.all([
-      getPublicAssetDataUrl("Horizontal Logo 3.png"),
-      getPublicAssetDataUrl("E-sign.png"),
-    ]);
-
-    const bookings =
-      Array.isArray(resolvedBookings) && resolvedBookings.length > 0
-        ? resolvedBookings
-        : await resolveTransactionBookings(transaction);
-
-    const pricingConfig = await getPricingConfig();
-
-    let subTotal = 0;
-    const bookingReferences = formatBookingReferenceList(bookings);
-    const resolvedInvoiceNumber =
-      invoiceNumber ||
-      transaction.invoiceNumber ||
-      formatInvoiceNumber(transaction);
-    const discountSummaryRows = buildInvoiceDiscountSummaries(transaction)
-      .map(
-        (summary) => `
+  bookings = [],
+  pricingConfig = {},
+  assets = {},
+  invoiceNumber = "",
+  issuedAt = 0,
+}) {
+  const { logoSrc, signatureSrc } = assets;
+  let subTotal = 0;
+  const bookingReferences = formatBookingReferenceList(bookings);
+  const resolvedInvoiceNumber =
+    invoiceNumber ||
+    transaction.invoiceNumber ||
+    formatInvoiceNumber(transaction);
+  const discountSummaryRows = buildInvoiceDiscountSummaries(transaction)
+    .map(
+      (summary) => `
   <tr>
     <td>${escapeHtml(summary.label)}</td>
     <td>- ${formatInvoiceAmount(summary.amount, { forceDecimals: true })}</td>
   </tr>`,
-      )
-      .join("");
+    )
+    .join("");
 
-    const bookingTables = bookings
-      .map((booking) => {
-        const bookingTotal = Number(booking.total || 0);
-        subTotal += bookingTotal;
+  const bookingTables = bookings
+    .map((booking) => {
+      const bookingTotal = Number(booking.total || 0);
+      subTotal += bookingTotal;
 
-        const bookingTitle =
-          getBookingDisplayTitle(booking) ||
-          formatBookingReferenceList([booking]) ||
-          "Booking";
-        const bookingReference = formatBookingReferenceList([booking]);
-        const invoiceItems = buildBookingInvoiceItems(booking, pricingConfig);
-        const serviceRows = invoiceItems
-          .map(
-            (item) => `
+      const bookingTitle =
+        getBookingDisplayTitle(booking) ||
+        formatBookingReferenceList([booking]) ||
+        "Booking";
+      const bookingReference = formatBookingReferenceList([booking]);
+      const invoiceItems = buildBookingInvoiceItems(booking, pricingConfig);
+      const serviceRows = invoiceItems
+        .map(
+          (item) => `
 <tr>
   <td class="service-label">${escapeHtml(formatInvoiceDisplayLabel(item.label))}</td>
   <td class="amount">${formatInvoiceAmount(item.amount)}</td>
 </tr>
 `,
-          )
-          .join("");
+        )
+        .join("");
 
-        return `
+      return `
 <table class="booking-table">
   <tbody>
     <tr>
@@ -562,24 +560,21 @@ export async function generateAndUploadInvoice(
   </tbody>
 </table>
 `;
-      })
-      .join("");
+    })
+    .join("");
 
-    // Hydration safe date
-    const invoiceIssuedAt = new Date(
-      transaction.paidAt || transaction.createdAt || Date.now(),
-    );
-    const invoiceDate = formatDisplayDate(invoiceIssuedAt);
+  const invoiceIssuedAt = getInvoiceIssuedAt(transaction, issuedAt);
+  const invoiceDate = formatDisplayDate(invoiceIssuedAt);
 
-    const billToName = user.companyName || user.fullName || "Customer";
-    const billToAddress = user.billingAddress || user.address || "";
-    const billToEmail = user.email || "";
-    const billToPhone = user.phone || "";
-    const billToTrn = user.trn
-      ? `<br/><strong>TRN:</strong> ${escapeHtml(user.trn)}`
-      : "";
+  const billToName = user.companyName || user.fullName || "Customer";
+  const billToAddress = user.billingAddress || user.address || "";
+  const billToEmail = user.email || "";
+  const billToPhone = user.phone || "";
+  const billToTrn = user.trn
+    ? `<br/><strong>TRN:</strong> ${escapeHtml(user.trn)}`
+    : "";
 
-    const html = `
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -789,7 +784,7 @@ color:#475569;
     </div>
   </div>
 
-  <img src="${logoSrc || "https://milkywayy.com/logo.png"}" class="logo"/>
+  <img src="${escapeHtml(logoSrc || "https://milkywayy.com/logo.png")}" class="logo"/>
 </div>
 
 <div class="section">
@@ -840,7 +835,7 @@ ${bookingTables}
   </div>
 
   <div class="signature">
-    <img src="${signatureSrc || "https://milkywayy.com/signature.png"}"/>
+    <img src="${escapeHtml(signatureSrc || "https://milkywayy.com/signature.png")}"/>
     <div class="signature-line"></div>
     <strong>AKASH PRASEED</strong><br/>
     <span class="small">Founder & CEO</span>
@@ -851,6 +846,40 @@ ${bookingTables}
 </body>
 </html>
 `;
+  return html;
+}
+
+export async function generateAndUploadInvoice(
+  transaction,
+  user,
+  invoiceNumber,
+  resolvedBookings = null,
+) {
+  try {
+    const [logoSrc, signatureSrc] = await Promise.all([
+      getPublicAssetDataUrl("Horizontal Logo 3.png"),
+      getPublicAssetDataUrl("E-sign.png"),
+    ]);
+    const bookings =
+      Array.isArray(resolvedBookings) && resolvedBookings.length > 0
+        ? resolvedBookings
+        : await resolveTransactionBookings(transaction);
+    const pricingConfig = await getPricingConfig();
+    const resolvedInvoiceNumber =
+      invoiceNumber ||
+      transaction.invoiceNumber ||
+      formatInvoiceNumber(transaction);
+    const invoiceIssuedAt = getInvoiceIssuedAt(transaction, new Date());
+    const html = buildInvoiceHtml({
+      transaction,
+      user,
+      bookings,
+      pricingConfig,
+      assets: { logoSrc, signatureSrc },
+      invoiceNumber,
+      issuedAt: invoiceIssuedAt,
+    });
+
     // Generate PDF
     const browser = await puppeteer.launch({
       headless: "new",
