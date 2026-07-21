@@ -109,6 +109,9 @@ flowchart LR
 - Sequelize models, associations, migrations, and seeders are in `src/lib/db/`.
 - Cross-cutting authentication, pricing, invoice, workflow, validation, storage,
   notifications, and security logging code is grouped under `src/lib/`.
+- Invoice numbers use UTC-day formatting and PostgreSQL-backed serialization;
+  see [invoice assurance documentation](./invoice-assurance/README.md) for the
+  identifier and concurrency contract.
 - Background workers call protected internal API routes rather than duplicating
   lifecycle logic.
 
