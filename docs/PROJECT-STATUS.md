@@ -57,20 +57,28 @@ Most recent full-suite evidence recorded during issue #56 verification on
   tests passed and `43` failed.
 - `npm run lint`: checked `579` files and reported `293` errors and `59`
   warnings in the pre-existing repository-wide backlog.
+- `npm run verify:scheduling-calendar-rollout`: `171` tests passed across `33`
+  suites after combining #56 and #58, including the shared nullable-customer
+  boundary, concise API errors, tablet video-option layout, service-boundary
+  relation initialization, transaction-only handoff row locks, and locked
+  customer details during active OTP registration.
 
 Interpretation:
 
 - The repository is not in a fully green CI-style state.
 - The runtime and feature coverage are still substantial, especially around OAuth, GPT APIs, admin flows, and booking/delivery workflows.
-- Current quality debt includes repo-wide formatting/import hygiene, one booking
-  mobile-autoscroll test area, and OAuth configuration/token/redirect expectation
-  failures.
+- Current quality debt includes repo-wide formatting/import hygiene, booking
+  mobile-autoscroll expectations, disposable PostgreSQL suites that require
+  explicit test-admin opt-in, and OAuth configuration/token/redirect
+  expectation failures.
 
 ## Known failing checks
 
 ### Failing tests
 
 - Booking mobile-autoscroll expectations do not match current behavior.
+- Disposable PostgreSQL suites fail closed when the required test-admin opt-in
+  is absent from the ordinary repository-wide command.
 - OAuth environment/configuration, token, and redirect expectations do not match
   the current implementation or test setup.
 - Local browser/PDF and disposable PostgreSQL suites fail when their required

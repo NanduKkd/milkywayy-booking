@@ -84,6 +84,12 @@ address, and email. API responses reduce genuine schema failures to one concise
 validation message while the complete error remains available to server-side
 diagnostics.
 
+After an OTP is sent, the handoff keeps the destination visible but locks the
+account and customer fields so they cannot diverge from the active verification
+attempt. The customer may clear that client attempt with **Change details** or
+request another code after a 30-second client-side cooldown; OTP entry remains
+available throughout the active attempt.
+
 Final validation and checkout reuse normal availability, pricing, eligible
 coupon, promotion, discount, wallet, payment, and invoice services. Completed
 bookings appear in the customer dashboard. A checkbox, unselected by default,
@@ -97,6 +103,16 @@ labelled as a pending hold, not a booked shoot. Successful payment promotes it
 through the existing confirmed-booking flow. An admin can generate a replacement
 link from the latest details; regeneration invalidates the previous link and
 starts a new four-hour link and reservation window.
+
+The handoff service initializes Sequelize model relations at its module
+boundary. Public reads, OTP endpoints, checkout, and admin regeneration can
+therefore eager-load `Transaction.user` without depending on another route to
+run first. OTP sending, OTP verification, replacement-link regeneration, and
+checkout resolve or reload the handoff inside a database transaction. Their
+joined transaction queries keep the associated customer available while
+scoping `FOR UPDATE` to the non-nullable root `Transaction` row. The nullable
+`user` side of the outer join is not locked, avoiding PostgreSQL outer-join
+lock errors without weakening serialization of concurrent handoff use.
 
 ## Query boundary
 

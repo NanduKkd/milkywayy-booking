@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
 import { Op } from "sequelize";
 import Stripe from "stripe";
-import { z } from "zod";
 import { getDiscounts } from "@/lib/actions/discounts";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { sessionConfig } from "@/lib/config/session";
 import { sequelize } from "@/lib/db/db";
+import "@/lib/db/relations";
 import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
@@ -414,7 +414,9 @@ async function resolveTransactionFromToken(token, { transaction = null } = {}) {
   const transactionRecord = await Transaction.findByPk(decoded.transactionId, {
     include: [{ model: User, as: "user" }],
     transaction,
-    lock: transaction ? transaction.LOCK.UPDATE : undefined,
+    lock: transaction
+      ? { level: transaction.LOCK.UPDATE, of: Transaction }
+      : undefined,
   });
 
   if (!transactionRecord) {
@@ -535,7 +537,7 @@ export async function createAdminBookingHandoff({
       ? await Transaction.findByPk(transactionId, {
           include: [{ model: User, as: "user" }],
           transaction,
-          lock: transaction.LOCK.UPDATE,
+          lock: { level: transaction.LOCK.UPDATE, of: Transaction },
         })
       : null;
 
@@ -833,7 +835,7 @@ export async function createAdminBookingHandoffCheckout({
     const lockedTransaction = await Transaction.findByPk(transactionRecord.id, {
       include: [{ model: User, as: "user" }],
       transaction,
-      lock: transaction.LOCK.UPDATE,
+      lock: { level: transaction.LOCK.UPDATE, of: Transaction },
     });
     const handoffMetadata = getAdminBookingHandoffMetadata(lockedTransaction);
     const currentBookingIds =

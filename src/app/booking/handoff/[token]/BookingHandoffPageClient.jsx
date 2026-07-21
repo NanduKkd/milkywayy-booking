@@ -37,6 +37,7 @@ const PROPERTY_TYPES = PROPERTY_TYPE_ORDER.filter(
   (propertyType) => PRICING_CONFIG[propertyType],
 );
 const SERVICE_OPTIONS = SERVICE_ORDER.filter(Boolean);
+const OTP_RESEND_COOLDOWN_SECONDS = 30;
 const EMPTY_CUSTOMER = {
   accountType: "INDIVIDUAL",
   fullName: "",
@@ -141,6 +142,7 @@ export default function BookingHandoffPageClient({ token }) {
   const [properties, setProperties] = useState([]);
   const [verificationId, setVerificationId] = useState("");
   const [otp, setOtp] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [promotionCode, setPromotionCode] = useState("");
 
   const loadHandoff = useCallback(async () => {
@@ -174,6 +176,18 @@ export default function BookingHandoffPageClient({ token }) {
     loadHandoff();
   }, [loadHandoff]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) {
+      return undefined;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setResendCooldown((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [resendCooldown]);
+
   const totalAmount = useMemo(
     () =>
       properties.reduce(
@@ -187,6 +201,7 @@ export default function BookingHandoffPageClient({ token }) {
     Boolean(handoff?.requiresRegistration) && !handoff?.registrationVerifiedAt;
   const isExpired = Boolean(handoff?.isExpired);
   const isCompleted = handoff?.paymentStatus === "success";
+  const isOtpAttemptActive = Boolean(verificationId);
 
   const updateCustomerField = (field, value) => {
     setCustomer((current) => ({
@@ -250,13 +265,25 @@ export default function BookingHandoffPageClient({ token }) {
         throw new Error(payload?.error || "Failed to send OTP");
       }
 
-      setVerificationId(payload.verificationId || "");
+      if (!payload.verificationId) {
+        throw new Error("Failed to start phone verification");
+      }
+
+      setVerificationId(payload.verificationId);
+      setOtp("");
+      setResendCooldown(OTP_RESEND_COOLDOWN_SECONDS);
       toast.success("OTP sent");
     } catch (requestError) {
       toast.error(requestError.message || "Failed to send OTP");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const changeDetails = () => {
+    setVerificationId("");
+    setOtp("");
+    setResendCooldown(0);
   };
 
   const verifyOtp = async () => {
@@ -394,6 +421,7 @@ export default function BookingHandoffPageClient({ token }) {
                     id="handoff-account-type"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={customer.accountType || "INDIVIDUAL"}
+                    disabled={isOtpAttemptActive}
                     onChange={(event) =>
                       updateCustomerField("accountType", event.target.value)
                     }
@@ -407,6 +435,7 @@ export default function BookingHandoffPageClient({ token }) {
                   <Input
                     id="handoff-phone"
                     value={customer.phone || ""}
+                    disabled={isOtpAttemptActive}
                     onChange={(event) =>
                       updateCustomerField("phone", event.target.value)
                     }
@@ -418,6 +447,7 @@ export default function BookingHandoffPageClient({ token }) {
                     <Input
                       id="handoff-company"
                       value={customer.companyName || ""}
+                      disabled={isOtpAttemptActive}
                       onChange={(event) =>
                         updateCustomerField("companyName", event.target.value)
                       }
@@ -429,6 +459,7 @@ export default function BookingHandoffPageClient({ token }) {
                     <Input
                       id="handoff-full-name"
                       value={customer.fullName || ""}
+                      disabled={isOtpAttemptActive}
                       onChange={(event) =>
                         updateCustomerField("fullName", event.target.value)
                       }
@@ -441,6 +472,7 @@ export default function BookingHandoffPageClient({ token }) {
                     id="handoff-email"
                     type="email"
                     value={customer.email || ""}
+                    disabled={isOtpAttemptActive}
                     onChange={(event) =>
                       updateCustomerField("email", event.target.value)
                     }
@@ -455,6 +487,7 @@ export default function BookingHandoffPageClient({ token }) {
                       <Input
                         id="handoff-billing-address"
                         value={customer.billingAddress || ""}
+                        disabled={isOtpAttemptActive}
                         onChange={(event) =>
                           updateCustomerField(
                             "billingAddress",
@@ -468,6 +501,7 @@ export default function BookingHandoffPageClient({ token }) {
                       <Input
                         id="handoff-trn"
                         value={customer.trn || ""}
+                        disabled={isOtpAttemptActive}
                         onChange={(event) =>
                           updateCustomerField("trn", event.target.value)
                         }
@@ -478,24 +512,51 @@ export default function BookingHandoffPageClient({ token }) {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Button type="button" disabled={submitting} onClick={sendOtp}>
-                  {submitting ? "Sending..." : "Send verification code"}
-                </Button>
+                {isOtpAttemptActive ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={submitting}
+                      onClick={changeDetails}
+                    >
+                      Change details
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={submitting || resendCooldown > 0}
+                      onClick={sendOtp}
+                    >
+                      {submitting
+                        ? "Sending..."
+                        : resendCooldown > 0
+                          ? `Resend code in ${resendCooldown}s`
+                          : "Resend code"}
+                    </Button>
+                  </>
+                ) : (
+                  <Button type="button" disabled={submitting} onClick={sendOtp}>
+                    {submitting ? "Sending..." : "Send verification code"}
+                  </Button>
+                )}
               </div>
 
-              {verificationId ? (
+              {isOtpAttemptActive ? (
                 <div className="space-y-4 rounded-2xl border border-white/10 p-4">
                   <div className="space-y-1">
-                    <p className="font-medium">Verify your phone</p>
+                    <output className="font-medium">
+                      Code sent to {customer.phone || "your phone"}
+                    </output>
                     <p className="text-sm text-muted-foreground">
-                      Enter the code sent to your phone to continue to property
-                      review.
+                      Your details are locked while this code is active. Enter
+                      the code to continue to property review.
                     </p>
                   </div>
                   <div className="flex justify-center">
                     <InputOTP
                       maxLength={6}
                       value={otp}
+                      disabled={submitting}
                       onChange={setOtp}
                       render={({ slots }) => {
                         const [slot0, slot1, slot2, slot3, slot4, slot5] =
