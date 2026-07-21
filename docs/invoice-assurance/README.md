@@ -7,7 +7,7 @@ owned by the invoice helpers under `src/lib/helpers/`.
 - [Architecture](./ARCHITECTURE.md) describes invoice and booking identifiers,
   persistence, and concurrent allocation.
 - [Security test plan](./SECURITY-TEST-PLAN.md) defines the repeatable unit and
-  disposable-PostgreSQL gates.
+  disposable-PostgreSQL gates, coverage threshold, and Chromium PDF smoke.
 
 The documentation deliberately contains no production database endpoint,
 credentials, customer data, or persistent test-database name.

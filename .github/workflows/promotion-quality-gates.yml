@@ -54,8 +54,53 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  invoice-coverage:
+    name: Invoice focused coverage gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: timeout 8m npm run test:invoices:coverage
+      - name: Verify deliberate threshold failure
+        run: timeout 8m npm run test:invoices:quality-gate-proof
+      - name: Upload safe coverage artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: invoice-coverage-${{ github.run_id }}
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  invoice-pdf-smoke:
+    name: Invoice real Chromium PDF smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install --yes poppler-utils
+      - run: npm ci
+      - name: Record Puppeteer Chromium version
+        run: |
+          node - <<'NODE'
+          const puppeteer = require("puppeteer");
+          console.log(`puppeteer=${require("puppeteer/package.json").version}`);
+          console.log(`chromium_executable=${puppeteer.executablePath()}`);
+          NODE
+          npx puppeteer browsers list
+      - run: timeout 5m npm run test:invoices:pdf
+
   promotion-postgres:
-    name: PostgreSQL migration and integration gates
+    name: PostgreSQL migration, integration, and invoice numbering gates
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:

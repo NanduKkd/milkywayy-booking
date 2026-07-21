@@ -154,6 +154,9 @@ configuration.
 | `npm run test:promotions:coverage` | Run the blocking focused promotion coverage gate. |
 | `npm run test:promotions:postgres` | Run promotion migration and integration suites against a disposable PostgreSQL instance. |
 | `npm run test:invoices:postgres` | Run invoice-number allocation concurrency proof against a disposable PostgreSQL instance. |
+| `npm run test:invoices:coverage` | Run the blocking invoice-owned coverage gate (85% statements, 75% branches). |
+| `npm run test:invoices:quality-gate-proof` | Prove the invoice coverage gate fails closed at an intentionally impossible threshold. |
+| `npm run test:invoices:pdf` | Launch local Puppeteer Chromium for the synthetic invoice PDF smoke test; requires Poppler `pdfinfo` and `pdftotext`. |
 | `npm run test:jest:full` | Run the full serial Jest baseline. |
 | `npm run test:promotions:quality-gate-proof` | Safely verify that an intentional promotion coverage-threshold breach stops the gate. |
 | `npm run cleanup:disposable-postgres` | Remove only reserved disposable PostgreSQL databases after a test run. |

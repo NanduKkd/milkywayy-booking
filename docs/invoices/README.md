@@ -13,3 +13,7 @@ template path.
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the rendering flow and
 [SECURITY-TEST-PLAN.md](./SECURITY-TEST-PLAN.md) for the content guarantees and
 reproducible checks.
+
+The real Chromium PDF smoke test is intentionally separate from storage: it
+renders only synthetic fixtures to a disposable local directory, extracts the
+customer-visible text, and removes the PDF in a `finally` path.

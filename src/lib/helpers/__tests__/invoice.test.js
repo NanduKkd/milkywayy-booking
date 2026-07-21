@@ -28,9 +28,13 @@ jest.mock("@/lib/helpers/pricing", () => ({
 jest.mock("@/lib/helpers/numbering", () => ({
   ensureTransactionInvoiceNumber: jest.fn(),
 }));
+jest.mock("@/lib/db/db", () => ({
+  sequelize: { query: jest.fn() },
+}));
 
 import puppeteer from "puppeteer";
 import { Op } from "sequelize";
+import { sequelize as db } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import User from "@/lib/db/models/user";
 import {
@@ -55,6 +59,7 @@ const mockBookingUpdate = Booking.update;
 const mockUserFindByPk = User.findByPk;
 const mockEnsureTransactionInvoiceNumber = ensureTransactionInvoiceNumber;
 const mockGetPricingConfig = getPricingConfig;
+const mockDbQuery = db.query;
 
 beforeEach(() => {
   mockBookingFindAll.mockReset();
@@ -62,6 +67,7 @@ beforeEach(() => {
   mockUserFindByPk.mockReset();
   mockEnsureTransactionInvoiceNumber.mockReset();
   mockGetPricingConfig.mockReset().mockResolvedValue({});
+  mockDbQuery.mockReset();
   mockPuppeteerLaunch.mockReset();
   mockEnsureTransactionInvoiceNumber.mockImplementation(
     async (transaction) => transaction.invoiceNumber,
@@ -876,6 +882,12 @@ describe("ensureTransactionInvoiceUrl", () => {
       },
     });
     mockBookingFindAll.mockResolvedValueOnce([resolvedBooking]);
+    mockDbQuery.mockImplementation(async (_sql, options) => [
+      {
+        invoiceUrl: options.replacements.invoiceUrl,
+        metadata: JSON.parse(options.replacements.metadata),
+      },
+    ]);
 
     const result = await ensureTransactionInvoiceUrl(target, user);
 
@@ -885,6 +897,16 @@ describe("ensureTransactionInvoiceUrl", () => {
       invoiceBookingCount: 1,
       invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
     });
+    expect(mockDbQuery).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE transactions"),
+      expect.objectContaining({
+        replacements: expect.objectContaining({
+          invoiceUrl: result,
+          invoiceNumber,
+          transactionId: target.id,
+        }),
+      }),
+    );
   });
 
   it("keeps ORM instance data values consistent with persisted metadata", async () => {

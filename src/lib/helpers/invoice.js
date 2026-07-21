@@ -2,8 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import puppeteer from "puppeteer";
-import { Op } from "sequelize";
+import { Op, QueryTypes } from "sequelize";
 import { LAUNCH_PROMO_LABEL } from "@/lib/config/promo";
+import { sequelize as db } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import User from "@/lib/db/models/user";
 import {
@@ -1006,6 +1007,30 @@ export async function ensureTransactionInvoiceUrl(transaction, user = null) {
 
   if (typeof transaction.update === "function") {
     await transaction.update(invoiceUpdate);
+  } else {
+    const [persisted] = await db.query(
+      `
+        UPDATE transactions
+        SET invoice_url = :invoiceUrl,
+            metadata = CAST(:metadata AS JSONB)
+        WHERE id = :transactionId
+          AND invoice_number = :invoiceNumber
+        RETURNING invoice_url AS "invoiceUrl", metadata
+      `,
+      {
+        replacements: {
+          invoiceUrl: generatedInvoiceUrl,
+          metadata: JSON.stringify(nextMetadata),
+          transactionId: transaction.id,
+          invoiceNumber,
+        },
+        type: QueryTypes.SELECT,
+      },
+    );
+
+    if (persisted?.invoiceUrl !== generatedInvoiceUrl) {
+      throw new Error("Invoice URL persistence did not update the transaction");
+    }
   }
 
   if (typeof transaction.setDataValue === "function") {
