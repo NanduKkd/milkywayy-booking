@@ -1,6 +1,6 @@
 # Project Status
 
-- Last updated: 2026-07-13
+- Last updated: 2026-07-21
 - Status: `ACTIVE`
 - Release posture: core product workflows are implemented, but repo-wide quality checks are not fully green
 
@@ -50,25 +50,31 @@ Notion workspace is retained only as a migration archive.
 
 ## Current repository health
 
-Most recent full-suite evidence recorded during the documentation migration on
-2026-07-13:
+Most recent full-suite evidence recorded on 2026-07-21:
 
-- `npm test -- --runInBand`: `169` test suites passed and `6` failed. `804` tests passed and `18` failed.
+- `npm test -- --runInBand`: `177` test suites passed and `11` failed. `1050`
+  tests passed and `43` failed.
 - `npm run lint`: the repository-wide Biome baseline remains non-green with a substantial pre-existing backlog.
+- `npm run verify:scheduling-calendar-rollout`: `154` tests passed across `30`
+  suites, including focused synthetic coverage for transaction-only handoff
+  row locks in OTP send, OTP verification, and regeneration.
 
 Interpretation:
 
 - The repository is not in a fully green CI-style state.
 - The runtime and feature coverage are still substantial, especially around OAuth, GPT APIs, admin flows, and booking/delivery workflows.
-- Current quality debt includes repo-wide formatting/import hygiene, one booking
-  mobile-autoscroll test area, and OAuth configuration/token/redirect expectation
-  failures.
+- Current quality debt includes repo-wide formatting/import hygiene, booking
+  mobile-autoscroll expectations, disposable PostgreSQL suites that require
+  explicit test-admin opt-in, and OAuth configuration/token/redirect
+  expectation failures.
 
 ## Known failing checks
 
 ### Failing tests
 
 - Booking mobile-autoscroll expectations do not match current behavior.
+- Disposable PostgreSQL suites fail closed when the required test-admin opt-in
+  is absent from the ordinary repository-wide command.
 - OAuth environment/configuration, token, and redirect expectations do not match
   the current implementation or test setup.
 

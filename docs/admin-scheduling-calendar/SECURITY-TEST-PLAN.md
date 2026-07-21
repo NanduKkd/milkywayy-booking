@@ -1,6 +1,6 @@
 # Admin scheduling calendar security test plan
 
-- Last updated: 2026-07-11
+- Last updated: 2026-07-21
 - Release gate status: `IN_PROGRESS`
 
 ## Automated gates
@@ -16,6 +16,10 @@
   customer's account or prepared properties.
 - Handoff links expire after four hours; regeneration invalidates the previous
   link and does not create duplicate active reservations.
+- New-customer OTP sending and verification, plus handoff regeneration, retain
+  the joined customer but lock only the root `Transaction` row. Focused service
+  coverage must assert the generated Sequelize lock options so PostgreSQL is
+  never asked to lock the nullable side of the outer join.
 - Conflict tests cover simultaneous bookings and block versus booking creation.
 - Working-day, full-day block, period block, capacity, override, and rolling-window precedence is deterministic.
 - Dubai timezone boundary tests cover DST-independent midnight, month, and year transitions.
@@ -28,6 +32,9 @@
   with navigation to Bookings, and remains unchanged.
 - Verify direct API mutation fails when the UI control is hidden by permission.
 - Verify new-customer and registered-customer links enter the correct flow.
+- After deployment, verify “Send verification code” proceeds without a
+  PostgreSQL outer-join lock error, using only synthetic customer details in
+  any captured proof.
 - Verify edited properties are re-priced and revalidated before payment.
 - Verify the WhatsApp checkbox sends only the correct customer-state template.
 - Verify the WhatsApp checkbox defaults off and link copying does not send a message.
@@ -43,5 +50,7 @@ the ignored local worksheet `docs/private/ADMIN-SCHEDULING-CALENDAR-ROLLOUT.md`.
 - A stale client can create an unacknowledged double booking.
 - Calendar-only events affect customer availability or create booking records.
 - A handoff can access or mutate a different customer's data.
+- A joined handoff query emits an unscoped row lock or removes transaction
+  serialization from OTP or regeneration.
 - Unauthorized users receive customer contact or property schedule details.
 - A block can cancel, move, or override an active booking.

@@ -468,7 +468,9 @@ async function resolveTransactionFromToken(token, { transaction = null } = {}) {
   const transactionRecord = await Transaction.findByPk(decoded.transactionId, {
     include: [{ model: User, as: "user" }],
     transaction,
-    lock: transaction ? transaction.LOCK.UPDATE : undefined,
+    lock: transaction
+      ? { level: transaction.LOCK.UPDATE, of: Transaction }
+      : undefined,
   });
 
   if (!transactionRecord) {
@@ -589,7 +591,7 @@ export async function createAdminBookingHandoff({
       ? await Transaction.findByPk(transactionId, {
           include: [{ model: User, as: "user" }],
           transaction,
-          lock: transaction.LOCK.UPDATE,
+          lock: { level: transaction.LOCK.UPDATE, of: Transaction },
         })
       : null;
 

@@ -1,6 +1,6 @@
 # Admin scheduling calendar architecture
 
-- Last updated: 2026-07-02
+- Last updated: 2026-07-21
 
 ## Scheduling authority
 
@@ -88,6 +88,13 @@ labelled as a pending hold, not a booked shoot. Successful payment promotes it
 through the existing confirmed-booking flow. An admin can generate a replacement
 link from the latest details; regeneration invalidates the previous link and
 starts a new four-hour link and reservation window.
+
+OTP sending, OTP verification, and replacement-link regeneration resolve the
+handoff inside a database transaction. Their joined transaction queries keep
+the associated customer available to the handoff flow while scoping
+`FOR UPDATE` to the non-nullable root `Transaction` row. The nullable `user`
+side of the outer join is not locked, avoiding PostgreSQL outer-join lock
+errors without weakening serialization of concurrent handoff use.
 
 ## Query boundary
 
