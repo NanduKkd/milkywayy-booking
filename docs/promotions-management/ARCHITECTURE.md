@@ -1,6 +1,6 @@
 # Promotions management architecture
 
-- Last updated: 2026-07-20
+- Last updated: 2026-07-21
 
 ## Domain model
 
@@ -187,6 +187,30 @@ flowchart TD
 Benefit comparisons happen against the same pre-promotion eligible subtotal.
 Ties retain the earlier selected candidate, giving personal precedence over
 generic ties and automatic rules.
+
+## Booking preview and checkout surfaces
+
+Normal `/booking` preview resolves its user from the authenticated session. A
+verified admin handoff instead calls the rate-limited
+`/api/booking-handoffs/[token]/promotion-preview` boundary. That boundary
+validates the current opaque token, version, four-hour expiry, unpaid state,
+registration/OTP state, transaction customer ownership, and customer role
+before calling the same `evaluateCheckoutPromotionPricing` service. It accepts
+an advisory subtotal and optional code but never accepts customer identity from
+the browser.
+
+Both surfaces render one selected automatic, personal, or generic promotion,
+the payable total, and wallet-credit earning as a separate non-payable benefit.
+Generic applied, superseded, invalid, inactive, and minimum-spend messages come
+from the shared pricing service.
+
+Handoff checkout re-evaluates after locking the existing transaction and passes
+the normalized entered code into transactional reservation. It clears released
+reservation references before retry, synchronizes the existing draft booking
+set, replaces pending wallet credit, stores the immutable promotion snapshot,
+and sends the final payable amount to Stripe. Availability, token, assignment,
+window, trigger, and usage-limit changes between preview and reservation fail
+closed. No normal booking transaction is created.
 
 ## Trigger semantics
 

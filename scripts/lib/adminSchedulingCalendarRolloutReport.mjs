@@ -28,7 +28,7 @@ export const rolloutVerificationGroups = [
   {
     area: "Booking handoff",
     description:
-      "Admin booking preparation, nullable customer snapshots, locked OTP sent-state behavior, replacement links, and WhatsApp opt-in behavior stay enforced.",
+      "Admin booking preparation, secure token-scoped promotion preview, atomic reservation synchronization, locked OTP state, replacement links, and WhatsApp opt-in behavior stay enforced.",
     name: "Preparation and handoff smoke coverage",
     tests: [
       "src/lib/services/__tests__/adminBookingPreparation.test.js",
@@ -43,7 +43,10 @@ export const rolloutVerificationGroups = [
       "src/app/api/booking-handoffs/[token]/otp/__tests__/route.test.js",
       "src/app/api/booking-handoffs/[token]/verify-otp/__tests__/route.test.js",
       "src/app/api/booking-handoffs/[token]/checkout/__tests__/route.test.js",
+      "src/app/api/booking-handoffs/[token]/promotion-preview/__tests__/route.test.js",
       "src/app/booking/handoff/[token]/__tests__/BookingHandoffPageClient.test.jsx",
+      "src/lib/services/__tests__/promotionPricing.test.js",
+      "src/lib/services/__tests__/promotionCheckout.test.js",
     ],
   },
   {
@@ -116,9 +119,9 @@ but remain part of the target-environment manual checklist below.
 
 | Check | Assessment | Evidence or remaining work |
 |---|---|---|
-| Approved feature behavior | \`PASS\` | Current code inspection plus ${totalTests} passing tests cover exact blocks, non-blocking events, multi-property preparation, customer-state handoffs, four-hour pending holds, promotion-aware checkout, and WhatsApp default-off behavior. |
+| Approved feature behavior | \`PASS\` | Current code inspection plus ${totalTests} passing tests cover exact blocks, non-blocking events, multi-property preparation, customer-state handoffs, four-hour pending holds, token-scoped promotion preview, promotion-aware checkout, and WhatsApp default-off behavior. |
 | Local authorization and error handling | \`PASS\` | Browser/API smoke results above. |
-| Handoff registration and transaction safety | \`PASS\` | Synthetic coverage accepts persisted null optional fields for Individual OTP registration, preserves Company field requirements, locks customer details while a verification attempt is active, verifies relation initialization at the handoff boundary, and exercises joined OTP, regeneration, and checkout queries that lock only \`Transaction\`. |
+| Handoff registration, pricing, and transaction safety | \`PASS\` | Synthetic coverage accepts persisted null optional fields for Individual OTP registration, preserves Company field requirements, locks customer details while a verification attempt is active, verifies relation initialization at the handoff boundary, rejects protected preview states, and revalidates token version, customer ownership, availability, pricing, promotion limits, and booking synchronization while locking only \`Transaction\`. |
 | Authenticated end-to-end browser flow | \`PENDING\` | Requires a usable Super Admin browser session and test customer/payment setup. |
 | External delivery/payment integrations | \`PENDING\` | Requires target-environment OTP, WhatsApp, and Stripe execution. |
 | Deployment/operations gate (\`CAL-304\`) | \`PENDING\` | Migration, representative data comparison, monitoring confirmation, and rollback rehearsal are not recorded yet. |
@@ -127,7 +130,7 @@ but remain part of the target-environment manual checklist below.
 
 - Run the calendar-event migration in the target environment and record the operator, date, environment, and outcome in the private worksheet.
 - Compare one representative week and one month view against existing Bookings and Time Slots data after deployment.
-- Verify event create/update/cancel, exact block rejection on overlapping active bookings, booking preparation, both customer handoff states, payment-link regeneration, and WhatsApp default-off behavior in the target environment.
+- Verify event create/update/cancel, exact block rejection on overlapping active bookings, booking preparation, both customer handoff states, promotion and wallet preview parity, payment-link regeneration, and WhatsApp default-off behavior in the target environment.
 - Capture monitoring confirmation for calendar query latency, conflict response rate, handoff failures, OTP failures, WhatsApp delivery, and checkout failures before marking \`CAL-304\` \`DONE\`.
 - Record rollback rehearsal notes covering mutation disablement, preserved calendar-event rows, and handoff-link revocation steps in the private worksheet.
 

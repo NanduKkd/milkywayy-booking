@@ -112,6 +112,32 @@ The suite proves:
 - one-time release for session creation failure/cancellation, one-time expiry,
   rollback-safe webhook worker retry, and idempotent paid reconciliation.
 
+## Admin handoff pricing parity gate
+
+The admin handoff uses the same promotion engine and reservation lifecycle with
+a separate token-authenticated preview boundary. Focused synthetic coverage
+proves:
+
+- the server derives the customer from the current handoff transaction and
+  ignores any browser `userId`;
+- unverified, invalid/superseded, expired, and already-paid handoffs cannot
+  obtain customer-specific pricing or create checkout;
+- automatic and assigned personal selection plus generic applied, superseded,
+  invalid, inactive, and minimum-spend feedback retain normal behavior;
+- wallet earning stays outside the selected promotion and payable total;
+- checkout revalidates token version, ownership, availability, pricing,
+  assignment/eligibility, and usage reservation under the existing transaction
+  lock, then keeps subtotal, snapshot, transaction, and Stripe amounts aligned;
+- edited/added/duplicated/removed properties synchronize the existing booking
+  set without a normal draft or duplicate transaction; failed completion
+  expires an orphaned Stripe session and leaves a safe retry path.
+
+Run:
+
+```sh
+npx jest --runInBand --runTestsByPath src/lib/services/__tests__/adminBookingHandoffs.test.js src/lib/services/__tests__/promotionPricing.test.js src/lib/services/__tests__/promotionCheckout.test.js src/app/booking/__tests__/BookNew.test.jsx 'src/app/booking/handoff/[token]/__tests__/BookingHandoffPageClient.test.jsx' 'src/app/api/booking-handoffs/[token]/promotion-preview/__tests__/route.test.js' 'src/app/api/booking-handoffs/[token]/checkout/__tests__/route.test.js'
+```
+
 With the dedicated test-admin environment configured, run:
 
 ```sh

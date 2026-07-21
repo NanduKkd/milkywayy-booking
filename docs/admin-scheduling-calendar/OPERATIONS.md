@@ -1,6 +1,6 @@
 # Admin scheduling calendar operations
 
-- Last updated: 2026-07-03
+- Last updated: 2026-07-21
 
 ## Migration and rollout
 
@@ -24,7 +24,12 @@ availability evaluation.
 - Verify events and bookings across Dubai midnight and month transitions.
 - Exercise simultaneous block/booking creation against the same interval.
 - Verify both customer-state handoff links, editable multiple properties,
-  eligible discounts, OTP verification, WhatsApp choice, and payment completion.
+  automatic/personal/generic promotion states, separate wallet earning, OTP
+  verification, WhatsApp choice, and payment completion.
+- Change availability, token version, promotion eligibility, and a usage limit
+  after preview and confirm checkout fails without a second transaction or
+  stale booking set. Force a synthetic Stripe-session failure and confirm retry
+  replaces promotion/wallet artifacts safely.
 - Verify four-hour expiry, pending availability release, copy-link behavior, and
   replacement-link invalidation without duplicate reservations.
 - Confirm block warnings enumerate existing affected records without mutating them.
@@ -39,8 +44,9 @@ rehearsal details.
 ## Monitoring
 
 Monitor calendar query latency, conflict response rate, capacity calculation
-errors, handoff creation/completion/expiry, OTP failures, WhatsApp delivery,
-checkout failures, and differences between customer and admin availability.
+errors, handoff creation/completion/expiry, promotion-preview rate limits and
+failures, OTP failures, WhatsApp delivery, checkout failures, and differences
+between customer and admin availability.
 
 ## Rollback
 

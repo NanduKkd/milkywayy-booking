@@ -39,6 +39,10 @@ describe("promotionPricing service", () => {
     benefitValue: 10,
     benefitCap: null,
     minimumSpend: 0,
+    startsAt: null,
+    endsAt: null,
+    perUserLimit: null,
+    totalLimit: null,
     triggerType: "ANY_PAID_BOOKING",
     triggerConfig: {},
     legacySourceType: null,
@@ -163,4 +167,71 @@ describe("promotionPricing service", () => {
       message: "Invalid promo code",
     });
   });
+
+  it("selects an assigned personal promotion ahead of an eligible automatic promotion", async () => {
+    models.Promotion.findAll.mockResolvedValue([
+      buildPromotion({ id: 11, benefitValue: 20 }),
+      buildPromotion({
+        id: 33,
+        kind: "PERSONAL",
+        name: "Synthetic partner benefit",
+        benefitValue: 15,
+        triggerType: "NONE",
+      }),
+    ]);
+    models.PromotionAssignment.findAll.mockResolvedValue([{ promotionId: 33 }]);
+
+    const result = await evaluateCheckoutPromotionPricing({
+      userId: 7,
+      eligibleSubtotal: 1000,
+    });
+
+    expect(result.selectedPromotion).toEqual(
+      expect.objectContaining({
+        promotionId: 33,
+        kind: "PERSONAL",
+        benefitAmount: 150,
+      }),
+    );
+  });
+
+  it.each([
+    [
+      "inactive",
+      { status: "PAUSED" },
+      { status: "INACTIVE", message: "Promo code is inactive or expired" },
+    ],
+    [
+      "below minimum spend",
+      { minimumSpend: 1200 },
+      {
+        status: "MINIMUM_SPEND_NOT_MET",
+        message: "Minimum spend of AED 1200 required",
+      },
+    ],
+  ])(
+    "returns normal code feedback when a generic code is %s",
+    async (_, overrides, expected) => {
+      models.Promotion.findOne.mockResolvedValue(
+        buildPromotion({
+          id: 22,
+          kind: "GENERIC",
+          code: "SAVE20",
+          name: "SAVE20",
+          benefitValue: 20,
+          triggerType: "NONE",
+          ...overrides,
+        }),
+      );
+
+      const result = await evaluateCheckoutPromotionPricing({
+        userId: 7,
+        eligibleSubtotal: 1000,
+        enteredCode: "SAVE20",
+      });
+
+      expect(result.selectedPromotion).toBeNull();
+      expect(result.codeValidation).toEqual(expected);
+    },
+  );
 });

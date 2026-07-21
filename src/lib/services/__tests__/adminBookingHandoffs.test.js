@@ -7,17 +7,22 @@ import User from "@/lib/db/models/user";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
 import { getPricingConfig } from "@/lib/helpers/pricing";
 import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
+import { consumeRateLimit } from "@/lib/services/oauthRateLimits";
 import {
   createAdminBookingHandoff,
   createAdminBookingHandoffCheckout,
   getAdminBookingHandoffByToken,
+  previewAdminBookingHandoffPromotionPricing,
   sendAdminBookingHandoffOtp,
   verifyAdminBookingHandoffOtp,
 } from "../adminBookingHandoffs";
 import { previewAdminBookingPreparation } from "../adminBookingPreparation";
 import { buildPreparedPropertySummary } from "../bookingPreparation";
 import { sendCustomerOtp, verifyCustomerOtp } from "../customerAuth";
-import { releasePromotionForCheckoutTransaction } from "../promotionCheckout";
+import {
+  releasePromotionForCheckoutTransaction,
+  reservePromotionForCheckoutTransaction,
+} from "../promotionCheckout";
 import { evaluateCheckoutPromotionPricing } from "../promotionPricing";
 import { loadSchedulingConflictContext } from "../schedulingConflictRevalidation";
 
@@ -98,6 +103,11 @@ jest.mock("@/lib/helpers/promotionPricing", () => ({
 
 jest.mock("@/lib/helpers/pricing", () => ({
   getPricingConfig: jest.fn(),
+}));
+
+jest.mock("@/lib/services/oauthRateLimits", () => ({
+  consumeRateLimit: jest.fn(),
+  RateLimitExceededError: class RateLimitExceededError extends Error {},
 }));
 
 jest.mock("../adminBookingPreparation", () => ({
@@ -202,6 +212,8 @@ describe("adminBookingHandoffs transaction locks", () => {
     Booking.findAll.mockResolvedValue([]);
     WalletTransaction.destroy.mockResolvedValue(0);
     releasePromotionForCheckoutTransaction.mockResolvedValue(null);
+    reservePromotionForCheckoutTransaction.mockResolvedValue(null);
+    consumeRateLimit.mockResolvedValue({ remaining: 10 });
     evaluateCheckoutPromotionPricing.mockResolvedValue({
       selectedPromotion: null,
     });
@@ -449,5 +461,349 @@ describe("adminBookingHandoffs transaction locks", () => {
     expect(result).toEqual({
       url: "https://stripe.example.test/synthetic-checkout",
     });
+  });
+
+  it("previews promotions for the token-resolved customer without accepting a caller user ID", async () => {
+    transactionRecord.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+    evaluateCheckoutPromotionPricing.mockResolvedValueOnce({
+      eligibleSubtotal: 820,
+      selectedPromotion: {
+        promotionId: 44,
+        kind: "PERSONAL",
+        benefitAmount: 125,
+      },
+    });
+
+    const result = await previewAdminBookingHandoffPromotionPricing({
+      token: "synthetic-handoff-token",
+      eligibleSubtotal: 820,
+      enteredCode: "save10",
+      requestSource: "127.0.0.1",
+      userId: 999,
+      now: new Date("2026-07-21T09:00:00.000Z"),
+    });
+
+    expect(consumeRateLimit).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        bucketType: "booking-handoff-preview-token",
+        key: "token:synthetic-handoff-token",
+      }),
+    );
+    expect(consumeRateLimit).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        bucketType: "booking-handoff-preview-source",
+        key: "source:127.0.0.1",
+      }),
+    );
+    expect(evaluateCheckoutPromotionPricing).toHaveBeenCalledWith({
+      userId: 12,
+      eligibleSubtotal: 820,
+      enteredCode: "save10",
+      now: new Date("2026-07-21T09:00:00.000Z"),
+      excludeTransactionId: 91,
+    });
+    expect(result.selectedPromotion.kind).toBe("PERSONAL");
+  });
+
+  it.each([
+    [
+      "registration-unverified",
+      () => {},
+      "Phone verification is required before pricing or payment",
+    ],
+    [
+      "expired",
+      () => {
+        transactionRecord.metadata.adminBookingHandoff.expiresAt =
+          "2020-01-01T00:00:00.000Z";
+      },
+      "This booking handoff link has expired",
+    ],
+    [
+      "already-paid",
+      () => {
+        transactionRecord.status = "success";
+      },
+      "This booking handoff has already been paid",
+    ],
+  ])("rejects %s handoff promotion previews", async (_, arrange, message) => {
+    arrange();
+
+    await expect(
+      previewAdminBookingHandoffPromotionPricing({
+        token: "synthetic-handoff-token",
+        eligibleSubtotal: 820,
+        requestSource: "test-suite",
+      }),
+    ).rejects.toThrow(message);
+
+    expect(evaluateCheckoutPromotionPricing).not.toHaveBeenCalled();
+  });
+
+  it("revalidates the token version after acquiring the checkout lock", async () => {
+    transactionRecord.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+    const supersededTransaction = buildTransactionRecord(customer);
+    supersededTransaction.metadata.adminBookingHandoff.version = "handoff-v2";
+    supersededTransaction.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+    Transaction.findByPk
+      .mockResolvedValueOnce(transactionRecord)
+      .mockResolvedValueOnce(supersededTransaction);
+
+    await expect(
+      createAdminBookingHandoffCheckout({
+        token: "synthetic-handoff-token",
+        properties: [],
+      }),
+    ).rejects.toThrow("This booking handoff link is no longer active");
+
+    expect(previewAdminBookingPreparation).not.toHaveBeenCalled();
+    expect(
+      globalThis.__adminBookingHandoffStripeCheckoutCreate,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("synchronizes edited, duplicated, and added properties on the existing transaction", async () => {
+    transactionRecord.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+    const existingBookings = [301, 302].map((id) => ({
+      id,
+      update: jest.fn(),
+    }));
+    const createdBooking = { id: 303, update: jest.fn() };
+    Booking.findAll.mockResolvedValueOnce(existingBookings);
+    Booking.create.mockResolvedValueOnce(createdBooking);
+    previewAdminBookingPreparation.mockResolvedValueOnce({
+      totalAmount: 900,
+      properties: [
+        { total: 300, durationHours: 1 },
+        { total: 300, durationHours: 1 },
+        { total: 300, durationHours: 1 },
+      ],
+    });
+
+    await createAdminBookingHandoffCheckout({
+      token: "synthetic-handoff-token",
+      properties: [{}, {}, {}],
+    });
+
+    expect(existingBookings[0].update).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionId: 91, total: 300 }),
+      { transaction: mockTransaction },
+    );
+    expect(existingBookings[1].update).toHaveBeenCalled();
+    expect(Booking.create).toHaveBeenCalledWith(
+      expect.objectContaining({ transactionId: 91, total: 300 }),
+      { transaction: mockTransaction },
+    );
+    expect(Booking.destroy).not.toHaveBeenCalled();
+    expect(Transaction.create).not.toHaveBeenCalled();
+    expect(transactionRecord.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({ bookingIds: [301, 302, 303] }),
+      }),
+      { transaction: mockTransaction },
+    );
+  });
+
+  it("removes stale handoff bookings in the same checkout transaction", async () => {
+    transactionRecord.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+    const existingBookings = [301, 302, 303].map((id) => ({
+      id,
+      update: jest.fn(),
+    }));
+    Booking.findAll.mockResolvedValueOnce(existingBookings);
+    previewAdminBookingPreparation.mockResolvedValueOnce({
+      totalAmount: 450,
+      properties: [{ total: 450, durationHours: 1 }],
+    });
+
+    await createAdminBookingHandoffCheckout({
+      token: "synthetic-handoff-token",
+      properties: [{}],
+    });
+
+    expect(Booking.destroy).toHaveBeenCalledWith({
+      where: { id: [302, 303] },
+      transaction: mockTransaction,
+    });
+    expect(Transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps verified new-customer promotion, wallet, transaction, and Stripe amounts aligned", async () => {
+    transactionRecord.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+    previewAdminBookingPreparation.mockResolvedValueOnce({
+      totalAmount: 1000,
+      properties: [],
+    });
+    evaluateCheckoutPromotionPricing.mockResolvedValueOnce({
+      selectedPromotion: {
+        promotionId: 55,
+        benefitAmount: 200,
+      },
+      codeValidation: { status: "SUPERSEDED" },
+    });
+    const {
+      isPromotionCodeValidationSuccessful,
+    } = require("../promotionPricing");
+    isPromotionCodeValidationSuccessful.mockReturnValueOnce(true);
+    calculateWalletCreditPreview.mockReturnValueOnce({
+      amount: 50,
+      appliedDiscounts: [{ id: "wallet-synthetic", value: 50 }],
+      creditExpiresAt: new Date("2099-08-01T00:00:00.000Z"),
+    });
+
+    await createAdminBookingHandoffCheckout({
+      token: "synthetic-handoff-token",
+      properties: [],
+      enteredCode: "save10",
+    });
+
+    expect(reservePromotionForCheckoutTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionId: 91,
+        userId: 12,
+        eligibleSubtotal: 1000,
+        enteredCode: "SAVE10",
+        transaction: mockTransaction,
+      }),
+    );
+    expect(WalletTransaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 50, transactionId: 91 }),
+      { transaction: mockTransaction },
+    );
+    expect(transactionRecord.update).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: 800 }),
+      { transaction: mockTransaction },
+    );
+    expect(
+      globalThis.__adminBookingHandoffStripeCheckoutCreate,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          expect.objectContaining({
+            price_data: expect.objectContaining({ unit_amount: 80000 }),
+          }),
+        ],
+      }),
+    );
+    expect(Transaction.create).not.toHaveBeenCalled();
+    expect(reservePromotionForCheckoutTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends an existing-customer handoff to Stripe with one transaction and reservation set", async () => {
+    transactionRecord.metadata.adminBookingHandoff = {
+      ...transactionRecord.metadata.adminBookingHandoff,
+      customerMode: "existing",
+      requiresRegistration: false,
+      registrationVerifiedAt: "2026-07-21T08:30:00.000Z",
+    };
+    const existingBooking = { id: 301, update: jest.fn() };
+    Booking.findAll.mockResolvedValueOnce([existingBooking]);
+    previewAdminBookingPreparation.mockResolvedValueOnce({
+      totalAmount: 600,
+      properties: [{ total: 600, durationHours: 1 }],
+    });
+    evaluateCheckoutPromotionPricing.mockResolvedValueOnce({
+      selectedPromotion: { promotionId: 66, benefitAmount: 100 },
+    });
+
+    const result = await createAdminBookingHandoffCheckout({
+      token: "synthetic-handoff-token",
+      properties: [{}],
+    });
+
+    expect(previewAdminBookingPreparation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          customerMode: "existing",
+          customerId: 12,
+        }),
+        transaction: mockTransaction,
+      }),
+    );
+    expect(
+      globalThis.__adminBookingHandoffStripeCheckoutCreate,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          expect.objectContaining({
+            price_data: expect.objectContaining({ unit_amount: 50000 }),
+          }),
+        ],
+      }),
+    );
+    expect(result).toEqual({
+      url: "https://stripe.example.test/synthetic-checkout",
+    });
+    expect(Transaction.create).not.toHaveBeenCalled();
+    expect(reservePromotionForCheckoutTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not create Stripe checkout when availability or promotion reservation changes", async () => {
+    transactionRecord.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+    previewAdminBookingPreparation.mockRejectedValueOnce(
+      new Error("Selected time is no longer available"),
+    );
+
+    await expect(
+      createAdminBookingHandoffCheckout({
+        token: "synthetic-handoff-token",
+        properties: [{}],
+      }),
+    ).rejects.toThrow("Selected time is no longer available");
+    expect(
+      globalThis.__adminBookingHandoffStripeCheckoutCreate,
+    ).not.toHaveBeenCalled();
+
+    previewAdminBookingPreparation.mockResolvedValueOnce({
+      totalAmount: 450,
+      properties: [],
+    });
+    evaluateCheckoutPromotionPricing.mockResolvedValueOnce({
+      selectedPromotion: { promotionId: 55, benefitAmount: 100 },
+    });
+    reservePromotionForCheckoutTransaction.mockRejectedValueOnce(
+      new Error("Promotion is no longer eligible for checkout"),
+    );
+
+    await expect(
+      createAdminBookingHandoffCheckout({
+        token: "synthetic-handoff-token",
+        properties: [],
+      }),
+    ).rejects.toThrow("Promotion is no longer eligible for checkout");
+    expect(
+      globalThis.__adminBookingHandoffStripeCheckoutCreate,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("expires a newly created Stripe session when the database transaction cannot finish", async () => {
+    transactionRecord.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+    transactionRecord.update.mockImplementation((values) => {
+      if (values?.stripePaymentIntentId === "cs_synthetic_checkout") {
+        throw new Error("Synthetic transaction commit failure");
+      }
+      return Promise.resolve(transactionRecord);
+    });
+
+    await expect(
+      createAdminBookingHandoffCheckout({
+        token: "synthetic-handoff-token",
+        properties: [],
+      }),
+    ).rejects.toThrow("Synthetic transaction commit failure");
+
+    expect(
+      globalThis.__adminBookingHandoffStripeCheckoutExpire,
+    ).toHaveBeenCalledWith("cs_synthetic_checkout");
   });
 });

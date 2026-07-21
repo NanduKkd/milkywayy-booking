@@ -2,7 +2,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import BookingHandoffPageClient from "../BookingHandoffPageClient";
 
 jest.mock("@/app/booking/BookNew", () => ({
-  SharedBookingForm: ({ initialProperties, mode, submitBooking }) => (
+  SharedBookingForm: ({
+    discounts,
+    initialProperties,
+    mode,
+    previewPricing,
+    submitBooking,
+  }) => (
     <div data-testid="shared-booking-form" data-booking-mode={mode}>
       <output data-testid="shared-property-count">
         {initialProperties.length}
@@ -10,6 +16,13 @@ jest.mock("@/app/booking/BookNew", () => ({
       <output data-testid="shared-contact-name">
         {initialProperties[0]?.contactName || ""}
       </output>
+      <output data-testid="shared-discount-count">{discounts.length}</output>
+      <button
+        type="button"
+        onClick={() => previewPricing(820, "SYNTHETIC10", initialProperties)}
+      >
+        Preview shared pricing
+      </button>
       <button
         type="button"
         onClick={() =>
@@ -175,6 +188,7 @@ describe("BookingHandoffPageClient OTP verification", () => {
       <BookingHandoffPageClient
         token="synthetic-handoff-token"
         pricingConfig={{}}
+        discounts={[{ id: "wallet-synthetic" }]}
       />,
     );
 
@@ -184,6 +198,7 @@ describe("BookingHandoffPageClient OTP verification", () => {
     expect(screen.getByTestId("shared-contact-name")).toHaveTextContent(
       "Sample Customer",
     );
+    expect(screen.getByTestId("shared-discount-count")).toHaveTextContent("1");
 
     fireEvent.click(screen.getByRole("button", { name: "Submit shared form" }));
 
@@ -203,6 +218,41 @@ describe("BookingHandoffPageClient OTP verification", () => {
         promotionCode: "SYNTHETIC10",
       }),
     );
+  });
+
+  it("previews handoff promotions through the token-scoped endpoint", async () => {
+    global.fetch
+      .mockResolvedValueOnce(jsonResponse(REVIEW_HANDOFF))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          eligibleSubtotal: 820,
+          selectedPromotion: {
+            promotionId: 44,
+            kind: "PERSONAL",
+            benefitAmount: 125,
+          },
+        }),
+      );
+
+    render(
+      <BookingHandoffPageClient
+        token="synthetic-handoff-token"
+        pricingConfig={{}}
+      />,
+    );
+
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Preview shared pricing" }),
+    );
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    expect(global.fetch.mock.calls[1][0]).toBe(
+      "/api/booking-handoffs/synthetic-handoff-token/promotion-preview",
+    );
+    expect(JSON.parse(global.fetch.mock.calls[1][1].body)).toEqual({
+      eligibleSubtotal: 820,
+      promotionCode: "SYNTHETIC10",
+    });
   });
 
   it.each([

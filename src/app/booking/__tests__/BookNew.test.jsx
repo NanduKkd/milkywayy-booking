@@ -369,6 +369,157 @@ describe("BookNew", () => {
     expect(createTransactionAndPaymentIntent).not.toHaveBeenCalled();
   });
 
+  it("shows token-previewed handoff benefits and wallet credit as separate amounts", async () => {
+    const initialProperties = [
+      {
+        localId: "handoff-pricing-property-1",
+        propertyType: "Apartment",
+        propertySize: "2 Bed",
+        services: ["Photography"],
+        videographySubService: "",
+        preferredDate: "2026-08-01",
+        timeSlot: "morning",
+        startTime: "10:00",
+        duration: 2,
+        building: "Synthetic Tower",
+        community: "Test District",
+        unitNumber: "1204",
+        contactName: "Synthetic Customer",
+        contactPhone: "+971500000000",
+        contactEmail: "synthetic@example.test",
+      },
+    ];
+    const previewPricing = jest.fn().mockResolvedValue({
+      success: true,
+      data: {
+        eligibleSubtotal: 500,
+        enteredCode: "",
+        selectedPromotion: {
+          promotionId: 44,
+          name: "Synthetic Personal Benefit",
+          kind: "PERSONAL",
+          benefitAmount: 120,
+        },
+        codeValidation: null,
+      },
+    });
+
+    render(
+      <SharedBookingForm
+        pricingConfig={{
+          Apartment: {
+            sizes: [
+              {
+                label: "2 Bed",
+                prices: { Photography: { price: 500, slots: 2 } },
+              },
+            ],
+          },
+        }}
+        discounts={[
+          {
+            id: "wallet-synthetic",
+            type: "wallet",
+            isActive: true,
+            minAmount: 0,
+            percentage: 5,
+            maxDiscount: 100,
+            expiryDays: 30,
+          },
+        ]}
+        initialProperties={initialProperties}
+        submitBooking={jest.fn()}
+        previewPricing={previewPricing}
+        mode="handoff"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getAllByText("Synthetic Personal Benefit"),
+      ).not.toHaveLength(0);
+    });
+    expect(screen.getByText("- AED 120")).toBeInTheDocument();
+    expect(screen.getByText("Wallet credit earned")).toBeInTheDocument();
+    expect(screen.getByText("AED 25")).toBeInTheDocument();
+    expect(screen.getByTestId("mobile-booking-total")).toHaveTextContent(
+      "AED 380",
+    );
+    expect(previewPricing).toHaveBeenCalledWith(500, "");
+  });
+
+  it("renders superseded and invalid handoff code feedback with normal semantics", async () => {
+    const previewPricing = jest.fn((subtotal, code) =>
+      Promise.resolve({
+        success: true,
+        data: {
+          eligibleSubtotal: subtotal,
+          enteredCode: code,
+          selectedPromotion: {
+            promotionId: 44,
+            name: "Synthetic Personal Benefit",
+            kind: "PERSONAL",
+            benefitAmount: 120,
+          },
+          codeValidation:
+            code === "BETTERPERSONAL"
+              ? {
+                  status: "SUPERSEDED",
+                  message:
+                    "A better promotion is already applied to this booking.",
+                }
+              : code === "INVALID"
+                ? { status: "INVALID", message: "Invalid promo code" }
+                : null,
+        },
+      }),
+    );
+
+    render(
+      <SharedBookingForm
+        pricingConfig={{
+          Apartment: {
+            sizes: [
+              {
+                label: "2 Bed",
+                prices: { Photography: { price: 500, slots: 2 } },
+              },
+            ],
+          },
+        }}
+        initialProperties={[
+          {
+            localId: "handoff-code-property-1",
+            propertyType: "Apartment",
+            propertySize: "2 Bed",
+            services: ["Photography"],
+            preferredDate: "2026-08-01",
+            timeSlot: "morning",
+            startTime: "10:00",
+            duration: 2,
+          },
+        ]}
+        submitBooking={jest.fn()}
+        previewPricing={previewPricing}
+        mode="handoff"
+      />,
+    );
+
+    const input = screen.getByPlaceholderText(/Enter promo code/i);
+    fireEvent.change(input, { target: { value: "BETTERPERSONAL" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(
+      await screen.findByText(
+        "A better promotion is already applied to this booking.",
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.click(input.parentElement.querySelector("button"));
+    fireEvent.change(input, { target: { value: "INVALID" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(await screen.findByText("Invalid promo code")).toBeInTheDocument();
+  });
+
   it("adds a new property", async () => {
     render(
       <Suspense fallback={<div>Loading...</div>}>

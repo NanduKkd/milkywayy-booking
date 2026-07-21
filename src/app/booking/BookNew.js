@@ -659,7 +659,15 @@ export function SharedBookingForm({
         return;
       }
 
-      const res = await previewPricing(totalAmount, appliedPromotionCode);
+      let res;
+      try {
+        res = await previewPricing(totalAmount, appliedPromotionCode);
+      } catch (error) {
+        res = {
+          success: false,
+          message: error?.message || "Unable to load promotion pricing",
+        };
+      }
 
       if (isCancelled) return;
 

@@ -40,7 +40,11 @@ function buildCustomerDisplayName(customer) {
   return customer.fullName || customer.email || customer.phone || "Customer";
 }
 
-export default function BookingHandoffPageClient({ token, pricingConfig }) {
+export default function BookingHandoffPageClient({
+  token,
+  pricingConfig,
+  discounts = [],
+}) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -208,6 +212,45 @@ export default function BookingHandoffPageClient({ token, pricingConfig }) {
       }
 
       window.location.href = payload.url;
+    },
+    [token],
+  );
+
+  const previewPricing = useCallback(
+    async (eligibleSubtotal, promotionCode) => {
+      try {
+        const response = await fetch(
+          `/api/booking-handoffs/${token}/promotion-preview`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              eligibleSubtotal,
+              promotionCode,
+            }),
+          },
+        );
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          return {
+            success: false,
+            message: payload?.error || "Unable to load promotion pricing",
+          };
+        }
+
+        return {
+          success: true,
+          data: payload,
+        };
+      } catch (requestError) {
+        return {
+          success: false,
+          message: requestError?.message || "Unable to load promotion pricing",
+        };
+      }
     },
     [token],
   );
@@ -473,8 +516,10 @@ export default function BookingHandoffPageClient({ token, pricingConfig }) {
             <div className="-mx-4 -mb-6">
               <SharedBookingForm
                 pricingConfig={pricingConfig}
+                discounts={discounts}
                 initialProperties={handoffProperties}
                 submitBooking={startCheckout}
+                previewPricing={previewPricing}
                 mode="handoff"
               />
             </div>
