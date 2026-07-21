@@ -508,6 +508,21 @@ describe("adminBookingHandoffs transaction locks", () => {
     expect(result.selectedPromotion.kind).toBe("PERSONAL");
   });
 
+  it("normalizes token verification failures before protected lookups", async () => {
+    jwtVerify.mockRejectedValueOnce(new Error("Invalid Compact JWS"));
+
+    await expect(
+      previewAdminBookingHandoffPromotionPricing({
+        token: "synthetic-malformed-token",
+        eligibleSubtotal: 820,
+        requestSource: "test-suite",
+      }),
+    ).rejects.toThrow("Invalid booking handoff link");
+
+    expect(Transaction.findByPk).not.toHaveBeenCalled();
+    expect(evaluateCheckoutPromotionPricing).not.toHaveBeenCalled();
+  });
+
   it.each([
     [
       "registration-unverified",

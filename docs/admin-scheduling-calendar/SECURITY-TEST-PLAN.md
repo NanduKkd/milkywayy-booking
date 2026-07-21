@@ -34,6 +34,11 @@
   customer only after current-version, expiry, payment, OTP, ownership, and
   customer-role checks. The same automatic, personal, generic-code, payable,
   and separate wallet-credit states render through the shared order summary.
+- Signed handoff-token verification maps malformed compact JWS, signature,
+  issuer, and audience failures to the same `Invalid booking handoff link`
+  response before any transaction/customer lookup. The route regression matrix
+  also preserves valid protected-state and rate-limit behavior without exposing
+  jose details or token material.
 - Final handoff checkout repeats token and ownership checks after locking the
   existing transaction. Synthetic coverage changes availability, token version,
   promotion eligibility, and promotion reservation outcome after preview;
@@ -76,7 +81,7 @@ npx jest --runInBand src/app/booking/__tests__/BookNew.test.jsx src/app/booking/
 The focused token-scoped pricing and atomic checkout command is:
 
 ```bash
-npx jest --runInBand --runTestsByPath src/lib/services/__tests__/adminBookingHandoffs.test.js src/lib/services/__tests__/promotionPricing.test.js src/lib/services/__tests__/promotionCheckout.test.js src/app/booking/__tests__/BookNew.test.jsx 'src/app/booking/handoff/[token]/__tests__/BookingHandoffPageClient.test.jsx' 'src/app/api/booking-handoffs/[token]/promotion-preview/__tests__/route.test.js' 'src/app/api/booking-handoffs/[token]/checkout/__tests__/route.test.js'
+STRIPE_SECRET_KEY=sk_test_synthetic_booking_handoff npx jest --runInBand --transformIgnorePatterns='node_modules/(?!jose)' --runTestsByPath src/lib/services/__tests__/adminBookingHandoffs.test.js src/lib/services/__tests__/promotionPricing.test.js src/lib/services/__tests__/promotionCheckout.test.js src/app/booking/__tests__/BookNew.test.jsx 'src/app/booking/handoff/[token]/__tests__/BookingHandoffPageClient.test.jsx' 'src/app/api/booking-handoffs/[token]/promotion-preview/__tests__/route.test.js' 'src/app/api/booking-handoffs/[token]/promotion-preview/__tests__/route.integration.test.js' 'src/app/api/booking-handoffs/[token]/checkout/__tests__/route.test.js'
 ```
 
 ## Manual gates

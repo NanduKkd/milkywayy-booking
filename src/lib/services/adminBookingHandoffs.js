@@ -238,10 +238,16 @@ async function issueHandoffToken({ transactionId, version }) {
 }
 
 async function verifyHandoffToken(token) {
-  const { payload } = await jwtVerify(token, sessionConfig.key, {
-    issuer: HANDOFF_TOKEN_ISSUER,
-    audience: HANDOFF_TOKEN_AUDIENCE,
-  });
+  let payload;
+
+  try {
+    ({ payload } = await jwtVerify(token, sessionConfig.key, {
+      issuer: HANDOFF_TOKEN_ISSUER,
+      audience: HANDOFF_TOKEN_AUDIENCE,
+    }));
+  } catch {
+    throw new Error("Invalid booking handoff link");
+  }
 
   return {
     transactionId: Number(payload.transactionId || 0),
