@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { jwtVerify, SignJWT } from "jose";
 import { Op } from "sequelize";
 import Stripe from "stripe";
+import { z } from "zod";
 import { getDiscounts } from "@/lib/actions/discounts";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { sessionConfig } from "@/lib/config/session";
@@ -35,6 +36,10 @@ import {
   verifyCustomerOtp,
 } from "@/lib/services/customerAuth";
 import {
+  consumeRateLimit,
+  RateLimitExceededError,
+} from "@/lib/services/oauthRateLimits";
+import {
   releasePromotionForCheckoutTransaction,
   reservePromotionForCheckoutTransaction,
 } from "@/lib/services/promotionCheckout";
@@ -47,6 +52,18 @@ import { previewAdminBookingPreparation } from "./adminBookingPreparation";
 
 const HANDOFF_TOKEN_AUDIENCE = "admin-booking-handoff";
 const HANDOFF_TOKEN_ISSUER = "milkywayy";
+const HANDOFF_PROMOTION_PREVIEW_LIMITS = {
+  token: {
+    bucketType: "booking-handoff-preview-token",
+    limit: 120,
+    windowMs: 60 * 1000,
+  },
+  source: {
+    bucketType: "booking-handoff-preview-source",
+    limit: 180,
+    windowMs: 60 * 1000,
+  },
+};
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
@@ -247,11 +264,32 @@ async function expireCheckoutSession(sessionId) {
   } catch (error) {
     if (!String(error?.message || "").includes("already expired")) {
       console.error("Failed to expire Stripe checkout session", {
-        sessionId,
         error: error?.message || String(error),
       });
     }
   }
+}
+
+function normalizeRequestSource(requestSource) {
+  const normalized = String(requestSource ?? "").trim();
+  return normalized || "unknown";
+}
+
+async function applyHandoffPromotionPreviewRateLimits({
+  token,
+  requestSource,
+  now,
+}) {
+  await consumeRateLimit({
+    ...HANDOFF_PROMOTION_PREVIEW_LIMITS.token,
+    key: `token:${token}`,
+    now,
+  });
+  await consumeRateLimit({
+    ...HANDOFF_PROMOTION_PREVIEW_LIMITS.source,
+    key: `source:${normalizeRequestSource(requestSource)}`,
+    now,
+  });
 }
 
 async function ensureUniqueCustomerIdentity(
@@ -443,6 +481,34 @@ async function resolveTransactionFromToken(token, { transaction = null } = {}) {
   };
 }
 
+function assertHandoffPricingAccess(transactionRecord, handoffMetadata) {
+  if (transactionRecord.status === "success") {
+    throw new Error("This booking handoff has already been paid");
+  }
+
+  if (isAdminBookingHandoffExpired(transactionRecord)) {
+    throw new Error("This booking handoff link has expired");
+  }
+
+  if (!isAdminBookingHandoffCheckoutAllowed(transactionRecord)) {
+    throw new Error("Phone verification is required before pricing or payment");
+  }
+
+  if (!transactionRecord.user || !transactionRecord.userId) {
+    throw new Error("Customer not found");
+  }
+
+  if (Number(transactionRecord.user.id) !== Number(transactionRecord.userId)) {
+    throw new Error("Customer ownership could not be verified");
+  }
+
+  if (transactionRecord.user.role !== USER_ROLES.CUSTOMER) {
+    throw new Error("Customer ownership could not be verified");
+  }
+
+  return handoffMetadata;
+}
+
 async function buildHandoffResponse(
   transactionRecord,
   { transaction = null } = {},
@@ -506,6 +572,40 @@ async function resetCheckoutArtifacts(transactionRecord) {
       status: "pending",
     },
   });
+
+  await transactionRecord.update({
+    promotionId: null,
+    promotionRedemptionId: null,
+    promotionSnapshot: null,
+    stripePaymentIntentId: null,
+  });
+}
+
+async function resetCheckoutArtifactsInTransaction(
+  transactionRecord,
+  transaction,
+) {
+  await releasePromotionForCheckoutTransaction({
+    transactionId: transactionRecord.id,
+    reason: "admin_booking_handoff_checkout_reset",
+    transaction,
+  });
+  await WalletTransaction.destroy({
+    where: {
+      transactionId: transactionRecord.id,
+      status: "pending",
+    },
+    transaction,
+  });
+  await transactionRecord.update(
+    {
+      promotionId: null,
+      promotionRedemptionId: null,
+      promotionSnapshot: null,
+      stripePaymentIntentId: null,
+    },
+    { transaction },
+  );
 }
 
 export async function createAdminBookingHandoff({
@@ -727,6 +827,32 @@ export async function getAdminBookingHandoffByToken({ token } = {}) {
   return buildHandoffResponse(transactionRecord);
 }
 
+export async function previewAdminBookingHandoffPromotionPricing({
+  token,
+  eligibleSubtotal,
+  enteredCode = "",
+  requestSource,
+  now = new Date(),
+} = {}) {
+  await applyHandoffPromotionPreviewRateLimits({
+    token,
+    requestSource,
+    now,
+  });
+
+  const { transactionRecord, handoffMetadata } =
+    await resolveTransactionFromToken(token);
+  assertHandoffPricingAccess(transactionRecord, handoffMetadata);
+
+  return evaluateCheckoutPromotionPricing({
+    userId: transactionRecord.userId,
+    eligibleSubtotal,
+    enteredCode,
+    now,
+    excludeTransactionId: transactionRecord.id,
+  });
+}
+
 export async function sendAdminBookingHandoffOtp({
   token,
   customer,
@@ -825,183 +951,178 @@ export async function createAdminBookingHandoffCheckout({
   }
 
   const { transactionRecord } = await resolveTransactionFromToken(token);
+  assertHandoffPricingAccess(
+    transactionRecord,
+    getAdminBookingHandoffMetadata(transactionRecord),
+  );
+  await expireCheckoutSession(transactionRecord.stripePaymentIntentId);
 
-  if (transactionRecord.status === "success") {
-    throw new Error("This booking handoff has already been paid");
-  }
+  let createdStripeSessionId = null;
 
-  if (isAdminBookingHandoffExpired(transactionRecord)) {
-    throw new Error("This booking handoff link has expired");
-  }
+  try {
+    return await sequelize.transaction(async (transaction) => {
+      const { transactionRecord: lockedTransaction, handoffMetadata } =
+        await resolveTransactionFromToken(token, { transaction });
+      assertHandoffPricingAccess(lockedTransaction, handoffMetadata);
+      await resetCheckoutArtifactsInTransaction(lockedTransaction, transaction);
 
-  if (!isAdminBookingHandoffCheckoutAllowed(transactionRecord)) {
-    throw new Error("Phone verification is required before payment");
-  }
+      const currentBookingIds =
+        getAdminBookingHandoffBookingIds(lockedTransaction);
+      const preview = await previewAdminBookingPreparation({
+        actorUser: {
+          id: handoffMetadata?.createdByUserId || 1,
+          role: USER_ROLES.SUPERADMIN,
+        },
+        input:
+          handoffMetadata?.customerMode === "new"
+            ? {
+                customerMode: "new",
+                customer: buildCustomerSnapshotFromUser(lockedTransaction.user),
+                properties,
+              }
+            : {
+                customerMode: "existing",
+                customerId: lockedTransaction.userId,
+                properties,
+              },
+        excludeBookingIds: currentBookingIds,
+        transaction,
+      });
 
-  await resetCheckoutArtifacts(transactionRecord);
+      const bookingIds = await syncReservationBookings({
+        transactionRecord: lockedTransaction,
+        preparedProperties: preview.properties,
+        customerSnapshot: buildCustomerSnapshotFromUser(lockedTransaction.user),
+        transaction,
+      });
 
-  const finalized = await sequelize.transaction(async (transaction) => {
-    const lockedTransaction = await Transaction.findByPk(transactionRecord.id, {
-      include: [{ model: User, as: "user" }],
-      transaction,
-      lock: { level: transaction.LOCK.UPDATE, of: Transaction },
-    });
-    const handoffMetadata = getAdminBookingHandoffMetadata(lockedTransaction);
-    const currentBookingIds =
-      getAdminBookingHandoffBookingIds(lockedTransaction);
-    const preview = await previewAdminBookingPreparation({
-      actorUser: {
-        id: handoffMetadata?.createdByUserId || 1,
-        role: USER_ROLES.SUPERADMIN,
-      },
-      input:
-        handoffMetadata?.customerMode === "new"
-          ? {
-              customerMode: "new",
-              customer: buildCustomerSnapshotFromUser(lockedTransaction.user),
-              properties,
-            }
-          : {
-              customerMode: "existing",
-              customerId: lockedTransaction.userId,
-              properties,
-            },
-      excludeBookingIds: currentBookingIds,
-      transaction,
-    });
+      const normalizedCode = String(enteredCode || "")
+        .trim()
+        .toUpperCase();
+      const promotionPricing = await evaluateCheckoutPromotionPricing({
+        userId: lockedTransaction.userId,
+        eligibleSubtotal: preview.totalAmount,
+        enteredCode: normalizedCode,
+        transaction,
+        excludeTransactionId: lockedTransaction.id,
+      });
 
-    const bookingIds = await syncReservationBookings({
-      transactionRecord: lockedTransaction,
-      preparedProperties: preview.properties,
-      customerSnapshot: buildCustomerSnapshotFromUser(lockedTransaction.user),
-      transaction,
-    });
+      if (
+        normalizedCode &&
+        !isPromotionCodeValidationSuccessful(promotionPricing.codeValidation)
+      ) {
+        throw new Error(
+          promotionPricing.codeValidation?.message || "Invalid promo code",
+        );
+      }
 
-    const normalizedCode = String(enteredCode || "")
-      .trim()
-      .toUpperCase();
-    const promotionPricing = await evaluateCheckoutPromotionPricing({
-      userId: lockedTransaction.userId,
-      eligibleSubtotal: preview.totalAmount,
-      enteredCode: normalizedCode,
-    });
-
-    if (
-      normalizedCode &&
-      !isPromotionCodeValidationSuccessful(promotionPricing.codeValidation)
-    ) {
-      throw new Error(
-        promotionPricing.codeValidation?.message || "Invalid promo code",
+      const discountsRes = await getDiscounts();
+      const discounts = discountsRes.success ? discountsRes.data : [];
+      const walletPreview = calculateWalletCreditPreview(
+        discounts,
+        preview.totalAmount,
       );
-    }
+      const promotionDeduction = Number(
+        promotionPricing.selectedPromotion?.benefitAmount || 0,
+      );
+      const finalAmount = Math.max(0, preview.totalAmount - promotionDeduction);
 
-    const discountsRes = await getDiscounts();
-    const discounts = discountsRes.success ? discountsRes.data : [];
-    const walletPreview = calculateWalletCreditPreview(
-      discounts,
-      preview.totalAmount,
-    );
-    const promotionDeduction = Number(
-      promotionPricing.selectedPromotion?.benefitAmount || 0,
-    );
-    const finalAmount = Math.max(0, preview.totalAmount - promotionDeduction);
+      if (walletPreview.amount > 0) {
+        await WalletTransaction.create(
+          {
+            userId: lockedTransaction.userId,
+            amount: walletPreview.amount,
+            creditExpiresAt: walletPreview.creditExpiresAt,
+            status: "pending",
+            transactionId: lockedTransaction.id,
+          },
+          { transaction },
+        );
+      }
 
-    await WalletTransaction.destroy({
-      where: {
-        transactionId: lockedTransaction.id,
-        status: "pending",
-      },
-      transaction,
-    });
-
-    if (walletPreview.amount > 0) {
-      await WalletTransaction.create(
+      await lockedTransaction.update(
         {
-          userId: lockedTransaction.userId,
-          amount: walletPreview.amount,
-          creditExpiresAt: walletPreview.creditExpiresAt,
+          amount: finalAmount,
           status: "pending",
-          transactionId: lockedTransaction.id,
+          stripePaymentIntentId: null,
+          metadata: {
+            ...mergeAdminBookingHandoffMetadata(
+              {
+                ...(lockedTransaction.metadata || {}),
+                appliedDiscounts: walletPreview.appliedDiscounts,
+                creditExpiresAt: walletPreview.creditExpiresAt,
+                bookingIds,
+              },
+              handoffMetadata,
+            ),
+          },
         },
         { transaction },
       );
-    }
 
-    await lockedTransaction.update(
-      {
-        amount: finalAmount,
-        status: "pending",
-        stripePaymentIntentId: null,
-        metadata: {
-          ...mergeAdminBookingHandoffMetadata(
-            {
-              ...(lockedTransaction.metadata || {}),
-              appliedDiscounts: walletPreview.appliedDiscounts,
-              creditExpiresAt: walletPreview.creditExpiresAt,
-              bookingIds,
+      if (promotionPricing.selectedPromotion) {
+        await reservePromotionForCheckoutTransaction({
+          transactionId: lockedTransaction.id,
+          userId: lockedTransaction.userId,
+          bookingIds,
+          eligibleSubtotal: preview.totalAmount,
+          enteredCode: normalizedCode,
+          selectedPromotion: promotionPricing.selectedPromotion,
+          reservationExpiresAt: new Date(handoffMetadata.expiresAt),
+          transaction,
+        });
+      }
+
+      const stripeSession = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        customer_email: lockedTransaction.user?.email || undefined,
+        line_items: [
+          {
+            price_data: {
+              currency: "aed",
+              product_data: {
+                name: "Property Shoot Booking",
+                description: `Booking for ${bookingIds.length} propert${bookingIds.length === 1 ? "y" : "ies"}`,
+              },
+              unit_amount: Math.round(finalAmount * 100),
             },
-            handoffMetadata,
-          ),
-        },
-      },
-      { transaction },
-    );
-
-    if (promotionPricing.selectedPromotion) {
-      await reservePromotionForCheckoutTransaction({
-        transactionId: lockedTransaction.id,
-        userId: lockedTransaction.userId,
-        bookingIds,
-        eligibleSubtotal: preview.totalAmount,
-        selectedPromotion: promotionPricing.selectedPromotion,
-        reservationExpiresAt: new Date(handoffMetadata.expiresAt),
-        transaction,
-      });
-    }
-
-    const stripeSession = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      customer_email: lockedTransaction.user?.email || undefined,
-      line_items: [
-        {
-          price_data: {
-            currency: "aed",
-            product_data: {
-              name: "Property Shoot Booking",
-              description: `Booking for ${bookingIds.length} propert${bookingIds.length === 1 ? "y" : "ies"}`,
-            },
-            unit_amount: Math.round(finalAmount * 100),
+            quantity: 1,
           },
-          quantity: 1,
+        ],
+        mode: "payment",
+        success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/cancel?session_id={CHECKOUT_SESSION_ID}`,
+        metadata: {
+          transactionId: String(lockedTransaction.id),
+          userId: String(lockedTransaction.userId),
         },
-      ],
-      mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/booking/cancel?session_id={CHECKOUT_SESSION_ID}`,
-      metadata: {
-        transactionId: String(lockedTransaction.id),
-        userId: String(lockedTransaction.userId),
-      },
-      expires_at: Math.floor(
-        new Date(handoffMetadata.expiresAt).getTime() / 1000,
-      ),
+        expires_at: Math.floor(
+          new Date(handoffMetadata.expiresAt).getTime() / 1000,
+        ),
+      });
+      createdStripeSessionId = stripeSession.id;
+
+      await lockedTransaction.update(
+        {
+          stripePaymentIntentId: stripeSession.id,
+        },
+        { transaction },
+      );
+
+      return {
+        url: stripeSession.url,
+      };
     });
-
-    await lockedTransaction.update(
-      {
-        stripePaymentIntentId: stripeSession.id,
-      },
-      { transaction },
-    );
-
-    return {
-      url: stripeSession.url,
-    };
-  });
-
-  return finalized;
+  } catch (error) {
+    await expireCheckoutSession(createdStripeSessionId);
+    throw error;
+  }
 }
 
 export function isAdminBookingHandoffValidationError(error) {
   return error instanceof z.ZodError;
+}
+
+export function isAdminBookingHandoffRateLimitError(error) {
+  return error instanceof RateLimitExceededError;
 }

@@ -83,9 +83,26 @@ normal bookings/transaction, while handoff mode maps every prepared property
 plus the server-resolved customer contact into initial form values. Handoff
 mode has no normal draft adapter and submits the final property array and
 optional entered code only to `/api/booking-handoffs/[token]/checkout`, which
-continues to synchronize the existing transaction and reservations. Promotion
-preview parity remains a separate delivery; checkout remains server-authoritative
-for promotion selection in the meantime.
+continues to synchronize the existing transaction and reservations.
+
+Handoff mode sends only the opaque token, advisory subtotal, and optional code
+to `/api/booking-handoffs/[token]/promotion-preview`. The route rate-limits the
+token and request source, validates the current token version, four-hour expiry,
+payment state, registration/OTP state, and transaction customer, then evaluates
+the same automatic, personal, and generic-code selector used by normal booking.
+It never accepts a browser-supplied customer identifier. The shared order summary
+shows that selected benefit and the same separately calculated wallet-credit
+earning as `/booking`.
+
+Checkout does not trust the preview. It re-resolves the token after locking the
+existing `Transaction`, revalidates current customer ownership, link state,
+availability, property pricing, promotion eligibility and limits, and then
+updates, adds, or removes that transaction's draft bookings atomically. It
+releases and replaces any prior promotion reservation and pending wallet credit,
+stores the final promotion snapshot and payable amount, and creates Stripe for
+that amount without creating a normal draft or second transaction. A failed
+Stripe/database handoff rolls database changes back and expires any newly
+orphaned Stripe session so the same link can retry safely.
 
 New-customer validation uses one shared boundary for preparation and handoff
 registration. Optional snapshot strings accept their persisted `null`

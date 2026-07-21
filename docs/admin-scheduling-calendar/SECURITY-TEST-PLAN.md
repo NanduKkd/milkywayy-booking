@@ -29,6 +29,21 @@
 - Registration-required handoffs cannot render the shared property form before
   OTP verification. Invalid, expired, superseded, and already-paid responses
   keep the form inaccessible.
+- Token-scoped promotion preview rate-limits both the opaque token and request
+  source, ignores browser-supplied identity, and resolves the transaction
+  customer only after current-version, expiry, payment, OTP, ownership, and
+  customer-role checks. The same automatic, personal, generic-code, payable,
+  and separate wallet-credit states render through the shared order summary.
+- Final handoff checkout repeats token and ownership checks after locking the
+  existing transaction. Synthetic coverage changes availability, token version,
+  promotion eligibility, and promotion reservation outcome after preview;
+  checkout must fail before Stripe when any current fact is invalid.
+- Edited, added, duplicated, and removed properties replace the existing
+  transaction's booking set inside the checkout transaction. No normal draft or
+  second transaction is created, and stale booking rows are removed.
+- Checkout retry replaces prior pending wallet and promotion artifacts. A
+  Stripe or database failure rolls back the synchronized booking/payment state
+  and expires a newly orphaned Stripe session.
 - Handoff links are scoped, expiring, revocable, and cannot expose another
   customer's account or prepared properties.
 - Handoff links expire after four hours; regeneration invalidates the previous
@@ -56,6 +71,12 @@ The focused shared-form and handoff-state command is:
 
 ```bash
 npx jest --runInBand src/app/booking/__tests__/BookNew.test.jsx src/app/booking/__tests__/bookingFormAdapters.test.js src/app/booking/components/__tests__/PropertyCard.test.jsx 'src/app/booking/handoff/[token]/__tests__/BookingHandoffPageClient.test.jsx' 'src/app/api/booking-handoffs/[token]/__tests__/route.test.js' 'src/app/api/booking-handoffs/[token]/checkout/__tests__/route.test.js'
+```
+
+The focused token-scoped pricing and atomic checkout command is:
+
+```bash
+npx jest --runInBand --runTestsByPath src/lib/services/__tests__/adminBookingHandoffs.test.js src/lib/services/__tests__/promotionPricing.test.js src/lib/services/__tests__/promotionCheckout.test.js src/app/booking/__tests__/BookNew.test.jsx 'src/app/booking/handoff/[token]/__tests__/BookingHandoffPageClient.test.jsx' 'src/app/api/booking-handoffs/[token]/promotion-preview/__tests__/route.test.js' 'src/app/api/booking-handoffs/[token]/checkout/__tests__/route.test.js'
 ```
 
 ## Manual gates
@@ -86,5 +107,8 @@ the ignored local worksheet `docs/private/ADMIN-SCHEDULING-CALENDAR-ROLLOUT.md`.
 - A joined handoff query emits an unscoped row lock, removes transaction
   serialization from OTP, regeneration, or checkout, or depends on unrelated
   route evaluation to initialize `Transaction.user`.
+- A preview reveals promotion eligibility before token/current-version/OTP
+  validation, trusts a browser customer ID, or final checkout accepts a stale
+  preview, leaves duplicate bookings/transactions, or charges a mismatched amount.
 - Unauthorized users receive customer contact or property schedule details.
 - A block can cancel, move, or override an active booking.

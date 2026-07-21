@@ -50,18 +50,18 @@ Notion workspace is retained only as a migration archive.
 
 ## Current repository health
 
-Most recent full-suite evidence recorded during issue #56 verification on
+Most recent full-suite evidence recorded during issue #62 verification on
 2026-07-21:
 
-- `npm run test:jest:full`: `177` test suites passed and `11` failed. `1,052`
+- `npm run test:jest:full`: `181` test suites passed and `11` failed. `1,089`
   tests passed and `43` failed.
 - `npm run lint`: checked `579` files and reported `293` errors and `59`
   warnings in the pre-existing repository-wide backlog.
-- `npm run verify:scheduling-calendar-rollout`: `171` tests passed across `33`
-  suites after combining #56 and #58, including the shared nullable-customer
-  boundary, concise API errors, tablet video-option layout, service-boundary
-  relation initialization, transaction-only handoff row locks, and locked
-  customer details during active OTP registration.
+- `npm run verify:scheduling-calendar-rollout`: `212` tests passed across `36`
+  suites after issue #62 added token-scoped promotion preview, atomic handoff
+  booking synchronization, shared promotion/wallet summary parity, locked
+  checkout revalidation, promotion reservation retry, and Stripe failure
+  cleanup coverage.
 
 Interpretation:
 
