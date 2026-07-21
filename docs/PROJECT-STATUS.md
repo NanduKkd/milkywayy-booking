@@ -52,12 +52,13 @@ Notion workspace is retained only as a migration archive.
 
 Most recent full-suite evidence recorded on 2026-07-21:
 
-- `npm test -- --runInBand`: `177` test suites passed and `11` failed. `1050`
+- `npm test -- --runInBand`: `177` test suites passed and `11` failed. `1052`
   tests passed and `43` failed.
 - `npm run lint`: the repository-wide Biome baseline remains non-green with a substantial pre-existing backlog.
-- `npm run verify:scheduling-calendar-rollout`: `154` tests passed across `30`
-  suites, including focused synthetic coverage for transaction-only handoff
-  row locks in OTP send, OTP verification, and regeneration.
+- `npm run verify:scheduling-calendar-rollout`: `156` tests passed across `30`
+  suites, including focused synthetic coverage for service-boundary relation
+  initialization and transaction-only handoff row locks in OTP send, OTP
+  verification, regeneration, and checkout.
 
 Interpretation:
 

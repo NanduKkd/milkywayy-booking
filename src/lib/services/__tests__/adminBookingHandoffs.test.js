@@ -1,17 +1,21 @@
 import { jwtVerify, SignJWT } from "jose";
+import { getDiscounts } from "@/lib/actions/discounts";
 import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
+import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
 import {
   createAdminBookingHandoff,
+  createAdminBookingHandoffCheckout,
   sendAdminBookingHandoffOtp,
   verifyAdminBookingHandoffOtp,
 } from "../adminBookingHandoffs";
 import { previewAdminBookingPreparation } from "../adminBookingPreparation";
 import { sendCustomerOtp, verifyCustomerOtp } from "../customerAuth";
 import { releasePromotionForCheckoutTransaction } from "../promotionCheckout";
+import { evaluateCheckoutPromotionPricing } from "../promotionPricing";
 
 const mockTransaction = {
   LOCK: {
@@ -32,13 +36,35 @@ jest.mock("jose", () => ({
   })),
 }));
 
-jest.mock("stripe", () => jest.fn());
+jest.mock("stripe", () => {
+  globalThis.__adminBookingHandoffStripeCheckoutCreate = jest.fn();
+  globalThis.__adminBookingHandoffStripeCheckoutExpire = jest.fn();
+
+  return jest.fn(() => ({
+    checkout: {
+      sessions: {
+        create: globalThis.__adminBookingHandoffStripeCheckoutCreate,
+        expire: globalThis.__adminBookingHandoffStripeCheckoutExpire,
+      },
+    },
+  }));
+});
+
+jest.mock("@/lib/actions/discounts", () => ({
+  getDiscounts: jest.fn(),
+}));
 
 jest.mock("@/lib/db/db", () => ({
   sequelize: {
     transaction: jest.fn((callback) => callback(mockTransaction)),
   },
 }));
+
+jest.mock("@/lib/db/relations", () => {
+  globalThis.__adminBookingHandoffRelationsInitializationCount =
+    (globalThis.__adminBookingHandoffRelationsInitializationCount || 0) + 1;
+  return {};
+});
 
 jest.mock("@/lib/db/models/booking", () => ({
   create: jest.fn(),
@@ -58,7 +84,12 @@ jest.mock("@/lib/db/models/user", () => ({
 }));
 
 jest.mock("@/lib/db/models/wallettransaction", () => ({
+  create: jest.fn(),
   destroy: jest.fn(),
+}));
+
+jest.mock("@/lib/helpers/promotionPricing", () => ({
+  calculateWalletCreditPreview: jest.fn(),
 }));
 
 jest.mock("../adminBookingPreparation", () => ({
@@ -163,10 +194,29 @@ describe("adminBookingHandoffs transaction locks", () => {
     Booking.findAll.mockResolvedValue([]);
     WalletTransaction.destroy.mockResolvedValue(0);
     releasePromotionForCheckoutTransaction.mockResolvedValue(null);
+    evaluateCheckoutPromotionPricing.mockResolvedValue({
+      selectedPromotion: null,
+    });
+    getDiscounts.mockResolvedValue({ success: true, data: [] });
+    calculateWalletCreditPreview.mockReturnValue({
+      amount: 0,
+      appliedDiscounts: [],
+      creditExpiresAt: null,
+    });
+    globalThis.__adminBookingHandoffStripeCheckoutCreate.mockResolvedValue({
+      id: "cs_synthetic_checkout",
+      url: "https://stripe.example.test/synthetic-checkout",
+    });
     previewAdminBookingPreparation.mockResolvedValue({
       totalAmount: 450,
       properties: [],
     });
+  });
+
+  it("initializes model relations at the handoff service boundary", () => {
+    expect(globalThis.__adminBookingHandoffRelationsInitializationCount).toBe(
+      1,
+    );
   });
 
   it("scopes the OTP-send lock to Transaction while retaining the joined customer", async () => {
@@ -262,5 +312,27 @@ describe("adminBookingHandoffs transaction locks", () => {
         customer: expect.objectContaining({ id: 12 }),
       }),
     );
+  });
+
+  it("scopes the checkout reload lock to Transaction", async () => {
+    transactionRecord.metadata.adminBookingHandoff.registrationVerifiedAt =
+      "2026-07-21T08:30:00.000Z";
+
+    const result = await createAdminBookingHandoffCheckout({
+      token: "synthetic-handoff-token",
+      properties: [],
+    });
+
+    expect(Transaction.findByPk).toHaveBeenNthCalledWith(2, 91, {
+      include: [{ model: User, as: "user" }],
+      transaction: mockTransaction,
+      lock: {
+        level: mockTransaction.LOCK.UPDATE,
+        of: Transaction,
+      },
+    });
+    expect(result).toEqual({
+      url: "https://stripe.example.test/synthetic-checkout",
+    });
   });
 });

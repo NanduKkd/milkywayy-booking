@@ -115,7 +115,7 @@ but remain part of the target-environment manual checklist below.
 |---|---|---|
 | Approved feature behavior | \`PASS\` | Current code inspection plus ${totalTests} passing tests cover exact blocks, non-blocking events, multi-property preparation, customer-state handoffs, four-hour pending holds, promotion-aware checkout, and WhatsApp default-off behavior. |
 | Local authorization and error handling | \`PASS\` | Browser/API smoke results above. |
-| Replacement-link invalidation | \`PARTIAL\` | Version replacement and stale-token rejection are implemented in \`adminBookingHandoffs.js\`; automated coverage directly exercises regeneration with synthetic service records and verifies the joined query locks only \`Transaction\`, but does not use persisted database records. |
+| Handoff transaction safety | \`PASS\` | Synthetic service coverage verifies relation initialization at the handoff boundary and exercises OTP send, OTP verification, regeneration, and checkout with joined queries that lock only \`Transaction\`. |
 | Authenticated end-to-end browser flow | \`PENDING\` | Requires a usable Super Admin browser session and test customer/payment setup. |
 | External delivery/payment integrations | \`PENDING\` | Requires target-environment OTP, WhatsApp, and Stripe execution. |
 | Deployment/operations gate (\`CAL-304\`) | \`PENDING\` | Migration, representative data comparison, monitoring confirmation, and rollback rehearsal are not recorded yet. |

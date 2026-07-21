@@ -7,6 +7,7 @@ import { getDiscounts } from "@/lib/actions/discounts";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { sessionConfig } from "@/lib/config/session";
 import { sequelize } from "@/lib/db/db";
+import "@/lib/db/relations";
 import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
@@ -889,7 +890,7 @@ export async function createAdminBookingHandoffCheckout({
     const lockedTransaction = await Transaction.findByPk(transactionRecord.id, {
       include: [{ model: User, as: "user" }],
       transaction,
-      lock: transaction.LOCK.UPDATE,
+      lock: { level: transaction.LOCK.UPDATE, of: Transaction },
     });
     const handoffMetadata = getAdminBookingHandoffMetadata(lockedTransaction);
     const currentBookingIds =

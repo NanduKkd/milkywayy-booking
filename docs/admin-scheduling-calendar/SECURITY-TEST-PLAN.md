@@ -16,10 +16,13 @@
   customer's account or prepared properties.
 - Handoff links expire after four hours; regeneration invalidates the previous
   link and does not create duplicate active reservations.
-- New-customer OTP sending and verification, plus handoff regeneration, retain
-  the joined customer but lock only the root `Transaction` row. Focused service
-  coverage must assert the generated Sequelize lock options so PostgreSQL is
-  never asked to lock the nullable side of the outer join.
+- The handoff service initializes model relations before any public handoff
+  entrypoint runs. Public reads, OTP, checkout, and regeneration can eager-load
+  the associated customer without route-order coupling.
+- New-customer OTP sending and verification, handoff regeneration, and checkout
+  retain the joined customer but lock only the root `Transaction` row. Focused
+  service coverage must assert the generated Sequelize lock options so
+  PostgreSQL is never asked to lock the nullable side of the outer join.
 - Conflict tests cover simultaneous bookings and block versus booking creation.
 - Working-day, full-day block, period block, capacity, override, and rolling-window precedence is deterministic.
 - Dubai timezone boundary tests cover DST-independent midnight, month, and year transitions.
@@ -50,7 +53,8 @@ the ignored local worksheet `docs/private/ADMIN-SCHEDULING-CALENDAR-ROLLOUT.md`.
 - A stale client can create an unacknowledged double booking.
 - Calendar-only events affect customer availability or create booking records.
 - A handoff can access or mutate a different customer's data.
-- A joined handoff query emits an unscoped row lock or removes transaction
-  serialization from OTP or regeneration.
+- A joined handoff query emits an unscoped row lock, removes transaction
+  serialization from OTP, regeneration, or checkout, or depends on unrelated
+  route evaluation to initialize `Transaction.user`.
 - Unauthorized users receive customer contact or property schedule details.
 - A block can cancel, move, or override an active booking.
