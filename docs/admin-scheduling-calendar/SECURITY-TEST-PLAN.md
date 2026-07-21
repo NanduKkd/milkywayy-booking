@@ -22,6 +22,13 @@
   disabled and the code destination stays visible. Change details clears the
   client attempt and unlocks the fields; resend starts behind a 30-second
   client-side cooldown without disabling OTP entry.
+- The canonical booking form has explicit normal and handoff adapters. Focused
+  mocks assert that handoff mode does not call normal draft load/autosave or
+  normal booking/transaction actions, preserves all prepared property/contact
+  initial values, and submits only through the token-scoped checkout endpoint.
+- Registration-required handoffs cannot render the shared property form before
+  OTP verification. Invalid, expired, superseded, and already-paid responses
+  keep the form inaccessible.
 - Handoff links are scoped, expiring, revocable, and cannot expose another
   customer's account or prepared properties.
 - Handoff links expire after four hours; regeneration invalidates the previous
@@ -43,6 +50,12 @@ preparation/handoff route errors is:
 
 ```bash
 npx jest --runInBand src/lib/services/__tests__/adminBookingPreparation.test.js src/app/api/admin/scheduling-calendar/booking-handoffs/__tests__/route.test.js src/app/api/admin/scheduling-calendar/booking-preparation/__tests__/route.test.js
+```
+
+The focused shared-form and handoff-state command is:
+
+```bash
+npx jest --runInBand src/app/booking/__tests__/BookNew.test.jsx src/app/booking/__tests__/bookingFormAdapters.test.js src/app/booking/components/__tests__/PropertyCard.test.jsx 'src/app/booking/handoff/[token]/__tests__/BookingHandoffPageClient.test.jsx' 'src/app/api/booking-handoffs/[token]/__tests__/route.test.js' 'src/app/api/booking-handoffs/[token]/checkout/__tests__/route.test.js'
 ```
 
 ## Manual gates

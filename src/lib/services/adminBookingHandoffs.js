@@ -128,7 +128,16 @@ function buildEditablePropertyFromBooking(booking) {
       : [],
     videographySubService: booking?.shootDetails?.videographySubService || "",
     preferredDate: booking?.date || "",
+    timeSlot:
+      booking?.slot === 1
+        ? "morning"
+        : booking?.slot === 2
+          ? "afternoon"
+          : booking?.slot === 3
+            ? "evening"
+            : "",
     startTime: booking?.startTime || "",
+    duration: Number(booking?.duration || 0),
     building: booking?.propertyDetails?.building || "",
     community: booking?.propertyDetails?.community || "",
     unitNumber:

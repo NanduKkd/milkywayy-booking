@@ -1,6 +1,6 @@
 # Admin scheduling calendar decisions
 
-- Last updated: 2026-07-20
+- Last updated: 2026-07-21
 
 ## Accepted decisions
 
@@ -30,6 +30,7 @@
 | CAL-D022 | Calendar availability mutation is limited to named Morning, Afternoon, and Evening slots. Exact-time and dedicated full-day creation controls are absent. Existing exact/full-day blocks remain represented by the Time Slots contract, are identified generically in Calendar, and can be cleared without exposing clock ranges. | The admin is a compact repeat-use tool, and named slots are the accepted operational granularity. Backward compatibility avoids silently changing customer availability or stranding persisted blocks. |
 | CAL-D023 | Calendar month cells have fixed height and show no more than two short status-colored markers followed by an accessible `+N` overflow count. The selected-day panel exposes the complete schedule with bookings before informational events and availability controls. | Busy days remain scannable without losing access to any entry. |
 | CAL-D024 | The operational calendar is rendered only at `/admin/scheduling-calendar`; `/admin/timeslots` remains the configuration authority for working days, named period definitions, rolling windows, and weight models without rendering a duplicate month view. | Calendar navigation and date-specific blocking belong in one predictable operator destination. |
+| CAL-D025 | Normal customer bookings and verified admin handoffs render one canonical property form and order summary behind explicit mode adapters. Normal mode alone owns session authentication, normal drafts, promotion preview, and normal transaction creation; handoff mode initializes from the token-authorized handoff and submits only through its token-scoped checkout endpoint. | Sharing presentation and validation prevents UI drift, while separate side-effect adapters prevent cross-customer draft contamination, a second login, or duplicate transactions. |
 
 ## Deferred decisions
 

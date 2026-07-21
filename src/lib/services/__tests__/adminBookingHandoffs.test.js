@@ -5,17 +5,21 @@ import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
+import { getPricingConfig } from "@/lib/helpers/pricing";
 import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
 import {
   createAdminBookingHandoff,
   createAdminBookingHandoffCheckout,
+  getAdminBookingHandoffByToken,
   sendAdminBookingHandoffOtp,
   verifyAdminBookingHandoffOtp,
 } from "../adminBookingHandoffs";
 import { previewAdminBookingPreparation } from "../adminBookingPreparation";
+import { buildPreparedPropertySummary } from "../bookingPreparation";
 import { sendCustomerOtp, verifyCustomerOtp } from "../customerAuth";
 import { releasePromotionForCheckoutTransaction } from "../promotionCheckout";
 import { evaluateCheckoutPromotionPricing } from "../promotionPricing";
+import { loadSchedulingConflictContext } from "../schedulingConflictRevalidation";
 
 const mockTransaction = {
   LOCK: {
@@ -90,6 +94,10 @@ jest.mock("@/lib/db/models/wallettransaction", () => ({
 
 jest.mock("@/lib/helpers/promotionPricing", () => ({
   calculateWalletCreditPreview: jest.fn(),
+}));
+
+jest.mock("@/lib/helpers/pricing", () => ({
+  getPricingConfig: jest.fn(),
 }));
 
 jest.mock("../adminBookingPreparation", () => ({
@@ -211,12 +219,61 @@ describe("adminBookingHandoffs transaction locks", () => {
       totalAmount: 450,
       properties: [],
     });
+    getPricingConfig.mockResolvedValue({});
+    loadSchedulingConflictContext.mockResolvedValue({ timeSlotConfig: {} });
+    buildPreparedPropertySummary.mockImplementation((property) => ({
+      ...property,
+      total: 450,
+    }));
   });
 
   it("initializes model relations at the handoff service boundary", () => {
     expect(globalThis.__adminBookingHandoffRelationsInitializationCount).toBe(
       1,
     );
+  });
+
+  it("returns duration-derived and legacy slot values for shared-form initialization", async () => {
+    Booking.findAll.mockResolvedValueOnce([
+      {
+        id: 301,
+        bookingReference: "SYNTHETIC-301",
+        propertyDetails: {
+          type: "Apartment",
+          size: "2 Bed",
+          building: "Synthetic Tower",
+          community: "Test District",
+          unit: "1402",
+        },
+        shootDetails: {
+          services: ["Photography"],
+          videographySubService: "",
+        },
+        date: "2026-08-04",
+        slot: 1,
+        startTime: "10:00",
+        duration: 2,
+      },
+    ]);
+
+    const result = await getAdminBookingHandoffByToken({
+      token: "synthetic-handoff-token",
+    });
+
+    expect(result.properties).toEqual([
+      expect.objectContaining({
+        propertyType: "Apartment",
+        propertySize: "2 Bed",
+        services: ["Photography"],
+        preferredDate: "2026-08-04",
+        timeSlot: "morning",
+        startTime: "10:00",
+        duration: 2,
+        building: "Synthetic Tower",
+        community: "Test District",
+        unitNumber: "1402",
+      }),
+    ]);
   });
 
   it("scopes the OTP-send lock to Transaction while retaining the joined customer", async () => {

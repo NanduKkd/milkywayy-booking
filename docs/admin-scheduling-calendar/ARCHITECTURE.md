@@ -75,6 +75,18 @@ completes registration, verifies their phone using the existing OTP flow,
 reviews the editable properties, and continues to payment. For an existing
 customer, the handoff opens directly at property review.
 
+Property review uses the same canonical booking form, responsive
+`PropertyCard` controls, validation, scheduling behavior, dynamic pricing, and
+main order-summary layout as `/booking`. Explicit adapters keep side effects
+separate: normal mode loads and autosaves session-owned drafts and creates the
+normal bookings/transaction, while handoff mode maps every prepared property
+plus the server-resolved customer contact into initial form values. Handoff
+mode has no normal draft adapter and submits the final property array and
+optional entered code only to `/api/booking-handoffs/[token]/checkout`, which
+continues to synchronize the existing transaction and reservations. Promotion
+preview parity remains a separate delivery; checkout remains server-authoritative
+for promotion selection in the meantime.
+
 New-customer validation uses one shared boundary for preparation and handoff
 registration. Optional snapshot strings accept their persisted `null`
 representation: company name, billing address, TRN, and email may be null for an
