@@ -75,11 +75,14 @@ completes registration, verifies their phone using the existing OTP flow,
 reviews the editable properties, and continues to payment. For an existing
 customer, the handoff opens directly at property review.
 
-New-customer handoff registration uses a reusable validation boundary. Optional
-snapshot strings accept their persisted `null` representation: company name,
-billing address, TRN, and email may be null for an Individual customer, while
-contact full name and TRN may be null for a Company customer. Company customers
-still require a non-blank company name, billing address, and email.
+New-customer validation uses one shared boundary for preparation and handoff
+registration. Optional snapshot strings accept their persisted `null`
+representation: company name, billing address, TRN, and email may be null for an
+Individual customer, while contact full name and TRN may be null for a Company
+customer. Company customers still require a non-blank company name, billing
+address, and email. API responses reduce genuine schema failures to one concise
+validation message while the complete error remains available to server-side
+diagnostics.
 
 After an OTP is sent, the handoff keeps the destination visible but locks the
 account and customer fields so they cannot diverge from the active verification

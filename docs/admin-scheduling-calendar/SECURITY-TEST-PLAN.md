@@ -12,10 +12,12 @@
   mutation, and unsupported statuses; events never alter availability.
 - Admin booking preparation and customer handoff cannot bypass availability,
   pricing, OTP, or required customer/property validation.
-- Handoff registration accepts persisted `null` values at optional
-  customer-string boundaries, including non-applicable Individual company fields
-  and email, while preserving Company name, billing address, and email
-  requirements.
+- Preparation and handoff registration accept persisted `null` values at
+  optional customer-string boundaries, including non-applicable Individual
+  company fields and optional Company contact name/TRN, while preserving Company
+  name, billing address, and email requirements. Validation responses expose one
+  safe actionable message rather than a serialized schema issue array; server
+  logs retain the complete diagnostic error.
 - While an OTP verification ID is active, the customer/account inputs remain
   disabled and the code destination stays visible. Change details clears the
   client attempt and unlocks the fields; resend starts behind a 30-second
@@ -35,6 +37,13 @@
 - Working-day, full-day block, period block, capacity, override, and rolling-window precedence is deterministic.
 - Dubai timezone boundary tests cover DST-independent midnight, month, and year transitions.
 - Audit metadata records authorized overrides without logging unnecessary PII.
+
+The focused regression command for the nullable-customer boundary and safe
+preparation/handoff route errors is:
+
+```bash
+npx jest --runInBand src/lib/services/__tests__/adminBookingPreparation.test.js src/app/api/admin/scheduling-calendar/booking-handoffs/__tests__/route.test.js src/app/api/admin/scheduling-calendar/booking-preparation/__tests__/route.test.js
+```
 
 ## Manual gates
 

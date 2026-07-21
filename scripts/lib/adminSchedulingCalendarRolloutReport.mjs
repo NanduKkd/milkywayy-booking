@@ -59,6 +59,8 @@ export const rolloutVerificationGroups = [
       "src/lib/helpers/__tests__/bookingUtils.test.js",
       "src/components/__tests__/DateSlotPicker.test.jsx",
       "src/app/booking/__tests__/BookNew.test.jsx",
+      "src/app/booking/components/__tests__/PropertyServicesSection.test.jsx",
+      "src/app/booking/components/__tests__/VideographyOptionsSection.test.jsx",
       "src/app/api/admin/bookings/__tests__/route.test.js",
     ],
   },

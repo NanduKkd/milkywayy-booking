@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
 import "@/lib/db/relations";
 import { auth } from "@/lib/helpers/auth";
+import { getAdminBookingValidationMessage } from "@/lib/services/adminBookingCustomerValidation";
 import {
   createAdminBookingHandoff,
   isAdminBookingHandoffValidationError,
@@ -52,13 +53,16 @@ export async function POST(request) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Error creating admin booking handoff:", error);
+    const isValidationError = isAdminBookingHandoffValidationError(error);
 
     return NextResponse.json(
       {
-        error: error?.message || "Failed to create booking handoff",
+        error: isValidationError
+          ? getAdminBookingValidationMessage(error)
+          : error?.message || "Failed to create booking handoff",
       },
       {
-        status: isAdminBookingHandoffValidationError(error)
+        status: isValidationError
           ? 400
           : isSchedulingAvailabilityConflict(error)
             ? 409

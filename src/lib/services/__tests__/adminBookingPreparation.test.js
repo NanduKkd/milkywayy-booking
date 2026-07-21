@@ -182,6 +182,105 @@ describe("adminBookingPreparation service", () => {
     );
   });
 
+  it("accepts persisted nulls for non-applicable individual customer fields", async () => {
+    const result = await previewAdminBookingPreparation({
+      actorUser: { id: 1, role: "SUPERADMIN" },
+      input: {
+        customerMode: "new",
+        customer: {
+          accountType: "INDIVIDUAL",
+          fullName: "Lina Client",
+          companyName: null,
+          billingAddress: null,
+          trn: null,
+          phone: "+971500000099",
+          email: null,
+        },
+        properties: [
+          {
+            propertyType: "Apartment",
+            propertySize: "1 Bed",
+            services: ["Photography"],
+            preferredDate: "2099-07-21",
+            startTime: "13:00",
+            building: "Park Heights",
+            community: "Dubai Hills",
+            unitNumber: "803",
+          },
+        ],
+      },
+    });
+
+    expect(result.customer).toEqual(
+      expect.objectContaining({
+        accountType: "INDIVIDUAL",
+        companyName: null,
+        billingAddress: null,
+        trn: null,
+      }),
+    );
+  });
+
+  it("continues to require applicable company customer fields", async () => {
+    await expect(
+      previewAdminBookingPreparation({
+        actorUser: { id: 1, role: "SUPERADMIN" },
+        input: {
+          customerMode: "new",
+          customer: {
+            accountType: "COMPANY",
+            fullName: "Company Contact",
+            companyName: null,
+            billingAddress: null,
+            trn: null,
+            phone: "+971500000099",
+            email: "company@example.com",
+          },
+          properties: [],
+        },
+      }),
+    ).rejects.toThrow("Company name is required");
+  });
+
+  it("keeps the optional company contact name and TRN nullable", async () => {
+    const result = await previewAdminBookingPreparation({
+      actorUser: { id: 1, role: "SUPERADMIN" },
+      input: {
+        customerMode: "new",
+        customer: {
+          accountType: "COMPANY",
+          fullName: null,
+          companyName: "Northstar Realty",
+          billingAddress: "Business Bay, Dubai",
+          trn: null,
+          phone: "+971500000099",
+          email: "accounts@northstar.example",
+        },
+        properties: [
+          {
+            propertyType: "Apartment",
+            propertySize: "1 Bed",
+            services: ["Photography"],
+            preferredDate: "2099-07-21",
+            startTime: "13:00",
+            building: "Park Heights",
+            community: "Dubai Hills",
+            unitNumber: "803",
+          },
+        ],
+      },
+    });
+
+    expect(result.customer).toEqual(
+      expect.objectContaining({
+        accountType: "COMPANY",
+        displayName: "Northstar Realty",
+        fullName: null,
+        trn: null,
+      }),
+    );
+  });
+
   it("rejects unauthorized actors", async () => {
     await expect(
       searchAdminBookingPreparationCustomers({
