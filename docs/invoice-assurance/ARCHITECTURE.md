@@ -37,11 +37,13 @@ RETURNING` in the same allocation transaction. The returned row must match the
 candidate before the plain object is synchronized after commit, so reloads
 retain the allocation and the unique constraint remains effective.
 
-The combined plain-object URL-plus-number path is intentionally not implemented
-here: it depends on the unmerged invoice-URL fallback work from #51. After that
-work merges, #49 must add an integration assertion that a previously unnumbered
-plain transaction completes both number and URL generation without an ORM
-`update` method.
+For a plain object without `update`, `ensureTransactionInvoiceUrl` follows the
+durable number allocation with a constrained `UPDATE` by transaction ID and the
+committed invoice number. That update stores the generated URL and the complete
+template/booking freshness metadata before the object is synchronized. The
+disposable PostgreSQL gate passes a previously unnumbered methodless object
+through `ensureTransactionInvoiceUrl`, reloads the real row, and proves number,
+URL, metadata, and in-memory state agree.
 
 No migration or historical renumbering is part of this behavior: the existing
 unique column is preserved.

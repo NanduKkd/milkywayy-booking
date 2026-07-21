@@ -9,6 +9,14 @@ const {
   applyPromotionPostgresSchema,
 } = require("../../db/testing/promotionPostgresSchema");
 
+jest.mock("puppeteer", () => ({
+  __esModule: true,
+  default: { launch: jest.fn() },
+}));
+jest.mock("@/lib/helpers/pricing", () => ({
+  getPricingConfig: jest.fn(),
+}));
+
 jest.setTimeout(30000);
 
 describe("invoice numbering with disposable PostgreSQL", () => {
@@ -22,7 +30,11 @@ describe("invoice numbering with disposable PostgreSQL", () => {
   let appSequelize;
   let database;
   let ensureTransactionInvoiceNumber;
+  let ensureTransactionInvoiceUrl;
   let models;
+  let mockPuppeteerLaunch;
+  let mockGetPricingConfig;
+  const originalAwsAccessKey = process.env.AWS_ACCESS_KEY_ID;
 
   function replaceApplicationDatabaseEnvironment(environment) {
     for (const [name, value] of Object.entries(environment)) {
@@ -99,6 +111,18 @@ describe("invoice numbering with disposable PostgreSQL", () => {
     database.registerConnection(appSequelize);
     models = require("../../db/models").default;
     ({ ensureTransactionInvoiceNumber } = require("../numbering"));
+    ({ ensureTransactionInvoiceUrl } = require("../invoice"));
+    mockPuppeteerLaunch = require("puppeteer").default.launch;
+    mockGetPricingConfig = require("@/lib/helpers/pricing").getPricingConfig;
+    mockGetPricingConfig.mockResolvedValue({});
+    mockPuppeteerLaunch.mockResolvedValue({
+      newPage: async () => ({
+        setContent: jest.fn(),
+        pdf: jest.fn().mockResolvedValue(Buffer.from("synthetic-invoice")),
+      }),
+      close: jest.fn(),
+    });
+    process.env.AWS_ACCESS_KEY_ID = "mock";
     await appSequelize.authenticate();
   });
 
@@ -107,6 +131,8 @@ describe("invoice numbering with disposable PostgreSQL", () => {
       await database?.close();
     } finally {
       replaceApplicationDatabaseEnvironment(originalDbEnvironment);
+      if (originalAwsAccessKey == null) delete process.env.AWS_ACCESS_KEY_ID;
+      else process.env.AWS_ACCESS_KEY_ID = originalAwsAccessKey;
       jest.resetModules();
     }
   });
@@ -187,6 +213,53 @@ describe("invoice numbering with disposable PostgreSQL", () => {
     ).rejects.toMatchObject({ name: "SequelizeUniqueConstraintError" });
     console.info(
       `[invoice-numbering-postgres] methodless_persisted=${transaction.invoiceNumber} unique=true`,
+    );
+  });
+
+  it("persists number, URL, and template metadata for an unnumbered methodless transaction", async () => {
+    const userId = await createUser();
+    const persistedTransaction = await createSuccessfulTransaction(userId);
+    await models.Booking.create({
+      userId,
+      transactionId: persistedTransaction.id,
+      bookingCode: "MWB-1049",
+      status: "CONFIRMED",
+      total: 100,
+      propertyDetails: {
+        type: "Apartment",
+        size: "1 Bed",
+        unit: "49A",
+      },
+      shootDetails: { services: ["Photography"] },
+    });
+    const transaction = {
+      id: persistedTransaction.id,
+      userId,
+      amount: 100,
+      paidAt: sameDay,
+      metadata: { source: "combined-plain-fallback" },
+    };
+
+    const invoiceUrl = await ensureTransactionInvoiceUrl(transaction, {
+      fullName: "Synthetic Invoice Customer",
+      email: "invoice-smoke@example.test",
+    });
+
+    expect(invoiceUrl).toContain("Milkywayy_Invoice_MW-2026-0721-001_");
+    expect(transaction.invoiceNumber).toBe("MW-2026-0721-001");
+    expect(transaction.invoiceUrl).toBe(invoiceUrl);
+    expect(transaction.metadata).toEqual({
+      source: "combined-plain-fallback",
+      invoiceBookingCount: 1,
+      invoiceTemplateVersion: 3,
+    });
+    await persistedTransaction.reload();
+    expect(persistedTransaction.invoiceNumber).toBe(transaction.invoiceNumber);
+    expect(persistedTransaction.invoiceUrl).toBe(invoiceUrl);
+    expect(persistedTransaction.metadata).toEqual(transaction.metadata);
+    expect(mockPuppeteerLaunch).toHaveBeenCalledTimes(1);
+    console.info(
+      `[invoice-numbering-postgres] combined_plain_fallback=${transaction.invoiceNumber} url_metadata_persisted=true`,
     );
   });
 

@@ -15,6 +15,11 @@ external inputs, calls this builder once, sends that returned HTML to Puppeteer,
 and uploads the resulting PDF. Booking resolution and upload/retry behavior are
 separate concerns from the HTML contract.
 
+The PDF smoke gate invokes that same `buildInvoiceHtml` boundary with explicit
+synthetic inputs, renders it through the local Puppeteer Chromium executable,
+and validates the generated PDF before removal. It supplies data-URI assets and
+does not call storage, Stripe, AWS, a production URL, or a database.
+
 ## Data and trust boundaries
 
 Transaction fields, customer profile fields, booking labels/references, service

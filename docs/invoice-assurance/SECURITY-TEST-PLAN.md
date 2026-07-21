@@ -24,13 +24,28 @@ through `pg_stat_activity` that the second allocator backend is actively
 waiting on that lock before release; a bounded timeout fails rather than
 hanging. After release, the second allocator persists the next distinct
 number. A methodless-object case reloads the real row to prove durable number
-persistence and verifies the real unique constraint rejects a duplicate. It
-never uses production credentials or customer records.
+persistence and verifies the real unique constraint rejects a duplicate. Its
+combined regression passes an unnumbered methodless transaction through
+`ensureTransactionInvoiceUrl`; a synthetic browser boundary returns a safe
+test-only URL while the real row proves durable number, URL, and template
+metadata persistence by ID. It never uses production credentials or customer
+records.
 
 Run focused unit coverage with:
 
 ```bash
-npx jest src/lib/helpers/__tests__/invoice-format.test.js src/lib/helpers/__tests__/numbering.test.js --runInBand --coverage --collectCoverageFrom=src/lib/helpers/invoice-format.js --collectCoverageFrom=src/lib/helpers/numbering.js
+npm run test:invoices:coverage
+```
+
+The focused Jest configuration covers only `invoice.js`, `invoice-format.js`,
+and `numbering.js`, and fails closed below 85% statements or 75% branches over
+that owned set. Its companion proof deliberately raises the statement threshold
+to 101% and accepts only Jest's matching threshold diagnostic; an unrelated
+test, syntax, or configuration failure is rejected rather than misreported as
+proof:
+
+```bash
+npm run test:invoices:quality-gate-proof
 ```
 
 Run the database proof only with the explicit test-admin environment described
@@ -49,6 +64,11 @@ successful setup/tests and setup failures; cleanup refuses any non-reserved
 name. The pull-request workflow runs this command against PostgreSQL 16 and
 runs cleanup in an `always()` step.
 
+The pull-request workflow independently runs the focused unit coverage gate,
+deliberate-failure proof, real PostgreSQL suite, and Chromium PDF smoke. Each
+process has a bounded job and command timeout. The generated PDF remains
+temporary and is never an Actions artifact.
+
 ## Release checks
 
 - Do not weaken or remove the invoice-number unique constraint.
@@ -58,6 +78,6 @@ runs cleanup in an `always()` step.
   and concurrent result in the pull request.
 - Treat an unresolved allocation error as a failed generation path; do not
   synthesize a duplicate or malformed invoice number.
-- After #51's invoice-URL plain-object fallback merges, #49 must prove the
-  combined URL-plus-number path for an unnumbered plain transaction; this task
-  deliberately does not import or duplicate that unmerged fallback.
+- The combined plain-object URL-plus-number regression must continue to reload
+  the real transaction row and prove number, URL, metadata, and in-memory state
+  agree.
