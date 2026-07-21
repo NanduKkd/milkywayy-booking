@@ -16,6 +16,10 @@
   customer-string boundaries, including non-applicable Individual company fields
   and email, while preserving Company name, billing address, and email
   requirements.
+- While an OTP verification ID is active, the customer/account inputs remain
+  disabled and the code destination stays visible. Change details clears the
+  client attempt and unlocks the fields; resend starts behind a 30-second
+  client-side cooldown without disabling OTP entry.
 - Handoff links are scoped, expiring, revocable, and cannot expose another
   customer's account or prepared properties.
 - Handoff links expire after four hours; regeneration invalidates the previous

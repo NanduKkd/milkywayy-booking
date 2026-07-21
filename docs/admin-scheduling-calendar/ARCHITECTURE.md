@@ -81,6 +81,12 @@ billing address, TRN, and email may be null for an Individual customer, while
 contact full name and TRN may be null for a Company customer. Company customers
 still require a non-blank company name, billing address, and email.
 
+After an OTP is sent, the handoff keeps the destination visible but locks the
+account and customer fields so they cannot diverge from the active verification
+attempt. The customer may clear that client attempt with **Change details** or
+request another code after a 30-second client-side cooldown; OTP entry remains
+available throughout the active attempt.
+
 Final validation and checkout reuse normal availability, pricing, eligible
 coupon, promotion, discount, wallet, payment, and invoice services. Completed
 bookings appear in the customer dashboard. A checkbox, unselected by default,
