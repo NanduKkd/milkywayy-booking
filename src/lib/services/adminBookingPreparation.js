@@ -4,71 +4,13 @@ import { USER_ROLES } from "@/lib/config/app.config";
 import User from "@/lib/db/models/user";
 import { getPricingConfig } from "@/lib/helpers/pricing";
 import { bookingSchema } from "@/lib/schema/booking.schema";
+import { adminBookingNewCustomerSchema } from "@/lib/services/adminBookingCustomerValidation";
 import {
   assertBookingPropertiesAvailable,
   buildPreparedPropertySummary,
 } from "@/lib/services/bookingPreparation";
 
 const EXISTING_CUSTOMER_LIMIT = 8;
-
-const optionalEmailSchema = z
-  .string()
-  .trim()
-  .email("Invalid email address")
-  .optional()
-  .or(z.literal(""));
-
-const newCustomerSchema = z
-  .object({
-    accountType: z.enum(["INDIVIDUAL", "COMPANY"]),
-    fullName: z.string().optional(),
-    companyName: z.string().optional(),
-    phone: z
-      .string()
-      .trim()
-      .min(1, "Phone number is required")
-      .min(7, "Phone number is too short"),
-    billingAddress: z.string().optional(),
-    email: optionalEmailSchema,
-    trn: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.accountType === "INDIVIDUAL") {
-      if (!data.fullName?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["fullName"],
-          message: "Full name is required",
-        });
-      }
-    }
-
-    if (data.accountType === "COMPANY") {
-      if (!data.companyName?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["companyName"],
-          message: "Company name is required",
-        });
-      }
-
-      if (!data.billingAddress?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["billingAddress"],
-          message: "Billing address is required",
-        });
-      }
-
-      if (!data.email?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["email"],
-          message: "Email is required",
-        });
-      }
-    }
-  });
 
 const previewPreparationSchema = z.discriminatedUnion("customerMode", [
   z.object({
@@ -78,7 +20,7 @@ const previewPreparationSchema = z.discriminatedUnion("customerMode", [
   }),
   z.object({
     customerMode: z.literal("new"),
-    customer: newCustomerSchema,
+    customer: adminBookingNewCustomerSchema,
     properties: bookingSchema.shape.properties,
   }),
 ]);

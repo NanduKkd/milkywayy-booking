@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { auth } from "@/lib/helpers/auth";
+import { getAdminBookingValidationMessage } from "@/lib/services/adminBookingCustomerValidation";
 import {
   isAdminBookingPreparationValidationError,
   previewAdminBookingPreparation,
@@ -39,13 +40,16 @@ export async function POST(request) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Error previewing admin booking preparation:", error);
+    const isValidationError = isAdminBookingPreparationValidationError(error);
 
     return NextResponse.json(
       {
-        error: error?.message || "Failed to preview admin booking preparation",
+        error: isValidationError
+          ? getAdminBookingValidationMessage(error)
+          : error?.message || "Failed to preview admin booking preparation",
       },
       {
-        status: isAdminBookingPreparationValidationError(error)
+        status: isValidationError
           ? 400
           : isSchedulingAvailabilityConflict(error)
             ? 409

@@ -1,6 +1,6 @@
 # Project Status
 
-- Last updated: 2026-07-13
+- Last updated: 2026-07-21
 - Status: `ACTIVE`
 - Release posture: core product workflows are implemented, but repo-wide quality checks are not fully green
 
@@ -50,11 +50,13 @@ Notion workspace is retained only as a migration archive.
 
 ## Current repository health
 
-Most recent full-suite evidence recorded during the documentation migration on
-2026-07-13:
+Most recent full-suite evidence recorded during issue #56 verification on
+2026-07-21:
 
-- `npm test -- --runInBand`: `169` test suites passed and `6` failed. `804` tests passed and `18` failed.
-- `npm run lint`: the repository-wide Biome baseline remains non-green with a substantial pre-existing backlog.
+- `npm run test:jest:full`: `177` test suites passed and `11` failed. `1,052`
+  tests passed and `43` failed.
+- `npm run lint`: checked `579` files and reported `293` errors and `59`
+  warnings in the pre-existing repository-wide backlog.
 
 Interpretation:
 
@@ -71,6 +73,8 @@ Interpretation:
 - Booking mobile-autoscroll expectations do not match current behavior.
 - OAuth environment/configuration, token, and redirect expectations do not match
   the current implementation or test setup.
+- Local browser/PDF and disposable PostgreSQL suites fail when their required
+  runtime processes are unavailable.
 
 ### Lint / formatting backlog
 

@@ -1,6 +1,6 @@
 # Admin scheduling calendar architecture
 
-- Last updated: 2026-07-02
+- Last updated: 2026-07-21
 
 ## Scheduling authority
 
@@ -74,6 +74,15 @@ name, email, admin-entered phone number, and property details. The customer
 completes registration, verifies their phone using the existing OTP flow,
 reviews the editable properties, and continues to payment. For an existing
 customer, the handoff opens directly at property review.
+
+New-customer validation uses one shared boundary for preparation and handoff
+registration. Optional snapshot strings accept their persisted `null`
+representation: company name, billing address, TRN, and email may be null for an
+Individual customer, while contact full name and TRN may be null for a Company
+customer. Company customers still require a non-blank company name, billing
+address, and email. API responses reduce genuine schema failures to one concise
+validation message while the complete error remains available to server-side
+diagnostics.
 
 Final validation and checkout reuse normal availability, pricing, eligible
 coupon, promotion, discount, wallet, payment, and invoice services. Completed

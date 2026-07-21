@@ -1,6 +1,6 @@
 # Project Overview
 
-- Last updated: 2026-06-30
+- Last updated: 2026-07-21
 
 ## What the application does
 
@@ -18,7 +18,17 @@ commercial data, and publish customer deliverables.
   the service and show completed work.
 - The booking flow collects property and service details, calculates pricing,
   checks scheduling availability, and starts Stripe checkout.
+- When Videography is selected, the format chooser occupies the available
+  services-grid row on mobile and tablet layouts, then moves to the separate
+  desktop region at the large-screen breakpoint. This keeps Short Form and Long
+  Form readable without introducing a fixed width or horizontal overflow.
 - Stripe webhook handling finalizes payment-related booking state.
+
+The focused responsive regression command is:
+
+```bash
+npx jest --runInBand src/app/booking/components/__tests__/PropertyServicesSection.test.jsx src/app/booking/components/__tests__/VideographyOptionsSection.test.jsx
+```
 
 Start with [the public app](../src/app/page.js),
 [landing components](../src/components/landing/), and
