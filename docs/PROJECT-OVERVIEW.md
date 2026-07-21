@@ -18,16 +18,23 @@ commercial data, and publish customer deliverables.
   the service and show completed work.
 - The booking flow collects property and service details, calculates pricing,
   checks scheduling availability, and starts Stripe checkout.
+- The canonical booking form and order summary are shared by customer-started
+  `/booking` visits and verified admin handoffs. Normal mode owns session login,
+  customer draft loading/autosave, promotion preview, and normal transaction
+  creation. Handoff mode initializes the same property cards from the
+  token-authorized response, never reads or writes normal drafts, and submits
+  the validated property array and entered code only to the token-scoped
+  handoff checkout endpoint.
 - When Videography is selected, the format chooser occupies the available
   services-grid row on mobile and tablet layouts, then moves to the separate
   desktop region at the large-screen breakpoint. This keeps Short Form and Long
   Form readable without introducing a fixed width or horizontal overflow.
 - Stripe webhook handling finalizes payment-related booking state.
 
-The focused responsive regression command is:
+The focused booking-form and responsive regression command is:
 
 ```bash
-npx jest --runInBand src/app/booking/components/__tests__/PropertyServicesSection.test.jsx src/app/booking/components/__tests__/VideographyOptionsSection.test.jsx
+npx jest --runInBand src/app/booking/__tests__/BookNew.test.jsx src/app/booking/__tests__/bookingFormAdapters.test.js src/app/booking/components/__tests__/PropertyCard.test.jsx src/app/booking/components/__tests__/PropertyServicesSection.test.jsx src/app/booking/components/__tests__/VideographyOptionsSection.test.jsx 'src/app/booking/handoff/[token]/__tests__/BookingHandoffPageClient.test.jsx'
 ```
 
 Start with [the public app](../src/app/page.js),

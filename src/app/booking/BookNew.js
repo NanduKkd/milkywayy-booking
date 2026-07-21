@@ -1,7 +1,7 @@
 ﻿"use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info, Loader2, Plus } from "lucide-react";
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,10 @@ import {
 import { calculateWalletCreditPreview } from "@/lib/helpers/promotionPricing";
 import { bookingSchema } from "@/lib/schema/booking.schema";
 // Modular Components
+import {
+  createEmptyBookingProperty,
+  mapDraftsToBookingProperties,
+} from "./bookingFormAdapters";
 import { PropertyCard } from "./components/PropertyCard";
 
 const formatScheduleLabel = (property) => {
@@ -58,27 +62,6 @@ const buildLocationLabel = (property) =>
     .filter(Boolean)
     .join(", ");
 
-const createPropertyLocalId = () =>
-  globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-
-const createEmptyProperty = () => ({
-  localId: createPropertyLocalId(),
-  propertyType: "",
-  propertySize: "",
-  services: [],
-  videographySubService: "",
-  preferredDate: "",
-  timeSlot: "",
-  startTime: "",
-  duration: 0,
-  building: "",
-  community: "",
-  unitNumber: "",
-  contactName: "",
-  contactPhone: "+971",
-  contactEmail: "",
-});
-
 const EMPTY_PROMOTION_PREVIEW = {
   selectedPromotion: null,
   codeValidation: null,
@@ -98,14 +81,19 @@ const formatPromotionSummaryLabel = (promotion) => {
 const formatPromotionBadgeLabel = (promotion) =>
   promotion?.name || promotion?.code || "Promotion";
 
-export default function BookNew({ pricingsPromise, discountsPromise }) {
-  const pricingsRes = use(pricingsPromise);
-  const discountsRes = use(discountsPromise);
-
-  const pricings = pricingsRes?.success ? pricingsRes.data : null;
-  const discounts = discountsRes?.success ? discountsRes.data : [];
-
-  const PRICING_CONFIG = pricings || STATIC_PRICING_CONFIG;
+export function SharedBookingForm({
+  pricingConfig = STATIC_PRICING_CONFIG,
+  discounts = [],
+  initialProperties = null,
+  loadInitialProperties = null,
+  autosaveProperties = null,
+  submitBooking,
+  previewPricing = null,
+  isAuthenticated = true,
+  requestLogin = null,
+  mode = "normal",
+}) {
+  const PRICING_CONFIG = pricingConfig || STATIC_PRICING_CONFIG;
   const [openPropertyIndex, setOpenPropertyIndex] = useState(0);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [couponInputValue, setCouponInputValue] = useState("");
@@ -114,7 +102,6 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     EMPTY_PROMOTION_PREVIEW,
   );
   const [promotionPreviewError, setPromotionPreviewError] = useState("");
-  const { authState, login } = useAuth();
 
   const {
     control,
@@ -128,7 +115,10 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     resolver: zodResolver(bookingSchema),
     mode: "all",
     defaultValues: {
-      properties: [createEmptyProperty()],
+      properties:
+        initialProperties?.length > 0
+          ? initialProperties
+          : [createEmptyBookingProperty()],
     },
   });
 
@@ -137,68 +127,47 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     name: "properties",
   });
 
-  const [isLoadingDrafts, setIsLoadingDrafts] = useState(true);
+  const [isLoadingInitialProperties, setIsLoadingInitialProperties] = useState(
+    Boolean(loadInitialProperties),
+  );
 
-  // Load drafts on mount
   useEffect(() => {
-    const loadDrafts = async () => {
+    if (!loadInitialProperties) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+
+    const loadProperties = async () => {
       try {
-        const res = await getDrafts();
-        const drafts = res.success ? res.data : [];
-        if (drafts && drafts.length > 0) {
-          const mappedProperties = drafts.map((draft) => ({
-            localId: String(draft.id || createPropertyLocalId()),
-            propertyType: draft.propertyDetails?.type || "",
-            propertySize: draft.propertyDetails?.size || "",
-            services: draft.shootDetails?.services || [],
-            videographySubService:
-              draft.shootDetails?.videographySubService || "",
-            preferredDate: draft.date || "",
-            timeSlot:
-              draft.slot === 1
-                ? "morning"
-                : draft.slot === 2
-                  ? "afternoon"
-                  : draft.slot === 3
-                    ? "evening"
-                    : "",
-            startTime:
-              draft.startTime ||
-              (draft.slot === 1
-                ? "09:00"
-                : draft.slot === 2
-                  ? "13:00"
-                  : draft.slot === 3
-                    ? "17:00"
-                    : ""),
-            duration: draft.duration || 0,
-            building: draft.propertyDetails?.building || "",
-            community: draft.propertyDetails?.community || "",
-            unitNumber: draft.propertyDetails?.unit || "",
-            contactName: draft.contactDetails?.name || "",
-            contactPhone: draft.contactDetails?.phone || "",
-            contactEmail: draft.contactDetails?.email || "",
-          }));
-          setValue("properties", mappedProperties);
+        const loadedProperties = await loadInitialProperties();
+        if (!isCancelled && loadedProperties?.length > 0) {
+          setValue("properties", loadedProperties);
         }
       } catch (error) {
-        console.error("Failed to load drafts", error);
+        console.error("Failed to load booking properties", error);
       } finally {
-        setIsLoadingDrafts(false);
+        if (!isCancelled) {
+          setIsLoadingInitialProperties(false);
+        }
       }
     };
-    loadDrafts();
-  }, [setValue]);
+    loadProperties();
 
-  // Auto-save drafts
+    return () => {
+      isCancelled = true;
+    };
+  }, [loadInitialProperties, setValue]);
+
   useEffect(() => {
-    if (isLoadingDrafts) return;
-    if (!authState?.isAuthenticated) return;
+    if (isLoadingInitialProperties || !autosaveProperties || !isAuthenticated) {
+      return undefined;
+    }
 
     const timer = setTimeout(async () => {
       try {
         if (properties?.length > 0) {
-          await saveDrafts(properties);
+          await autosaveProperties(properties);
         }
       } catch (err) {
         if (
@@ -212,14 +181,23 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [properties, isLoadingDrafts, authState?.isAuthenticated]);
+  }, [
+    properties,
+    isLoadingInitialProperties,
+    autosaveProperties,
+    isAuthenticated,
+  ]);
 
   const addProperty = () => {
     const currentProperties = getValues("properties");
     const nextIndex = currentProperties.length;
-    setValue("properties", [...currentProperties, createEmptyProperty()], {
-      shouldValidate: false,
-    });
+    setValue(
+      "properties",
+      [...currentProperties, createEmptyBookingProperty()],
+      {
+        shouldValidate: false,
+      },
+    );
     clearErrors(`properties.${nextIndex}`);
     setOpenPropertyIndex(nextIndex);
   };
@@ -228,7 +206,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     const currentProperties = getValues("properties");
     const propertyToDuplicate = {
       ...currentProperties[index],
-      localId: createPropertyLocalId(),
+      localId: createEmptyBookingProperty().localId,
       preferredDate: "",
       timeSlot: "",
       startTime: "",
@@ -568,15 +546,16 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
   };
 
   const onContinue = async (data) => {
-    if (!authState?.isAuthenticated) {
+    if (!isAuthenticated) {
       toast.error("Please login to continue to payment");
-      login();
+      requestLogin?.();
       return;
     }
 
     setIsProcessingPayment(true);
     try {
       if (
+        previewPricing &&
         appliedPromotionCode &&
         !SUCCESSFUL_CODE_VALIDATION_STATUSES.has(
           promotionPreview.codeValidation?.status,
@@ -588,27 +567,14 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
         );
       }
 
-      if (promotionPreviewError) {
+      if (previewPricing && promotionPreviewError) {
         throw new Error(promotionPreviewError);
       }
 
-      // Create bookings first
-      const res = await createBookings(data.properties);
-
-      if (!res.success) throw new Error(res.message);
-      const bookingData = res.data;
-
-      const newBookingIds = bookingData.map((b) => b.id);
-
-      const paymentRes = await createTransactionAndPaymentIntent(
-        newBookingIds,
-        appliedPromotionCode,
-      );
-      if (!paymentRes.success) throw new Error(paymentRes.message);
-
-      const paymentUrl = paymentRes.data?.url;
-      if (!paymentUrl) throw new Error("No payment URL returned");
-      window.location.href = paymentUrl;
+      await submitBooking({
+        properties: data.properties,
+        promotionCode: appliedPromotionCode,
+      });
     } catch (error) {
       console.error("Booking submission error:", error);
       if (
@@ -617,7 +583,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
           .includes("unauthorized")
       ) {
         toast.error("Please login to continue to payment");
-        login();
+        requestLogin?.();
         return;
       }
       toast.error(error.message || "Failed to process payment");
@@ -645,9 +611,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     ? formatPromotionBadgeLabel(selectedPromotion)
     : "";
   const codeValidation = promotionPreview.codeValidation;
-  const previewAuthState = authState?.isAuthenticated
-    ? "authenticated"
-    : "guest";
+  const previewAuthState = isAuthenticated ? "authenticated" : "guest";
   const couponMessage =
     promotionPreviewError ||
     !SUCCESSFUL_CODE_VALIDATION_STATUSES.has(codeValidation?.status)
@@ -686,10 +650,16 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
         return;
       }
 
-      const res = await previewPromotionPricing(
-        totalAmount,
-        appliedPromotionCode,
-      );
+      if (!previewPricing) {
+        setPromotionPreview({
+          ...EMPTY_PROMOTION_PREVIEW,
+          enteredCode: appliedPromotionCode,
+        });
+        setPromotionPreviewError("");
+        return;
+      }
+
+      const res = await previewPricing(totalAmount, appliedPromotionCode);
 
       if (isCancelled) return;
 
@@ -710,7 +680,7 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     return () => {
       isCancelled = true;
     };
-  }, [totalAmount, appliedPromotionCode, previewAuthState]);
+  }, [totalAmount, appliedPromotionCode, previewAuthState, previewPricing]);
 
   const summaryItems = properties
     .map((property, index) => ({
@@ -729,7 +699,11 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
     isProcessingPayment;
 
   return (
-    <section className="relative min-h-[90vh] pt-12 md:pt-16 pb-16">
+    <section
+      className="relative min-h-[90vh] pt-12 md:pt-16 pb-16"
+      data-booking-mode={mode}
+      data-testid="shared-booking-form"
+    >
       <div className="container mx-auto px-4 md:px-6 relative z-10">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 fade-in">
@@ -1033,5 +1007,61 @@ export default function BookNew({ pricingsPromise, discountsPromise }) {
         </div>
       </div>
     </section>
+  );
+}
+
+async function loadNormalBookingProperties() {
+  const res = await getDrafts();
+  return mapDraftsToBookingProperties(res?.success ? res.data : []);
+}
+
+async function autosaveNormalBookingProperties(properties) {
+  return saveDrafts(properties);
+}
+
+async function submitNormalBooking({ properties, promotionCode }) {
+  const bookingResult = await createBookings(properties);
+  if (!bookingResult.success) {
+    throw new Error(bookingResult.message);
+  }
+
+  const bookingIds = bookingResult.data.map((booking) => booking.id);
+  const paymentResult = await createTransactionAndPaymentIntent(
+    bookingIds,
+    promotionCode,
+  );
+  if (!paymentResult.success) {
+    throw new Error(paymentResult.message);
+  }
+
+  const paymentUrl = paymentResult.data?.url;
+  if (!paymentUrl) {
+    throw new Error("No payment URL returned");
+  }
+
+  window.location.href = paymentUrl;
+}
+
+export default function BookNew({ pricingsPromise, discountsPromise }) {
+  const pricingsRes = use(pricingsPromise);
+  const discountsRes = use(discountsPromise);
+  const { authState, login } = useAuth();
+  const isAuthenticated = Boolean(authState?.isAuthenticated);
+  const requestLogin = useCallback(() => login(), [login]);
+
+  return (
+    <SharedBookingForm
+      pricingConfig={
+        pricingsRes?.success ? pricingsRes.data : STATIC_PRICING_CONFIG
+      }
+      discounts={discountsRes?.success ? discountsRes.data : []}
+      loadInitialProperties={loadNormalBookingProperties}
+      autosaveProperties={autosaveNormalBookingProperties}
+      submitBooking={submitNormalBooking}
+      previewPricing={previewPromotionPricing}
+      isAuthenticated={isAuthenticated}
+      requestLogin={requestLogin}
+      mode="normal"
+    />
   );
 }

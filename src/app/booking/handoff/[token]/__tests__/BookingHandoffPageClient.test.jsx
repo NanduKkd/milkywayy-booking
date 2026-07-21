@@ -1,6 +1,30 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import BookingHandoffPageClient from "../BookingHandoffPageClient";
 
+jest.mock("@/app/booking/BookNew", () => ({
+  SharedBookingForm: ({ initialProperties, mode, submitBooking }) => (
+    <div data-testid="shared-booking-form" data-booking-mode={mode}>
+      <output data-testid="shared-property-count">
+        {initialProperties.length}
+      </output>
+      <output data-testid="shared-contact-name">
+        {initialProperties[0]?.contactName || ""}
+      </output>
+      <button
+        type="button"
+        onClick={() =>
+          submitBooking({
+            properties: initialProperties,
+            promotionCode: "SYNTHETIC10",
+          })
+        }
+      >
+        Submit shared form
+      </button>
+    </div>
+  ),
+}));
+
 jest.mock("sonner", () => ({
   toast: {
     error: jest.fn(),
@@ -34,6 +58,30 @@ const HANDOFF = {
     trn: "",
   },
   properties: [],
+};
+
+const REVIEW_HANDOFF = {
+  transactionId: 61,
+  paymentStatus: "pending",
+  isExpired: false,
+  requiresRegistration: false,
+  registrationVerifiedAt: "2026-07-21T12:00:00.000Z",
+  customer: HANDOFF.customer,
+  properties: [
+    {
+      propertyType: "Apartment",
+      propertySize: "2 Bed",
+      services: ["Photography"],
+      videographySubService: "",
+      preferredDate: "2026-08-04",
+      timeSlot: "morning",
+      startTime: "10:00",
+      duration: 2,
+      building: "Synthetic Tower",
+      community: "Test District",
+      unitNumber: "1402",
+    },
+  ],
 };
 
 function jsonResponse(payload) {
@@ -79,6 +127,7 @@ describe("BookingHandoffPageClient OTP verification", () => {
     expect(
       screen.getByText(/Your details are locked while this code is active/i),
     ).toBeInTheDocument();
+    expect(screen.queryByTestId("shared-booking-form")).not.toBeInTheDocument();
   });
 
   it("clears the client OTP attempt when the customer changes details", async () => {
@@ -115,5 +164,85 @@ describe("BookingHandoffPageClient OTP verification", () => {
     expect(
       screen.getByRole("button", { name: "Resend code in 30s" }),
     ).toBeDisabled();
+  });
+
+  it("renders the shared form for a verified handoff and submits to the token endpoint", async () => {
+    global.fetch
+      .mockResolvedValueOnce(jsonResponse(REVIEW_HANDOFF))
+      .mockResolvedValueOnce(jsonResponse({ url: "#synthetic-payment" }));
+
+    render(
+      <BookingHandoffPageClient
+        token="synthetic-handoff-token"
+        pricingConfig={{}}
+      />,
+    );
+
+    const sharedForm = await screen.findByTestId("shared-booking-form");
+    expect(sharedForm).toHaveAttribute("data-booking-mode", "handoff");
+    expect(screen.getByTestId("shared-property-count")).toHaveTextContent("1");
+    expect(screen.getByTestId("shared-contact-name")).toHaveTextContent(
+      "Sample Customer",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Submit shared form" }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    expect(global.fetch.mock.calls[1][0]).toBe(
+      "/api/booking-handoffs/synthetic-handoff-token/checkout",
+    );
+    expect(JSON.parse(global.fetch.mock.calls[1][1].body)).toEqual(
+      expect.objectContaining({
+        properties: [
+          expect.objectContaining({
+            propertyType: "Apartment",
+            building: "Synthetic Tower",
+            contactName: "Sample Customer",
+          }),
+        ],
+        promotionCode: "SYNTHETIC10",
+      }),
+    );
+  });
+
+  it.each([
+    [
+      "expired",
+      { ...REVIEW_HANDOFF, isExpired: true },
+      /This secure link has expired/i,
+    ],
+    [
+      "already paid",
+      { ...REVIEW_HANDOFF, paymentStatus: "success" },
+      /already been completed/i,
+    ],
+  ])(
+    "keeps the %s status outside the shared form",
+    async (_, payload, copy) => {
+      global.fetch.mockResolvedValueOnce(jsonResponse(payload));
+
+      render(<BookingHandoffPageClient token="synthetic-handoff-token" />);
+
+      expect(await screen.findByText(copy)).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("shared-booking-form"),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("keeps invalid and superseded link errors outside the shared form", async () => {
+    global.fetch.mockResolvedValueOnce({
+      ok: false,
+      json: jest.fn().mockResolvedValue({
+        error: "This booking handoff link is no longer active",
+      }),
+    });
+
+    render(<BookingHandoffPageClient token="synthetic-handoff-token" />);
+
+    expect(
+      await screen.findByText("This booking handoff link is no longer active"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("shared-booking-form")).not.toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Suspense } from "react";
 import { PRICING_CONFIG } from "@/lib/config/pricing";
-import BookNew from "../BookNew";
+import BookNew, { SharedBookingForm } from "../BookNew";
 
 // Mocks
 jest.mock("../../../lib/contexts/auth", () => ({
@@ -12,7 +12,9 @@ jest.mock("../../../lib/contexts/auth", () => ({
 }));
 
 jest.mock("../../../lib/actions/bookings", () => ({
-  createBookings: jest.fn(() => Promise.resolve({ success: true, data: [1] })),
+  createBookings: jest.fn(() =>
+    Promise.resolve({ success: true, data: [{ id: 1 }] }),
+  ),
   createTransactionAndPaymentIntent: jest.fn(() =>
     Promise.resolve({ success: true, data: { url: "http://test.com" } }),
   ),
@@ -97,6 +99,7 @@ jest.mock(
 jest.mock("../components/PropertyCard", () => ({
   PropertyCard: ({
     index,
+    onDuplicate,
     onRemove,
     updatePropertyField,
     toggleService,
@@ -116,6 +119,13 @@ jest.mock("../components/PropertyCard", () => ({
             updatePropertyField(index, "propertySize", e.target.value)
           }
         />
+        <button
+          type="button"
+          onClick={() => onDuplicate(index)}
+          data-testid={`duplicate-${index}`}
+        >
+          Duplicate
+        </button>
         <button
           type="button"
           data-testid={`set-date-${index}`}
@@ -244,6 +254,7 @@ describe("BookNew", () => {
     });
 
   beforeEach(() => {
+    jest.clearAllMocks();
     const { useAuth } = require("../../../lib/contexts/auth");
     useAuth.mockReturnValue({
       authState: { isAuthenticated: true },
@@ -252,6 +263,7 @@ describe("BookNew", () => {
   });
 
   it("renders correctly and loads drafts", async () => {
+    const { getDrafts } = require("../../../lib/actions/bookings");
     render(
       <Suspense fallback={<div>Loading...</div>}>
         <BookNew
@@ -267,6 +279,94 @@ describe("BookNew", () => {
     });
 
     expect(screen.getByText(/Book Your Shoot/i)).toBeInTheDocument();
+    expect(getDrafts).toHaveBeenCalledTimes(1);
+  });
+
+  it("runs handoff mode without normal draft or transaction side effects", async () => {
+    const {
+      createBookings,
+      createTransactionAndPaymentIntent,
+      getDrafts,
+      saveDrafts,
+    } = require("../../../lib/actions/bookings");
+    const submitBooking = jest.fn().mockResolvedValue(undefined);
+    const initialProperties = [
+      {
+        localId: "handoff-42-property-1",
+        propertyType: "Apartment",
+        propertySize: "2 Bed",
+        services: ["Photography"],
+        videographySubService: "",
+        preferredDate: "2026-08-01",
+        timeSlot: "morning",
+        startTime: "10:00",
+        duration: 2,
+        building: "Synthetic Tower",
+        community: "Test District",
+        unitNumber: "1204",
+        contactName: "Synthetic Customer",
+        contactPhone: "+971500000000",
+        contactEmail: "synthetic@example.test",
+      },
+    ];
+
+    render(
+      <SharedBookingForm
+        pricingConfig={{
+          Apartment: {
+            sizes: [
+              {
+                label: "2 Bed",
+                prices: { Photography: { price: 500, slots: 2 } },
+              },
+            ],
+          },
+        }}
+        initialProperties={initialProperties}
+        submitBooking={submitBooking}
+        mode="handoff"
+      />,
+    );
+
+    expect(screen.getByTestId("shared-booking-form")).toHaveAttribute(
+      "data-booking-mode",
+      "handoff",
+    );
+    expect(screen.getByTestId("property-card-0")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("duplicate-0"));
+    expect(screen.getByTestId("property-card-1")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("remove-1"));
+    expect(screen.queryByTestId("property-card-1")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/Enter promo code/i), {
+      target: { value: "HANDOFF10" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    fireEvent.click(screen.getByTestId("mobile-continue"));
+
+    await waitFor(() => {
+      expect(submitBooking).toHaveBeenCalledWith({
+        properties: [
+          expect.objectContaining({
+            propertyType: "Apartment",
+            propertySize: "2 Bed",
+            services: ["Photography"],
+            preferredDate: "2026-08-01",
+            startTime: "10:00",
+            duration: 2,
+            building: "Synthetic Tower",
+            community: "Test District",
+            unitNumber: "1204",
+          }),
+        ],
+        promotionCode: "HANDOFF10",
+      });
+    });
+    expect(getDrafts).not.toHaveBeenCalled();
+    expect(saveDrafts).not.toHaveBeenCalled();
+    expect(createBookings).not.toHaveBeenCalled();
+    expect(createTransactionAndPaymentIntent).not.toHaveBeenCalled();
   });
 
   it("adds a new property", async () => {
