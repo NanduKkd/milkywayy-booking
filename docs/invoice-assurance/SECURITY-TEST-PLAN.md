@@ -40,7 +40,9 @@ npm run test:invoices:coverage
 The focused Jest configuration covers only `invoice.js`, `invoice-format.js`,
 and `numbering.js`, and fails closed below 85% statements or 75% branches over
 that owned set. Its companion proof deliberately raises the statement threshold
-to 101% and must exit nonzero before reporting success:
+to 101% and accepts only Jest's matching threshold diagnostic; an unrelated
+test, syntax, or configuration failure is rejected rather than misreported as
+proof:
 
 ```bash
 npm run test:invoices:quality-gate-proof

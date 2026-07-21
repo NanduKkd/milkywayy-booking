@@ -76,7 +76,38 @@ function invoiceFixture() {
   };
 }
 
+async function cleanupInvoicePdfSmoke(
+  browser,
+  tempDir,
+  removeDirectory = fs.rm,
+) {
+  try {
+    await browser?.close();
+  } finally {
+    await removeDirectory(tempDir, { recursive: true, force: true });
+  }
+}
+
 describe("invoice PDF smoke", () => {
+  it("removes the temporary directory when Chromium shutdown rejects", async () => {
+    const removeDirectory = jest.fn().mockResolvedValue(undefined);
+    const browser = {
+      close: jest.fn().mockRejectedValue(new Error("close failed")),
+    };
+
+    await expect(
+      cleanupInvoicePdfSmoke(
+        browser,
+        "/tmp/synthetic-invoice",
+        removeDirectory,
+      ),
+    ).rejects.toThrow("close failed");
+    expect(removeDirectory).toHaveBeenCalledWith("/tmp/synthetic-invoice", {
+      recursive: true,
+      force: true,
+    });
+  });
+
   it("renders synthetic customer-visible invoice fields through local Chromium", async () => {
     const startedAt = performance.now();
     const tempDir = await fs.mkdtemp(
@@ -155,8 +186,7 @@ describe("invoice PDF smoke", () => {
         `[invoice-pdf-smoke] bytes=${pdfBuffer.length} duration_ms=${Math.round(performance.now() - startedAt)} extracted_assertions=identity,booking,service,subtotal,discount,total,transaction`,
       );
     } finally {
-      await browser?.close();
-      await fs.rm(tempDir, { recursive: true, force: true });
+      await cleanupInvoicePdfSmoke(browser, tempDir);
     }
   });
 });

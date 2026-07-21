@@ -16,6 +16,7 @@ const config = {
     "<rootDir>/src/lib/helpers/__tests__/invoice.test.js",
     "<rootDir>/src/lib/helpers/__tests__/invoice-format.test.js",
     "<rootDir>/src/lib/helpers/__tests__/numbering.test.js",
+    "<rootDir>/scripts/__tests__/invoice-quality-gate-proof.test.js",
   ],
   collectCoverageFrom: [
     "src/lib/helpers/invoice.js",
