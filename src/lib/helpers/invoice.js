@@ -268,9 +268,14 @@ export function isTransactionInvoiceCurrent(
   invoiceNumber,
   bookingCount,
 ) {
+  const expectedInvoiceKeyPrefix = invoiceNumber
+    ? `invoices/Milkywayy_Invoice_${invoiceNumber}_`
+    : null;
+
   return Boolean(
     transaction?.invoiceUrl &&
-      (invoiceNumber ? transaction.invoiceUrl.includes(invoiceNumber) : true) &&
+      expectedInvoiceKeyPrefix &&
+      transaction.invoiceUrl.includes(expectedInvoiceKeyPrefix) &&
       Number(transaction?.metadata?.invoiceBookingCount || 0) ===
         bookingCount &&
       Number(transaction?.metadata?.invoiceTemplateVersion || 0) ===
@@ -310,11 +315,15 @@ function findBookingSubsetByAmount(bookings, targetCents) {
   return matches.length === 1 ? matches[0] : [];
 }
 
-async function resolveTransactionBookings(transaction) {
-  if (!transaction?.id) return [];
+export async function resolveTransactionBookings(transaction) {
+  if (!transaction?.id || !transaction?.userId) return [];
+
+  const unlinkedOrCurrentTransaction = {
+    [Op.or]: [{ transactionId: null }, { transactionId: transaction.id }],
+  };
 
   let bookings = await Booking.findAll({
-    where: { transactionId: transaction.id },
+    where: { transactionId: transaction.id, userId: transaction.userId },
     order: [["id", "ASC"]],
   });
   if (bookings.length > 0) return bookings;
@@ -327,10 +336,20 @@ async function resolveTransactionBookings(transaction) {
   if (metadataBookingIds.length > 0) {
     await Booking.update(
       { transactionId: transaction.id, status: "CONFIRMED" },
-      { where: { id: metadataBookingIds, userId: transaction.userId } },
+      {
+        where: {
+          id: metadataBookingIds,
+          userId: transaction.userId,
+          ...unlinkedOrCurrentTransaction,
+        },
+      },
     );
     bookings = await Booking.findAll({
-      where: { id: metadataBookingIds, userId: transaction.userId },
+      where: {
+        id: metadataBookingIds,
+        userId: transaction.userId,
+        ...unlinkedOrCurrentTransaction,
+      },
       order: [["id", "ASC"]],
     });
     if (bookings.length > 0) return bookings;
@@ -356,7 +375,7 @@ async function resolveTransactionBookings(transaction) {
       userId: transaction.userId,
       status: { [Op.in]: ["DRAFT", "CONFIRMED"] },
       createdAt: { [Op.between]: [windowStart, windowEnd] },
-      [Op.or]: [{ transactionId: null }, { transactionId: transaction.id }],
+      ...unlinkedOrCurrentTransaction,
     },
     order: [
       ["createdAt", "DESC"],
@@ -380,11 +399,21 @@ async function resolveTransactionBookings(transaction) {
   const matchedIds = matchedBookings.map((booking) => booking.id);
   await Booking.update(
     { transactionId: transaction.id, status: "CONFIRMED" },
-    { where: { id: matchedIds } },
+    {
+      where: {
+        id: matchedIds,
+        userId: transaction.userId,
+        ...unlinkedOrCurrentTransaction,
+      },
+    },
   );
 
   return Booking.findAll({
-    where: { id: matchedIds },
+    where: {
+      id: matchedIds,
+      userId: transaction.userId,
+      transactionId: transaction.id,
+    },
     order: [["id", "ASC"]],
   });
 }
@@ -902,8 +931,10 @@ export async function generateAndUploadInvoice(
 
 export async function ensureTransactionInvoiceUrl(transaction, user = null) {
   if (!transaction) return null;
-  const invoiceNumber = await ensureTransactionInvoiceNumber(transaction);
   const resolvedBookings = await resolveTransactionBookings(transaction);
+  if (resolvedBookings.length === 0) return transaction.invoiceUrl || null;
+
+  const invoiceNumber = await ensureTransactionInvoiceNumber(transaction);
   const hasCurrentInvoiceUrl = isTransactionInvoiceCurrent(
     transaction,
     invoiceNumber,
@@ -925,28 +956,26 @@ export async function ensureTransactionInvoiceUrl(transaction, user = null) {
   );
   if (!generatedInvoiceUrl) return transaction.invoiceUrl || null;
 
-  await transaction.update({
+  const nextMetadata = {
+    ...(transaction.metadata || {}),
+    invoiceBookingCount: resolvedBookings.length,
+    invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
+  };
+  const invoiceUpdate = {
     invoiceUrl: generatedInvoiceUrl,
-    metadata: {
-      ...(transaction.metadata || {}),
-      invoiceBookingCount: resolvedBookings.length,
-      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
-    },
-  });
+    metadata: nextMetadata,
+  };
+
+  if (typeof transaction.update === "function") {
+    await transaction.update(invoiceUpdate);
+  }
+
   if (typeof transaction.setDataValue === "function") {
     transaction.setDataValue("invoiceUrl", generatedInvoiceUrl);
-    transaction.setDataValue("metadata", {
-      ...(transaction.metadata || {}),
-      invoiceBookingCount: resolvedBookings.length,
-      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
-    });
+    transaction.setDataValue("metadata", nextMetadata);
   } else {
     transaction.invoiceUrl = generatedInvoiceUrl;
-    transaction.metadata = {
-      ...(transaction.metadata || {}),
-      invoiceBookingCount: resolvedBookings.length,
-      invoiceTemplateVersion: INVOICE_TEMPLATE_VERSION,
-    };
+    transaction.metadata = nextMetadata;
   }
 
   return generatedInvoiceUrl;

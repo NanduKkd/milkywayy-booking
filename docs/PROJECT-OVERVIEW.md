@@ -66,6 +66,16 @@ Invoice HTML is built through a pure customer-visible rendering boundary before
 Puppeteer produces and storage receives the PDF. The invoice architecture and
 content-security test contract are documented in [the invoice guide](./invoices/README.md).
 
+### Invoice safety
+
+Invoices resolve only bookings belonging to the transaction customer. Direct
+associations take precedence; metadata and time/amount recovery paths are
+bounded by user and transaction ownership and require a unique match before
+writing an association. Stored PDF URLs are reused only when their exact
+generated key, template version, and booking count remain current; empty
+resolution preserves a prior URL without allocating invoice state or generating
+an empty invoice. See the [invoice resolution and freshness contract](./invoices/BOOKING-RESOLUTION.md).
+
 ### GPT Actions and OAuth
 
 Milkywayy implements an OAuth 2.0 authorization-code flow for a ChatGPT Custom
