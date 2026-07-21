@@ -249,6 +249,70 @@ models.OAuthAuditEvent.belongsTo(models.User, {
   as: "user",
 });
 
+models.PropertyShareLink.belongsTo(models.User, {
+  foreignKey: "ownerUserId",
+  as: "owner",
+});
+models.PropertyShareLink.belongsTo(models.Booking, {
+  foreignKey: "singleBookingId",
+  as: "singleBooking",
+});
+models.PropertyShareLink.hasMany(models.PropertyShareProperty, {
+  foreignKey: "shareLinkId",
+  as: "properties",
+});
+models.PropertyShareLink.hasMany(models.PropertyShareDailyView, {
+  foreignKey: "shareLinkId",
+  as: "dailyViews",
+});
+models.PropertyShareLink.hasMany(models.PropertyShareContact, {
+  foreignKey: "shareLinkId",
+  as: "contacts",
+});
+
+models.PropertyShareProperty.belongsTo(models.PropertyShareLink, {
+  foreignKey: "shareLinkId",
+  as: "shareLink",
+});
+models.PropertyShareProperty.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
+});
+models.PropertyShareProperty.hasMany(models.PropertyShareFile, {
+  foreignKey: "sharePropertyId",
+  as: "files",
+});
+models.PropertyShareProperty.hasMany(models.PropertyShareContact, {
+  foreignKey: "sharePropertyId",
+  as: "contacts",
+});
+
+models.PropertyShareFile.belongsTo(models.PropertyShareProperty, {
+  foreignKey: "sharePropertyId",
+  as: "property",
+});
+models.PropertyShareFile.belongsTo(models.BookingDeliveryFile, {
+  foreignKey: "deliveryFileId",
+  as: "deliveryFile",
+});
+models.PropertyShareFile.belongsTo(models.BookingDeliveryFileVersion, {
+  foreignKey: "deliveryFileVersionId",
+  as: "deliveryFileVersion",
+});
+
+models.PropertyShareDailyView.belongsTo(models.PropertyShareLink, {
+  foreignKey: "shareLinkId",
+  as: "shareLink",
+});
+models.PropertyShareContact.belongsTo(models.PropertyShareLink, {
+  foreignKey: "shareLinkId",
+  as: "shareLink",
+});
+models.PropertyShareContact.belongsTo(models.PropertyShareProperty, {
+  foreignKey: "sharePropertyId",
+  as: "property",
+});
+
 // User has many transactions, wallet transactions, and bookings
 models.User.hasMany(models.Transaction, {
   foreignKey: "userId",
@@ -334,6 +398,27 @@ models.User.hasMany(models.OAuthConsent, {
 models.User.hasMany(models.OAuthAuditEvent, {
   foreignKey: "userId",
   as: "oauthAuditEvents",
+});
+models.User.hasMany(models.PropertyShareLink, {
+  foreignKey: "ownerUserId",
+  as: "propertyShareLinks",
+});
+
+models.Booking.hasMany(models.PropertyShareProperty, {
+  foreignKey: "bookingId",
+  as: "propertyShareMemberships",
+});
+models.Booking.hasMany(models.PropertyShareLink, {
+  foreignKey: "singleBookingId",
+  as: "singlePropertyShareLinks",
+});
+models.BookingDeliveryFile.hasMany(models.PropertyShareFile, {
+  foreignKey: "deliveryFileId",
+  as: "propertyShareMemberships",
+});
+models.BookingDeliveryFileVersion.hasMany(models.PropertyShareFile, {
+  foreignKey: "deliveryFileVersionId",
+  as: "propertyShareMemberships",
 });
 
 models.OAuthClient.hasMany(models.OAuthAuthorizationCode, {

@@ -192,12 +192,25 @@ const contentDisposition = (fileName) => {
   return `attachment; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
 };
 
-export const createDownloadUrl = async ({ key, fileName }) => {
+export const createDownloadUrl = async ({
+  key,
+  fileName,
+  expiresInSeconds,
+}) => {
   if (!isBookingDeliverableKey(key)) {
     throw new Error("Object key is outside the booking deliverables prefix");
   }
   const { bucket } = getS3Config();
-  const { downloadUrlTtlSeconds } = getBookingUploadConfig();
+  const { downloadUrlTtlSeconds: configuredTtlSeconds } =
+    getBookingUploadConfig();
+  const requestedTtlSeconds =
+    expiresInSeconds == null
+      ? configuredTtlSeconds
+      : parsePositiveInteger(expiresInSeconds, configuredTtlSeconds);
+  const downloadUrlTtlSeconds = Math.min(
+    configuredTtlSeconds,
+    requestedTtlSeconds,
+  );
   return getSignedUrl(
     getS3Client(),
     new GetObjectCommand({

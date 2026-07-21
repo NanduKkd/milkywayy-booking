@@ -5,7 +5,9 @@ import {
   isCustomerDeliveryFileVisible,
   isCustomerFileVisible,
 } from "@/lib/helpers/bookingWorkflow";
+import { getPropertySharingDashboard } from "@/lib/services/propertySharing";
 import FileList from "./FileList";
+import PropertySharingManager from "./PropertySharingManager";
 
 function parseRequestedFileId(rawValue) {
   const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
@@ -52,7 +54,10 @@ export default async function FilesPage({ searchParams }) {
     return null;
   }
 
-  const res = await getBookings(session.id);
+  const [res, propertySharing] = await Promise.all([
+    getBookings(session.id),
+    getPropertySharingDashboard(session.id),
+  ]);
   const bookings = res.success ? res.data : [];
   const bookingsWithFiles = bookings
     .map((b) => {
@@ -87,6 +92,22 @@ export default async function FilesPage({ searchParams }) {
   return (
     <div>
       <div className="max-w-6xl mx-auto">
+        <div className="mb-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
+            Properties
+          </p>
+          <h2 className="mt-2 text-3xl font-bold text-white">
+            Properties and delivered files
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Manage secure property links while keeping every delivered-file
+            action in one place.
+          </p>
+        </div>
+        <PropertySharingManager initialData={propertySharing} />
+        <h2 className="mb-4 text-xl font-semibold text-white">
+          Delivered files
+        </h2>
         <FileList
           bookings={bookingsWithFiles}
           highlightedFileId={requestedFileAvailable ? requestedFileId : null}

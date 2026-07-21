@@ -4,6 +4,8 @@ import FilesPage from "../page";
 const mockAuth = jest.fn();
 const mockGetBookings = jest.fn();
 const mockFileList = jest.fn();
+const mockGetPropertySharingDashboard = jest.fn();
+const mockPropertySharingManager = jest.fn();
 
 jest.mock("@/lib/helpers/auth", () => ({
   auth: (...args) => mockAuth(...args),
@@ -11,6 +13,11 @@ jest.mock("@/lib/helpers/auth", () => ({
 
 jest.mock("@/lib/actions/bookings", () => ({
   getBookings: (...args) => mockGetBookings(...args),
+}));
+
+jest.mock("@/lib/services/propertySharing", () => ({
+  getPropertySharingDashboard: (...args) =>
+    mockGetPropertySharingDashboard(...args),
 }));
 
 jest.mock("../FileList", () => ({
@@ -21,9 +28,21 @@ jest.mock("../FileList", () => ({
   },
 }));
 
+jest.mock("../PropertySharingManager", () => ({
+  __esModule: true,
+  default: (props) => {
+    mockPropertySharingManager(props);
+    return <div data-testid="property-sharing-manager" />;
+  },
+}));
+
 describe("dashboard files page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetPropertySharingDashboard.mockResolvedValue({
+      eligibleProperties: [],
+      shares: [],
+    });
   });
 
   it("returns null when the visitor is not authenticated so the dashboard gate can preserve the target path", async () => {
@@ -38,6 +57,7 @@ describe("dashboard files page", () => {
     ).resolves.toBeNull();
 
     expect(mockGetBookings).not.toHaveBeenCalled();
+    expect(mockGetPropertySharingDashboard).not.toHaveBeenCalled();
     expect(mockFileList).not.toHaveBeenCalled();
   });
 
@@ -85,6 +105,10 @@ describe("dashboard files page", () => {
     );
 
     expect(mockGetBookings).toHaveBeenCalledWith(42);
+    expect(mockGetPropertySharingDashboard).toHaveBeenCalledWith(42);
+    expect(mockPropertySharingManager).toHaveBeenCalledWith({
+      initialData: { eligibleProperties: [], shares: [] },
+    });
     expect(mockFileList.mock.calls[0][0]).toEqual({
       bookings: [
         expect.objectContaining({
