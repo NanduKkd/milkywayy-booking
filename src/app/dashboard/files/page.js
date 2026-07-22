@@ -105,7 +105,10 @@ export default async function FilesPage({ searchParams }) {
           </p>
         </div>
         <PropertySharingManager initialData={propertySharing} />
-        <h2 className="mb-4 text-xl font-semibold text-white">
+        <h2
+          id="delivered-files"
+          className="mb-4 scroll-mt-24 text-xl font-semibold text-white"
+        >
           Delivered files
         </h2>
         <FileList

@@ -2,11 +2,13 @@ import { auth } from "@/lib/helpers/auth";
 import {
   createSinglePropertyShare,
   getPropertySharingDashboard,
+  savePropertyShareListing,
   setPropertyShareEnabled,
 } from "@/lib/services/propertySharing";
 import {
   createSinglePropertyShareAction,
   getPropertySharingDashboardAction,
+  savePropertyShareListingAction,
   setPropertyShareEnabledAction,
 } from "../propertySharing";
 
@@ -18,6 +20,7 @@ jest.mock("@/lib/services/propertySharing", () => ({
   refreshPropertyShareSnapshot: jest.fn(),
   revokePropertyShare: jest.fn(),
   rotatePropertyShareToken: jest.fn(),
+  savePropertyShareListing: jest.fn(),
   setPropertyShareEnabled: jest.fn(),
   updateMasterPropertyShare: jest.fn(),
 }));
@@ -52,6 +55,20 @@ describe("property sharing server actions", () => {
     );
     expect(getPropertySharingDashboard).toHaveBeenCalledWith(7);
     expect(setPropertyShareEnabled).toHaveBeenCalledWith(7, 4, false);
+  });
+
+  it("passes owner-authored listing configuration through the authenticated boundary", async () => {
+    const listing = {
+      listingTitle: "Synthetic listing",
+      contactName: "Synthetic Owner",
+      contactPhone: "+971500000000",
+    };
+    savePropertyShareListing.mockResolvedValue({ bookingId: 20, listing });
+
+    const result = await savePropertyShareListingAction(20, listing);
+
+    expect(result.success).toBe(true);
+    expect(savePropertyShareListing).toHaveBeenCalledWith(7, 20, listing);
   });
 
   it("does not call the service without a customer session", async () => {

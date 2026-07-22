@@ -1,16 +1,19 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import PropertySharingManager from "../PropertySharingManager";
 
+const mockCreateMaster = jest.fn();
 const mockCreateSingle = jest.fn();
 const mockGetDashboard = jest.fn();
+const mockSaveListing = jest.fn();
 
 jest.mock("@/lib/actions/propertySharing", () => ({
-  createMasterPropertyShareAction: jest.fn(),
+  createMasterPropertyShareAction: (...args) => mockCreateMaster(...args),
   createSinglePropertyShareAction: (...args) => mockCreateSingle(...args),
   getPropertySharingDashboardAction: (...args) => mockGetDashboard(...args),
   refreshPropertyShareSnapshotAction: jest.fn(),
   revokePropertyShareAction: jest.fn(),
   rotatePropertyShareTokenAction: jest.fn(),
+  savePropertyShareListingAction: (...args) => mockSaveListing(...args),
   setPropertyShareEnabledAction: jest.fn(),
   updateMasterPropertyShareAction: jest.fn(),
 }));
@@ -23,37 +26,67 @@ const emptySeries = Array.from({ length: 30 }, (_, index) => ({
   requestViews: 0,
 }));
 
-function data() {
+const listing = {
+  listingTitle: "Corner home with full marina view",
+  priceAed: "2350000.00",
+  listingType: "FOR_SALE",
+  listingTypeLabel: "For Sale",
+  bathrooms: 3,
+  sizeSqft: 1244,
+  furnishing: "FURNISHED",
+  furnishingLabel: "Furnished",
+  description: "Bright corner home near the marina.",
+  highlights: ["Full marina view", "Upgraded kitchen"],
+  contactName: "Synthetic Owner",
+  contactPhone: "+971500000000",
+};
+
+function eligibleProperty(id, overrides = {}) {
   return {
-    eligibleProperties: [
-      { id: 20, title: "Synthetic Tower", fileCount: 2 },
-      { id: 21, title: "Sample Villa", fileCount: 1 },
-    ],
-    shares: [
+    id,
+    bookingTitle: id === 20 ? "Synthetic Tower, Test District" : "Sample Villa",
+    location: id === 20 ? "Synthetic Tower, Test District" : "Palm District",
+    bedrooms: 2,
+    completedAt: "2026-07-20T10:00:00.000Z",
+    mediaCount: 3,
+    imageCount: 2,
+    hasVideo: true,
+    hasTour: false,
+    listing: null,
+    ...overrides,
+  };
+}
+
+function share(id, bookingId) {
+  const property = eligibleProperty(bookingId, { listing });
+  return {
+    id,
+    kind: "SINGLE_PROPERTY",
+    status: "ENABLED",
+    enabled: true,
+    properties: [
       {
-        id: 4,
-        kind: "SINGLE_PROPERTY",
-        status: "ENABLED",
-        enabled: true,
-        properties: [
-          { id: 30, bookingId: 20, title: "Synthetic Tower", fileCount: 2 },
-        ],
-        analytics: {
-          totalRequestViews: 12,
-          lastViewedAt: "2026-07-22T10:00:00.000Z",
-          trailing30Days: emptySeries,
-        },
-        contacts: [
-          {
-            id: 1,
-            propertyTitle: "Synthetic Tower",
-            name: "Synthetic Visitor",
-            phone: "+971500000000",
-            createdAt: "2026-07-22T10:00:00.000Z",
-          },
-        ],
+        id: id + 100,
+        bookingId,
+        ...property,
       },
     ],
+    analytics: {
+      totalRequestViews: id === 4 ? 12 : 7,
+      lastViewedAt: "2026-07-22T10:00:00.000Z",
+      trailing30Days: emptySeries,
+    },
+  };
+}
+
+function data({ withShares = true } = {}) {
+  return {
+    eligibleProperties: [
+      eligibleProperty(20, { listing: withShares ? listing : null }),
+      eligibleProperty(21, { listing: withShares ? listing : null }),
+      eligibleProperty(22),
+    ],
+    shares: withShares ? [share(4, 20), share(5, 21)] : [],
   };
 }
 
@@ -61,80 +94,120 @@ describe("PropertySharingManager", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetDashboard.mockResolvedValue({ success: true, data: data() });
+    mockSaveListing.mockResolvedValue({
+      success: true,
+      data: { bookingId: 20 },
+    });
+    mockCreateSingle.mockResolvedValue({
+      success: true,
+      data: {
+        shareId: 8,
+        publicUrl: "https://example.test/share/redacted-token-value",
+      },
+    });
+    mockCreateMaster.mockResolvedValue({
+      success: true,
+      data: {
+        shareId: 9,
+        publicUrl: "https://example.test/share/redacted-master-token",
+      },
+    });
     Object.assign(navigator, {
       clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
     });
   });
 
-  it("shows single/master management, request-view labeling, state controls, and contacts", () => {
+  it("matches the Ready, Shared Properties, Master Links, and aggregate management contract", () => {
     render(<PropertySharingManager initialData={data()} />);
 
-    expect(screen.getByText("Share completed properties")).toBeInTheDocument();
-    expect(screen.getByText("Single-property links")).toBeInTheDocument();
-    expect(screen.getByText("Master link")).toBeInTheDocument();
+    expect(screen.getByText("READY TO SHARE")).toBeInTheDocument();
+    expect(screen.getByText("SHARED PROPERTIES")).toBeInTheDocument();
     expect(
-      screen.getByText("Requests, not unique visitors"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Synthetic Visitor")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Disable" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Rotate link" }),
+      screen.getByRole("button", { name: "Master Links (0)" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Refresh snapshot" }),
+      screen.getByRole("button", { name: "☑ Select Multiple" }),
     ).toBeInTheDocument();
+    expect(screen.getAllByText(/request views/u).length).toBeGreaterThan(1);
+    expect(screen.getAllByRole("button", { name: /Preview/u })).toHaveLength(2);
+    expect(screen.queryByText(/Recent contacts/u)).not.toBeInTheDocument();
+    expect(screen.queryByText(/agent/u)).not.toBeInTheDocument();
   });
 
-  it("reveals a newly issued URL only through the copy-once control", async () => {
-    const publicUrl = "https://example.test/share/redacted-token-value";
-    mockCreateSingle.mockResolvedValue({
-      success: true,
-      data: { shareId: 8, publicUrl },
-    });
+  it("collects owner listing and contact configuration without assignment UI", () => {
     const initial = data();
-    initial.shares = [];
     render(<PropertySharingManager initialData={initial} />);
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Create link" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Create share link" }));
 
+    expect(
+      screen.getByRole("form", { name: "Create property listing" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("LISTING TITLE *")).toBeInTheDocument();
+    expect(screen.getByLabelText("PRICE (AED) *")).toBeInTheDocument();
+    expect(screen.getByLabelText("LISTING TYPE *")).toBeInTheDocument();
+    expect(screen.getByLabelText("BATHROOMS")).toBeInTheDocument();
+    expect(screen.getByLabelText("SIZE (SQFT)")).toBeInTheDocument();
+    expect(screen.getByLabelText("FURNISHING *")).toBeInTheDocument();
+    expect(screen.getByLabelText("DESCRIPTION")).toBeInTheDocument();
+    expect(screen.getByLabelText("CONTACT NAME *")).toBeInTheDocument();
+    expect(screen.getByLabelText("CONTACT PHONE *")).toBeInTheDocument();
+    expect(screen.queryByText(/ASSIGN TO AGENTS/u)).not.toBeInTheDocument();
+  });
+
+  it("saves listing configuration before issuing a one-time single link", async () => {
+    const initial = data({ withShares: false });
+    mockGetDashboard.mockResolvedValue({ success: true, data: initial });
+    render(<PropertySharingManager initialData={initial} />);
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Create share link" })[0],
+    );
+    fireEvent.change(screen.getByLabelText("PRICE (AED) *"), {
+      target: { value: "2350000" },
+    });
+    fireEvent.change(screen.getByLabelText("CONTACT NAME *"), {
+      target: { value: "Synthetic Owner" },
+    });
+    fireEvent.change(screen.getByLabelText("CONTACT PHONE *"), {
+      target: { value: "+971500000000" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save & create share link" }),
+    );
+
+    await waitFor(() => expect(mockSaveListing).toHaveBeenCalled());
+    expect(mockCreateSingle).toHaveBeenCalledWith(20);
     expect(
       await screen.findByText("New secure URL is ready"),
     ).toBeInTheDocument();
-    expect(screen.queryByText(publicUrl)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("https://example.test/share/redacted-token-value"),
+    ).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "Copy secure URL" }));
     await waitFor(() =>
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(publicUrl),
-    );
-    await waitFor(() =>
-      expect(
-        screen.queryByText("New secure URL is ready"),
-      ).not.toBeInTheDocument(),
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        "https://example.test/share/redacted-token-value",
+      ),
     );
   });
 
-  it("drops stale master members from the editable selection", () => {
-    const initial = data();
-    initial.shares = [
-      {
-        ...initial.shares[0],
-        kind: "MASTER",
-        properties: [
-          { id: 30, bookingId: 20, title: "Synthetic Tower", fileCount: 2 },
-          { id: 31, bookingId: 99, title: "Stale Property", fileCount: 1 },
-        ],
-      },
-    ];
+  it("supports selecting multiple shared properties for a master collection", async () => {
+    render(<PropertySharingManager initialData={data()} />);
 
-    render(<PropertySharingManager initialData={initial} />);
+    fireEvent.click(screen.getByRole("button", { name: "☑ Select Multiple" }));
+    const selectors = screen.getAllByRole("button", {
+      name: /master collection/u,
+    });
+    fireEvent.click(selectors[0]);
+    fireEvent.click(selectors[1]);
 
-    expect(
-      screen.getByRole("checkbox", { name: "Synthetic Tower" }),
-    ).toBeChecked();
-    expect(
-      screen.getByRole("checkbox", { name: "Sample Villa" }),
-    ).not.toBeChecked();
-    expect(
-      screen.getByRole("button", { name: "Update master snapshot" }),
-    ).toBeDisabled();
+    const create = screen.getByRole("button", { name: "Create Master Link" });
+    expect(create).toBeEnabled();
+    fireEvent.click(create);
+    await waitFor(() =>
+      expect(mockCreateMaster).toHaveBeenCalledWith([20, 21]),
+    );
   });
 });

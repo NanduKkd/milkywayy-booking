@@ -265,11 +265,6 @@ models.PropertyShareLink.hasMany(models.PropertyShareDailyView, {
   foreignKey: "shareLinkId",
   as: "dailyViews",
 });
-models.PropertyShareLink.hasMany(models.PropertyShareContact, {
-  foreignKey: "shareLinkId",
-  as: "contacts",
-});
-
 models.PropertyShareProperty.belongsTo(models.PropertyShareLink, {
   foreignKey: "shareLinkId",
   as: "shareLink",
@@ -282,11 +277,6 @@ models.PropertyShareProperty.hasMany(models.PropertyShareFile, {
   foreignKey: "sharePropertyId",
   as: "files",
 });
-models.PropertyShareProperty.hasMany(models.PropertyShareContact, {
-  foreignKey: "sharePropertyId",
-  as: "contacts",
-});
-
 models.PropertyShareFile.belongsTo(models.PropertyShareProperty, {
   foreignKey: "sharePropertyId",
   as: "property",
@@ -304,13 +294,13 @@ models.PropertyShareDailyView.belongsTo(models.PropertyShareLink, {
   foreignKey: "shareLinkId",
   as: "shareLink",
 });
-models.PropertyShareContact.belongsTo(models.PropertyShareLink, {
-  foreignKey: "shareLinkId",
-  as: "shareLink",
+models.PropertyShareListing.belongsTo(models.User, {
+  foreignKey: "ownerUserId",
+  as: "owner",
 });
-models.PropertyShareContact.belongsTo(models.PropertyShareProperty, {
-  foreignKey: "sharePropertyId",
-  as: "property",
+models.PropertyShareListing.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
 });
 
 // User has many transactions, wallet transactions, and bookings
@@ -403,10 +393,18 @@ models.User.hasMany(models.PropertyShareLink, {
   foreignKey: "ownerUserId",
   as: "propertyShareLinks",
 });
+models.User.hasMany(models.PropertyShareListing, {
+  foreignKey: "ownerUserId",
+  as: "propertyShareListings",
+});
 
 models.Booking.hasMany(models.PropertyShareProperty, {
   foreignKey: "bookingId",
   as: "propertyShareMemberships",
+});
+models.Booking.hasOne(models.PropertyShareListing, {
+  foreignKey: "bookingId",
+  as: "propertyShareListing",
 });
 models.Booking.hasMany(models.PropertyShareLink, {
   foreignKey: "singleBookingId",

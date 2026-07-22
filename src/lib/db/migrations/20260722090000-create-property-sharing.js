@@ -46,11 +46,6 @@ module.exports = {
             type: Sequelize.STRING(64),
             allowNull: false,
           },
-          credential_version: {
-            type: Sequelize.INTEGER,
-            allowNull: false,
-            defaultValue: 1,
-          },
           enabled: {
             type: Sequelize.BOOLEAN,
             allowNull: false,
@@ -98,14 +93,6 @@ module.exports = {
           ALTER TABLE property_share_links
           ADD CONSTRAINT property_share_links_total_views_check
           CHECK (total_views >= 0)
-        `,
-        { transaction },
-      );
-      await queryInterface.sequelize.query(
-        `
-          ALTER TABLE property_share_links
-          ADD CONSTRAINT property_share_links_credential_version_check
-          CHECK (credential_version > 0)
         `,
         { transaction },
       );
@@ -288,37 +275,67 @@ module.exports = {
       );
 
       await queryInterface.createTable(
-        "property_share_contacts",
+        "property_share_listings",
         {
           id: {
             type: Sequelize.INTEGER,
             primaryKey: true,
             autoIncrement: true,
           },
-          share_link_id: {
+          owner_user_id: {
             type: Sequelize.INTEGER,
             allowNull: false,
-            references: { model: "property_share_links", key: "id" },
+            references: { model: "users", key: "id" },
             onUpdate: "CASCADE",
             onDelete: "CASCADE",
           },
-          share_property_id: {
+          booking_id: {
             type: Sequelize.INTEGER,
             allowNull: false,
-            references: { model: "property_share_properties", key: "id" },
+            references: { model: "bookings", key: "id" },
             onUpdate: "CASCADE",
             onDelete: "CASCADE",
           },
-          name: {
+          listing_title: {
+            type: Sequelize.STRING(160),
+            allowNull: false,
+          },
+          price_aed: {
+            type: Sequelize.DECIMAL(14, 2),
+            allowNull: false,
+          },
+          listing_type: {
+            type: Sequelize.STRING(32),
+            allowNull: false,
+          },
+          bathrooms: {
+            type: Sequelize.INTEGER,
+            allowNull: true,
+          },
+          size_sqft: {
+            type: Sequelize.INTEGER,
+            allowNull: true,
+          },
+          furnishing: {
+            type: Sequelize.STRING(32),
+            allowNull: false,
+          },
+          description: {
+            type: Sequelize.TEXT,
+            allowNull: false,
+            defaultValue: "",
+          },
+          highlights: {
+            type: Sequelize.JSONB,
+            allowNull: false,
+            defaultValue: [],
+          },
+          contact_name: {
             type: Sequelize.STRING(100),
             allowNull: false,
           },
-          phone: {
+          contact_phone: {
             type: Sequelize.STRING(16),
-            allowNull: false,
-          },
-          expires_at: {
-            type: Sequelize.DATE,
             allowNull: false,
           },
           ...timestamps(Sequelize),
@@ -327,32 +344,39 @@ module.exports = {
       );
       await queryInterface.sequelize.query(
         `
-          ALTER TABLE property_share_contacts
-          ADD CONSTRAINT property_share_contacts_values_check
+          ALTER TABLE property_share_listings
+          ADD CONSTRAINT property_share_listings_values_check
           CHECK (
-            char_length(name) BETWEEN 2 AND 100
-            AND phone ~ '^\\+?[0-9]{7,15}$'
-            AND expires_at > created_at
+            char_length(listing_title) BETWEEN 3 AND 160
+            AND price_aed > 0 AND price_aed <= 9999999999.99
+            AND listing_type IN ('FOR_SALE', 'FOR_RENT_YEARLY', 'HOLIDAY_HOME')
+            AND (bathrooms IS NULL OR bathrooms BETWEEN 0 AND 20)
+            AND (size_sqft IS NULL OR size_sqft BETWEEN 1 AND 1000000)
+            AND furnishing IN ('FURNISHED', 'UNFURNISHED')
+            AND char_length(description) <= 4000
+            AND jsonb_typeof(highlights) = 'array'
+            AND jsonb_array_length(highlights) <= 12
+            AND char_length(contact_name) BETWEEN 2 AND 100
+            AND contact_phone ~ '^\\+?[0-9]{7,15}$'
           )
         `,
         { transaction },
       );
       await queryInterface.addIndex(
-        "property_share_contacts",
-        ["share_link_id", "expires_at", "created_at"],
-        { name: "property_share_contacts_owner_read_idx", transaction },
-      );
-      await queryInterface.addIndex(
-        "property_share_contacts",
-        ["expires_at", "id"],
-        { name: "property_share_contacts_expiry_cleanup_idx", transaction },
+        "property_share_listings",
+        ["owner_user_id", "booking_id"],
+        {
+          name: "property_share_listings_owner_booking_unique",
+          unique: true,
+          transaction,
+        },
       );
     });
   },
 
   async down(queryInterface) {
     await queryInterface.sequelize.transaction(async (transaction) => {
-      await queryInterface.dropTable("property_share_contacts", {
+      await queryInterface.dropTable("property_share_listings", {
         transaction,
       });
       await queryInterface.dropTable("property_share_daily_views", {

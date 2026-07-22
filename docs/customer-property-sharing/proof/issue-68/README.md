@@ -1,67 +1,118 @@
-# Issue #68 browser proof
+# Issue #68 corrective browser proof
 
-Captured on 22 July 2026 against a disposable local PostgreSQL database with
-synthetic users, properties, files, contacts, and credentials. The database and
-temporary credential material were destroyed after capture.
+Captured on 22 July 2026 from the production build at the required
+1440 × 900 and 390 × 844 viewports. The proof used a disposable reserved-prefix
+PostgreSQL database, one synthetic owner, three synthetic completed properties,
+and nine synthetic JPEG objects attached to real `ACCEPTED` current delivery
+file versions. The database, temporary bearer material, and proof objects were
+destroyed after capture.
 
-## Authenticated Properties surface
+The supplied reference HTML was inspected directly for its `rcard`, `pshared`,
+`mcard`, `actionbar`, `desk`, `desk-grid`, `phone`, `sp-*`, `col-grid-d`, and
+`cmini` contracts. The in-app browser refused direct `file://` navigation under
+its local-file safety policy and explicitly prohibited workarounds, so a
+browser-rendered reference half could not be captured. The implementation
+screenshots below are therefore paired by viewport and surface, while visual
+comparison to the reference was performed from the supplied HTML/CSS source.
 
-- [`authenticated-properties-desktop.png`](authenticated-properties-desktop.png)
-  shows the renamed **Properties** tab at `/dashboard/files`, single-link
-  creation state, explicit master selection, and the unchanged dashboard shell.
-- [`authenticated-properties-narrow.png`](authenticated-properties-narrow.png)
-  shows the same canonical surface at a 390 x 844 viewport.
-- [`authenticated-analytics-desktop.png`](authenticated-analytics-desktop.png)
-  shows enabled status, refresh/disable/rotate/revoke controls, total request
-  views, last-viewed time, and the zero-filled trailing 30 Dubai-day chart.
-- [`authenticated-analytics-contacts-desktop.png`](authenticated-analytics-contacts-desktop.png)
-  shows the single-property aggregate metrics, sanitized recent contacts, and
-  the unchanged delivered-file controls below the sharing manager.
-- [`authenticated-management-narrow.png`](authenticated-management-narrow.png)
-  shows management controls and aggregate analytics at a 390 x 844 viewport.
+## Authenticated Properties management
 
-The phone cells in the recent-contact screenshot were replaced in the local DOM
-with `[redacted phone]` immediately before capture. This was a proof-only visual
-redaction; no application or persisted data was changed by it.
+- [`authenticated-management-desktop.png`](authenticated-management-desktop.png)
+  and [`authenticated-management-narrow.png`](authenticated-management-narrow.png)
+  show the application shell, Ready to Share, and the responsive management
+  introduction.
+- [`authenticated-shared-properties-desktop.png`](authenticated-shared-properties-desktop.png)
+  and [`authenticated-shared-properties-narrow.png`](authenticated-shared-properties-narrow.png)
+  show reference-style shared-property cards, live state, price/type, request
+  views, controls, and the two-column-to-one-column transition.
+- [`authenticated-listing-form-desktop.png`](authenticated-listing-form-desktop.png)
+  and [`authenticated-listing-form-narrow.png`](authenticated-listing-form-narrow.png)
+  show booking facts plus every owner-authored listing field. The desktop form
+  phone value was replaced with `[redacted phone]` in the unsaved browser form
+  before capture.
+- [`authenticated-master-selection-cards-desktop.png`](authenticated-master-selection-cards-desktop.png)
+  shows the two selected property cards. [`authenticated-master-selection-desktop.png`](authenticated-master-selection-desktop.png)
+  shows the fixed action bar together with the unchanged authenticated Files
+  surface and its private Download actions.
+- [`authenticated-master-links-desktop.png`](authenticated-master-links-desktop.png)
+  and [`authenticated-master-links-narrow.png`](authenticated-master-links-narrow.png)
+  show the collection card, state controls, request-view analytics, and
+  responsive layout.
 
-## Public journeys
+## Buyer-facing showcase and collection
 
-- [`public-single-gate-desktop.png`](public-single-gate-desktop.png) shows the
-  single-property context and the only two contact inputs: name and phone.
-- [`public-single-files-narrow.png`](public-single-files-narrow.png) shows a
-  successful receipt-gated file view at a 390 x 844 viewport.
-- [`public-master-desktop.png`](public-master-desktop.png) shows exactly the two
-  selected properties. The third eligible but unselected property had zero DOM
-  matches.
-- [`public-master-property-gate.png`](public-master-property-gate.png) shows the
-  separate per-property contact gate within a master share.
-- [`public-disabled-link.png`](public-disabled-link.png) shows the generic
-  response immediately after disabling the single-property link.
-- [`public-old-token-rejected.png`](public-old-token-rejected.png) shows the same
-  generic response for the old bearer after re-enabling and rotating the link.
+- [`public-single-desktop.png`](public-single-desktop.png) and
+  [`public-single-narrow.png`](public-single-narrow.png) show the `sp-*`
+  hero/gallery, metadata chips, description, highlights, and desktop/phone
+  layouts. [`public-single-contact-narrow.png`](public-single-contact-narrow.png)
+  records the owner contact card, click-to-call presentation, WhatsApp CTA, and
+  Milkywayy footer.
+- [`public-master-desktop.png`](public-master-desktop.png) and
+  [`public-master-narrow.png`](public-master-narrow.png) show exactly the two
+  selected `cmini` collection cards. [`public-master-selected-narrow.png`](public-master-selected-narrow.png)
+  shows one card opened as the full showcase with a back-to-collection path
+  under the same bearer.
+- [`public-old-token-rejected.png`](public-old-token-rejected.png) shows the
+  uniform unavailable surface after rotation invalidated the old bearer.
 
-## Safe assertions recorded during capture
+All public screenshots use the fixed synthetic phone sentinel
+`+971500000000`; it is not a real customer or contact. Screenshots contain no
+live customer data, bearer token, persisted media URL, browser address bar,
+cookie, host, or environment detail. Every tracked PNG was mechanically
+verified as exactly 1440 × 900 or 390 × 844. The browser captured the narrow
+content area at 375 × 812 inside a verified 390 × 844 viewport; its PNG canvas
+was padded, without rescaling or cropping the UI, to preserve the requested
+artifact dimensions.
 
-- A successful single-property submission created an HttpOnly receipt and
-  exposed the snapshotted file only after the subsequent server render.
-- The receipt-authorized public DOM contained one token-scoped application file
-  action, zero external download actions, and no persisted S3/storage URL.
-- The master collection contained two selected cards, one name input, one phone
-  input, and one return link when a selected property was opened. The unselected
-  property was absent; cross-property/file rejection is also covered by the
-  focused route and service tests.
-- Successful landing totals and daily aggregates remained equal after the
-  journey: single `22/22`, master `7/7`. Failed disabled and rotated-token
-  requests did not increment them.
-- Persisted link credentials were 64-character digests, no plaintext bearer
-  matched a stored value, and the pre-rotation single-link digest no longer
-  matched after rotation.
-- Three unexpired synthetic contact submissions existed at the end of the
-  journey. The contact table exposed only ownership/snapshot keys, name, phone,
-  expiry, and timestamps.
-- Development request output suppressed the bearer-bearing public route
-  prefixes. Captured output contained no raw bearer, phone, storage URL, IP,
-  user-agent, referrer, or fingerprint analytics.
+## Browser and live-route assertions
 
-Screenshots contain no bearer token, phone number, storage URL, customer or
-booking identifier, cookie, browser address bar, host, or environment detail.
+- Selecting gallery item 2 changed the active hero to view 2.
+- Single showcase DOM: `forms=0`, `download attributes=0`, authenticated
+  download links `=0`, phone links `=1`, WhatsApp links `=1`, horizontal
+  overflow `=false` at desktop and phone widths.
+- Master landing DOM: selected collection cards `=2`, `forms=0`, download
+  attributes `=0`, authenticated download links `=0`, phone links `=1`,
+  WhatsApp links `=1`, horizontal overflow `=false` at desktop and phone
+  widths.
+- Opening the second master card produced a full showcase, one back link, and
+  `sameBearer=true` without exposing an unselected property.
+- A live inline-media request returned `200 image/jpeg`,
+  `Cache-Control: private, no-store, max-age=0`, `nosniff`, no
+  `Content-Disposition`, and did not increment page analytics. A
+  `Range: bytes=0-63` request returned `206` with `Content-Range`.
+- One successful landing render incremented the aggregate by exactly one.
+  Media requests incremented it by zero.
+- Disabling the master link changed the public landing to `404`; re-enabling
+  restored `200`. Rotation replaced the digest, made the old bearer return
+  `404`, preserved the aggregate, and the failed stale request incremented it
+  by zero.
+- The management rotation flow displayed the one-time **Copy secure URL**
+  prompt; no plaintext bearer is persisted or recoverable after reload.
+
+Phone and WhatsApp destinations were verified from their validated link
+contracts without launching an external phone or messaging application.
+
+## Verification recorded
+
+- Focused feature command (`jest --runInBand --silent --runTestsByPath` over
+  property-sharing security/service/action, migration/model, management,
+  public-page, media-route, and storage suites): **9 suites, 49 tests passed**.
+- Authenticated compatibility command over Files/FileList, dashboard layout,
+  Bookings, Invoices, hidden Wallet, Connections, access gate, workflow,
+  authenticated download/delivery, actions, and notifications: **18 suites,
+  95 tests passed**.
+- Real PostgreSQL migration/contention command with the guarded disposable
+  database harness: **1 suite, 4 tests passed**. It covered live single/master
+  uniqueness, owner+booking listing uniqueness, and 40 concurrent lossless
+  aggregate increments.
+- Changed-file `biome check`: **26 files checked, no errors or warnings**.
+- `npm run build`: **passed**, compiled and generated **74 routes**. It retained
+  the pre-existing non-fatal `/admin/promotions` dynamic-server diagnostic.
+- `git diff --check`: **passed**.
+- Repository Jest baseline: **11 failed, 1 skipped, 191 passed suites; 42
+  failed, 4 skipped, 1137 passed tests**. Failures are unrelated baselines in
+  PropertyCard autoscroll, OAuth URL/environment expectations, promotion and
+  invoice disposable-PostgreSQL opt-in suites, the disposable harness suite,
+  and the handoff promotion-preview Jest/ESM integration.
+- Repository Biome baseline: **613 files checked; 437 errors and 63 warnings**.
+  Changed issue-owned files are clean as recorded above.

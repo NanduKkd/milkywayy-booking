@@ -10,6 +10,7 @@ import {
   refreshPropertyShareSnapshot,
   revokePropertyShare,
   rotatePropertyShareToken,
+  savePropertyShareListing,
   setPropertyShareEnabled,
   updateMasterPropertyShare,
 } from "@/lib/services/propertySharing";
@@ -24,6 +25,13 @@ async function withOwner(operation) {
 
 export const getPropertySharingDashboardAction = actionWrapper(() =>
   withOwner((ownerUserId) => getPropertySharingDashboard(ownerUserId)),
+);
+
+export const savePropertyShareListingAction = actionWrapper(
+  (bookingId, listing) =>
+    withOwner((ownerUserId) =>
+      savePropertyShareListing(ownerUserId, bookingId, listing),
+    ),
 );
 
 export const createSinglePropertyShareAction = actionWrapper((bookingId) =>

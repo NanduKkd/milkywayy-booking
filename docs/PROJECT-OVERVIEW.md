@@ -50,10 +50,10 @@ Start with [the public app](../src/app/page.js),
   retains authenticated delivery-file behavior and `fileId` deep links, and
   adds secure single/master sharing for completed properties. Wallet code also
   exists, although its dashboard tab is currently hidden.
-- Shared properties use hash-only bearer links, exact accepted file-version
-  snapshots, a per-property name-and-phone gate, 24-hour signed receipts,
-  90-day contacts, and aggregate Dubai-day request views without visitor
-  identifiers. See [customer property sharing](./customer-property-sharing/README.md).
+- Shared properties use owner-authored listing/contact configuration, hash-only
+  bearer links, exact accepted media-version snapshots, token-scoped inline
+  viewers, single/master buyer showcases, and aggregate Dubai-day request views
+  without visitor identifiers. See [customer property showcases](./customer-property-sharing/README.md).
 - Route-level access and role redirects are enforced by
   [`src/proxy.js`](../src/proxy.js), with additional ownership checks in server
   actions and route handlers.
@@ -168,9 +168,9 @@ Repository-wide health and known failures are recorded in
   activity.
 - `BookingDeliveryFile`, its versions, revisions, and upload sessions represent
   the deliverable lifecycle.
-- Property share links, selected booking memberships, pinned file-version
-  memberships, daily aggregates, and expiring contacts represent the public
-  completed-property sharing boundary.
+- Property listing configuration, share links, selected booking memberships,
+  pinned media-version memberships, and daily aggregates represent the public
+  completed-property showcase boundary.
 - `DynamicConfig` stores editable configuration such as pricing.
 - `OurWork` and `Review` supply portfolio and social-proof content.
 - OAuth clients, codes, tokens, consents, audit events, and rate limits are

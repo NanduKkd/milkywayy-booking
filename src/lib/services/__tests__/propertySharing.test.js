@@ -2,29 +2,28 @@
 
 import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
-import PropertyShareContact from "@/lib/db/models/propertysharecontact";
 import PropertyShareDailyView from "@/lib/db/models/propertysharedailyview";
 import PropertyShareFile from "@/lib/db/models/propertysharefile";
 import PropertyShareLink from "@/lib/db/models/propertysharelink";
+import PropertyShareListing from "@/lib/db/models/propertysharelisting";
 import PropertyShareProperty from "@/lib/db/models/propertyshareproperty";
 import User from "@/lib/db/models/user";
 import {
+  createMasterPropertyShare,
   createSinglePropertyShare,
+  getInlinePropertyMediaDetails,
   getPropertySharingDashboard,
-  getPublicPropertyManifest,
   PropertyShareConflictError,
   PropertyShareNotFoundError,
-  resolvePublicPropertyShareFile,
   resolvePublicPropertyShareLanding,
+  resolvePublicPropertyShareMedia,
   rotatePropertyShareToken,
+  savePropertyShareListing,
   setPropertyShareEnabled,
-  submitPublicPropertyShareContact,
 } from "../propertySharing";
 import {
-  createPropertyShareReceipt,
   createPropertyShareToken,
   digestPropertyShareToken,
-  resetPropertyShareThrottleForTests,
 } from "../propertySharingSecurity";
 
 const transaction = { LOCK: { UPDATE: "UPDATE" } };
@@ -39,11 +38,6 @@ jest.mock("@/lib/db/db", () => ({
 jest.mock("@/lib/db/models/booking", () => ({ findAll: jest.fn() }));
 jest.mock("@/lib/db/models/bookingdeliveryfile", () => ({}));
 jest.mock("@/lib/db/models/bookingdeliveryfileversion", () => ({}));
-jest.mock("@/lib/db/models/propertysharecontact", () => ({
-  create: jest.fn(),
-  destroy: jest.fn(),
-  findAll: jest.fn(),
-}));
 jest.mock("@/lib/db/models/propertysharedailyview", () => ({
   findAll: jest.fn(),
 }));
@@ -56,13 +50,38 @@ jest.mock("@/lib/db/models/propertysharelink", () => ({
   findAll: jest.fn(),
   findOne: jest.fn(),
 }));
+jest.mock("@/lib/db/models/propertysharelisting", () => ({
+  create: jest.fn(),
+  findAll: jest.fn(),
+  findOne: jest.fn(),
+}));
 jest.mock("@/lib/db/models/propertyshareproperty", () => ({
   create: jest.fn(),
   findAll: jest.fn(),
 }));
 jest.mock("@/lib/db/models/user", () => ({ findByPk: jest.fn() }));
 
+function configuredListing(overrides = {}) {
+  return {
+    id: 90,
+    ownerUserId: 7,
+    bookingId: 20,
+    listingTitle: "Corner home with full marina view",
+    priceAed: "2350000.00",
+    listingType: "FOR_SALE",
+    bathrooms: 3,
+    sizeSqft: 1244,
+    furnishing: "FURNISHED",
+    description: "Bright corner home near the marina.",
+    highlights: ["Full marina view", "Upgraded kitchen"],
+    contactName: "Synthetic Owner",
+    contactPhone: "+971500000000",
+    ...overrides,
+  };
+}
+
 function eligibleBooking(overrides = {}) {
+  const listing = configuredListing();
   return {
     id: 20,
     userId: 7,
@@ -74,18 +93,25 @@ function eligibleBooking(overrides = {}) {
       unit: "1204",
       building: "Synthetic Tower",
       community: "Test District",
+      propertySize: "2 Bed",
     },
-    shootDetails: { services: ["Photography"] },
+    shootDetails: { services: ["Photography", "Videography"] },
+    propertyShareListing: listing,
     deliveryFiles: [
       {
         id: 10,
+        type: "Photography",
+        label: "Final photography",
         status: "ACCEPTED",
         deletedAt: null,
         currentVersionId: 100,
         currentVersion: {
           id: 100,
+          deliveryFileId: 10,
           supersededAt: null,
-          originalFilename: "synthetic-property.zip",
+          originalFilename: "synthetic-property.jpg",
+          mimeType: "image/jpeg",
+          sizeBytes: 2048,
         },
       },
     ],
@@ -120,8 +146,10 @@ function publicProperty(booking = eligibleBooking()) {
           id: 100,
           deliveryFileId: 10,
           supersededAt: null,
-          originalFilename: "synthetic-property.zip",
-          url: "https://storage.invalid/private-object.zip",
+          originalFilename: "synthetic-property.jpg",
+          mimeType: "image/jpeg",
+          sizeBytes: 2048,
+          url: "https://storage.invalid/deliverables/bookings/20/private.jpg",
         },
       },
     ],
@@ -135,9 +163,10 @@ function publicShare(token, overrides = {}) {
     kind: "SINGLE_PROPERTY",
     singleBookingId: 20,
     tokenDigest: digestPropertyShareToken(token),
-    credentialVersion: 1,
     enabled: true,
     revokedAt: null,
+    totalViews: 0,
+    lastViewedAt: null,
     update: jest.fn(async (values) => Object.assign(share, values)),
     setDataValue: jest.fn((key, value) => {
       share[key] = value;
@@ -148,37 +177,71 @@ function publicShare(token, overrides = {}) {
   return share;
 }
 
+const listingInput = {
+  listingTitle: "Corner home with full marina view",
+  priceAed: "2350000",
+  listingType: "FOR_SALE",
+  bathrooms: 3,
+  sizeSqft: 1244,
+  furnishing: "FURNISHED",
+  description: "Bright corner home near the marina.",
+  highlights: ["Full marina view", "Upgraded kitchen"],
+  contactName: "Synthetic Owner",
+  contactPhone: "+971500000000",
+};
+
 describe("property sharing service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    resetPropertyShareThrottleForTests();
     process.env.NEXT_PUBLIC_BASE_URL = "https://example.test";
     User.findByPk.mockResolvedValue({ id: 7 });
-    PropertyShareContact.findAll.mockResolvedValue([]);
     PropertyShareDailyView.findAll.mockResolvedValue([]);
+    PropertyShareListing.findAll.mockResolvedValue([configuredListing()]);
     PropertyShareProperty.findAll.mockResolvedValue([]);
   });
 
-  it("creates one owner-scoped single snapshot and persists only the token digest", async () => {
+  it("creates or updates one owner-scoped listing after eligibility validation", async () => {
+    const booking = eligibleBooking({ propertyShareListing: null });
+    const record = configuredListing({
+      update: jest.fn(async (values) => Object.assign(record, values)),
+    });
+    Booking.findAll.mockResolvedValue([booking]);
+    PropertyShareListing.findOne.mockResolvedValue(record);
+
+    const result = await savePropertyShareListing(7, 20, listingInput);
+
+    expect(PropertyShareListing.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { ownerUserId: 7, bookingId: 20 },
+        lock: "UPDATE",
+      }),
+    );
+    expect(record.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contactName: "Synthetic Owner",
+        contactPhone: "+971500000000",
+        priceAed: "2350000.00",
+      }),
+      { transaction },
+    );
+    expect(result.listing.highlights).toEqual([
+      "Full marina view",
+      "Upgraded kitchen",
+    ]);
+  });
+
+  it("creates an immutable single snapshot and persists only the token digest", async () => {
     const booking = eligibleBooking();
-    const share = { id: 4 };
-    const property = { id: 30, bookingId: booking.id };
     Booking.findAll.mockResolvedValue([booking]);
     PropertyShareLink.findOne.mockResolvedValue(null);
-    PropertyShareLink.create.mockResolvedValue(share);
-    PropertyShareProperty.create.mockResolvedValue(property);
+    PropertyShareLink.create.mockResolvedValue({ id: 4 });
+    PropertyShareProperty.create.mockResolvedValue({ id: 30, bookingId: 20 });
 
-    const result = await createSinglePropertyShare(7, booking.id);
+    const result = await createSinglePropertyShare(7, 20);
 
-    expect(User.findByPk).toHaveBeenCalledWith(
-      7,
-      expect.objectContaining({ lock: "UPDATE", transaction }),
-    );
     expect(PropertyShareLink.create).toHaveBeenCalledWith(
       expect.objectContaining({
         ownerUserId: 7,
-        kind: "SINGLE_PROPERTY",
-        singleBookingId: 20,
         tokenDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
       }),
       { transaction },
@@ -197,286 +260,202 @@ describe("property sharing service", () => {
     expect(result.publicUrl).toMatch(
       /^https:\/\/example\.test\/share\/[A-Za-z0-9_-]{43}$/u,
     );
-    expect(result.publicUrl).not.toContain(
-      PropertyShareLink.create.mock.calls[0][0].tokenDigest,
+  });
+
+  it("requires listing configuration and at least two properties for a master", async () => {
+    await expect(createMasterPropertyShare(7, [20])).rejects.toBeInstanceOf(
+      PropertyShareConflictError,
+    );
+
+    Booking.findAll.mockResolvedValue([eligibleBooking()]);
+    PropertyShareListing.findAll.mockResolvedValue([]);
+    await expect(createSinglePropertyShare(7, 20)).rejects.toBeInstanceOf(
+      PropertyShareConflictError,
     );
   });
 
-  it("fails closed when an owned booking is not currently eligible", async () => {
-    Booking.findAll.mockResolvedValue([]);
+  it("rejects accepted archives and other non-browser media", async () => {
+    const booking = eligibleBooking();
+    booking.deliveryFiles[0].currentVersion = {
+      ...booking.deliveryFiles[0].currentVersion,
+      originalFilename: "private-delivery.zip",
+      mimeType: "application/zip",
+    };
+    Booking.findAll.mockResolvedValue([booking]);
 
     await expect(createSinglePropertyShare(7, 20)).rejects.toBeInstanceOf(
       PropertyShareNotFoundError,
     );
-    expect(PropertyShareLink.create).not.toHaveBeenCalled();
+    expect(PropertyShareFile.bulkCreate).not.toHaveBeenCalled();
   });
 
-  it("requires at least two explicitly selected master properties", async () => {
-    const { createMasterPropertyShare } = await import("../propertySharing");
-    await expect(createMasterPropertyShare(7, [20])).rejects.toBeInstanceOf(
-      PropertyShareConflictError,
-    );
-    expect(Booking.findAll).not.toHaveBeenCalled();
+  it("classifies safe photo, video, and 360 media without accepting HTML", () => {
+    expect(
+      getInlinePropertyMediaDetails(
+        { type: "Photography" },
+        { mimeType: "image/jpeg", originalFilename: "home.jpg" },
+      ),
+    ).toEqual({ kind: "IMAGE", mimeType: "image/jpeg" });
+    expect(
+      getInlinePropertyMediaDetails(
+        { type: "Videography" },
+        { mimeType: "video/mp4", originalFilename: "walkthrough.mp4" },
+      ),
+    ).toEqual({ kind: "VIDEO", mimeType: "video/mp4" });
+    expect(
+      getInlinePropertyMediaDetails(
+        { type: "360 Virtual Tour" },
+        { mimeType: "image/webp", originalFilename: "tour.webp" },
+      ),
+    ).toEqual({ kind: "TOUR", mimeType: "image/webp" });
+    expect(
+      getInlinePropertyMediaDetails(
+        { type: "Unsafe" },
+        { mimeType: "text/html", originalFilename: "page.html" },
+      ),
+    ).toBeNull();
   });
 
-  it("uses the same safe not-found result for missing and cross-owner mutations", async () => {
-    PropertyShareLink.findOne.mockResolvedValue(null);
-
-    await expect(setPropertyShareEnabled(99, 4, false)).rejects.toBeInstanceOf(
-      PropertyShareNotFoundError,
-    );
-    expect(PropertyShareLink.findOne).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 4, ownerUserId: 99 } }),
-    );
-  });
-
-  it("rotates the digest atomically without resetting aggregate history", async () => {
-    const token = createPropertyShareToken();
-    const share = publicShare(token, {
-      totalViews: 42,
-      lastViewedAt: new Date(),
-    });
-    PropertyShareLink.findOne.mockResolvedValue(share);
-
-    const result = await rotatePropertyShareToken(7, 4);
-
-    expect(share.update).toHaveBeenCalledWith(
-      {
-        tokenDigest: expect.stringMatching(/^[0-9a-f]{64}$/u),
-        credentialVersion: 2,
-      },
-      { transaction },
-    );
-    expect(share.update.mock.calls[0][0].totalViews).toBeUndefined();
-    expect(share.totalViews).toBe(42);
-    expect(result.publicUrl).toMatch(/\/share\/[A-Za-z0-9_-]{43}$/u);
-  });
-
-  it("counts only a fully valid landing with atomic total and Dubai-day upsert", async () => {
+  it("serializes a complete showcase without persisted private URLs", async () => {
     const token = createPropertyShareToken();
     const share = publicShare(token);
     PropertyShareLink.findOne.mockResolvedValue(share);
     PropertyShareProperty.findAll.mockResolvedValue([publicProperty()]);
 
-    const result = await resolvePublicPropertyShareLanding(
+    const landing = await resolvePublicPropertyShareLanding(
       token,
-      new Date("2026-07-22T21:30:00.000Z"),
+      new Date("2026-07-22T10:00:00.000Z"),
     );
 
-    expect(result).toEqual(
+    expect(landing.properties[0]).toEqual(
       expect.objectContaining({
-        id: 4,
-        kind: "SINGLE_PROPERTY",
-        properties: [
-          expect.objectContaining({ id: 30, title: expect.any(String) }),
+        title: "Corner home with full marina view",
+        displayPrice: "AED 2,350,000",
+        bedrooms: 2,
+        bathrooms: 3,
+        sizeSqft: 1244,
+        contact: {
+          name: "Synthetic Owner",
+          phone: "+971500000000",
+          telephoneUrl: "tel:+971500000000",
+          whatsappUrl: "https://wa.me/971500000000",
+        },
+        media: [
+          {
+            id: 500,
+            kind: "IMAGE",
+            label: "Final photography",
+            mimeType: "image/jpeg",
+          },
         ],
       }),
     );
-    expect(JSON.stringify(result)).not.toContain("private-object.zip");
-    expect(JSON.stringify(result)).not.toContain("storage.invalid");
+    expect(JSON.stringify(landing)).not.toContain("storage.invalid");
+    expect(JSON.stringify(landing)).not.toContain("private.jpg");
     expect(share.update).toHaveBeenCalledWith(
       expect.objectContaining({ lastViewedAt: expect.any(Date) }),
       { transaction },
     );
-    const [sql, queryOptions] = sequelize.query.mock.calls[0];
-    expect(sql).toContain("ON CONFLICT (share_link_id, view_date)");
-    expect(sql).toContain("request_views + 1");
-    expect(queryOptions.replacements.viewDate).toBe("2026-07-23");
-  });
-
-  it("returns one generic invalid result without counting disabled links", async () => {
-    const token = createPropertyShareToken();
-    PropertyShareLink.findOne.mockResolvedValue(
-      publicShare(token, { enabled: false }),
+    expect(sequelize.query).toHaveBeenCalledWith(
+      expect.stringContaining("ON CONFLICT"),
+      expect.objectContaining({ transaction }),
     );
-
-    await expect(resolvePublicPropertyShareLanding(token)).resolves.toBeNull();
-    await expect(
-      resolvePublicPropertyShareLanding("malformed"),
-    ).resolves.toBeNull();
-    expect(PropertyShareProperty.findAll).not.toHaveBeenCalled();
-    expect(sequelize.query).not.toHaveBeenCalled();
   });
 
-  it("fails a stale snapshotted member closed without counting it", async () => {
+  it("validates requested master membership before counting", async () => {
     const token = createPropertyShareToken();
-    const share = publicShare(token);
-    const property = publicProperty();
-    property.files[0].deliveryFile.status = "CHANGES_REQUESTED";
-    PropertyShareLink.findOne.mockResolvedValue(share);
-    PropertyShareProperty.findAll.mockResolvedValue([property]);
-
-    await expect(resolvePublicPropertyShareLanding(token)).resolves.toBeNull();
-    expect(share.update).not.toHaveBeenCalled();
-    expect(sequelize.query).not.toHaveBeenCalled();
-  });
-
-  it("does not count an invalid or unselected master property request", async () => {
-    const token = createPropertyShareToken();
+    const first = publicProperty();
+    const secondBooking = eligibleBooking({
+      id: 21,
+      propertyShareListing: configuredListing({ id: 91, bookingId: 21 }),
+    });
+    const second = { ...publicProperty(secondBooking), id: 31, bookingId: 21 };
     const share = publicShare(token, {
       kind: "MASTER",
       singleBookingId: null,
     });
-    const firstProperty = publicProperty();
-    const secondProperty = publicProperty(eligibleBooking({ id: 21 }));
-    secondProperty.id = 31;
     PropertyShareLink.findOne.mockResolvedValue(share);
-    PropertyShareProperty.findAll.mockResolvedValue([
-      firstProperty,
-      secondProperty,
-    ]);
+    PropertyShareProperty.findAll.mockResolvedValue([first, second]);
 
     await expect(
-      resolvePublicPropertyShareLanding(
-        token,
-        new Date("2026-07-22T10:00:00.000Z"),
-        999,
-      ),
+      resolvePublicPropertyShareLanding(token, new Date(), 99),
     ).resolves.toBeNull();
-
     expect(share.update).not.toHaveBeenCalled();
     expect(sequelize.query).not.toHaveBeenCalled();
   });
 
-  it("persists only normalized contact fields and issues a scoped receipt", async () => {
+  it("resolves only exact token/property/snapshot media without counting", async () => {
     const token = createPropertyShareToken();
-    const share = publicShare(token);
-    PropertyShareLink.findOne.mockResolvedValue(share);
+    PropertyShareLink.findOne.mockResolvedValue(publicShare(token));
     PropertyShareProperty.findAll.mockResolvedValue([publicProperty()]);
 
-    const result = await submitPublicPropertyShareContact({
-      token,
-      propertyId: 30,
-      input: { name: " Synthetic  Visitor ", phone: "00 971 50 123 4567" },
-      networkAddress: "192.0.2.10",
-      now: new Date("2026-07-22T10:00:00.000Z"),
-    });
-
-    expect(PropertyShareContact.create).toHaveBeenCalledWith(
-      {
-        shareLinkId: 4,
-        sharePropertyId: 30,
-        name: "Synthetic Visitor",
-        phone: "+971501234567",
-        expiresAt: new Date("2026-10-20T10:00:00.000Z"),
-      },
-      { transaction },
-    );
-    expect(result.receipt.cookieName).toBe("property-share-receipt-4-30");
-  });
-
-  it("reads eager-loaded properties from a Sequelize model data value", async () => {
-    const token = createPropertyShareToken();
-    const share = publicShare(token);
-    let loadedProperties = [];
-    share.setDataValue = jest.fn((key, value) => {
-      if (key === "properties") loadedProperties = value;
-    });
-    share.toJSON = jest.fn(() => ({
-      ...share,
-      properties: loadedProperties,
-    }));
-    PropertyShareLink.findOne.mockResolvedValue(share);
-    PropertyShareProperty.findAll.mockResolvedValue([publicProperty()]);
-
-    const result = await submitPublicPropertyShareContact({
-      token,
-      propertyId: 30,
-      input: { name: "Synthetic Visitor", phone: "+971501234567" },
-      networkAddress: "192.0.2.11",
-    });
-
-    expect(result.receipt.cookieName).toBe("property-share-receipt-4-30");
-    expect(PropertyShareContact.create).toHaveBeenCalledTimes(1);
-    expect(share.properties).toBeUndefined();
-  });
-
-  it("reveals no manifest before a valid receipt and isolates selected files", async () => {
-    const token = createPropertyShareToken();
-    const share = publicShare(token);
-    const property = publicProperty();
-    PropertyShareLink.findOne.mockResolvedValue(share);
-    PropertyShareProperty.findAll.mockResolvedValue([property]);
-
     await expect(
-      getPublicPropertyManifest(token, 30, "invalid"),
-    ).resolves.toBeNull();
-
-    const receipt = await createPropertyShareReceipt({
-      shareId: 4,
-      propertyId: 30,
-      credentialVersion: 1,
-    });
-    const manifest = await getPublicPropertyManifest(token, 30, receipt.token);
-    expect(manifest.files).toEqual([
-      expect.objectContaining({ id: 500, filename: "synthetic-property.zip" }),
-    ]);
-    expect(JSON.stringify(manifest)).not.toContain("storage.invalid");
-    await expect(
-      resolvePublicPropertyShareFile({
-        token,
-        propertyId: 30,
-        sharedFileId: 999,
-        receiptToken: receipt.token,
-      }),
-    ).resolves.toBeNull();
-    await expect(
-      resolvePublicPropertyShareFile({
+      resolvePublicPropertyShareMedia({
         token,
         propertyId: 30,
         sharedFileId: 500,
-        receiptToken: receipt.token,
       }),
     ).resolves.toEqual({
-      url: "https://storage.invalid/private-object.zip",
-      filename: "synthetic-property.zip",
+      storageUrl:
+        "https://storage.invalid/deliverables/bookings/20/private.jpg",
+      mimeType: "image/jpeg",
+      sizeBytes: 2048,
     });
-  });
-
-  it("filters expired contacts immediately and bounds physical cleanup", async () => {
-    const expired = Array.from({ length: 200 }, (_, index) => ({
-      id: index + 1,
-    }));
-    PropertyShareContact.findAll.mockResolvedValue(expired);
-    Booking.findAll.mockResolvedValue([]);
-    PropertyShareLink.findAll.mockResolvedValue([]);
-    PropertyShareContact.destroy.mockResolvedValue(200);
-    const now = new Date("2026-07-22T10:00:00.000Z");
-
-    const result = await getPropertySharingDashboard(7, now);
-
-    expect(result).toEqual({ eligibleProperties: [], shares: [] });
-    expect(PropertyShareContact.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({
-        attributes: ["id"],
-        limit: 200,
-        where: expect.objectContaining({ expiresAt: expect.any(Object) }),
+    await expect(
+      resolvePublicPropertyShareMedia({
+        token,
+        propertyId: 30,
+        sharedFileId: 999,
       }),
-    );
-    expect(PropertyShareContact.destroy).toHaveBeenCalledWith({
-      where: { id: expect.any(Object) },
-    });
+    ).resolves.toBeNull();
+    expect(sequelize.query).not.toHaveBeenCalled();
   });
 
-  it("joins owner-visible contacts through the current share membership", async () => {
+  it("fails closed for stale pinned membership", async () => {
     const token = createPropertyShareToken();
-    const share = publicShare(token, { properties: [] });
-    Booking.findAll.mockResolvedValue([]);
+    const property = publicProperty();
+    property.files[0].deliveryFile.currentVersionId = 101;
+    PropertyShareLink.findOne.mockResolvedValue(publicShare(token));
+    PropertyShareProperty.findAll.mockResolvedValue([property]);
+
+    await expect(resolvePublicPropertyShareLanding(token)).resolves.toBeNull();
+  });
+
+  it("disables immediately and rotates without resetting analytics", async () => {
+    const token = createPropertyShareToken();
+    const share = publicShare(token, { totalViews: 42 });
+    PropertyShareLink.findOne.mockResolvedValue(share);
+
+    await setPropertyShareEnabled(7, 4, false);
+    expect(share.enabled).toBe(false);
+    const previousDigest = share.tokenDigest;
+    const rotated = await rotatePropertyShareToken(7, 4);
+    expect(share.tokenDigest).not.toBe(previousDigest);
+    expect(share.totalViews).toBe(42);
+    expect(rotated.publicUrl).toMatch(/\/share\/[A-Za-z0-9_-]{43}$/u);
+  });
+
+  it("returns listing-ready dashboard DTOs with aggregate views and no contacts", async () => {
+    const booking = eligibleBooking();
+    const share = publicShare(createPropertyShareToken(), {
+      properties: [publicProperty(booking)],
+      totalViews: 5,
+    });
+    Booking.findAll.mockResolvedValue([booking]);
     PropertyShareLink.findAll.mockResolvedValue([share]);
+    PropertyShareDailyView.findAll.mockResolvedValue([
+      { viewDate: "2026-07-22", requestViews: 5 },
+    ]);
 
-    await getPropertySharingDashboard(7);
-
-    expect(PropertyShareContact.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ shareLinkId: 4 }),
-        include: [
-          expect.objectContaining({
-            as: "property",
-            required: true,
-            where: { shareLinkId: 4 },
-          }),
-        ],
-      }),
+    const dashboard = await getPropertySharingDashboard(
+      7,
+      new Date("2026-07-22T10:00:00.000Z"),
     );
+
+    expect(dashboard.eligibleProperties[0].listing.contactName).toBe(
+      "Synthetic Owner",
+    );
+    expect(dashboard.shares[0].analytics.totalRequestViews).toBe(5);
+    expect(dashboard.shares[0]).not.toHaveProperty("contacts");
   });
 });

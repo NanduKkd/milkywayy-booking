@@ -72,9 +72,6 @@ live configuration.
   characters.
 - `NEXT_PUBLIC_BASE_URL`: public application origin used when constructing
   redirects and application links.
-- `PROPERTY_SHARE_RECEIPT_SECRET`: signs PII-free public property access
-  receipts. Production requires at least 32 characters; development/test use a
-  non-production fallback.
 
 ### Payments
 

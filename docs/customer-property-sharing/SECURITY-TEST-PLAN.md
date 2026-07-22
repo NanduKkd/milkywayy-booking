@@ -1,90 +1,75 @@
-# Customer property sharing security test plan
+# Customer property showcase security test plan
 
 ## Automated release gates
 
-### Schema and concurrency
+### Schema and contention
 
-- Migration up/down creates and removes all tables, foreign keys, checks,
-  cleanup/read indexes, token uniqueness, and partial live-link constraints in
-  dependency-safe order.
-- Real PostgreSQL contention uses the reserved-name disposable harness with
-  explicit test-admin opt-in, and permits only one live single owner/property
-  link and one live master owner link.
-- Concurrent total and daily-bucket increments are lossless.
-- Model registry and relations expose all five persistence boundaries.
+- Migration up/down creates/removes listing, link, selection, exact media
+  membership, and aggregate tables in dependency-safe order.
+- Schema contains no contact submission, receipt, visitor identity, or
+  plaintext bearer field.
+- Real PostgreSQL contention permits one live single per owner/booking, one
+  live master per owner, and one listing per owner/booking.
+- Concurrent total/Dubai-day increments are lossless.
 
-### Ownership, eligibility, and snapshots
+### Listing, ownership, eligibility, and snapshots
 
-- Only the session owner reaches create/read/update/disable/rotate/revoke.
-- Missing and cross-owner operations share one safe not-found result.
-- Cancelled, incomplete, uncompleted, other-owner, and no-eligible-file
-  bookings are rejected.
-- Single links contain one property; master links require at least two explicit
-  selections.
-- Snapshots contain only accepted, non-deleted current versions and never add a
-  later file automatically.
-- Private, changes-requested, deleted, replaced, superseded, wrong-booking,
-  unselected, and stale members fail closed.
+- Only the customer session owner can save/manage a listing or link.
+- Every listing field is bounded, normalized, unknown-key rejecting, and safely
+  rendered; contact phone produces valid `tel:` and WhatsApp URLs.
+- Cancelled, incomplete, other-owner, and no-safe-media bookings are rejected.
+- Master links require at least two explicit configured properties.
+- Snapshots include only accepted, non-deleted current browser-safe image/video
+  versions and never auto-add later media.
+- Wrong-booking, unsafe, deleted, replaced, superseded, unselected, and stale
+  memberships fail closed.
 
-### Token, receipt, and public boundary
+### Token, public page, and inline media boundary
 
-- Tokens decode to 32 random bytes and only a 64-character SHA-256 digest is
-  passed to persistence.
-- Create/rotate returns plaintext once; rotation changes the digest and
-  credential version without resetting aggregates.
-- Malformed, unknown, disabled, revoked, stale, and unselected scopes have the
-  same public 404 shape and do not count a landing.
-- Receipts contain no PII, are HttpOnly/SameSite=Lax/Secure in production,
-  share/property/version scoped, and invalid after 24 hours or rotation.
-- Contact JSON accepts exactly name and phone, normalizes safely, rejects
-  unknown/oversized/malformed input, and requires same-origin POSTs.
-- Throttling is bounded and retains only expiring keyed digests in process
-  memory.
-- Public HTML/JSON contains no stored delivery URL. File actions revalidate the
-  token, receipt, selection, file, pinned version, current version, eligibility,
-  and owned storage key before delivery capped at five minutes or the lower
-  configured TTL.
-- Public responses set noindex, no-referrer, no-store/private, and nosniff
-  protections.
+- Tokens decode to 32 random bytes and only a 64-character digest reaches
+  persistence; rotation changes the digest and preserves aggregates.
+- Malformed, unknown, disabled, revoked, stale, wrong-property, unselected, and
+  cross-owner scopes share the same public unavailable shape.
+- Public DTO/HTML contains no persisted object URL, `/api/files/download`,
+  `download` attribute, delivery manifest, buyer form, receipt, or cookie flow.
+- Media routes revalidate token, property selection, exact file/version,
+  current acceptance, supersession, safe MIME, and owned storage key.
+- Successful inline responses provide accurate MIME, `nosniff`, no-store,
+  noindex, referrer policy, range support, and no attachment disposition or
+  redirect.
+- Successful page/collection renders count atomically; failed resolutions and
+  media requests do not.
 
 ### Compatibility and UI
 
 - The tab says Properties but links to `/dashboard/files`.
-- Owned `fileId` values still highlight/scroll; malformed, inaccessible, and
-  other-owner values retain one generic notice.
-- Existing native download, authenticated `copy_link`, revision limits and
-  deadlines, replacement hiding/count/status, delivery progress, manual and
-  automatic completion, Bookings, Invoices, Connections, access gate, and
-  dashboard layout suites pass.
-- Owner UI covers eligible selection, single/master links, one-time copy,
-  refresh, enable/disable, rotate/revoke, aggregate request views, last viewed,
-  zero-filled 30-day series, and unexpired contacts.
-- Public UI covers single/master context, exactly two contact inputs,
-  per-property gating, and token-scoped file actions at desktop and narrow
-  widths.
+- Ready to Share, listing form, Shared Properties, Master Links,
+  select-multiple/action bar, preview, analytics, enable/disable, refresh,
+  rotation, and revoke are covered at desktop and narrow sizes.
+- Single showcase covers gallery switching, metadata chips, description,
+  highlights, contact phone/WhatsApp actions, empty/error states, and branding.
+- Master collection contains only selected cards and opens the full selected
+  showcase under the same token with a back path.
+- Existing `fileId`, authenticated download/copy-link, revisions, replacements,
+  review deadlines, completion, and other dashboard product areas retain
+  focused compatibility coverage.
 
 ## Required commands
 
-Run the focused property-sharing suites, the existing dashboard/delivery
-compatibility suites listed in issue #68, a focused production build, Biome on
-changed JavaScript/JSX, and `git diff --check`. Record exact suite/test counts in
-the pull request. Run repository-wide checks when practical and report their
-known unrelated baseline separately.
+Run the focused issue #68 suites, reserved disposable-PostgreSQL suite,
+dashboard/delivery compatibility suites named in the issue, production build,
+changed-file Biome, `git diff --check`, and practical repo-wide baselines.
+Record exact suite/test counts and separate unrelated baseline failures.
 
 ## Sanitized browser proof
 
-Use only synthetic properties, filenames, names, and phone values. Capture:
+Use synthetic listings, media, contacts, and bearers. Capture 1440×900 and
+390×844 evidence for authenticated management, a single showcase/gallery, and
+a master collection plus selected-property showcase. Record DOM/network checks
+for inline media and the absence of buyer POSTs, receipt cookies, public
+downloads/attachments, authenticated download calls, and persisted object URLs.
 
-- desktop and narrow authenticated Properties pages with unchanged file
-  controls, single/master management, metrics, state controls, and contacts;
-- public single gate and authorized files;
-- public master with at least two selected properties, separate gates, and an
-  unselected property/file rejection;
-- disabled and generic invalid states plus old-token rejection after rotation;
-- network/log inspection confirming absence of stored URLs, bearer tokens,
-  contact values, raw network addresses, user-agent, referrer, and fingerprint
-  analytics.
-
-Redact bearer tokens, cookies, phones, storage URLs, IDs, hosts, and environment
-details before attaching proof. Exact environment-only evidence belongs under
-ignored `docs/private/` material.
+Verify disabled/old-rotated/unselected/stale failures, aggregate-only analytics,
+and unchanged authenticated FileList/download behavior. Redact bearer tokens,
+contact numbers, object URLs, customer/booking IDs, cookies, hosts, and local
+environment details.

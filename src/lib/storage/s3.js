@@ -192,25 +192,12 @@ const contentDisposition = (fileName) => {
   return `attachment; filename="${safe}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
 };
 
-export const createDownloadUrl = async ({
-  key,
-  fileName,
-  expiresInSeconds,
-}) => {
+export const createDownloadUrl = async ({ key, fileName }) => {
   if (!isBookingDeliverableKey(key)) {
     throw new Error("Object key is outside the booking deliverables prefix");
   }
   const { bucket } = getS3Config();
-  const { downloadUrlTtlSeconds: configuredTtlSeconds } =
-    getBookingUploadConfig();
-  const requestedTtlSeconds =
-    expiresInSeconds == null
-      ? configuredTtlSeconds
-      : parsePositiveInteger(expiresInSeconds, configuredTtlSeconds);
-  const downloadUrlTtlSeconds = Math.min(
-    configuredTtlSeconds,
-    requestedTtlSeconds,
-  );
+  const { downloadUrlTtlSeconds } = getBookingUploadConfig();
   return getSignedUrl(
     getS3Client(),
     new GetObjectCommand({
@@ -220,6 +207,20 @@ export const createDownloadUrl = async ({
       ResponseContentType: "application/octet-stream",
     }),
     { expiresIn: downloadUrlTtlSeconds },
+  );
+};
+
+export const getBookingObject = async ({ key, range }) => {
+  if (!isBookingDeliverableKey(key)) {
+    throw new Error("Object key is outside the booking deliverables prefix");
+  }
+  const { bucket } = getS3Config();
+  return getS3Client().send(
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ...(range ? { Range: range } : {}),
+    }),
   );
 };
 

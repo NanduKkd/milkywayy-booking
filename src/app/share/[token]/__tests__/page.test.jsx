@@ -1,136 +1,61 @@
-import { render, screen } from "@testing-library/react";
-import { cookies } from "next/headers";
-import {
-  getPublicPropertyManifest,
-  resolvePublicPropertyShareLanding,
-} from "@/lib/services/propertySharing";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { resolvePublicPropertyShareLanding } from "@/lib/services/propertySharing";
 import SharedPropertyPage from "../page";
 
-jest.mock("next/headers", () => ({ cookies: jest.fn() }));
 jest.mock("next/navigation", () => ({
   notFound: jest.fn(() => {
     throw new Error("NOT_FOUND");
   }),
 }));
 jest.mock("@/lib/services/propertySharing", () => ({
-  getPublicPropertyManifest: jest.fn(),
   resolvePublicPropertyShareLanding: jest.fn(),
-}));
-jest.mock("../ContactGate", () => ({
-  __esModule: true,
-  default: ({ propertyTitle }) => <div>Contact gate for {propertyTitle}</div>,
 }));
 
 const token = "A".repeat(43);
+
+function property(id, title) {
+  return {
+    id,
+    title,
+    displayPrice: "AED 2,350,000",
+    listingType: "FOR_SALE",
+    listingTypeLabel: "For Sale",
+    bathrooms: 3,
+    sizeSqft: 1244,
+    furnishing: "Furnished",
+    description: "Bright corner home near the marina.",
+    highlights: ["Full marina view", "Upgraded kitchen"],
+    contact: {
+      name: "Synthetic Owner",
+      phone: "+971500000000",
+      telephoneUrl: "tel:+971500000000",
+      whatsappUrl: "https://wa.me/971500000000",
+    },
+    location: "Synthetic Tower, Test District",
+    bedrooms: 2,
+    services: ["Photography", "Videography"],
+    media: [
+      { id: id * 10, kind: "IMAGE", mimeType: "image/jpeg", label: "Photo" },
+      { id: id * 10 + 1, kind: "VIDEO", mimeType: "video/mp4", label: "Video" },
+    ],
+  };
+}
+
 const properties = [
-  {
-    id: 30,
-    title: "Synthetic Tower",
-    services: ["Photography"],
-    completedAt: "2026-07-20T10:00:00.000Z",
-  },
-  {
-    id: 31,
-    title: "Sample Villa",
-    services: ["Videography"],
-    completedAt: "2026-07-21T10:00:00.000Z",
-  },
+  property(30, "Marina corner home"),
+  property(31, "Beach home"),
 ];
 
-describe("public shared property page", () => {
+describe("public property showcase page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    cookies.mockResolvedValue({ get: jest.fn(() => undefined) });
   });
 
-  it("shows only selected master property cards before the per-property gate", async () => {
-    resolvePublicPropertyShareLanding.mockResolvedValue({
-      id: 4,
-      kind: "MASTER",
-      properties,
-    });
-
-    render(
-      await SharedPropertyPage({
-        params: Promise.resolve({ token }),
-        searchParams: Promise.resolve({}),
-      }),
-    );
-
-    expect(screen.getByText("Completed properties")).toBeInTheDocument();
-    expect(screen.getByText("Synthetic Tower")).toBeInTheDocument();
-    expect(screen.getByText("Sample Villa")).toBeInTheDocument();
-    expect(screen.queryByText(/Shared files/u)).not.toBeInTheDocument();
-    expect(getPublicPropertyManifest).not.toHaveBeenCalled();
-    expect(resolvePublicPropertyShareLanding).toHaveBeenCalledWith(
-      token,
-      undefined,
-      null,
-    );
-  });
-
-  it("validates a requested master property before counting the landing", async () => {
-    resolvePublicPropertyShareLanding.mockResolvedValue({
-      id: 4,
-      kind: "MASTER",
-      properties,
-    });
-
-    render(
-      await SharedPropertyPage({
-        params: Promise.resolve({ token }),
-        searchParams: Promise.resolve({ property: "30" }),
-      }),
-    );
-
-    expect(resolvePublicPropertyShareLanding).toHaveBeenCalledWith(
-      token,
-      undefined,
-      30,
-    );
-    expect(
-      screen.getByText("Contact gate for Synthetic Tower"),
-    ).toBeInTheDocument();
-  });
-
-  it("uses the contact gate until a receipt exists", async () => {
+  it("renders a complete single showcase immediately with inline gallery and contact actions", async () => {
     resolvePublicPropertyShareLanding.mockResolvedValue({
       id: 4,
       kind: "SINGLE_PROPERTY",
       properties: [properties[0]],
-    });
-
-    render(
-      await SharedPropertyPage({
-        params: Promise.resolve({ token }),
-        searchParams: Promise.resolve({}),
-      }),
-    );
-
-    expect(
-      screen.getByText("Contact gate for Synthetic Tower"),
-    ).toBeInTheDocument();
-    expect(resolvePublicPropertyShareLanding).toHaveBeenCalledTimes(1);
-  });
-
-  it("renders only token-scoped file actions after a valid receipt", async () => {
-    resolvePublicPropertyShareLanding.mockResolvedValue({
-      id: 4,
-      kind: "SINGLE_PROPERTY",
-      properties: [properties[0]],
-    });
-    cookies.mockResolvedValue({
-      get: jest.fn(() => ({ value: "signed-receipt" })),
-    });
-    getPublicPropertyManifest.mockResolvedValue({
-      property: properties[0],
-      files: [
-        {
-          id: 500,
-          label: "Final photography",
-          filename: "synthetic.zip",
-        },
-      ],
     });
 
     const { container } = render(
@@ -140,12 +65,106 @@ describe("public shared property page", () => {
       }),
     );
 
-    const action = screen.getByRole("link", { name: "Download" });
-    expect(action).toHaveAttribute(
+    expect(
+      screen.getByRole("heading", { name: "Marina corner home" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("AED 2,350,000")).toBeInTheDocument();
+    expect(screen.getByText("Full marina view")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "+971500000000" })).toHaveAttribute(
       "href",
-      `/api/public/property-shares/${token}/properties/30/files/500`,
+      "tel:+971500000000",
     );
+    expect(screen.getByRole("link", { name: "WhatsApp" })).toHaveAttribute(
+      "href",
+      "https://wa.me/971500000000",
+    );
+    expect(
+      screen.getByRole("button", { name: "Video walkthrough" }),
+    ).toBeInTheDocument();
+    expect(container.querySelector("form")).toBeNull();
+    expect(container.querySelector("[download]")).toBeNull();
+    expect(screen.queryByText(/Download/u)).not.toBeInTheDocument();
+    expect(container.innerHTML).not.toContain("/api/files/download");
     expect(container.innerHTML).not.toContain("storage");
-    expect(container.innerHTML).not.toContain("currentVersion");
+    expect(container.innerHTML).not.toContain("receipt");
+  });
+
+  it("switches supported media inline without exposing a download action", async () => {
+    resolvePublicPropertyShareLanding.mockResolvedValue({
+      id: 4,
+      kind: "SINGLE_PROPERTY",
+      properties: [properties[0]],
+    });
+    const { container } = render(
+      await SharedPropertyPage({
+        params: Promise.resolve({ token }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Video walkthrough" }));
+
+    expect(container.querySelector("video[controls]")).not.toBeNull();
+    expect(container.querySelector("video")).toHaveAttribute(
+      "src",
+      `/api/public/property-shares/${token}/properties/30/media/301`,
+    );
+    expect(container.querySelector("a[download]")).toBeNull();
+  });
+
+  it("renders only selected cmini-style master cards and opens them under the same bearer", async () => {
+    resolvePublicPropertyShareLanding.mockResolvedValue({
+      id: 4,
+      kind: "MASTER",
+      properties,
+    });
+
+    render(
+      await SharedPropertyPage({
+        params: Promise.resolve({ token }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "2 homes picked for you" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marina corner home")).toBeInTheDocument();
+    expect(screen.getByText("Beach home")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Marina corner home/u }),
+    ).toHaveAttribute("href", `/share/${token}?property=30`);
+    expect(resolvePublicPropertyShareLanding).toHaveBeenCalledWith(
+      token,
+      undefined,
+      null,
+    );
+  });
+
+  it("requests and renders a selected master showcase with a back path", async () => {
+    resolvePublicPropertyShareLanding.mockResolvedValue({
+      id: 4,
+      kind: "MASTER",
+      properties,
+    });
+
+    render(
+      await SharedPropertyPage({
+        params: Promise.resolve({ token }),
+        searchParams: Promise.resolve({ property: "31" }),
+      }),
+    );
+
+    expect(resolvePublicPropertyShareLanding).toHaveBeenCalledWith(
+      token,
+      undefined,
+      31,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Beach home" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Back to the collection" }),
+    ).toHaveAttribute("href", `/share/${token}`);
   });
 });

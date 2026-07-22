@@ -1,5 +1,4 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   createBookingObjectKey,
   createDownloadUrl,
@@ -24,13 +23,11 @@ describe("booking S3 storage helpers", () => {
   const originalBucket = process.env.AWS_BUCKET_NAME;
   const originalRegion = process.env.AWS_REGION;
   const originalCloudfront = process.env.AWS_CLOUDFRONT_DOMAIN;
-  const originalDownloadTtl = process.env.S3_DOWNLOAD_URL_TTL_SECONDS;
 
   beforeEach(() => {
     process.env.AWS_BUCKET_NAME = "delivery-bucket";
     process.env.AWS_REGION = "ap-south-1";
     process.env.AWS_CLOUDFRONT_DOMAIN = "files.example.com";
-    process.env.S3_DOWNLOAD_URL_TTL_SECONDS = "900";
   });
 
   afterAll(() => {
@@ -41,9 +38,6 @@ describe("booking S3 storage helpers", () => {
     if (originalCloudfront === undefined)
       delete process.env.AWS_CLOUDFRONT_DOMAIN;
     else process.env.AWS_CLOUDFRONT_DOMAIN = originalCloudfront;
-    if (originalDownloadTtl === undefined)
-      delete process.env.S3_DOWNLOAD_URL_TTL_SECONDS;
-    else process.env.S3_DOWNLOAD_URL_TTL_SECONDS = originalDownloadTtl;
   });
 
   it("generates server-owned safe booking keys", () => {
@@ -112,7 +106,6 @@ describe("booking S3 storage helpers", () => {
     await createDownloadUrl({
       key: "deliverables/bookings/42/final.mp4",
       fileName: "Final Video.mp4",
-      expiresInSeconds: 300,
     });
 
     expect(GetObjectCommand).toHaveBeenCalledWith(
@@ -120,11 +113,6 @@ describe("booking S3 storage helpers", () => {
         ResponseContentDisposition: expect.stringContaining("attachment;"),
         ResponseContentType: "application/octet-stream",
       }),
-    );
-    expect(getSignedUrl).toHaveBeenLastCalledWith(
-      expect.anything(),
-      expect.anything(),
-      { expiresIn: 300 },
     );
   });
 });

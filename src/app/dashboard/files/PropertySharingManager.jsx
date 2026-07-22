@@ -1,17 +1,16 @@
 "use client";
 
 import {
-  BarChart3,
-  Building2,
   Check,
   Copy,
   Eye,
   Link2,
   Loader2,
+  Pencil,
+  Phone,
   RefreshCcw,
   RotateCw,
-  ShieldCheck,
-  UserRound,
+  X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -23,9 +22,23 @@ import {
   refreshPropertyShareSnapshotAction,
   revokePropertyShareAction,
   rotatePropertyShareTokenAction,
+  savePropertyShareListingAction,
   setPropertyShareEnabledAction,
   updateMasterPropertyShareAction,
 } from "@/lib/actions/propertySharing";
+import styles from "./PropertySharingManager.module.css";
+
+function formatDate(value) {
+  if (!value) return "Delivered";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Delivered";
+  return new Intl.DateTimeFormat("en-AE", {
+    timeZone: "Asia/Dubai",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
 
 function formatDateTime(value) {
   if (!value) return "Never";
@@ -38,43 +51,31 @@ function formatDateTime(value) {
   }).format(date);
 }
 
-function ShareStatus({ share }) {
-  const enabled = share.status === "ENABLED";
-  const revoked = share.status === "REVOKED";
-  return (
-    <span
-      className={[
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-        enabled
-          ? "border-emerald-300/20 bg-emerald-300/10 text-emerald-200"
-          : revoked
-            ? "border-rose-300/20 bg-rose-300/10 text-rose-200"
-            : "border-amber-300/20 bg-amber-300/10 text-amber-200",
-      ].join(" ")}
-    >
-      {enabled ? "Enabled" : revoked ? "Revoked" : "Disabled"}
-    </span>
+function formatPrice(listing) {
+  if (!listing) return "Listing not configured";
+  const price = new Intl.NumberFormat("en-AE", {
+    maximumFractionDigits: 2,
+  }).format(Number(listing.priceAed));
+  return `AED ${price}${listing.listingType === "FOR_RENT_YEARLY" ? " / yr" : ""}`;
+}
+
+function initialMasterSelection(data) {
+  const master = data.shares.find(
+    (share) => share.kind === "MASTER" && share.status !== "REVOKED",
   );
+  return master ? master.properties.map((property) => property.bookingId) : [];
 }
 
 function ViewSeries({ series }) {
   const max = Math.max(1, ...(series || []).map((day) => day.requestViews));
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Trailing 30 Dubai days</span>
-        <span>Request views</span>
-      </div>
-      <div
-        className="flex h-12 items-end gap-0.5"
-        role="img"
-        aria-label="Trailing 30-day request views"
-      >
+    <div className={styles.viewSeries}>
+      <span>30 Dubai days</span>
+      <div role="img" aria-label="Trailing 30-day request views">
         {(series || []).map((day) => (
-          <span
+          <i
             key={day.date}
             title={`${day.date}: ${day.requestViews} request views`}
-            className="min-h-0.5 flex-1 rounded-sm bg-sky-300/70"
             style={{
               height: `${Math.max(3, (day.requestViews / max) * 100)}%`,
             }}
@@ -85,415 +86,759 @@ function ViewSeries({ series }) {
   );
 }
 
-function initialMasterSelection(data) {
-  const eligibleIds = new Set(
-    data.eligibleProperties.map((property) => property.id),
+function ListingPreview({ property, onClose }) {
+  const listing = property.listing;
+  return (
+    <div className={`overlay ${styles.overlay}`} role="presentation">
+      <div
+        className={`pv-wrap ${styles.preview}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Listing preview"
+      >
+        <div className={styles.previewBar}>
+          <span>Buyer showcase preview</span>
+          <button type="button" onClick={onClose} aria-label="Close preview">
+            <X /> Close
+          </button>
+        </div>
+        <div className={styles.previewGrid}>
+          <div className={`sp-hero ${styles.previewHero}`}>
+            <span>{property.mediaCount} accepted media</span>
+          </div>
+          <div className={styles.previewBody}>
+            <strong>{formatPrice(listing)}</strong>
+            <h3>{listing.listingTitle}</h3>
+            <p>{property.location}</p>
+            <div className={styles.previewChips}>
+              <span>{listing.listingTypeLabel}</span>
+              {property.bedrooms !== null ? (
+                <span>{property.bedrooms} Bed</span>
+              ) : null}
+              {listing.bathrooms !== null ? (
+                <span>{listing.bathrooms} Bath</span>
+              ) : null}
+              {listing.sizeSqft ? <span>{listing.sizeSqft} sqft</span> : null}
+              <span>{listing.furnishingLabel}</span>
+            </div>
+            <p className={styles.previewDescription}>{listing.description}</p>
+            <ul>
+              {listing.highlights.map((highlight) => (
+                <li key={highlight}>✓ {highlight}</li>
+              ))}
+            </ul>
+            <div className={styles.previewContact}>
+              <Phone />
+              <span>
+                <b>{listing.contactName}</b>
+                {listing.contactPhone}
+              </span>
+              <em>WhatsApp</em>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-  const master = data.shares.find(
-    (share) => share.kind === "MASTER" && share.status !== "REVOKED",
-  );
-  return master
-    ? master.properties
-        .map((property) => property.bookingId)
-        .filter((bookingId) => eligibleIds.has(bookingId))
-    : [];
 }
 
-function ShareCard({ share, loadingKey, onAction }) {
-  const [confirmRevoke, setConfirmRevoke] = useState(false);
-  const busy = loadingKey.startsWith(`${share.id}:`);
+function ListingForm({ property, mode, busy, onClose, onSubmit }) {
+  const existing = property.listing;
+  const [form, setForm] = useState({
+    listingTitle: existing?.listingTitle || property.bookingTitle || "",
+    priceAed: existing?.priceAed || "",
+    listingType: existing?.listingType || "FOR_SALE",
+    bathrooms: existing?.bathrooms ?? "",
+    sizeSqft: existing?.sizeSqft ?? "",
+    furnishing: existing?.furnishing || "FURNISHED",
+    description: existing?.description || "",
+    highlights: existing?.highlights || [],
+    contactName: existing?.contactName || "",
+    contactPhone: existing?.contactPhone || "",
+  });
+  const [highlight, setHighlight] = useState("");
+
+  const update = (field, value) =>
+    setForm((current) => ({ ...current, [field]: value }));
+  const addHighlight = () => {
+    const value = highlight.replace(/\s+/gu, " ").trim();
+    if (!value || form.highlights.length >= 12) return;
+    if (
+      form.highlights.some(
+        (current) => current.toLowerCase() === value.toLowerCase(),
+      )
+    ) {
+      setHighlight("");
+      return;
+    }
+    update("highlights", [...form.highlights, value]);
+    setHighlight("");
+  };
+
   return (
-    <article className="rounded-2xl border border-white/10 bg-[#101114]/80 p-5">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-white">
-              {share.kind === "MASTER" ? "Master link" : "Property link"}
-            </h3>
-            <ShareStatus share={share} />
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {share.properties.map((property) => property.title).join(" · ")}
-          </p>
-        </div>
-        {share.status !== "REVOKED" ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => onAction("refresh", share)}
-            >
-              <RefreshCcw className="h-3.5 w-3.5" />
-              Refresh snapshot
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => onAction("toggle", share)}
-            >
-              {share.enabled ? "Disable" : "Re-enable"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => onAction("rotate", share)}
-            >
-              <RotateCw className="h-3.5 w-3.5" />
-              Rotate link
-            </Button>
-            {confirmRevoke ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                disabled={busy}
-                onClick={() => onAction("revoke", share)}
-              >
-                Confirm revoke
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() => setConfirmRevoke(true)}
-              >
-                Revoke
-              </Button>
-            )}
-          </div>
-        ) : null}
-      </div>
+    <div className={`overlay ${styles.overlay}`} role="presentation">
+      <form
+        className={`modal ${styles.listingModal}`}
+        aria-label={
+          mode === "create"
+            ? "Create property listing"
+            : "Edit property listing"
+        }
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit(form);
+        }}
+      >
+        <button
+          type="button"
+          className={styles.closeButton}
+          onClick={onClose}
+          aria-label="Close listing form"
+        >
+          <X />
+        </button>
+        <h3>{mode === "create" ? "Create Share Link" : "Edit Listing"}</h3>
+        <p className={styles.modalSubtitle}>
+          {property.bookingTitle} · Complete the public listing details once.
+        </p>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <Eye className="h-3.5 w-3.5" /> Request views
-          </div>
-          <p className="mt-2 text-2xl font-semibold text-white">
-            {share.analytics.totalRequestViews}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Requests, not unique visitors
-          </p>
+        <p className={styles.formSection}>FROM YOUR BOOKING</p>
+        <div className={styles.knownRow}>
+          <span className={styles.introCopy}>
+            <b>Location</b> {property.location}
+          </span>
+          {property.bedrooms !== null ? (
+            <span>
+              <b>Bedrooms</b> {property.bedrooms}
+            </span>
+          ) : null}
+          <span>
+            <b>Media</b> {property.mediaCount}
+          </span>
         </div>
-        <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-            <BarChart3 className="h-3.5 w-3.5" /> Last viewed
-          </div>
-          <p className="mt-2 text-sm font-medium text-white">
-            {formatDateTime(share.analytics.lastViewedAt)}
-          </p>
-        </div>
-      </div>
-      <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
-        <ViewSeries series={share.analytics.trailing30Days} />
-      </div>
 
-      <div className="mt-5">
-        <h4 className="flex items-center gap-2 text-sm font-medium text-white">
-          <UserRound className="h-4 w-4" /> Recent contacts
-        </h4>
-        {share.contacts.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">
-            No unexpired contact submissions.
-          </p>
-        ) : (
-          <div className="mt-3 overflow-x-auto rounded-xl border border-white/10">
-            <table className="w-full min-w-[560px] text-left text-sm">
-              <thead className="bg-white/[0.03] text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Property</th>
-                  <th className="px-3 py-2 font-medium">Name</th>
-                  <th className="px-3 py-2 font-medium">Phone</th>
-                  <th className="px-3 py-2 font-medium">Received</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/10">
-                {share.contacts.map((contact) => (
-                  <tr key={contact.id}>
-                    <td className="px-3 py-2 text-zinc-300">
-                      {contact.propertyTitle}
-                    </td>
-                    <td className="px-3 py-2 text-zinc-100">{contact.name}</td>
-                    <td className="px-3 py-2 text-zinc-100">{contact.phone}</td>
-                    <td className="px-3 py-2 text-zinc-400">
-                      {formatDateTime(contact.createdAt)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <p className={styles.formSection}>LISTING DETAILS</p>
+        <div className={`f-grid ${styles.formGrid}`}>
+          <label className={styles.fullField}>
+            <span>LISTING TITLE *</span>
+            <input
+              required
+              maxLength={160}
+              value={form.listingTitle}
+              onChange={(event) => update("listingTitle", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>PRICE (AED) *</span>
+            <input
+              required
+              inputMode="decimal"
+              value={form.priceAed}
+              onChange={(event) => update("priceAed", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>LISTING TYPE *</span>
+            <select
+              value={form.listingType}
+              onChange={(event) => update("listingType", event.target.value)}
+            >
+              <option value="FOR_SALE">For Sale</option>
+              <option value="FOR_RENT_YEARLY">For Rent (yearly)</option>
+              <option value="HOLIDAY_HOME">Holiday Home</option>
+            </select>
+          </label>
+          <label>
+            <span>BATHROOMS</span>
+            <input
+              inputMode="numeric"
+              value={form.bathrooms}
+              onChange={(event) => update("bathrooms", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>SIZE (SQFT)</span>
+            <input
+              inputMode="numeric"
+              value={form.sizeSqft}
+              onChange={(event) => update("sizeSqft", event.target.value)}
+            />
+          </label>
+          <label className={styles.fullField}>
+            <span>FURNISHING *</span>
+            <select
+              value={form.furnishing}
+              onChange={(event) => update("furnishing", event.target.value)}
+            >
+              <option value="FURNISHED">Furnished</option>
+              <option value="UNFURNISHED">Unfurnished</option>
+            </select>
+          </label>
+          <label className={styles.fullField}>
+            <span>DESCRIPTION</span>
+            <textarea
+              maxLength={4000}
+              value={form.description}
+              onChange={(event) => update("description", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>CONTACT NAME *</span>
+            <input
+              required
+              maxLength={100}
+              autoComplete="name"
+              value={form.contactName}
+              onChange={(event) => update("contactName", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>CONTACT PHONE *</span>
+            <input
+              required
+              maxLength={40}
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={form.contactPhone}
+              onChange={(event) => update("contactPhone", event.target.value)}
+            />
+          </label>
+          <div className={styles.fullField}>
+            <span className={styles.fieldLabel}>
+              KEY HIGHLIGHTS &amp; AMENITIES
+            </span>
+            <div className={styles.highlightInput}>
+              <input
+                value={highlight}
+                maxLength={80}
+                placeholder="e.g. Private balcony"
+                onChange={(event) => setHighlight(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addHighlight();
+                  }
+                }}
+              />
+              <button type="button" onClick={addHighlight}>
+                Add
+              </button>
+            </div>
+            <div className={styles.highlightChips}>
+              {form.highlights.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() =>
+                    update(
+                      "highlights",
+                      form.highlights.filter((value) => value !== item),
+                    )
+                  }
+                >
+                  {item} ×
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
-    </article>
+        </div>
+
+        <Button type="submit" className={styles.submitButton} disabled={busy}>
+          {busy ? <Loader2 className="animate-spin" /> : null}
+          {mode === "create" ? "Save & create share link" : "Save listing"}
+        </Button>
+        <p className={styles.formNote}>
+          Contact details are public listing configuration. No buyer form or
+          contact record is created.
+        </p>
+      </form>
+    </div>
+  );
+}
+
+function ShareControls({ share, busy, onAction }) {
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+  return (
+    <div className={styles.secondaryControls}>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onAction("refresh", share)}
+      >
+        <RefreshCcw /> <span>Refresh media</span>
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onAction("rotate", share)}
+      >
+        <RotateCw /> <span>Rotate &amp; copy</span>
+      </button>
+      {confirmRevoke ? (
+        <button
+          type="button"
+          className={styles.danger}
+          disabled={busy}
+          onClick={() => onAction("revoke", share)}
+        >
+          Confirm revoke
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setConfirmRevoke(true)}
+        >
+          Revoke
+        </button>
+      )}
+    </div>
   );
 }
 
 export default function PropertySharingManager({ initialData }) {
   const [data, setData] = useState(initialData);
   const [loadingKey, setLoadingKey] = useState("");
-  const [oneTimeUrl, setOneTimeUrl] = useState("");
-  const [copied, setCopied] = useState(false);
-  const masterShare = data.shares.find(
-    (share) => share.kind === "MASTER" && share.status !== "REVOKED",
-  );
+  const [issuedUrl, setIssuedUrl] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [previewProperty, setPreviewProperty] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [showMasterLinks, setShowMasterLinks] = useState(false);
   const [masterSelection, setMasterSelection] = useState(() =>
     initialMasterSelection(initialData),
   );
-  const sharedSingleBookingIds = useMemo(
+
+  const activeSingleShares = useMemo(
     () =>
-      new Set(
-        data.shares
-          .filter(
-            (share) =>
-              share.kind === "SINGLE_PROPERTY" && share.status !== "REVOKED",
-          )
-          .flatMap((share) =>
-            share.properties.map((property) => property.bookingId),
-          ),
+      data.shares.filter(
+        (share) =>
+          share.kind === "SINGLE_PROPERTY" && share.status !== "REVOKED",
       ),
     [data.shares],
+  );
+  const activeSingleBookingIds = useMemo(
+    () =>
+      new Set(
+        activeSingleShares.flatMap((share) =>
+          share.properties.map((property) => property.bookingId),
+        ),
+      ),
+    [activeSingleShares],
+  );
+  const readyProperties = data.eligibleProperties.filter(
+    (property) => !activeSingleBookingIds.has(property.id),
+  );
+  const masterShare = data.shares.find(
+    (share) => share.kind === "MASTER" && share.status !== "REVOKED",
   );
 
   const reload = async () => {
     const result = await getPropertySharingDashboardAction();
     if (!result.success) throw new Error(result.message);
     setData(result.data);
-    const eligibleIds = new Set(
-      result.data.eligibleProperties.map((property) => property.id),
-    );
-    setMasterSelection((current) =>
-      current.filter((bookingId) => eligibleIds.has(bookingId)),
-    );
     return result.data;
   };
 
-  const completeAction = async (key, operation) => {
+  const run = async (key, operation) => {
     setLoadingKey(key);
-    setOneTimeUrl("");
-    setCopied(false);
     try {
       const result = await operation();
       if (!result.success) throw new Error(result.message);
       if (result.data?.publicUrl) {
-        setOneTimeUrl(result.data.publicUrl);
-        setCopied(false);
+        setIssuedUrl({
+          shareId: result.data.shareId,
+          publicUrl: result.data.publicUrl,
+        });
       }
       await reload();
       toast.success("Property sharing updated.");
+      return result.data;
     } catch (error) {
       toast.error(error.message || "Unable to update property sharing");
+      return null;
     } finally {
       setLoadingKey("");
     }
   };
 
-  const createSingle = (bookingId) =>
-    completeAction(`new-single:${bookingId}`, () =>
-      createSinglePropertyShareAction(bookingId),
-    );
+  const saveListing = async (form) => {
+    const property = editing.property;
+    const shouldCreate = editing.mode === "create";
+    const result = await run(`listing:${property.id}`, async () => {
+      const saved = await savePropertyShareListingAction(property.id, form);
+      if (!saved.success || !shouldCreate) return saved;
+      return createSinglePropertyShareAction(property.id);
+    });
+    if (result) setEditing(null);
+  };
 
-  const saveMaster = () =>
-    completeAction(`${masterShare?.id || "new"}:master`, () =>
-      masterShare
-        ? updateMasterPropertyShareAction(masterShare.id, masterSelection)
-        : createMasterPropertyShareAction(masterSelection),
-    );
-
-  const shareAction = (action, share) => {
+  const shareAction = async (action, share) => {
     const operations = {
       refresh: () => refreshPropertyShareSnapshotAction(share.id),
       toggle: () => setPropertyShareEnabledAction(share.id, !share.enabled),
       rotate: () => rotatePropertyShareTokenAction(share.id),
       revoke: () => revokePropertyShareAction(share.id),
     };
-    return completeAction(`${share.id}:${action}`, operations[action]);
+    await run(`${share.id}:${action}`, operations[action]);
   };
 
-  const copyOneTimeUrl = async () => {
+  const copyIssuedUrl = async () => {
+    if (!issuedUrl) return;
     try {
-      await navigator.clipboard.writeText(oneTimeUrl);
-      setCopied(true);
-      setOneTimeUrl("");
+      await navigator.clipboard.writeText(issuedUrl.publicUrl);
+      setIssuedUrl(null);
       toast.success("Secure link copied.");
     } catch {
       toast.error("Unable to copy the secure link");
     }
   };
 
+  const toggleSelected = (bookingId) => {
+    setMasterSelection((current) =>
+      current.includes(bookingId)
+        ? current.filter((id) => id !== bookingId)
+        : [...current, bookingId],
+    );
+  };
+
+  const saveMaster = async () => {
+    const result = await run(`${masterShare?.id || "new"}:master`, () =>
+      masterShare
+        ? updateMasterPropertyShareAction(masterShare.id, masterSelection)
+        : createMasterPropertyShareAction(masterSelection),
+    );
+    if (result) {
+      setSelectionMode(false);
+      setShowMasterLinks(true);
+    }
+  };
+
   return (
     <section
-      className="mb-10 space-y-5"
+      className={styles.manager}
       aria-labelledby="property-sharing-title"
     >
-      <div className="rounded-2xl border border-sky-300/15 bg-sky-400/[0.05] p-5 md:p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="max-w-2xl">
-            <div className="flex items-center gap-2 text-sky-300">
-              <ShieldCheck className="h-5 w-5" />
-              <p className="text-xs font-semibold uppercase tracking-[0.2em]">
-                Secure sharing
-              </p>
-            </div>
-            <h2
-              id="property-sharing-title"
-              className="mt-3 text-2xl font-semibold text-white"
-            >
-              Share completed properties
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Create a link for one property or a master link for a selected
-              collection. Visitors submit only name and phone before exact
-              snapshotted files are available.
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-xs text-muted-foreground">
-            Metrics count successful landing requests, not unique people.
-          </div>
+      <div className={styles.intro}>
+        <div>
+          <p>PROPERTY SHOWCASES</p>
+          <h2 id="property-sharing-title">Share completed properties</h2>
+          <span>
+            Configure polished buyer listings and curate master collections.
+            Delivered files and authenticated downloads stay private below.
+          </span>
+        </div>
+        <div className={styles.aggregateNote}>
+          <Eye /> Metrics are request views, never unique visitors.
         </div>
       </div>
 
-      {oneTimeUrl ? (
-        <div className="flex flex-col gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+      {issuedUrl ? (
+        <div className={styles.issuedUrl}>
           <div>
-            <p className="flex items-center gap-2 font-medium text-emerald-100">
-              <Link2 className="h-4 w-4" /> New secure URL is ready
-            </p>
-            <p className="mt-1 text-xs text-emerald-100/70">
-              Copy it now. The bearer URL is shown only for this create or
-              rotation response.
-            </p>
+            <b>
+              <Link2 /> New secure URL is ready
+            </b>
+            <span className={styles.issuedHelp}>
+              Copy it now. Plaintext is shown only after create or rotation.
+            </span>
           </div>
-          <Button type="button" size="sm" onClick={copyOneTimeUrl}>
-            {copied ? (
-              <Check className="h-4 w-4" />
-            ) : (
-              <Copy className="h-4 w-4" />
-            )}
-            {copied ? "Copied" : "Copy secure URL"}
+          <Button type="button" size="sm" onClick={copyIssuedUrl}>
+            <Copy /> Copy secure URL
           </Button>
         </div>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="rounded-2xl border border-white/10 bg-card p-5">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-sky-300" />
-            <h3 className="font-semibold text-white">Single-property links</h3>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            One live link is allowed for each eligible completed property.
-          </p>
-          <div className="mt-4 space-y-2">
-            {data.eligibleProperties.length === 0 ? (
-              <p className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-muted-foreground">
-                No completed properties are currently eligible.
-              </p>
-            ) : (
-              data.eligibleProperties.map((property) => {
-                const shared = sharedSingleBookingIds.has(property.id);
-                const busy = loadingKey === `new-single:${property.id}`;
-                return (
-                  <div
-                    key={property.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/20 p-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-white">
-                        {property.title}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {property.fileCount} snapshottable file
-                        {property.fileCount === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={shared || busy}
-                      onClick={() => createSingle(property.id)}
-                    >
-                      {busy ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : null}
-                      {shared ? "Created" : "Create link"}
-                    </Button>
-                  </div>
-                );
-              })
-            )}
-          </div>
+      <div className={`sec-row ${styles.sectionRow}`}>
+        <div className={`sec-label ${styles.sectionLabel}`}>READY TO SHARE</div>
+      </div>
+      {readyProperties.length > 0 ? (
+        <div className={`grid2 ${styles.gridTwo}`}>
+          {readyProperties.map((property) => (
+            <article className={`rcard ${styles.readyCard}`} key={property.id}>
+              <div className={styles.readyTop}>
+                <div>
+                  <h3>{property.bookingTitle}</h3>
+                  <p>
+                    {property.location}
+                    {property.bedrooms !== null
+                      ? ` · ${property.bedrooms} Bed`
+                      : ""}{" "}
+                    · {property.mediaCount} media
+                  </p>
+                </div>
+                <div>
+                  <b>Delivered</b>
+                  <span>{formatDate(property.completedAt)}</span>
+                </div>
+              </div>
+              <div className={styles.readyActions}>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={() => setEditing({ property, mode: "create" })}
+                >
+                  <Link2 />
+                  <span>
+                    {property.listing ? "Review & share" : "Create share link"}
+                  </span>
+                </button>
+                <a href="#delivered-files">View delivered files</a>
+              </div>
+            </article>
+          ))}
         </div>
+      ) : (
+        <p className={styles.emptyState}>
+          No additional completed properties are ready to share.
+        </p>
+      )}
 
-        <div className="rounded-2xl border border-white/10 bg-card p-5">
-          <div className="flex items-center gap-2">
-            <Link2 className="h-5 w-5 text-violet-300" />
-            <h3 className="font-semibold text-white">Master link</h3>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Select at least two eligible properties. Saving creates a new exact
-            snapshot for the selected collection.
-          </p>
-          <div className="mt-4 space-y-2">
-            {data.eligibleProperties.map((property) => (
-              <label
-                key={property.id}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-zinc-200"
-              >
-                <input
-                  type="checkbox"
-                  checked={masterSelection.includes(property.id)}
-                  onChange={(event) =>
-                    setMasterSelection((current) =>
-                      event.target.checked
-                        ? [...new Set([...current, property.id])]
-                        : current.filter((id) => id !== property.id),
-                    )
-                  }
-                  className="h-4 w-4 accent-sky-400"
-                />
-                <span className="min-w-0 truncate">{property.title}</span>
-              </label>
-            ))}
-          </div>
-          <Button
+      <div className={`sec-row ${styles.sectionRow}`}>
+        <div className={`sec-label ${styles.sectionLabel}`}>
+          {showMasterLinks ? "MASTER LINKS" : "SHARED PROPERTIES"}
+        </div>
+        <div className={styles.sectionButtons}>
+          <button
             type="button"
-            className="mt-4 w-full"
+            onClick={() => {
+              setShowMasterLinks((current) => !current);
+              setSelectionMode(false);
+            }}
+          >
+            {showMasterLinks
+              ? "← Back to Properties"
+              : `Master Links (${masterShare ? 1 : 0})`}
+          </button>
+          {!showMasterLinks && activeSingleShares.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setSelectionMode((current) => !current)}
+            >
+              {selectionMode ? "✕ Cancel Selection" : "☑ Select Multiple"}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {showMasterLinks ? (
+        masterShare ? (
+          <article className={`mcard ${styles.masterCard}`}>
+            <div className={styles.masterTop}>
+              <div>
+                <h3>Collection — {masterShare.properties.length} properties</h3>
+                <p>
+                  {masterShare.properties
+                    .map((property) => property.listing?.listingTitle)
+                    .join(" + ")}
+                </p>
+              </div>
+              <span
+                className={
+                  masterShare.enabled ? styles.livePill : styles.offPill
+                }
+              >
+                {masterShare.enabled ? "enabled" : "disabled"}
+              </span>
+            </div>
+            <div className={styles.masterThumbs}>
+              {masterShare.properties.map((property, index) => (
+                <i key={property.id} data-tone={index % 3} />
+              ))}
+            </div>
+            <div className={styles.masterMetrics}>
+              <span>
+                <Eye /> {masterShare.analytics.totalRequestViews} request views
+              </span>
+              <span>
+                Last viewed {formatDateTime(masterShare.analytics.lastViewedAt)}
+              </span>
+            </div>
+            <div className={styles.masterActions}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMasterLinks(false);
+                  setSelectionMode(true);
+                }}
+              >
+                Edit selection
+              </button>
+              <button
+                type="button"
+                onClick={() => shareAction("toggle", masterShare)}
+              >
+                {masterShare.enabled ? "Disable" : "Enable"}
+              </button>
+              <button
+                type="button"
+                onClick={() => shareAction("rotate", masterShare)}
+              >
+                Rotate &amp; copy
+              </button>
+              <button
+                type="button"
+                onClick={() => shareAction("refresh", masterShare)}
+              >
+                Refresh media
+              </button>
+            </div>
+            <ViewSeries series={masterShare.analytics.trailing30Days} />
+          </article>
+        ) : (
+          <p className={styles.emptyState}>
+            No master link yet. Return to Shared Properties, select two or more,
+            and create a curated collection.
+          </p>
+        )
+      ) : (
+        <div className={`grid2 ${styles.gridTwo}`}>
+          {activeSingleShares.map((share, index) => {
+            const property = share.properties[0];
+            const selected = masterSelection.includes(property.bookingId);
+            const busy = loadingKey.startsWith(`${share.id}:`);
+            return (
+              <article
+                className={`pshared ${styles.sharedCard} ${selectionMode ? styles.selectable : ""} ${selected && selectionMode ? styles.selected : ""}`}
+                key={share.id}
+              >
+                <div className={styles.sharedHero} data-tone={index % 3}>
+                  {selectionMode ? (
+                    <button
+                      type="button"
+                      className={styles.selectionButton}
+                      aria-label={`${selected ? "Remove" : "Add"} ${property.listing?.listingTitle} ${selected ? "from" : "to"} master collection`}
+                      aria-pressed={selected}
+                      onClick={() => toggleSelected(property.bookingId)}
+                    >
+                      <span className={styles.selectCheck}>
+                        {selected ? <Check /> : null}
+                      </span>
+                    </button>
+                  ) : null}
+                  <span
+                    className={share.enabled ? styles.liveTag : styles.offTag}
+                  >
+                    ● {share.enabled ? "LIVE" : "DISABLED"}
+                  </span>
+                  <span className={styles.mediaCount}>
+                    {property.mediaCount} media
+                  </span>
+                </div>
+                <div className={styles.sharedBody}>
+                  <div className={styles.priceRow}>
+                    <b>{formatPrice(property.listing)}</b>
+                    <span>{property.listing?.listingTypeLabel}</span>
+                  </div>
+                  <h3>{property.listing?.listingTitle}</h3>
+                  <p>{property.location}</p>
+                  <div className={styles.cardMetrics}>
+                    <span>
+                      <Eye /> <b>{share.analytics.totalRequestViews}</b> request
+                      views
+                    </span>
+                    <span>{formatDateTime(share.analytics.lastViewedAt)}</span>
+                  </div>
+                  {!selectionMode ? (
+                    <>
+                      <div className={styles.cardActions}>
+                        <button
+                          type="button"
+                          className={styles.primaryButton}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            shareAction("rotate", share);
+                          }}
+                        >
+                          <Copy /> <span>Rotate &amp; copy</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            shareAction("toggle", share);
+                          }}
+                        >
+                          {share.enabled ? "Disable" : "Enable"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const eligible = data.eligibleProperties.find(
+                              (item) => item.id === property.bookingId,
+                            );
+                            if (eligible)
+                              setEditing({ property: eligible, mode: "edit" });
+                          }}
+                        >
+                          <Pencil /> <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setPreviewProperty(property);
+                          }}
+                        >
+                          <Eye /> <span>Preview</span>
+                        </button>
+                      </div>
+                      <ShareControls
+                        share={share}
+                        busy={busy}
+                        onAction={shareAction}
+                      />
+                      <ViewSeries series={share.analytics.trailing30Days} />
+                    </>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })}
+          {activeSingleShares.length === 0 ? (
+            <p className={styles.emptyState}>No shared properties yet.</p>
+          ) : null}
+        </div>
+      )}
+
+      {selectionMode ? (
+        <div className={`actionbar ${styles.actionBar}`}>
+          <span>
+            <b>{masterSelection.length}</b> selected
+          </span>
+          <button
+            type="button"
             disabled={
               masterSelection.length < 2 || loadingKey.endsWith(":master")
             }
             onClick={saveMaster}
           >
             {loadingKey.endsWith(":master") ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="animate-spin" />
             ) : null}
-            {masterShare ? "Update master snapshot" : "Create master link"}
-          </Button>
+            {masterShare ? "Update Master Link" : "Create Master Link"}
+          </button>
+          <button type="button" onClick={() => setSelectionMode(false)}>
+            Cancel
+          </button>
         </div>
-      </div>
+      ) : null}
 
-      {data.shares.length > 0 ? (
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-white">Managed links</h3>
-          {data.shares.map((share) => (
-            <ShareCard
-              key={share.id}
-              share={share}
-              loadingKey={loadingKey}
-              onAction={shareAction}
-            />
-          ))}
-        </div>
+      {editing ? (
+        <ListingForm
+          property={editing.property}
+          mode={editing.mode}
+          busy={loadingKey === `listing:${editing.property.id}`}
+          onClose={() => setEditing(null)}
+          onSubmit={saveListing}
+        />
+      ) : null}
+      {previewProperty ? (
+        <ListingPreview
+          property={previewProperty}
+          onClose={() => setPreviewProperty(null)}
+        />
       ) : null}
     </section>
   );

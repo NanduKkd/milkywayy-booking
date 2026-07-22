@@ -1,39 +1,37 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
-import jwt from "jsonwebtoken";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 
 export const PROPERTY_SHARE_TOKEN_BYTES = 32;
-export const PROPERTY_SHARE_RECEIPT_MAX_AGE_SECONDS = 24 * 60 * 60;
-export const PROPERTY_SHARE_CONTACT_RETENTION_DAYS = 90;
-export const PROPERTY_SHARE_CONTACT_FIELDS = Object.freeze(["name", "phone"]);
+export const PROPERTY_SHARE_LISTING_TYPES = Object.freeze([
+  "FOR_SALE",
+  "FOR_RENT_YEARLY",
+  "HOLIDAY_HOME",
+]);
+export const PROPERTY_SHARE_FURNISHING = Object.freeze([
+  "FURNISHED",
+  "UNFURNISHED",
+]);
+export const PROPERTY_SHARE_LISTING_FIELDS = Object.freeze([
+  "listingTitle",
+  "priceAed",
+  "listingType",
+  "bathrooms",
+  "sizeSqft",
+  "furnishing",
+  "description",
+  "highlights",
+  "contactName",
+  "contactPhone",
+]);
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const PHONE_PATTERN = /^\+?[0-9]{7,15}$/u;
-const RECEIPT_AUDIENCE = "property-share-file-access";
-const RECEIPT_ISSUER = "milkywayy-booking";
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT_MAX_ATTEMPTS = 8;
-const RATE_LIMIT_MAX_KEYS = 5_000;
-const throttleSecret = randomBytes(32);
-const throttleBuckets = new Map();
+const PRICE_PATTERN = /^\d{1,10}(?:\.\d{1,2})?$/u;
 
 export class PropertyShareInputError extends Error {
   constructor(message) {
     super(message);
     this.name = "PropertyShareInputError";
     this.code = "PROPERTY_SHARE_INVALID_INPUT";
-  }
-}
-
-export class PropertyShareRateLimitError extends Error {
-  constructor() {
-    super("Too many contact attempts. Try again later.");
-    this.name = "PropertyShareRateLimitError";
-    this.code = "PROPERTY_SHARE_RATE_LIMITED";
   }
 }
 
@@ -56,17 +54,24 @@ export function tokenDigestMatches(left, right) {
   return timingSafeEqual(Buffer.from(left, "hex"), Buffer.from(right, "hex"));
 }
 
-function normalizeName(value) {
-  const withoutControlCharacters = [...String(value ?? "")]
+function cleanText(value, { field, min = 0, max, multiline = false }) {
+  const withoutControls = [...String(value ?? "")]
     .map((character) => {
       const code = character.charCodeAt(0);
+      if (code === 10 && multiline) return character;
       return code < 32 || code === 127 ? " " : character;
     })
     .join("");
-  const normalized = withoutControlCharacters.replace(/\s+/gu, " ").trim();
-  if (normalized.length < 2 || normalized.length > 100) {
+  const normalized = multiline
+    ? withoutControls
+        .split("\n")
+        .map((line) => line.replace(/[ \t]+/gu, " ").trim())
+        .join("\n")
+        .trim()
+    : withoutControls.replace(/\s+/gu, " ").trim();
+  if (normalized.length < min || normalized.length > max) {
     throw new PropertyShareInputError(
-      "Name must be between 2 and 100 characters.",
+      `${field} must be between ${min} and ${max} characters.`,
     );
   }
   return normalized;
@@ -75,172 +80,133 @@ function normalizeName(value) {
 function normalizePhone(value) {
   const raw = String(value ?? "").trim();
   if (raw.length > 40) {
-    throw new PropertyShareInputError("Enter a valid phone number.");
+    throw new PropertyShareInputError("Enter a valid contact phone number.");
   }
   const normalized = raw.replace(/[\s().-]/gu, "").replace(/^00/u, "+");
   if (!PHONE_PATTERN.test(normalized)) {
-    throw new PropertyShareInputError("Enter a valid phone number.");
+    throw new PropertyShareInputError("Enter a valid contact phone number.");
   }
   return normalized;
 }
 
-export function normalizePropertyShareContact(input) {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new PropertyShareInputError("Name and phone are required.");
+function normalizeOptionalInteger(value, { field, min, max }) {
+  if (value === "" || value === null || value === undefined) return null;
+  const normalized = String(value).replaceAll(",", "").trim();
+  if (!/^\d+$/u.test(normalized)) {
+    throw new PropertyShareInputError(`${field} must be a whole number.`);
   }
-  const keys = Object.keys(input).sort();
-  const allowed = [...PROPERTY_SHARE_CONTACT_FIELDS].sort();
-  if (
-    keys.length !== allowed.length ||
-    keys.some((key, index) => key !== allowed[index])
-  ) {
-    throw new PropertyShareInputError("Only name and phone may be submitted.");
-  }
-  return {
-    name: normalizeName(input.name),
-    phone: normalizePhone(input.phone),
-  };
-}
-
-function receiptSecret() {
-  const configured = String(
-    process.env.PROPERTY_SHARE_RECEIPT_SECRET || "",
-  ).trim();
-  if (configured.length >= 32) return configured;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "PROPERTY_SHARE_RECEIPT_SECRET must contain at least 32 characters in production.",
+  const parsed = Number(normalized);
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    throw new PropertyShareInputError(
+      `${field} must be between ${min} and ${max}.`,
     );
   }
-  return "local-property-share-receipt-secret-not-for-production";
+  return parsed;
 }
 
-export function getPropertyShareReceiptCookieName(shareId, propertyId) {
-  const normalizedShareId = Number(shareId);
-  const normalizedPropertyId = Number(propertyId);
-  if (
-    !Number.isSafeInteger(normalizedShareId) ||
-    normalizedShareId <= 0 ||
-    !Number.isSafeInteger(normalizedPropertyId) ||
-    normalizedPropertyId <= 0
-  ) {
-    throw new PropertyShareInputError("Invalid property receipt scope.");
+function normalizePrice(value) {
+  const normalized = String(value ?? "")
+    .replaceAll(",", "")
+    .trim();
+  if (!PRICE_PATTERN.test(normalized)) {
+    throw new PropertyShareInputError("Enter a valid AED price.");
   }
-  return `property-share-receipt-${normalizedShareId}-${normalizedPropertyId}`;
+  const numeric = Number(normalized);
+  if (!Number.isFinite(numeric) || numeric <= 0 || numeric > 9_999_999_999.99) {
+    throw new PropertyShareInputError("Enter a valid AED price.");
+  }
+  return numeric.toFixed(2);
 }
 
-export async function createPropertyShareReceipt({
-  shareId,
-  propertyId,
-  credentialVersion,
-  now = new Date(),
-}) {
-  const issuedAt = Math.floor(now.getTime() / 1000);
-  const expiresAt = issuedAt + PROPERTY_SHARE_RECEIPT_MAX_AGE_SECONDS;
-  const token = jwt.sign(
-    {
-      sid: Number(shareId),
-      pid: Number(propertyId),
-      cv: Number(credentialVersion),
-      iat: issuedAt,
-      exp: expiresAt,
-    },
-    receiptSecret(),
-    {
-      algorithm: "HS256",
-      issuer: RECEIPT_ISSUER,
-      audience: RECEIPT_AUDIENCE,
-    },
+function normalizeEnum(value, allowed, field) {
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
+  if (!allowed.includes(normalized)) {
+    throw new PropertyShareInputError(`Select a valid ${field}.`);
+  }
+  return normalized;
+}
+
+function normalizeHighlights(value) {
+  if (!Array.isArray(value)) {
+    throw new PropertyShareInputError("Highlights must be a list.");
+  }
+  const seen = new Set();
+  const normalized = value.map((highlight) =>
+    cleanText(highlight, { field: "Each highlight", min: 2, max: 80 }),
   );
+  const unique = normalized.filter((highlight) => {
+    const key = highlight.toLocaleLowerCase("en");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (unique.length > 12) {
+    throw new PropertyShareInputError("Add no more than 12 highlights.");
+  }
+  return unique;
+}
 
+export function normalizePropertyShareListing(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new PropertyShareInputError("Listing details are required.");
+  }
+  const unknown = Object.keys(input).filter(
+    (key) => !PROPERTY_SHARE_LISTING_FIELDS.includes(key),
+  );
+  if (unknown.length > 0) {
+    throw new PropertyShareInputError(
+      "Unknown listing fields are not allowed.",
+    );
+  }
   return {
-    cookieName: getPropertyShareReceiptCookieName(shareId, propertyId),
-    token,
-    maxAge: PROPERTY_SHARE_RECEIPT_MAX_AGE_SECONDS,
-    expiresAt: new Date(expiresAt * 1000),
+    listingTitle: cleanText(input.listingTitle, {
+      field: "Listing title",
+      min: 3,
+      max: 160,
+    }),
+    priceAed: normalizePrice(input.priceAed),
+    listingType: normalizeEnum(
+      input.listingType,
+      PROPERTY_SHARE_LISTING_TYPES,
+      "listing type",
+    ),
+    bathrooms: normalizeOptionalInteger(input.bathrooms, {
+      field: "Bathrooms",
+      min: 0,
+      max: 20,
+    }),
+    sizeSqft: normalizeOptionalInteger(input.sizeSqft, {
+      field: "Size",
+      min: 1,
+      max: 1_000_000,
+    }),
+    furnishing: normalizeEnum(
+      input.furnishing,
+      PROPERTY_SHARE_FURNISHING,
+      "furnishing",
+    ),
+    description: cleanText(input.description, {
+      field: "Description",
+      min: 0,
+      max: 4000,
+      multiline: true,
+    }),
+    highlights: normalizeHighlights(input.highlights),
+    contactName: cleanText(input.contactName, {
+      field: "Contact name",
+      min: 2,
+      max: 100,
+    }),
+    contactPhone: normalizePhone(input.contactPhone),
   };
 }
 
-export async function verifyPropertyShareReceipt(
-  token,
-  { shareId, propertyId, credentialVersion, now = new Date() },
-) {
-  if (!token || typeof token !== "string") return false;
-  try {
-    const payload = jwt.verify(token, receiptSecret(), {
-      algorithms: ["HS256"],
-      issuer: RECEIPT_ISSUER,
-      audience: RECEIPT_AUDIENCE,
-      clockTimestamp: Math.floor(now.getTime() / 1000),
-    });
-    return (
-      Number(payload.sid) === Number(shareId) &&
-      Number(payload.pid) === Number(propertyId) &&
-      Number(payload.cv) === Number(credentialVersion)
-    );
-  } catch {
-    return false;
-  }
-}
-
-function pruneThrottleBuckets(nowMs) {
-  for (const [key, bucket] of throttleBuckets) {
-    if (bucket.expiresAt <= nowMs) throttleBuckets.delete(key);
-  }
-  while (throttleBuckets.size >= RATE_LIMIT_MAX_KEYS) {
-    const oldestKey = throttleBuckets.keys().next().value;
-    if (!oldestKey) break;
-    throttleBuckets.delete(oldestKey);
-  }
-}
-
-function throttleKey({ shareId, propertyId, networkAddress }) {
-  const signal = String(networkAddress || "unknown").slice(0, 256);
-  const digest = createHmac("sha256", throttleSecret)
-    .update(signal, "utf8")
-    .digest("base64url");
-  return `${Number(shareId)}:${Number(propertyId)}:${digest}`;
-}
-
-export function enforcePropertyShareContactThrottle({
-  shareId,
-  propertyId,
-  networkAddress,
-  now = new Date(),
-}) {
-  const nowMs = now.getTime();
-  pruneThrottleBuckets(nowMs);
-  const key = throttleKey({ shareId, propertyId, networkAddress });
-  const current = throttleBuckets.get(key);
-  if (!current || current.expiresAt <= nowMs) {
-    throttleBuckets.set(key, {
-      count: 1,
-      expiresAt: nowMs + RATE_LIMIT_WINDOW_MS,
-    });
-    return;
-  }
-  if (current.count >= RATE_LIMIT_MAX_ATTEMPTS) {
-    throw new PropertyShareRateLimitError();
-  }
-  current.count += 1;
-}
-
-export function isSameOriginPropertyShareRequest(request) {
-  try {
-    const requestUrl = new URL(request.url);
-    const origin = request.headers.get("origin");
-    return Boolean(origin) && new URL(origin).origin === requestUrl.origin;
-  } catch {
-    return false;
-  }
-}
-
-export function getPropertyShareNetworkAddress(request) {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") || "unknown";
-}
-
-export function resetPropertyShareThrottleForTests() {
-  if (process.env.NODE_ENV === "test") throttleBuckets.clear();
+export function propertyShareContactLinks(phone) {
+  const normalized = normalizePhone(phone);
+  return {
+    telephone: `tel:${normalized}`,
+    whatsapp: `https://wa.me/${normalized.replace(/^\+/u, "")}`,
+  };
 }

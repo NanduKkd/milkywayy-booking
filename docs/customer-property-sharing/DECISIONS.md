@@ -1,67 +1,68 @@
-# Customer property sharing decisions
+# Customer property showcase decisions
 
-## PROP-D001 — Keep the Files route and rename only visible customer language
-
-- Status: `ACCEPTED`
-- Decision: `/dashboard/files` remains canonical, including `fileId` query
-  behavior and return paths. The dashboard tab and surface say Properties.
-- Consequence: Existing bookmarks, GPT file links, notifications, downloads,
-  revisions, and customer workflow links stay compatible.
-
-## PROP-D002 — Model one property as one completed booking
+## PROP-D001 — Keep the Files route and authenticated delivery contract
 
 - Status: `ACCEPTED`
-- Decision: A shared property is a completed, non-cancelled, customer-owned
-  booking with at least one accepted current delivery file.
-- Consequence: In-progress, under-review, replacement-pending, cancelled, and
-  other-customer bookings are never selectable.
+- Decision: `/dashboard/files` remains canonical, including `fileId` behavior.
+  The dashboard tab and management surface say Properties, and the complete
+  authenticated `FileList` remains on the page.
+- Consequence: Existing bookmarks, downloads, copy-link delivery, revisions,
+  replacements, review deadlines, completion, and workflow links stay intact.
+
+## PROP-D002 — Model one listing as one owned completed booking
+
+- Status: `ACCEPTED`
+- Decision: Listing configuration is unique by owner+booking and is available
+  only for completed, non-cancelled, owner-owned bookings with safe accepted
+  current media.
+- Consequence: There is no agent assignment, team, delegated owner, or visitor
+  contact record.
 
 ## PROP-D003 — Support exactly single and master links
 
 - Status: `ACCEPTED`
-- Decision: A single link snapshots exactly one property. A master link
-  snapshots at least two explicitly selected properties.
-- Consequence: There are no agent, team, assignment, delegated booking, or
-  agency-payment concepts in this feature.
+- Decision: A single link selects exactly one configured property. A master
+  selects at least two explicit configured properties in stable order.
+- Consequence: A visitor cannot widen a master collection by changing a query
+  parameter.
 
-## PROP-D004 — Snapshot exact immutable delivery versions
+## PROP-D004 — Snapshot exact immutable media versions
 
 - Status: `ACCEPTED`
-- Decision: Create, master update, and explicit refresh capture all and only the
-  eligible current file-version pairs resolved by the server.
-- Consequence: Later uploads never widen access automatically. Replaced,
-  deleted, private, requested-change, superseded, and unselected members fail
+- Decision: Create, master update, and explicit refresh capture only supported
+  accepted current delivery-file/version pairs.
+- Consequence: Later uploads never widen access automatically. Deleted,
+  replaced, superseded, changes-requested, unsafe, and unselected files fail
   closed.
 
-## PROP-D005 — Use hash-only bearer credentials and versioned receipts
+## PROP-D005 — Use hash-only bearer credentials
 
 - Status: `ACCEPTED`
-- Decision: Share tokens have 256 bits of randomness; only SHA-256 digests are
-  stored. Contact receipts are signed, PII-free, share/property scoped, and at
-  most 24 hours old.
-- Consequence: Create/rotate is the only time the owner can copy the plaintext
-  URL. Rotation invalidates both the old token and prior credential-version
-  receipts without deleting history.
+- Decision: Tokens have 256 bits of randomness and only SHA-256 digests persist.
+- Consequence: Create/rotate is the only plaintext URL response; rotation makes
+  the old bearer fail immediately without resetting analytics.
 
-## PROP-D006 — Collect exactly contact name and phone
+## PROP-D006 — Present a listing, never a delivery portal or lead gate
 
 - Status: `ACCEPTED`
-- Decision: The per-property gate accepts no email, company, agent, message,
-  notes, or marketing fields. Contacts expire after 90 days.
-- Consequence: Contact records remain separate from aggregate analytics and are
-  visible only to the owner while unexpired.
+- Decision: Buyers immediately see gallery, listing metadata, description,
+  highlights, and owner-authored telephone/WhatsApp actions.
+- Consequence: There is no buyer form, contact POST/table/retention, receipt,
+  cookie/JWT, public manifest, download button, or public attachment route.
 
-## PROP-D007 — Measure aggregate request views, not people
-
-- Status: `ACCEPTED`
-- Decision: Count successful public landing requests as link total, last-viewed
-  time, and Dubai-day buckets.
-- Consequence: The UI says request views. There is no unique-visitor claim,
-  raw-event stream, identity, device, address, referrer, or attribution data.
-
-## PROP-D008 — Fail closed and use uniform not-found responses
+## PROP-D007 — Stream authorized media inline
 
 - Status: `ACCEPTED`
-- Decision: Public and cross-owner boundaries reveal no existence distinction.
-- Consequence: Missing, malformed, disabled, revoked, stale, cross-owner, and
-  unselected references cannot be used for enumeration.
+- Decision: Public photo/video/360 content crosses only a bearer + selected
+  property + exact snapshot membership route with byte-range support.
+- Consequence: Persisted object URLs, authenticated download endpoints,
+  attachment disposition, and download attributes remain outside public HTML.
+
+## PROP-D008 — Measure aggregate requests and fail uniformly
+
+- Status: `ACCEPTED`
+- Decision: Count successful showcase/collection requests as link total,
+  last-viewed time, and Dubai-day buckets; all invalid scopes share one generic
+  unavailable result.
+- Consequence: There is no unique-visitor claim or visitor identity, and public
+  state cannot be enumerated through differentiated failures.

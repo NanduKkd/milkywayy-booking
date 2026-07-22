@@ -3,23 +3,20 @@
 import "../../relations";
 import Booking from "../booking";
 import BookingDeliveryFileVersion from "../bookingdeliveryfileversion";
-import PropertyShareContact from "../propertysharecontact";
 import PropertyShareDailyView from "../propertysharedailyview";
 import PropertyShareFile from "../propertysharefile";
 import PropertyShareLink from "../propertysharelink";
+import PropertyShareListing from "../propertysharelisting";
 import PropertyShareProperty from "../propertyshareproperty";
 import User from "../user";
 
 describe("property sharing models", () => {
-  it("maps hash-only share, snapshot, aggregate, and contact fields", () => {
+  it("maps hash-only links, listing configuration, snapshots, and aggregates", () => {
     expect(PropertyShareLink.tableName).toBe("property_share_links");
     expect(PropertyShareLink.rawAttributes.tokenDigest.field).toBe(
       "token_digest",
     );
     expect(PropertyShareLink.rawAttributes.token).toBeUndefined();
-    expect(PropertyShareLink.rawAttributes.credentialVersion.field).toBe(
-      "credential_version",
-    );
     expect(PropertyShareProperty.tableName).toBe("property_share_properties");
     expect(PropertyShareFile.rawAttributes.deliveryFileVersionId.field).toBe(
       "delivery_file_version_id",
@@ -27,15 +24,23 @@ describe("property sharing models", () => {
     expect(PropertyShareDailyView.rawAttributes.requestViews.field).toBe(
       "request_views",
     );
-    expect(PropertyShareContact.rawAttributes.expiresAt.field).toBe(
-      "expires_at",
+    expect(PropertyShareListing.tableName).toBe("property_share_listings");
+    expect(PropertyShareListing.rawAttributes.listingTitle.field).toBe(
+      "listing_title",
     );
-    expect(PropertyShareContact.rawAttributes.email).toBeUndefined();
-    expect(PropertyShareContact.rawAttributes.ipAddress).toBeUndefined();
+    expect(PropertyShareListing.rawAttributes.priceAed.field).toBe("price_aed");
+    expect(PropertyShareListing.rawAttributes.contactPhone.field).toBe(
+      "contact_phone",
+    );
+    expect(PropertyShareListing.rawAttributes.agentUserId).toBeUndefined();
+    expect(PropertyShareListing.rawAttributes.visitorName).toBeUndefined();
   });
 
-  it("registers owner, booking, file-version, analytics, and contact relations", () => {
+  it("registers owner, booking, file-version, listing, and analytics relations", () => {
     expect(User.associations.propertyShareLinks.target).toBe(PropertyShareLink);
+    expect(User.associations.propertyShareListings.target).toBe(
+      PropertyShareListing,
+    );
     expect(PropertyShareLink.associations.properties.target).toBe(
       PropertyShareProperty,
     );
@@ -49,8 +54,8 @@ describe("property sharing models", () => {
     expect(PropertyShareFile.associations.deliveryFileVersion.target).toBe(
       BookingDeliveryFileVersion,
     );
-    expect(PropertyShareContact.associations.shareLink.target).toBe(
-      PropertyShareLink,
+    expect(Booking.associations.propertyShareListing.target).toBe(
+      PropertyShareListing,
     );
   });
 });

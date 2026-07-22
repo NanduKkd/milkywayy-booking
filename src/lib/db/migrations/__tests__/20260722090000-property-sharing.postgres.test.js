@@ -122,7 +122,7 @@ describeWithPostgres(
 
     beforeEach(async () => {
       await sequelize.query(
-        "TRUNCATE property_share_links RESTART IDENTITY CASCADE",
+        "TRUNCATE property_share_links, property_share_listings RESTART IDENTITY CASCADE",
       );
     });
 
@@ -135,10 +135,10 @@ describeWithPostgres(
         `
         INSERT INTO property_share_links
           (owner_user_id, kind, single_booking_id, token_digest,
-           credential_version, enabled, total_views, created_at, updated_at)
+           enabled, total_views, created_at, updated_at)
         VALUES
           (:ownerUserId, :kind, :singleBookingId, :tokenDigest,
-           1, TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+           TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING id
       `,
         {
@@ -179,6 +179,39 @@ describeWithPostgres(
       const results = await Promise.allSettled([
         insertShare({ kind: "MASTER", digestCharacter: "c" }),
         insertShare({ kind: "MASTER", digestCharacter: "d" }),
+      ]);
+
+      expect(
+        results.filter(({ status }) => status === "fulfilled"),
+      ).toHaveLength(1);
+      expect(
+        results.filter(({ status }) => status === "rejected"),
+      ).toHaveLength(1);
+    });
+
+    it("allows exactly one owner-scoped listing per booking", async () => {
+      const insertListing = () =>
+        sequelize.query(
+          `
+            INSERT INTO property_share_listings
+              (owner_user_id, booking_id, listing_title, price_aed,
+               listing_type, bathrooms, size_sqft, furnishing, description,
+               highlights, contact_name, contact_phone, created_at, updated_at)
+            VALUES
+              (:ownerUserId, :bookingId, 'Synthetic listing', 2350000.00,
+               'FOR_SALE', 3, 1244, 'FURNISHED', 'Synthetic description',
+               '["Pool"]'::jsonb, 'Synthetic Owner', '+971500000000',
+               CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `,
+          {
+            replacements: { ownerUserId, bookingId },
+            type: QueryTypes.INSERT,
+          },
+        );
+
+      const results = await Promise.allSettled([
+        insertListing(),
+        insertListing(),
       ]);
 
       expect(

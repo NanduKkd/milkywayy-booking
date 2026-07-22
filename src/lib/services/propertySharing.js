@@ -4,10 +4,10 @@ import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingDeliveryFileVersion from "@/lib/db/models/bookingdeliveryfileversion";
-import PropertyShareContact from "@/lib/db/models/propertysharecontact";
 import PropertyShareDailyView from "@/lib/db/models/propertysharedailyview";
 import PropertyShareFile from "@/lib/db/models/propertysharefile";
 import PropertyShareLink from "@/lib/db/models/propertysharelink";
+import PropertyShareListing from "@/lib/db/models/propertysharelisting";
 import PropertyShareProperty from "@/lib/db/models/propertyshareproperty";
 import User from "@/lib/db/models/user";
 import {
@@ -15,14 +15,11 @@ import {
   DELIVERY_FILE_STATUS,
 } from "@/lib/helpers/bookingWorkflow";
 import {
-  createPropertyShareReceipt,
   createPropertyShareToken,
   digestPropertyShareToken,
-  enforcePropertyShareContactThrottle,
-  normalizePropertyShareContact,
-  PROPERTY_SHARE_CONTACT_RETENTION_DAYS,
+  normalizePropertyShareListing,
+  propertyShareContactLinks,
   tokenDigestMatches,
-  verifyPropertyShareReceipt,
 } from "@/lib/services/propertySharingSecurity";
 
 export const PROPERTY_SHARE_KIND = Object.freeze({
@@ -30,8 +27,36 @@ export const PROPERTY_SHARE_KIND = Object.freeze({
   MASTER: "MASTER",
 });
 
-const OWNER_CONTACT_LIMIT = 100;
-const EXPIRED_CONTACT_CLEANUP_LIMIT = 200;
+const SAFE_INLINE_MIME_TYPES = new Set([
+  "image/avif",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]);
+const SAFE_EXTENSION_MIME_TYPES = new Map([
+  [".avif", "image/avif"],
+  [".gif", "image/gif"],
+  [".jpeg", "image/jpeg"],
+  [".jpg", "image/jpeg"],
+  [".mov", "video/quicktime"],
+  [".mp4", "video/mp4"],
+  [".png", "image/png"],
+  [".webm", "video/webm"],
+  [".webp", "image/webp"],
+]);
+const LISTING_TYPE_LABELS = Object.freeze({
+  FOR_SALE: "For Sale",
+  FOR_RENT_YEARLY: "For Rent (yearly)",
+  HOLIDAY_HOME: "Holiday Home",
+});
+const FURNISHING_LABELS = Object.freeze({
+  FURNISHED: "Furnished",
+  UNFURNISHED: "Unfurnished",
+});
 
 export class PropertyShareNotFoundError extends Error {
   constructor() {
@@ -72,7 +97,7 @@ function normalizeBookingIds(values, minimum) {
   if (normalized.length < minimum) {
     throw new PropertyShareConflictError(
       minimum === 2
-        ? "Select at least two eligible properties"
+        ? "Select at least two configured properties"
         : "Select an eligible property",
     );
   }
@@ -104,8 +129,35 @@ export function buildSharedPropertyTitle(bookingLike) {
       details.unitNumber || details.unit || details.name,
       details.building,
       details.community,
+      details.location,
     ]).join(", ") || "Completed property"
   );
+}
+
+function bookingLocation(bookingLike) {
+  const booking = toPlain(bookingLike) || {};
+  const details = booking.propertyDetails || {};
+  return (
+    uniqueDisplayParts([
+      details.building,
+      details.community,
+      details.location,
+    ]).join(", ") || buildSharedPropertyTitle(booking)
+  );
+}
+
+function bookingBedrooms(bookingLike) {
+  const booking = toPlain(bookingLike) || {};
+  const details = booking.propertyDetails || {};
+  const direct = details.bedrooms ?? details.bedroomCount ?? details.beds;
+  if (Number.isFinite(Number(direct)) && Number(direct) >= 0) {
+    return Number(direct);
+  }
+  const candidate = String(
+    details.propertySize || details.size || details.propertyType || "",
+  );
+  const match = candidate.match(/(\d+)\s*(?:bed|bhk)/iu);
+  return match ? Number(match[1]) : null;
 }
 
 function sharedPropertyServices(bookingLike) {
@@ -135,6 +187,39 @@ function trailingDubaiDates(now = new Date(), days = 30) {
   });
 }
 
+function filenameMimeType(filename) {
+  const normalized = String(filename || "").toLowerCase();
+  for (const [extension, mimeType] of SAFE_EXTENSION_MIME_TYPES) {
+    if (normalized.endsWith(extension)) return mimeType;
+  }
+  return null;
+}
+
+export function getInlinePropertyMediaDetails(fileLike, versionLike) {
+  const file = toPlain(fileLike) || {};
+  const version = toPlain(versionLike) || {};
+  const declaredMimeType = String(version.mimeType || "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  const inferredMimeType = filenameMimeType(version.originalFilename);
+  const mimeType = SAFE_INLINE_MIME_TYPES.has(declaredMimeType)
+    ? declaredMimeType
+    : !declaredMimeType || declaredMimeType === "application/octet-stream"
+      ? inferredMimeType
+      : null;
+  if (!mimeType || !SAFE_INLINE_MIME_TYPES.has(mimeType)) return null;
+  const typeLabel = `${file.type || ""} ${file.label || ""}`.toLowerCase();
+  return {
+    mimeType,
+    kind: /360|virtual\s*tour|panorama/u.test(typeLabel)
+      ? "TOUR"
+      : mimeType.startsWith("video/")
+        ? "VIDEO"
+        : "IMAGE",
+  };
+}
+
 function eligibleDeliveryFiles(bookingLike) {
   const booking = toPlain(bookingLike) || {};
   return (booking.deliveryFiles || []).filter((fileLike) => {
@@ -145,7 +230,8 @@ function eligibleDeliveryFiles(bookingLike) {
       file.status === DELIVERY_FILE_STATUS.ACCEPTED &&
       Number.isSafeInteger(Number(file.currentVersionId)) &&
       Number(file.currentVersionId) === Number(version.id) &&
-      !version.supersededAt
+      !version.supersededAt &&
+      Boolean(getInlinePropertyMediaDetails(file, version))
     );
   });
 }
@@ -179,6 +265,11 @@ const ELIGIBLE_BOOKING_INCLUDE = [
         attributes: { exclude: ["url"] },
       },
     ],
+  },
+  {
+    model: PropertyShareListing,
+    as: "propertyShareListing",
+    required: false,
   },
 ];
 
@@ -215,14 +306,70 @@ async function findEligibleBookings(
   return ids.map((id) => byId.get(id));
 }
 
+function serializeListing(listingLike) {
+  const listing = toPlain(listingLike);
+  if (!listing) return null;
+  return {
+    listingTitle: listing.listingTitle,
+    priceAed: String(listing.priceAed),
+    listingType: listing.listingType,
+    listingTypeLabel: LISTING_TYPE_LABELS[listing.listingType],
+    bathrooms:
+      listing.bathrooms === null || listing.bathrooms === undefined
+        ? null
+        : Number(listing.bathrooms),
+    sizeSqft:
+      listing.sizeSqft === null || listing.sizeSqft === undefined
+        ? null
+        : Number(listing.sizeSqft),
+    furnishing: listing.furnishing,
+    furnishingLabel: FURNISHING_LABELS[listing.furnishing],
+    description: listing.description || "",
+    highlights: Array.isArray(listing.highlights) ? listing.highlights : [],
+    contactName: listing.contactName,
+    contactPhone: listing.contactPhone,
+  };
+}
+
+function serializeBookingFacts(bookingLike) {
+  const booking = toPlain(bookingLike) || {};
+  return {
+    bookingTitle: buildSharedPropertyTitle(booking),
+    location: bookingLocation(booking),
+    bedrooms: bookingBedrooms(booking),
+    completedAt: dateIso(booking.completedAt),
+  };
+}
+
+function summarizeMedia(bookingLike) {
+  const media = eligibleDeliveryFiles(bookingLike);
+  return {
+    mediaCount: media.length,
+    imageCount: media.filter(
+      (file) =>
+        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
+        "IMAGE",
+    ).length,
+    hasVideo: media.some(
+      (file) =>
+        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
+        "VIDEO",
+    ),
+    hasTour: media.some(
+      (file) =>
+        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
+        "TOUR",
+    ),
+  };
+}
+
 function serializeEligibleProperty(bookingLike) {
   const booking = toPlain(bookingLike);
-  const files = eligibleDeliveryFiles(booking);
   return {
     id: Number(booking.id),
-    title: buildSharedPropertyTitle(booking),
-    completedAt: dateIso(booking.completedAt),
-    fileCount: files.length,
+    ...serializeBookingFacts(booking),
+    ...summarizeMedia(booking),
+    listing: serializeListing(booking.propertyShareListing),
   };
 }
 
@@ -245,6 +392,62 @@ function publicShareUrl(token) {
     .trim()
     .replace(/\/+$/u, "");
   return `${base}/share/${token}`;
+}
+
+export async function savePropertyShareListing(ownerUserId, bookingId, input) {
+  const ownerId = requirePositiveInteger(ownerUserId);
+  const normalizedBookingId = requirePositiveInteger(bookingId);
+  const listing = normalizePropertyShareListing(input);
+  return sequelize.transaction(async (transaction) => {
+    await lockOwner(ownerId, transaction);
+    const [booking] = await findEligibleBookings(
+      ownerId,
+      [normalizedBookingId],
+      {
+        transaction,
+        lock: true,
+      },
+    );
+    let record = await PropertyShareListing.findOne({
+      where: { ownerUserId: ownerId, bookingId: booking.id },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (record) {
+      await record.update(listing, { transaction });
+    } else {
+      record = await PropertyShareListing.create(
+        { ownerUserId: ownerId, bookingId: booking.id, ...listing },
+        { transaction },
+      );
+    }
+    return {
+      bookingId: Number(booking.id),
+      listing: serializeListing(record),
+    };
+  });
+}
+
+async function requireConfiguredListings(
+  ownerUserId,
+  bookingIds,
+  transaction,
+  lock = false,
+) {
+  const listings = await PropertyShareListing.findAll({
+    where: {
+      ownerUserId,
+      bookingId: { [Op.in]: bookingIds },
+    },
+    transaction,
+    ...(lock && transaction ? { lock: transaction.LOCK.UPDATE } : {}),
+  });
+  if (listings.length !== bookingIds.length) {
+    throw new PropertyShareConflictError(
+      "Complete listing details for every selected property",
+    );
+  }
+  return listings;
 }
 
 async function replaceSnapshotFiles(shareProperty, booking, transaction) {
@@ -287,11 +490,7 @@ async function replaceShareProperties(share, bookings, transaction) {
     let property = byBookingId.get(Number(booking.id));
     if (!property) {
       property = await PropertyShareProperty.create(
-        {
-          shareLinkId: share.id,
-          bookingId: booking.id,
-          position,
-        },
+        { shareLinkId: share.id, bookingId: booking.id, position },
         { transaction },
       );
     } else if (Number(property.position) !== position) {
@@ -317,6 +516,7 @@ async function createShare({ ownerUserId, kind, bookingIds }) {
         transaction,
         lock: true,
       });
+      await requireConfiguredListings(ownerUserId, ids, transaction, true);
       const duplicateWhere =
         kind === PROPERTY_SHARE_KIND.MASTER
           ? { ownerUserId, kind, revokedAt: null }
@@ -347,7 +547,6 @@ async function createShare({ ownerUserId, kind, bookingIds }) {
           singleBookingId:
             kind === PROPERTY_SHARE_KIND.SINGLE_PROPERTY ? ids[0] : null,
           tokenDigest,
-          credentialVersion: 1,
           enabled: true,
         },
         { transaction },
@@ -413,6 +612,7 @@ export async function updateMasterPropertyShare(
       transaction,
       lock: true,
     });
+    await requireConfiguredListings(ownerUserId, ids, transaction, true);
     await replaceShareProperties(share, bookings, transaction);
     return { shareId: Number(share.id) };
   });
@@ -435,6 +635,7 @@ export async function refreshPropertyShareSnapshot(ownerUserId, shareId) {
       transaction,
       lock: true,
     });
+    await requireConfiguredListings(ownerUserId, ids, transaction, true);
     await replaceShareProperties(share, bookings, transaction);
     return { shareId: Number(share.id) };
   });
@@ -457,7 +658,6 @@ export async function rotatePropertyShareToken(ownerUserId, shareId) {
     await share.update(
       {
         tokenDigest,
-        credentialVersion: Number(share.credentialVersion || 1) + 1,
       },
       { transaction },
     );
@@ -476,93 +676,12 @@ export async function revokePropertyShare(ownerUserId, shareId) {
         {
           enabled: false,
           revokedAt: new Date(),
-          credentialVersion: Number(share.credentialVersion || 1) + 1,
         },
         { transaction },
       );
     }
     return { shareId: Number(share.id), revoked: true };
   });
-}
-
-async function cleanupExpiredContacts(now = new Date()) {
-  const expired = await PropertyShareContact.findAll({
-    attributes: ["id"],
-    where: { expiresAt: { [Op.lte]: now } },
-    order: [["id", "ASC"]],
-    limit: EXPIRED_CONTACT_CLEANUP_LIMIT,
-  });
-  if (expired.length === 0) return 0;
-  return PropertyShareContact.destroy({
-    where: { id: { [Op.in]: expired.map((contact) => contact.id) } },
-  });
-}
-
-async function ownerShareDetails(shareLike, now) {
-  const share = toPlain(shareLike);
-  const startDate = trailingDubaiDates(now, 30)[0];
-  const [dailyViews, contacts] = await Promise.all([
-    PropertyShareDailyView.findAll({
-      where: {
-        shareLinkId: share.id,
-        viewDate: { [Op.gte]: startDate },
-      },
-      order: [["viewDate", "ASC"]],
-    }),
-    PropertyShareContact.findAll({
-      where: {
-        shareLinkId: share.id,
-        expiresAt: { [Op.gt]: now },
-      },
-      include: [
-        {
-          model: PropertyShareProperty,
-          as: "property",
-          required: true,
-          where: { shareLinkId: share.id },
-          include: [
-            {
-              model: Booking,
-              as: "booking",
-              required: true,
-              attributes: ["id", "propertyDetails"],
-            },
-          ],
-        },
-      ],
-      order: [["createdAt", "DESC"]],
-      limit: OWNER_CONTACT_LIMIT,
-    }),
-  ]);
-  const viewMap = new Map(
-    dailyViews.map((entryLike) => {
-      const entry = toPlain(entryLike);
-      return [String(entry.viewDate), Number(entry.requestViews || 0)];
-    }),
-  );
-  const dates = trailingDubaiDates(now, 30);
-  return {
-    ...serializeOwnerShare(share),
-    analytics: {
-      totalRequestViews: Number(share.totalViews || 0),
-      lastViewedAt: dateIso(share.lastViewedAt),
-      trailing30Days: dates.map((date) => ({
-        date,
-        requestViews: viewMap.get(date) || 0,
-      })),
-    },
-    contacts: contacts.map((contactLike) => {
-      const contact = toPlain(contactLike);
-      return {
-        id: Number(contact.id),
-        propertyTitle: buildSharedPropertyTitle(contact.property?.booking),
-        name: contact.name,
-        phone: contact.phone,
-        createdAt: dateIso(contact.createdAt),
-        expiresAt: dateIso(contact.expiresAt),
-      };
-    }),
-  };
 }
 
 function serializeOwnerShare(shareLike) {
@@ -580,13 +699,44 @@ function serializeOwnerShare(shareLike) {
     createdAt: dateIso(share.createdAt),
     properties: (share.properties || []).map((propertyLike) => {
       const property = toPlain(propertyLike);
+      const booking = toPlain(property.booking) || {};
       return {
         id: Number(property.id),
         bookingId: Number(property.bookingId),
-        title: buildSharedPropertyTitle(property.booking),
-        fileCount: Array.isArray(property.files) ? property.files.length : 0,
+        ...serializeBookingFacts(booking),
+        listing: serializeListing(booking.propertyShareListing),
+        mediaCount: Array.isArray(property.files) ? property.files.length : 0,
       };
     }),
+  };
+}
+
+async function ownerShareDetails(shareLike, now) {
+  const share = toPlain(shareLike);
+  const dates = trailingDubaiDates(now, 30);
+  const dailyViews = await PropertyShareDailyView.findAll({
+    where: {
+      shareLinkId: share.id,
+      viewDate: { [Op.gte]: dates[0] },
+    },
+    order: [["viewDate", "ASC"]],
+  });
+  const viewMap = new Map(
+    dailyViews.map((entryLike) => {
+      const entry = toPlain(entryLike);
+      return [String(entry.viewDate), Number(entry.requestViews || 0)];
+    }),
+  );
+  return {
+    ...serializeOwnerShare(share),
+    analytics: {
+      totalRequestViews: Number(share.totalViews || 0),
+      lastViewedAt: dateIso(share.lastViewedAt),
+      trailing30Days: dates.map((date) => ({
+        date,
+        requestViews: viewMap.get(date) || 0,
+      })),
+    },
   };
 }
 
@@ -595,7 +745,6 @@ export async function getPropertySharingDashboard(
   now = new Date(),
 ) {
   const ownerId = requirePositiveInteger(ownerUserId);
-  await cleanupExpiredContacts(now);
   const [eligibleBookings, shares] = await Promise.all([
     findEligibleBookings(ownerId),
     PropertyShareLink.findAll({
@@ -610,7 +759,14 @@ export async function getPropertySharingDashboard(
               model: Booking,
               as: "booking",
               required: true,
-              attributes: ["id", "propertyDetails"],
+              attributes: ["id", "propertyDetails", "completedAt"],
+              include: [
+                {
+                  model: PropertyShareListing,
+                  as: "propertyShareListing",
+                  required: true,
+                },
+              ],
             },
             {
               model: PropertyShareFile,
@@ -662,6 +818,13 @@ async function loadValidPublicShare(
         model: Booking,
         as: "booking",
         required: true,
+        include: [
+          {
+            model: PropertyShareListing,
+            as: "propertyShareListing",
+            required: true,
+          },
+        ],
       },
       {
         model: PropertyShareFile,
@@ -704,8 +867,11 @@ async function loadValidPublicShare(
   for (const propertyLike of properties) {
     const property = toPlain(propertyLike);
     const booking = property.booking;
+    const listing = booking?.propertyShareListing;
     if (
       Number(booking?.userId) !== Number(share.ownerUserId) ||
+      Number(listing?.ownerUserId) !== Number(share.ownerUserId) ||
+      Number(listing?.bookingId) !== Number(property.bookingId) ||
       booking?.workflowStatus !== BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED ||
       !booking?.completedAt ||
       booking?.cancelledAt ||
@@ -713,8 +879,9 @@ async function loadValidPublicShare(
     ) {
       return null;
     }
-    if (!Array.isArray(property.files) || property.files.length === 0)
+    if (!Array.isArray(property.files) || property.files.length === 0) {
       return null;
+    }
     for (const membershipLike of property.files) {
       const membership = toPlain(membershipLike);
       const file = membership.deliveryFile;
@@ -732,7 +899,8 @@ async function loadValidPublicShare(
           Number(membership.deliveryFileVersionId) ||
         currentVersion?.supersededAt ||
         Number(pinnedVersion.deliveryFileId) !== Number(file.id) ||
-        pinnedVersion.supersededAt
+        pinnedVersion.supersededAt ||
+        !getInlinePropertyMediaDetails(file, pinnedVersion)
       ) {
         return null;
       }
@@ -743,13 +911,55 @@ async function loadValidPublicShare(
   return share;
 }
 
+function formatPriceAed(value, listingType) {
+  const numeric = Number(value);
+  const formatted = new Intl.NumberFormat("en-AE", {
+    maximumFractionDigits: 2,
+  }).format(numeric);
+  return `AED ${formatted}${listingType === "FOR_RENT_YEARLY" ? " / yr" : ""}`;
+}
+
+function serializePublicMedia(membershipLike, index) {
+  const membership = toPlain(membershipLike);
+  const file = toPlain(membership.deliveryFile) || {};
+  const version = toPlain(membership.deliveryFileVersion) || {};
+  const details = getInlinePropertyMediaDetails(file, version);
+  return {
+    id: Number(membership.id),
+    kind: details.kind,
+    mimeType: details.mimeType,
+    label: String(
+      file.label || file.type || `Property media ${index + 1}`,
+    ).slice(0, 120),
+  };
+}
+
 function serializePublicProperty(propertyLike) {
   const property = toPlain(propertyLike);
+  const booking = toPlain(property.booking) || {};
+  const listing = serializeListing(booking.propertyShareListing);
+  const contactLinks = propertyShareContactLinks(listing.contactPhone);
   return {
     id: Number(property.id),
-    title: buildSharedPropertyTitle(property.booking),
-    services: sharedPropertyServices(property.booking),
-    completedAt: dateIso(property.booking?.completedAt),
+    title: listing.listingTitle,
+    displayPrice: formatPriceAed(listing.priceAed, listing.listingType),
+    listingType: listing.listingType,
+    listingTypeLabel: listing.listingTypeLabel,
+    bathrooms: listing.bathrooms,
+    sizeSqft: listing.sizeSqft,
+    furnishing: listing.furnishingLabel,
+    description: listing.description,
+    highlights: listing.highlights,
+    contact: {
+      name: listing.contactName,
+      phone: listing.contactPhone,
+      telephoneUrl: contactLinks.telephone,
+      whatsappUrl: contactLinks.whatsapp,
+    },
+    location: bookingLocation(booking),
+    bedrooms: bookingBedrooms(booking),
+    services: sharedPropertyServices(booking),
+    media: (property.files || []).map(serializePublicMedia),
   };
 }
 
@@ -760,6 +970,15 @@ function serializePublicLanding(shareLike) {
     kind: share.kind,
     properties: (share.properties || []).map(serializePublicProperty),
   };
+}
+
+function findPublicProperty(share, propertyId) {
+  const id = Number(propertyId);
+  if (!Number.isSafeInteger(id) || id <= 0) return null;
+  const plainShare = toPlain(share) || {};
+  return (plainShare.properties || []).find(
+    (property) => Number(property.id) === id,
+  );
 }
 
 export async function resolvePublicPropertyShareLanding(
@@ -774,7 +993,6 @@ export async function resolvePublicPropertyShareLanding(
     });
     if (!share) return null;
     if (
-      share.kind === PROPERTY_SHARE_KIND.MASTER &&
       requestedPropertyId !== null &&
       !findPublicProperty(share, requestedPropertyId)
     ) {
@@ -808,139 +1026,36 @@ export async function resolvePublicPropertyShareLanding(
   });
 }
 
-function findPublicProperty(share, propertyId) {
-  const id = Number(propertyId);
-  if (!Number.isSafeInteger(id) || id <= 0) return null;
-  const plainShare = toPlain(share) || {};
-  return (plainShare.properties || []).find(
-    (property) => Number(property.id) === id,
-  );
-}
-
-export async function getPublicPropertyManifest(
-  token,
-  propertyId,
-  receiptToken,
-) {
-  const share = await loadValidPublicShare(token);
-  if (!share) return null;
-  const property = findPublicProperty(share, propertyId);
-  if (!property) return null;
-  const receiptValid = await verifyPropertyShareReceipt(receiptToken, {
-    shareId: share.id,
-    propertyId: property.id,
-    credentialVersion: share.credentialVersion,
-  });
-  if (!receiptValid) return null;
-  return {
-    property: serializePublicProperty(property),
-    files: property.files.map((membershipLike) => {
-      const membership = toPlain(membershipLike);
-      const file = membership.deliveryFile;
-      const version = membership.deliveryFileVersion;
-      return {
-        id: Number(membership.id),
-        type: file.type,
-        label: file.label,
-        filename: version.originalFilename || file.label || "Deliverable",
-      };
-    }),
-  };
-}
-
-export async function getPublicPropertyReceiptScope(token, propertyId) {
-  const share = await loadValidPublicShare(token);
-  if (!share) return null;
-  const property = findPublicProperty(share, propertyId);
-  if (!property) return null;
-  return {
-    shareId: Number(share.id),
-    propertyId: Number(property.id),
-  };
-}
-
-export async function submitPublicPropertyShareContact({
-  token,
-  propertyId,
-  input,
-  networkAddress,
-  now = new Date(),
-}) {
-  return sequelize.transaction(async (transaction) => {
-    const share = await loadValidPublicShare(token, {
-      transaction,
-      lockShare: true,
-    });
-    if (!share) return null;
-    const property = findPublicProperty(share, propertyId);
-    if (!property) return null;
-    const contact = normalizePropertyShareContact(input);
-    enforcePropertyShareContactThrottle({
-      shareId: share.id,
-      propertyId: property.id,
-      networkAddress,
-      now,
-    });
-    const receipt = await createPropertyShareReceipt({
-      shareId: share.id,
-      propertyId: property.id,
-      credentialVersion: share.credentialVersion,
-      now,
-    });
-    const expiresAt = new Date(
-      now.getTime() +
-        PROPERTY_SHARE_CONTACT_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-    );
-    await PropertyShareContact.create(
-      {
-        shareLinkId: share.id,
-        sharePropertyId: property.id,
-        name: contact.name,
-        phone: contact.phone,
-        expiresAt,
-      },
-      { transaction },
-    );
-    return { receipt };
-  });
-}
-
-export async function resolvePublicPropertyShareFile({
+export async function resolvePublicPropertyShareMedia({
   token,
   propertyId,
   sharedFileId,
-  receiptToken,
 }) {
   const share = await loadValidPublicShare(token);
   if (!share) return null;
   const property = findPublicProperty(share, propertyId);
   if (!property) return null;
-  const receiptValid = await verifyPropertyShareReceipt(receiptToken, {
-    shareId: share.id,
-    propertyId: property.id,
-    credentialVersion: share.credentialVersion,
-  });
-  if (!receiptValid) return null;
   const fileId = Number(sharedFileId);
   if (!Number.isSafeInteger(fileId) || fileId <= 0) return null;
   const membership = property.files.find((file) => Number(file.id) === fileId);
   if (!membership) return null;
   const pinnedVersion = membership.deliveryFileVersion;
+  const details = getInlinePropertyMediaDetails(
+    membership.deliveryFile,
+    pinnedVersion,
+  );
+  if (!details) return null;
   return {
-    url: pinnedVersion.url,
-    filename:
-      pinnedVersion.originalFilename ||
-      membership.deliveryFile.label ||
-      "Deliverable",
+    storageUrl: pinnedVersion.url,
+    mimeType: details.mimeType,
+    sizeBytes:
+      pinnedVersion.sizeBytes === null || pinnedVersion.sizeBytes === undefined
+        ? null
+        : Number(pinnedVersion.sizeBytes),
   };
 }
 
 export async function getOwnerPropertyShareAnalytics(ownerUserId, shareId) {
   const share = await findOwnerShare(ownerUserId, shareId);
   return ownerShareDetails(share, new Date());
-}
-
-export async function getOwnerPropertyShareContacts(ownerUserId, shareId) {
-  const details = await getOwnerPropertyShareAnalytics(ownerUserId, shareId);
-  return details.contacts;
 }

@@ -29,12 +29,6 @@ const PropertyShareLink = sequelize.define(
       unique: true,
       field: "token_digest",
     },
-    credentialVersion: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 1,
-      field: "credential_version",
-    },
     enabled: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
