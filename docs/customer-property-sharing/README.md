@@ -34,7 +34,9 @@ no separate Video Walkthrough button.
 
 The single-property showcase owns the full browser surface. It has no outer
 card border, radius, shadow, or page gutter; the media and listing split fill
-the viewport on desktop and become an edge-to-edge single column on narrow
+the viewport on desktop, the media hero stretches through the available
+viewport height above its thumbnail strip, and photos/videos use contain sizing
+without cropping. The layout becomes an edge-to-edge single column on narrow
 screens. If an authorized media object is missing, both the hero and its
 thumbnail show an explicit unavailable state rather than a broken image.
 

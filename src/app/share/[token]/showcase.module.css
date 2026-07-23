@@ -76,6 +76,11 @@
   background: #050506;
 }
 
+.spHero img,
+.spHero video {
+  object-fit: contain;
+}
+
 .spHero iframe {
   border: 0;
   background: #050506;
@@ -433,6 +438,35 @@
 .showcaseFooter b {
   color: #a1a1aa;
   letter-spacing: 0.12em;
+}
+
+@media (min-width: 901px) {
+  .showcase {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .showcaseGrid {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .mediaColumn {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .spHero {
+    height: auto;
+    min-height: clamp(240px, 36dvh, 320px);
+    flex: 1 1 0;
+  }
+
+  .spBody {
+    max-height: 100%;
+    overflow-y: auto;
+  }
 }
 
 @media (max-width: 900px) {

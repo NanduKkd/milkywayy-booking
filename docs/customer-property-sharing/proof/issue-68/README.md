@@ -60,7 +60,9 @@ original live-object proof.
   overflow.
 - The public single showcase was verified at the same two viewport sizes. Its
   outer article matched the viewport origin and width, had no card treatment,
-  and introduced no horizontal overflow.
+  and introduced no horizontal overflow. Above the desktop split breakpoint,
+  its media hero filled the available viewport height above the thumbnail strip
+  while photo/video content used contain sizing without cropping.
 - The Create action opened the selected completed project's listing form.
   Existing shares exposed a named Manage action with Copy Link, Preview, Edit,
   and Disable/Enable controls. Preview opened the actual public route in an
