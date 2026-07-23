@@ -104,7 +104,7 @@
 
 .thumbnails {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 120px));
   gap: 8px;
   margin: 8px 0 16px;
 }

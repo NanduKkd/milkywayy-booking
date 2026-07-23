@@ -61,7 +61,9 @@ original live-object proof.
   card.
 - [`browser-review-master-property.png`](browser-review-master-property.png)
   shows the selected-property return path with deliberate top and horizontal
-  spacing. The property-level agent contact remains available.
+  spacing. At the reviewed 880 × 964 viewport, gallery thumbnails use compact
+  120 × 76px tiles rather than stretching across the media column. The
+  property-level agent contact remains available.
 
 ## Browser assertions
 
