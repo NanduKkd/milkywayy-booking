@@ -5,7 +5,6 @@ const mockAuth = jest.fn();
 const mockGetBookings = jest.fn();
 const mockFileList = jest.fn();
 const mockGetPropertySharingDashboard = jest.fn();
-const mockPropertySharingManager = jest.fn();
 
 jest.mock("@/lib/helpers/auth", () => ({
   auth: (...args) => mockAuth(...args),
@@ -25,14 +24,6 @@ jest.mock("../FileList", () => ({
   default: (props) => {
     mockFileList(props);
     return <div data-testid="files-page-list" />;
-  },
-}));
-
-jest.mock("../PropertySharingManager", () => ({
-  __esModule: true,
-  default: (props) => {
-    mockPropertySharingManager(props);
-    return <div data-testid="property-sharing-manager" />;
   },
 }));
 
@@ -106,9 +97,6 @@ describe("dashboard files page", () => {
 
     expect(mockGetBookings).toHaveBeenCalledWith(42);
     expect(mockGetPropertySharingDashboard).toHaveBeenCalledWith(42);
-    expect(mockPropertySharingManager).toHaveBeenCalledWith({
-      initialData: { eligibleProperties: [], shares: [] },
-    });
     expect(mockFileList.mock.calls[0][0]).toEqual({
       bookings: [
         expect.objectContaining({
@@ -122,6 +110,7 @@ describe("dashboard files page", () => {
         }),
       ],
       highlightedFileId: 18,
+      propertySharing: { eligibleProperties: [], shares: [] },
       requestedFileAvailable: true,
       requestedFileIdWasProvided: true,
     });
@@ -154,6 +143,7 @@ describe("dashboard files page", () => {
     expect(mockFileList.mock.calls[0][0]).toEqual({
       bookings: [],
       highlightedFileId: null,
+      propertySharing: { eligibleProperties: [], shares: [] },
       requestedFileAvailable: false,
       requestedFileIdWasProvided: true,
     });

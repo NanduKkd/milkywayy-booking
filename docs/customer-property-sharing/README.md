@@ -26,10 +26,17 @@ media, listing metadata, description, highlights, telephone and WhatsApp
 actions, and Milkywayy branding. They contain no buyer form, delivery manifest,
 download button, revision control, or authenticated file route.
 
-The management UI follows the supplied reference: compact Ready to Share,
-Shared Properties, Master Links, and select-multiple/action-bar surfaces; a
-compact listing form; and card-click preview. Preview embeds the actual public
-buyer page and can be switched between Phone and Desktop widths.
+Property sharing no longer repeats delivered projects in a standalone
+management section. Each eligible completed project card in the authenticated
+`FileList` contains its contextual **Create Share Link** action. After
+publication that action becomes **Manage Share Link**, opening the stable copy,
+preview, edit, and disable/enable controls for that property. The compact
+reference-style listing form opens directly from the card, and Preview embeds
+the actual public buyer page with Phone and Desktop widths.
+
+Existing master-link data and public collection routes remain readable, but the
+removed standalone section is no longer a customer entry point for creating or
+editing a master collection.
 
 Public pages always resolve the current accepted browser-safe media for the
 selected booking. Media is streamed only through link/property/file-scoped

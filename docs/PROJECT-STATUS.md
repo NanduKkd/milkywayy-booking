@@ -25,9 +25,10 @@ Notion workspace is retained only as a migration archive.
 - Dashboard sections exist for bookings, Properties, invoices, wallet, and external connections under `src/app/dashboard/`.
 - Properties retains `/dashboard/files`, delivery-file listing, and dashboard
   deep links while adding stable single/master completed-property links,
-  owner-authored listing/contact configuration, reference-matched management
-  cards/forms, real Phone/Desktop buyer previews, responsive public showcases,
-  inline media galleries, and a total link-view count without visitor PII.
+  owner-authored listing/contact configuration, contextual Create/Manage Share
+  Link actions on completed project cards, reference-matched forms, real
+  Phone/Desktop buyer previews, responsive public showcases, inline media
+  galleries, and a total link-view count without visitor PII.
   Its durable contract is under `docs/customer-property-sharing/`.
 
 ### Admin surface
@@ -64,7 +65,7 @@ Most recent full-suite evidence recorded during issue #68 verification on
 - A tracked-file Biome check reported the same pre-existing `293` errors and
   `59` warnings.
 - The corrected issue #68 property-sharing verification on 2026-07-23 passed
-  `52` tests across `10` focused suites, with the guarded PostgreSQL suite
+  `61` tests across `11` focused suites, with the guarded PostgreSQL suite
   skipped in that ordinary command. The reserved disposable-PostgreSQL run
   separately passed `4` tests covering schema constraints and 40 concurrent
   view increments. All changed JavaScript and JSX passed focused Biome checks;

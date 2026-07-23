@@ -6,19 +6,22 @@ synthetic customer, three synthetic completed properties, five accepted current
 media records, two single-property links, and one master link. The temporary
 server and database were removed after verification.
 
-The supplied reference HTML was inspected directly for its `rcard`, `pshared`,
-`mcard`, `actionbar`, `modal`, `pv-*`, `desk`, `phone`, `sp-*`, `col-grid-d`,
-and `cmini` contracts. Files beginning with `corrected-` are the authoritative
-screenshots for the simplified product contract. Older PNG files in this folder
-are retained only as historical evidence for the superseded first pass and must
-not be used to infer the current link lifecycle.
+The supplied reference HTML was inspected directly for its `modal`, `pv-*`,
+`desk`, `phone`, `sp-*`, `col-grid-d`, and `cmini` contracts. The
+`contextual-sharing-*` screenshots are authoritative for the latest
+authenticated placement correction. Other files beginning with `corrected-`
+remain authoritative for the listing dialog, public preview, and public pages.
+Older PNG files and the earlier corrected management screenshots are retained
+only as historical evidence and must not be used to infer the current
+authenticated layout.
 
 ## Corrected authenticated UI
 
-- [`corrected-management-desktop.jpg`](corrected-management-desktop.jpg) and
-  [`corrected-management-phone.jpg`](corrected-management-phone.jpg) show the
-  compact reference-style Ready to Share and Shared Properties surfaces with no
-  extra Properties title/intro panel.
+- [`contextual-sharing-desktop.jpg`](contextual-sharing-desktop.jpg) and
+  [`contextual-sharing-phone.jpg`](contextual-sharing-phone.jpg) show the single
+  Delivered files project list. Eligible completed cards contain **Create Share
+  Link**; an already-shared card contains **Manage Share Link**. There is no
+  standalone Ready/Shared/Master management section or duplicated project list.
 - [`corrected-listing-form-desktop.jpg`](corrected-listing-form-desktop.jpg) and
   [`corrected-listing-form-phone.jpg`](corrected-listing-form-phone.jpg) show the
   reference-width listing form, segmented furnishing control, owner contact
@@ -46,17 +49,17 @@ original live-object proof.
 
 ## Browser assertions
 
-- Desktop management used a 1440 × 900 viewport; the browser content capture
-  was 1425 × 891. Phone management used a 390 × 844 viewport; the browser
-  content capture was 375 × 812.
-- Management, form, preview, single showcase, and master collection had no
-  horizontal overflow at either responsive width.
-- Shared cards were keyboard-addressable named buttons, and clicking a card
-  opened the actual public route in an iframe.
+- Contextual placement was verified at 1440 × 900 and 390 × 844. Both sizes had
+  one Delivered files list, no standalone sharing manager, and no horizontal
+  overflow.
+- The Create action opened the selected completed project's listing form.
+  Existing shares exposed a named Manage action with Copy Link, Preview, Edit,
+  and Disable/Enable controls. Preview opened the actual public route in an
+  iframe.
 - The public gallery ordered images before tour/video media.
-- The dashboard contained Copy Link, Disable/Enable, Edit, select-multiple, and
-  master controls. It contained no rotate, revoke, refresh-snapshot, expiry,
-  delete-link, agent-assignment, or visitor-contact controls.
+- The contextual single-share dialog contained Copy Link, Disable/Enable, Edit,
+  and Preview. It contained no rotate, revoke, refresh-snapshot, expiry,
+  delete-link, agent-assignment, visitor-contact, or duplicate-project controls.
 - Disabling the single link immediately produced the generic unavailable page.
   Re-enabling restored the exact same public ID and URL. The stored total moved
   only for successful landing renders and remained one simple aggregate.
@@ -66,7 +69,7 @@ original live-object proof.
 ## Verification recorded
 
 - Focused sharing/model/migration/action/management/public-route/storage command:
-  **10 suites and 52 tests passed**; the guarded PostgreSQL suite was skipped in
+  **11 suites and 61 tests passed**; the guarded PostgreSQL suite was skipped in
   that ordinary command.
 - Reserved disposable-PostgreSQL command: **1 suite and 4 tests passed**,
   covering single/master/listing uniqueness and 40 concurrent lossless

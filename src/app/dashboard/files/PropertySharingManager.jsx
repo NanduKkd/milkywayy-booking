@@ -42,7 +42,7 @@ function stopPropagation(event) {
   event.stopPropagation();
 }
 
-function BuyerPreview({ share, onClose }) {
+export function BuyerPreview({ share, onClose }) {
   const [device, setDevice] = useState("desktop");
 
   return (
@@ -93,7 +93,7 @@ function BuyerPreview({ share, onClose }) {
   );
 }
 
-function ListingForm({ property, mode, busy, onClose, onSubmit }) {
+export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
   const existing = property.listing;
   const [form, setForm] = useState({
     listingTitle: existing?.listingTitle || property.bookingTitle || "",

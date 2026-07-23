@@ -4,8 +4,8 @@
 
 - Status: `ACCEPTED`
 - Decision: `/dashboard/files` remains canonical, including `fileId` behavior.
-  The dashboard tab and management surface say Properties, and the complete
-  authenticated `FileList` remains on the page.
+  The dashboard tab says Properties, and the complete authenticated `FileList`
+  is the only project list on the page.
 - Consequence: Existing bookmarks, downloads, copy-link delivery, revisions,
   replacements, review deadlines, completion, and workflow links stay intact.
 
@@ -71,8 +71,12 @@
 ## PROP-D009 — Match the supplied reference interaction and visual contract
 
 - Status: `ACCEPTED`
-- Decision: Properties uses the reference's compact Ready, Shared, Master,
-  listing-form, action-bar, and buyer-showcase patterns. A shared card opens the
-  real public page in a Phone/Desktop preview.
+- Decision: Properties uses the reference's compact listing form and
+  buyer-showcase patterns, but does not duplicate delivered projects in a
+  separate Ready/Shared/Master management section. An eligible completed
+  FileList card exposes **Create Share Link**; an already shared card exposes
+  contextual copy, preview, edit, and disable/enable management.
 - Consequence: Extra explanatory headers, rotation/revocation/refresh controls,
-  and substitute preview markup are outside the product contract.
+  duplicate project cards, and substitute preview markup are outside the
+  product contract. Existing master collection data and public routes remain
+  compatible without a dedicated customer management surface.

@@ -42,10 +42,10 @@
 ### Compatibility and UI
 
 - The tab says Properties but links to `/dashboard/files`.
-- Ready to Share, compact listing form, Shared Properties, Master Links,
-  select-multiple/action bar, total views, stable copy, enable/disable, and the
-  actual Phone/Desktop public-page preview are covered at desktop and narrow
-  sizes.
+- The standalone sharing-management section is absent. Eligible completed
+  FileList cards expose **Create Share Link**; existing shared cards expose
+  contextual stable copy, edit, enable/disable, total views, and the actual
+  Phone/Desktop public-page preview.
 - Single showcase covers gallery switching, metadata chips, description,
   highlights, contact phone/WhatsApp actions, empty/error states, and branding.
 - Master collection contains only selected cards and opens the full selected
@@ -64,10 +64,11 @@ Record exact suite/test counts and separate unrelated baseline failures.
 ## Sanitized browser proof
 
 Use synthetic listings, media, contacts, and bearers. Capture 1440×900 and
-390×844 evidence for authenticated management, a single showcase/gallery, and
-a master collection plus selected-property showcase. Record DOM/network checks
-for inline media and the absence of buyer POSTs, receipt cookies, public
-downloads/attachments, authenticated download calls, and persisted object URLs.
+390×844 evidence for contextual completed-project sharing, the listing dialog,
+a single showcase/gallery, and a master collection plus selected-property
+showcase. Record DOM/network checks for inline media and the absence of buyer
+POSTs, receipt cookies, public downloads/attachments, authenticated download
+calls, and persisted object URLs.
 
 Verify disabled/unselected/current-media failures, stable re-enable behavior,
 total-only views, and unchanged authenticated FileList/download behavior.

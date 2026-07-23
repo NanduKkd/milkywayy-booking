@@ -6,6 +6,7 @@ import {
   Copy,
   Download,
   FileArchive,
+  Link2,
   RefreshCcw,
   Video,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import {
   isCustomerDeliveryFileVisible,
   MAX_FILE_REVISIONS,
 } from "@/lib/helpers/bookingWorkflow";
+import PropertyShareDialog from "./PropertyShareDialog";
 
 const getFileIcon = (type) => {
   const normalized = String(type || "").toLowerCase();
@@ -97,12 +99,14 @@ export default function FileList({
   highlightedFileId = null,
   requestedFileAvailable = true,
   requestedFileIdWasProvided = false,
+  propertySharing = { eligibleProperties: [], shares: [] },
 }) {
   const router = useRouter();
   const [selectedFile, setSelectedFile] = useState(null);
   const [revisionNote, setRevisionNote] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
   const [copyingId, setCopyingId] = useState(null);
+  const [shareBookingId, setShareBookingId] = useState(null);
   const highlightedFileRef = useRef(null);
 
   const openRevision = (file) => {
@@ -219,10 +223,21 @@ export default function FileList({
         {visibleBookings.map((booking) => {
           const files = booking.deliveryFiles;
           const unresolvedCount = Number(booking.pendingReplacementCount || 0);
+          const shareableProperty = propertySharing.eligibleProperties.find(
+            (property) => property.id === booking.id,
+          );
+          const existingShare = propertySharing.shares.find(
+            (share) =>
+              share.kind === "SINGLE_PROPERTY" &&
+              share.properties.some(
+                (property) => property.bookingId === booking.id,
+              ),
+          );
 
           return (
             <section
               key={booking.id}
+              data-testid={`delivered-project-${booking.id}`}
               className="rounded-2xl border border-white/10 bg-card p-5 md:p-6"
             >
               <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-start md:justify-between">
@@ -249,10 +264,25 @@ export default function FileList({
                   )}
                 </div>
                 {booking.completedAt ? (
-                  <span className="inline-flex items-center gap-2 text-sm text-emerald-300">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Project completed
-                  </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-2 text-sm text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Project completed
+                    </span>
+                    {shareableProperty ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={existingShare ? "outline" : "default"}
+                        onClick={() => setShareBookingId(booking.id)}
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        {existingShare
+                          ? "Manage Share Link"
+                          : "Create Share Link"}
+                      </Button>
+                    ) : null}
+                  </div>
                 ) : (
                   <Button
                     type="button"
@@ -437,6 +467,14 @@ export default function FileList({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {shareBookingId ? (
+        <PropertyShareDialog
+          key={shareBookingId}
+          initialData={propertySharing}
+          bookingId={shareBookingId}
+          onClose={() => setShareBookingId(null)}
+        />
+      ) : null}
     </>
   );
 }

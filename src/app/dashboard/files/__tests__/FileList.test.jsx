@@ -6,6 +6,7 @@ import {
 import FileList from "../FileList";
 
 const mockRefresh = jest.fn();
+const mockPropertyShareDialog = jest.fn();
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -16,6 +17,13 @@ jest.mock("next/navigation", () => ({
 jest.mock("@/lib/actions/bookings", () => ({
   completeDeliveredBooking: jest.fn(),
   requestFileRevision: jest.fn(),
+}));
+jest.mock("../PropertyShareDialog", () => ({
+  __esModule: true,
+  default: (props) => {
+    mockPropertyShareDialog(props);
+    return <div data-testid="property-share-dialog" />;
+  },
 }));
 
 const makeFile = (overrides = {}) => ({
@@ -193,6 +201,66 @@ describe("customer FileList", () => {
     await waitFor(() => {
       expect(completeDeliveredBooking).toHaveBeenCalledWith(1);
     });
+  });
+
+  it("places share-link creation on an eligible completed project card", () => {
+    const propertySharing = {
+      eligibleProperties: [
+        {
+          id: 1,
+          bookingTitle: "101, Tower A, Marina",
+        },
+      ],
+      shares: [],
+    };
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            completedAt: "2026-07-23T10:00:00.000Z",
+          }),
+        ]}
+        propertySharing={propertySharing}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Create Share Link" }));
+
+    expect(mockPropertyShareDialog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bookingId: 1,
+        initialData: propertySharing,
+      }),
+    );
+  });
+
+  it("offers contextual management when a completed project is already shared", () => {
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            completedAt: "2026-07-23T10:00:00.000Z",
+          }),
+        ]}
+        propertySharing={{
+          eligibleProperties: [{ id: 1 }],
+          shares: [
+            {
+              id: 9,
+              kind: "SINGLE_PROPERTY",
+              properties: [{ bookingId: 1 }],
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Manage Share Link" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Create Share Link" }),
+    ).not.toBeInTheDocument();
   });
 
   it("scrolls to and visually identifies the requested file card", async () => {
