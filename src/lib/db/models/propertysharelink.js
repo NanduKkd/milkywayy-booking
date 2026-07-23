@@ -23,32 +23,22 @@ const PropertyShareLink = sequelize.define(
       allowNull: true,
       field: "single_booking_id",
     },
-    tokenDigest: {
-      type: DataTypes.STRING(64),
+    publicId: {
+      type: DataTypes.STRING(43),
       allowNull: false,
       unique: true,
-      field: "token_digest",
+      field: "public_id",
     },
     enabled: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: true,
     },
-    revokedAt: {
-      type: DataTypes.DATE,
-      allowNull: true,
-      field: "revoked_at",
-    },
     totalViews: {
       type: DataTypes.BIGINT,
       allowNull: false,
       defaultValue: 0,
       field: "total_views",
-    },
-    lastViewedAt: {
-      type: DataTypes.DATE,
-      allowNull: true,
-      field: "last_viewed_at",
     },
   },
   {

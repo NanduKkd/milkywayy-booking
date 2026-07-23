@@ -126,18 +126,14 @@ describeWithPostgres(
       );
     });
 
-    async function insertShare({
-      kind,
-      digestCharacter,
-      singleBookingId = null,
-    }) {
+    async function insertShare({ kind, idCharacter, singleBookingId = null }) {
       return sequelize.query(
         `
         INSERT INTO property_share_links
-          (owner_user_id, kind, single_booking_id, token_digest,
+          (owner_user_id, kind, single_booking_id, public_id,
            enabled, total_views, created_at, updated_at)
         VALUES
-          (:ownerUserId, :kind, :singleBookingId, :tokenDigest,
+          (:ownerUserId, :kind, :singleBookingId, :publicId,
            TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING id
       `,
@@ -146,24 +142,24 @@ describeWithPostgres(
             ownerUserId,
             kind,
             singleBookingId,
-            tokenDigest: digestCharacter.repeat(64),
+            publicId: idCharacter.repeat(43),
           },
           type: QueryTypes.INSERT,
         },
       );
     }
 
-    it("allows exactly one live single link for an owner and booking", async () => {
+    it("allows exactly one stable single link for an owner and booking", async () => {
       const results = await Promise.allSettled([
         insertShare({
           kind: "SINGLE_PROPERTY",
           singleBookingId: bookingId,
-          digestCharacter: "a",
+          idCharacter: "a",
         }),
         insertShare({
           kind: "SINGLE_PROPERTY",
           singleBookingId: bookingId,
-          digestCharacter: "b",
+          idCharacter: "b",
         }),
       ]);
 
@@ -175,10 +171,10 @@ describeWithPostgres(
       ).toHaveLength(1);
     });
 
-    it("allows exactly one live master link per owner", async () => {
+    it("allows exactly one stable master link per owner", async () => {
       const results = await Promise.allSettled([
-        insertShare({ kind: "MASTER", digestCharacter: "c" }),
-        insertShare({ kind: "MASTER", digestCharacter: "d" }),
+        insertShare({ kind: "MASTER", idCharacter: "c" }),
+        insertShare({ kind: "MASTER", idCharacter: "d" }),
       ]);
 
       expect(
@@ -222,11 +218,11 @@ describeWithPostgres(
       ).toHaveLength(1);
     });
 
-    it("keeps concurrent total and Dubai-day aggregate increments lossless", async () => {
+    it("keeps concurrent total view increments lossless", async () => {
       const [rows] = await insertShare({
         kind: "SINGLE_PROPERTY",
         singleBookingId: bookingId,
-        digestCharacter: "e",
+        idCharacter: "e",
       });
       const shareLinkId = Number(rows[0].id);
       const now = new Date("2026-07-22T10:00:00.000Z");
@@ -237,21 +233,8 @@ describeWithPostgres(
             await sequelize.query(
               `UPDATE property_share_links
              SET total_views = total_views + 1,
-                 last_viewed_at = :now,
                  updated_at = :now
              WHERE id = :shareLinkId`,
-              { replacements: { shareLinkId, now }, transaction },
-            );
-            await sequelize.query(
-              `
-              INSERT INTO property_share_daily_views
-                (share_link_id, view_date, request_views, created_at, updated_at)
-              VALUES (:shareLinkId, '2026-07-22', 1, :now, :now)
-              ON CONFLICT (share_link_id, view_date)
-              DO UPDATE SET
-                request_views = property_share_daily_views.request_views + 1,
-                updated_at = EXCLUDED.updated_at
-            `,
               { replacements: { shareLinkId, now }, transaction },
             );
           }),
@@ -259,16 +242,10 @@ describeWithPostgres(
       );
 
       const [link] = await sequelize.query(
-        "SELECT total_views, last_viewed_at FROM property_share_links WHERE id = :shareLinkId",
-        { replacements: { shareLinkId }, type: QueryTypes.SELECT },
-      );
-      const [bucket] = await sequelize.query(
-        "SELECT request_views FROM property_share_daily_views WHERE share_link_id = :shareLinkId",
+        "SELECT total_views FROM property_share_links WHERE id = :shareLinkId",
         { replacements: { shareLinkId }, type: QueryTypes.SELECT },
       );
       expect(Number(link.total_views)).toBe(40);
-      expect(link.last_viewed_at).not.toBeNull();
-      expect(Number(bucket.request_views)).toBe(40);
     });
   },
 );

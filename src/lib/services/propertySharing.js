@@ -1,11 +1,9 @@
 import "@/lib/db/relations";
-import { literal, Op, QueryTypes } from "sequelize";
+import { literal, Op } from "sequelize";
 import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingDeliveryFileVersion from "@/lib/db/models/bookingdeliveryfileversion";
-import PropertyShareDailyView from "@/lib/db/models/propertysharedailyview";
-import PropertyShareFile from "@/lib/db/models/propertysharefile";
 import PropertyShareLink from "@/lib/db/models/propertysharelink";
 import PropertyShareListing from "@/lib/db/models/propertysharelisting";
 import PropertyShareProperty from "@/lib/db/models/propertyshareproperty";
@@ -15,11 +13,10 @@ import {
   DELIVERY_FILE_STATUS,
 } from "@/lib/helpers/bookingWorkflow";
 import {
-  createPropertyShareToken,
-  digestPropertyShareToken,
+  createPropertyShareId,
+  isPropertyShareId,
   normalizePropertyShareListing,
   propertyShareContactLinks,
-  tokenDigestMatches,
 } from "@/lib/services/propertySharingSecurity";
 
 export const PROPERTY_SHARE_KIND = Object.freeze({
@@ -168,25 +165,6 @@ function sharedPropertyServices(bookingLike) {
   return uniqueDisplayParts(services).slice(0, 12);
 }
 
-function getDubaiDateString(value = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Dubai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(value);
-  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${map.year}-${map.month}-${map.day}`;
-}
-
-function trailingDubaiDates(now = new Date(), days = 30) {
-  const [year, month, day] = getDubaiDateString(now).split("-").map(Number);
-  return Array.from({ length: days }, (_, index) => {
-    const date = new Date(Date.UTC(year, month - 1, day - (days - 1 - index)));
-    return date.toISOString().slice(0, 10);
-  });
-}
-
 function filenameMimeType(filename) {
   const normalized = String(filename || "").toLowerCase();
   for (const [extension, mimeType] of SAFE_EXTENSION_MIME_TYPES) {
@@ -222,18 +200,36 @@ export function getInlinePropertyMediaDetails(fileLike, versionLike) {
 
 function eligibleDeliveryFiles(bookingLike) {
   const booking = toPlain(bookingLike) || {};
-  return (booking.deliveryFiles || []).filter((fileLike) => {
-    const file = toPlain(fileLike) || {};
-    const version = toPlain(file.currentVersion) || {};
-    return (
-      !file.deletedAt &&
-      file.status === DELIVERY_FILE_STATUS.ACCEPTED &&
-      Number.isSafeInteger(Number(file.currentVersionId)) &&
-      Number(file.currentVersionId) === Number(version.id) &&
-      !version.supersededAt &&
-      Boolean(getInlinePropertyMediaDetails(file, version))
-    );
-  });
+  const kindOrder = { IMAGE: 0, TOUR: 1, VIDEO: 2 };
+  return (booking.deliveryFiles || [])
+    .filter((fileLike) => {
+      const file = toPlain(fileLike) || {};
+      const version = toPlain(file.currentVersion) || {};
+      return (
+        !file.deletedAt &&
+        file.status === DELIVERY_FILE_STATUS.ACCEPTED &&
+        Number.isSafeInteger(Number(file.currentVersionId)) &&
+        Number(file.currentVersionId) === Number(version.id) &&
+        !version.supersededAt &&
+        Boolean(getInlinePropertyMediaDetails(file, version))
+      );
+    })
+    .sort((leftLike, rightLike) => {
+      const left = toPlain(leftLike) || {};
+      const right = toPlain(rightLike) || {};
+      const leftKind = getInlinePropertyMediaDetails(
+        left,
+        toPlain(left.currentVersion),
+      )?.kind;
+      const rightKind = getInlinePropertyMediaDetails(
+        right,
+        toPlain(right.currentVersion),
+      )?.kind;
+      return (
+        (kindOrder[leftKind] ?? 3) - (kindOrder[rightKind] ?? 3) ||
+        Number(left.id) - Number(right.id)
+      );
+    });
 }
 
 function isEligibleBooking(bookingLike, ownerUserId) {
@@ -382,16 +378,11 @@ async function lockOwner(ownerUserId, transaction) {
   return owner;
 }
 
-function tokenAndDigest() {
-  const token = createPropertyShareToken();
-  return { token, tokenDigest: digestPropertyShareToken(token) };
-}
-
-function publicShareUrl(token) {
+function publicShareUrl(publicId) {
   const base = String(process.env.NEXT_PUBLIC_BASE_URL || "")
     .trim()
     .replace(/\/+$/u, "");
-  return `${base}/share/${token}`;
+  return `${base}/share/${publicId}`;
 }
 
 export async function savePropertyShareListing(ownerUserId, bookingId, input) {
@@ -450,25 +441,6 @@ async function requireConfiguredListings(
   return listings;
 }
 
-async function replaceSnapshotFiles(shareProperty, booking, transaction) {
-  await PropertyShareFile.destroy({
-    where: { sharePropertyId: shareProperty.id },
-    transaction,
-  });
-  const files = eligibleDeliveryFiles(booking);
-  await PropertyShareFile.bulkCreate(
-    files.map((fileLike) => {
-      const file = toPlain(fileLike);
-      return {
-        sharePropertyId: shareProperty.id,
-        deliveryFileId: file.id,
-        deliveryFileVersionId: file.currentVersionId,
-      };
-    }),
-    { transaction },
-  );
-}
-
 async function replaceShareProperties(share, bookings, transaction) {
   const existing = await PropertyShareProperty.findAll({
     where: { shareLinkId: share.id },
@@ -496,7 +468,6 @@ async function replaceShareProperties(share, bookings, transaction) {
     } else if (Number(property.position) !== position) {
       await property.update({ position }, { transaction });
     }
-    await replaceSnapshotFiles(property, booking, transaction);
   }
 }
 
@@ -519,12 +490,11 @@ async function createShare({ ownerUserId, kind, bookingIds }) {
       await requireConfiguredListings(ownerUserId, ids, transaction, true);
       const duplicateWhere =
         kind === PROPERTY_SHARE_KIND.MASTER
-          ? { ownerUserId, kind, revokedAt: null }
+          ? { ownerUserId, kind }
           : {
               ownerUserId,
               kind,
               singleBookingId: ids[0],
-              revokedAt: null,
             };
       const existing = await PropertyShareLink.findOne({
         where: duplicateWhere,
@@ -539,14 +509,14 @@ async function createShare({ ownerUserId, kind, bookingIds }) {
         );
       }
 
-      const { token, tokenDigest } = tokenAndDigest();
+      const publicId = createPropertyShareId();
       const share = await PropertyShareLink.create(
         {
           ownerUserId,
           kind,
           singleBookingId:
             kind === PROPERTY_SHARE_KIND.SINGLE_PROPERTY ? ids[0] : null,
-          tokenDigest,
+          publicId,
           enabled: true,
         },
         { transaction },
@@ -554,7 +524,7 @@ async function createShare({ ownerUserId, kind, bookingIds }) {
       await replaceShareProperties(share, bookings, transaction);
       return {
         shareId: Number(share.id),
-        publicUrl: publicShareUrl(token),
+        publicUrl: publicShareUrl(publicId),
       };
     });
   } catch (error) {
@@ -605,32 +575,9 @@ export async function updateMasterPropertyShare(
   return sequelize.transaction(async (transaction) => {
     await lockOwner(ownerUserId, transaction);
     const share = await findOwnerShare(ownerUserId, shareId, transaction, true);
-    if (share.kind !== PROPERTY_SHARE_KIND.MASTER || share.revokedAt) {
+    if (share.kind !== PROPERTY_SHARE_KIND.MASTER) {
       throw new PropertyShareNotFoundError();
     }
-    const bookings = await findEligibleBookings(ownerUserId, ids, {
-      transaction,
-      lock: true,
-    });
-    await requireConfiguredListings(ownerUserId, ids, transaction, true);
-    await replaceShareProperties(share, bookings, transaction);
-    return { shareId: Number(share.id) };
-  });
-}
-
-export async function refreshPropertyShareSnapshot(ownerUserId, shareId) {
-  return sequelize.transaction(async (transaction) => {
-    const share = await findOwnerShare(ownerUserId, shareId, transaction, true);
-    if (share.revokedAt) throw new PropertyShareNotFoundError();
-    const properties = await PropertyShareProperty.findAll({
-      where: { shareLinkId: share.id },
-      order: [["position", "ASC"]],
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
-    const ids = properties.map((property) => property.bookingId);
-    const minimum = share.kind === PROPERTY_SHARE_KIND.MASTER ? 2 : 1;
-    if (ids.length < minimum) throw new PropertyShareNotFoundError();
     const bookings = await findEligibleBookings(ownerUserId, ids, {
       transaction,
       lock: true,
@@ -644,43 +591,8 @@ export async function refreshPropertyShareSnapshot(ownerUserId, shareId) {
 export async function setPropertyShareEnabled(ownerUserId, shareId, enabled) {
   return sequelize.transaction(async (transaction) => {
     const share = await findOwnerShare(ownerUserId, shareId, transaction, true);
-    if (share.revokedAt) throw new PropertyShareNotFoundError();
     await share.update({ enabled: Boolean(enabled) }, { transaction });
     return { shareId: Number(share.id), enabled: Boolean(share.enabled) };
-  });
-}
-
-export async function rotatePropertyShareToken(ownerUserId, shareId) {
-  return sequelize.transaction(async (transaction) => {
-    const share = await findOwnerShare(ownerUserId, shareId, transaction, true);
-    if (share.revokedAt) throw new PropertyShareNotFoundError();
-    const { token, tokenDigest } = tokenAndDigest();
-    await share.update(
-      {
-        tokenDigest,
-      },
-      { transaction },
-    );
-    return {
-      shareId: Number(share.id),
-      publicUrl: publicShareUrl(token),
-    };
-  });
-}
-
-export async function revokePropertyShare(ownerUserId, shareId) {
-  return sequelize.transaction(async (transaction) => {
-    const share = await findOwnerShare(ownerUserId, shareId, transaction, true);
-    if (!share.revokedAt) {
-      await share.update(
-        {
-          enabled: false,
-          revokedAt: new Date(),
-        },
-        { transaction },
-      );
-    }
-    return { shareId: Number(share.id), revoked: true };
   });
 }
 
@@ -689,13 +601,10 @@ function serializeOwnerShare(shareLike) {
   return {
     id: Number(share.id),
     kind: share.kind,
-    status: share.revokedAt
-      ? "REVOKED"
-      : share.enabled
-        ? "ENABLED"
-        : "DISABLED",
-    enabled: Boolean(share.enabled) && !share.revokedAt,
-    revokedAt: dateIso(share.revokedAt),
+    status: share.enabled ? "ENABLED" : "DISABLED",
+    enabled: Boolean(share.enabled),
+    publicUrl: publicShareUrl(share.publicId),
+    linkViews: Number(share.totalViews || 0),
     createdAt: dateIso(share.createdAt),
     properties: (share.properties || []).map((propertyLike) => {
       const property = toPlain(propertyLike);
@@ -705,45 +614,13 @@ function serializeOwnerShare(shareLike) {
         bookingId: Number(property.bookingId),
         ...serializeBookingFacts(booking),
         listing: serializeListing(booking.propertyShareListing),
-        mediaCount: Array.isArray(property.files) ? property.files.length : 0,
+        mediaCount: eligibleDeliveryFiles(booking).length,
       };
     }),
   };
 }
 
-async function ownerShareDetails(shareLike, now) {
-  const share = toPlain(shareLike);
-  const dates = trailingDubaiDates(now, 30);
-  const dailyViews = await PropertyShareDailyView.findAll({
-    where: {
-      shareLinkId: share.id,
-      viewDate: { [Op.gte]: dates[0] },
-    },
-    order: [["viewDate", "ASC"]],
-  });
-  const viewMap = new Map(
-    dailyViews.map((entryLike) => {
-      const entry = toPlain(entryLike);
-      return [String(entry.viewDate), Number(entry.requestViews || 0)];
-    }),
-  );
-  return {
-    ...serializeOwnerShare(share),
-    analytics: {
-      totalRequestViews: Number(share.totalViews || 0),
-      lastViewedAt: dateIso(share.lastViewedAt),
-      trailing30Days: dates.map((date) => ({
-        date,
-        requestViews: viewMap.get(date) || 0,
-      })),
-    },
-  };
-}
-
-export async function getPropertySharingDashboard(
-  ownerUserId,
-  now = new Date(),
-) {
+export async function getPropertySharingDashboard(ownerUserId) {
   const ownerId = requirePositiveInteger(ownerUserId);
   const [eligibleBookings, shares] = await Promise.all([
     findEligibleBookings(ownerId),
@@ -766,13 +643,24 @@ export async function getPropertySharingDashboard(
                   as: "propertyShareListing",
                   required: true,
                 },
+                {
+                  model: BookingDeliveryFile,
+                  as: "deliveryFiles",
+                  required: false,
+                  where: {
+                    status: DELIVERY_FILE_STATUS.ACCEPTED,
+                    deletedAt: null,
+                  },
+                  include: [
+                    {
+                      model: BookingDeliveryFileVersion,
+                      as: "currentVersion",
+                      required: true,
+                      attributes: { exclude: ["url"] },
+                    },
+                  ],
+                },
               ],
-            },
-            {
-              model: PropertyShareFile,
-              as: "files",
-              required: false,
-              attributes: ["id"],
             },
           ],
         },
@@ -785,29 +673,21 @@ export async function getPropertySharingDashboard(
   ]);
   return {
     eligibleProperties: eligibleBookings.map(serializeEligibleProperty),
-    shares: await Promise.all(
-      shares.map((share) => ownerShareDetails(share, now)),
-    ),
+    shares: shares.map(serializeOwnerShare),
   };
 }
 
 async function loadValidPublicShare(
-  token,
+  publicId,
   { transaction, lockShare = false } = {},
 ) {
-  const tokenDigest = digestPropertyShareToken(token);
-  if (!tokenDigest) return null;
+  if (!isPropertyShareId(publicId)) return null;
   const share = await PropertyShareLink.findOne({
-    where: { tokenDigest },
+    where: { publicId },
     transaction,
     ...(lockShare && transaction ? { lock: transaction.LOCK.UPDATE } : {}),
   });
-  if (
-    !share ||
-    !share.enabled ||
-    share.revokedAt ||
-    !tokenDigestMatches(tokenDigest, share.tokenDigest)
-  ) {
+  if (!share || !share.enabled) {
     return null;
   }
 
@@ -824,18 +704,14 @@ async function loadValidPublicShare(
             as: "propertyShareListing",
             required: true,
           },
-        ],
-      },
-      {
-        model: PropertyShareFile,
-        as: "files",
-        required: true,
-        include: [
           {
             model: BookingDeliveryFile,
-            as: "deliveryFile",
+            as: "deliveryFiles",
             required: true,
-            paranoid: false,
+            where: {
+              status: DELIVERY_FILE_STATUS.ACCEPTED,
+              deletedAt: null,
+            },
             include: [
               {
                 model: BookingDeliveryFileVersion,
@@ -843,11 +719,6 @@ async function loadValidPublicShare(
                 required: true,
               },
             ],
-          },
-          {
-            model: BookingDeliveryFileVersion,
-            as: "deliveryFileVersion",
-            required: true,
           },
         ],
       },
@@ -864,6 +735,7 @@ async function loadValidPublicShare(
     return null;
   }
 
+  const publicProperties = [];
   for (const propertyLike of properties) {
     const property = toPlain(propertyLike);
     const booking = property.booking;
@@ -872,42 +744,26 @@ async function loadValidPublicShare(
       Number(booking?.userId) !== Number(share.ownerUserId) ||
       Number(listing?.ownerUserId) !== Number(share.ownerUserId) ||
       Number(listing?.bookingId) !== Number(property.bookingId) ||
-      booking?.workflowStatus !== BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED ||
-      !booking?.completedAt ||
-      booking?.cancelledAt ||
-      booking?.status === "CANCELLED"
+      !isEligibleBooking(booking, share.ownerUserId)
     ) {
       return null;
     }
-    if (!Array.isArray(property.files) || property.files.length === 0) {
+    const media = eligibleDeliveryFiles(booking);
+    if (media.length === 0) {
       return null;
     }
-    for (const membershipLike of property.files) {
-      const membership = toPlain(membershipLike);
-      const file = membership.deliveryFile;
-      const currentVersion = file?.currentVersion;
-      const pinnedVersion = membership.deliveryFileVersion;
-      if (
-        !file ||
-        !pinnedVersion ||
-        Number(file.bookingId) !== Number(property.bookingId) ||
-        file.deletedAt ||
-        file.status !== DELIVERY_FILE_STATUS.ACCEPTED ||
-        Number(file.currentVersionId) !==
-          Number(membership.deliveryFileVersionId) ||
-        Number(currentVersion?.id) !==
-          Number(membership.deliveryFileVersionId) ||
-        currentVersion?.supersededAt ||
-        Number(pinnedVersion.deliveryFileId) !== Number(file.id) ||
-        pinnedVersion.supersededAt ||
-        !getInlinePropertyMediaDetails(file, pinnedVersion)
-      ) {
-        return null;
-      }
-    }
+    property.files = media.map((fileLike) => {
+      const file = toPlain(fileLike);
+      return {
+        id: Number(file.id),
+        deliveryFile: file,
+        deliveryFileVersion: file.currentVersion,
+      };
+    });
+    publicProperties.push(property);
   }
-  if (share.setDataValue) share.setDataValue("properties", properties);
-  else share.properties = properties;
+  if (share.setDataValue) share.setDataValue("properties", publicProperties);
+  else share.properties = publicProperties;
   return share;
 }
 
@@ -983,7 +839,7 @@ function findPublicProperty(share, propertyId) {
 
 export async function resolvePublicPropertyShareLanding(
   token,
-  now = new Date(),
+  _now = new Date(),
   requestedPropertyId = null,
 ) {
   return sequelize.transaction(async (transaction) => {
@@ -998,29 +854,11 @@ export async function resolvePublicPropertyShareLanding(
     ) {
       return null;
     }
-    const viewDate = getDubaiDateString(now);
     await share.update(
       {
         totalViews: literal('"total_views" + 1'),
-        lastViewedAt: now,
       },
       { transaction },
-    );
-    await sequelize.query(
-      `
-        INSERT INTO property_share_daily_views
-          (share_link_id, view_date, request_views, created_at, updated_at)
-        VALUES (:shareLinkId, :viewDate, 1, :now, :now)
-        ON CONFLICT (share_link_id, view_date)
-        DO UPDATE SET
-          request_views = property_share_daily_views.request_views + 1,
-          updated_at = EXCLUDED.updated_at
-      `,
-      {
-        replacements: { shareLinkId: share.id, viewDate, now },
-        type: QueryTypes.INSERT,
-        transaction,
-      },
     );
     return serializePublicLanding(share);
   });
@@ -1053,9 +891,4 @@ export async function resolvePublicPropertyShareMedia({
         ? null
         : Number(pinnedVersion.sizeBytes),
   };
-}
-
-export async function getOwnerPropertyShareAnalytics(ownerUserId, shareId) {
-  const share = await findOwnerShare(ownerUserId, shareId);
-  return ownerShareDetails(share, new Date());
 }

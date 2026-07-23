@@ -20,7 +20,7 @@ function createQueryInterface() {
 }
 
 describe("property sharing migration", () => {
-  it("creates listing, link, snapshot, and aggregate tables without contact schema", async () => {
+  it("creates stable links, selected properties, and listing configuration", async () => {
     const { queryInterface, transaction } = createQueryInterface();
 
     await migration.up(queryInterface, Sequelize);
@@ -29,8 +29,6 @@ describe("property sharing migration", () => {
       [
         "property_share_links",
         "property_share_properties",
-        "property_share_files",
-        "property_share_daily_views",
         "property_share_listings",
       ],
     );
@@ -38,11 +36,13 @@ describe("property sharing migration", () => {
     expect(links).toEqual(
       expect.objectContaining({
         owner_user_id: expect.objectContaining({ allowNull: false }),
-        token_digest: expect.objectContaining({ allowNull: false }),
+        public_id: expect.objectContaining({ allowNull: false }),
         total_views: expect.objectContaining({ defaultValue: 0 }),
       }),
     );
-    const listings = queryInterface.createTable.mock.calls[4][1];
+    expect(links.revoked_at).toBeUndefined();
+    expect(links.last_viewed_at).toBeUndefined();
+    const listings = queryInterface.createTable.mock.calls[2][1];
     expect(Object.keys(listings)).toEqual(
       expect.arrayContaining([
         "owner_user_id",
@@ -65,8 +65,8 @@ describe("property sharing migration", () => {
     const sql = queryInterface.sequelize.query.mock.calls
       .map(([statement]) => statement)
       .join("\n");
-    expect(sql).toContain("property_share_links_live_single_unique");
-    expect(sql).toContain("property_share_links_live_master_unique");
+    expect(sql).toContain("property_share_links_single_unique");
+    expect(sql).toContain("property_share_links_master_unique");
     expect(sql).toContain("property_share_listings_values_check");
     expect(sql).not.toContain("property_share_contacts");
     expect(queryInterface.addIndex).toHaveBeenCalledWith(
@@ -83,8 +83,6 @@ describe("property sharing migration", () => {
 
     expect(queryInterface.dropTable.mock.calls.map(([name]) => name)).toEqual([
       "property_share_listings",
-      "property_share_daily_views",
-      "property_share_files",
       "property_share_properties",
       "property_share_links",
     ]);

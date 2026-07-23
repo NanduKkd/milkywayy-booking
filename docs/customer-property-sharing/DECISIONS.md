@@ -26,21 +26,23 @@
 - Consequence: A visitor cannot widen a master collection by changing a query
   parameter.
 
-## PROP-D004 — Snapshot exact immutable media versions
+## PROP-D004 — Resolve current accepted media
 
 - Status: `ACCEPTED`
-- Decision: Create, master update, and explicit refresh capture only supported
-  accepted current delivery-file/version pairs.
-- Consequence: Later uploads never widen access automatically. Deleted,
-  replaced, superseded, changes-requested, unsafe, and unselected files fail
-  closed.
+- Decision: Public pages resolve only supported accepted current
+  delivery-file/version pairs for each selected booking.
+- Consequence: The showcase follows the latest accepted deliverables without a
+  snapshot-refresh control. Deleted, superseded, changes-requested, unsafe,
+  and unselected files fail closed.
 
-## PROP-D005 — Use hash-only bearer credentials
+## PROP-D005 — Use stable opaque public identifiers
 
 - Status: `ACCEPTED`
-- Decision: Tokens have 256 bits of randomness and only SHA-256 digests persist.
-- Consequence: Create/rotate is the only plaintext URL response; rotation makes
-  the old bearer fail immediately without resetting analytics.
+- Decision: Public IDs have 256 bits of randomness and persist so the same URL
+  can be copied after reload.
+- Consequence: Links are deliberately public and reshareable. Owners can only
+  disable/re-enable them; there is no rotation, revocation, expiry, or
+  one-time-copy state.
 
 ## PROP-D006 — Present a listing, never a delivery portal or lead gate
 
@@ -54,15 +56,23 @@
 
 - Status: `ACCEPTED`
 - Decision: Public photo/video/360 content crosses only a bearer + selected
-  property + exact snapshot membership route with byte-range support.
+  property + current accepted file route with byte-range support.
 - Consequence: Persisted object URLs, authenticated download endpoints,
   attachment disposition, and download attributes remain outside public HTML.
 
-## PROP-D008 — Measure aggregate requests and fail uniformly
+## PROP-D008 — Count total link views and fail uniformly
 
 - Status: `ACCEPTED`
-- Decision: Count successful showcase/collection requests as link total,
-  last-viewed time, and Dubai-day buckets; all invalid scopes share one generic
-  unavailable result.
+- Decision: Count successful showcase/collection requests only as a link total;
+  all invalid scopes share one generic unavailable result.
 - Consequence: There is no unique-visitor claim or visitor identity, and public
   state cannot be enumerated through differentiated failures.
+
+## PROP-D009 — Match the supplied reference interaction and visual contract
+
+- Status: `ACCEPTED`
+- Decision: Properties uses the reference's compact Ready, Shared, Master,
+  listing-form, action-bar, and buyer-showcase patterns. A shared card opens the
+  real public page in a Phone/Desktop preview.
+- Consequence: Extra explanatory headers, rotation/revocation/refresh controls,
+  and substitute preview markup are outside the product contract.

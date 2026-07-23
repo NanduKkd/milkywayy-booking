@@ -92,18 +92,6 @@ export default async function FilesPage({ searchParams }) {
   return (
     <div>
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-            Properties
-          </p>
-          <h2 className="mt-2 text-3xl font-bold text-white">
-            Properties and delivered files
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Manage secure property links while keeping every delivered-file
-            action in one place.
-          </p>
-        </div>
         <PropertySharingManager initialData={propertySharing} />
         <h2
           id="delivered-files"

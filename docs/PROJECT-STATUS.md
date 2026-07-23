@@ -1,6 +1,6 @@
 # Project Status
 
-- Last updated: 2026-07-22
+- Last updated: 2026-07-23
 - Status: `ACTIVE`
 - Release posture: core product workflows are implemented, but repo-wide quality checks are not fully green
 
@@ -24,9 +24,10 @@ Notion workspace is retained only as a migration archive.
 
 - Dashboard sections exist for bookings, Properties, invoices, wallet, and external connections under `src/app/dashboard/`.
 - Properties retains `/dashboard/files`, delivery-file listing, and dashboard
-  deep links while adding secure single/master completed-property links,
-  owner-authored listing/contact configuration, responsive buyer showcases,
-  inline media galleries, and aggregate request views without visitor PII.
+  deep links while adding stable single/master completed-property links,
+  owner-authored listing/contact configuration, reference-matched management
+  cards/forms, real Phone/Desktop buyer previews, responsive public showcases,
+  inline media galleries, and a total link-view count without visitor PII.
   Its durable contract is under `docs/customer-property-sharing/`.
 
 ### Admin surface
@@ -61,11 +62,15 @@ Most recent full-suite evidence recorded during issue #68 verification on
   skipped behind its explicit disposable-PostgreSQL opt-in, and `11` failed.
   `1,135` tests passed, `3` were skipped, and `42` failed.
 - A tracked-file Biome check reported the same pre-existing `293` errors and
-  `59` warnings; all `35` JavaScript/JSX/MJS files changed for issue #68 passed
-  their focused Biome check.
-- Issue #68 property-sharing verification passed `51` tests across `13` suites,
-  including real PostgreSQL contention. Its compatibility gate passed `95`
-  tests across `18` existing dashboard, delivery, storage, and booking suites.
+  `59` warnings.
+- The corrected issue #68 property-sharing verification on 2026-07-23 passed
+  `52` tests across `10` focused suites, with the guarded PostgreSQL suite
+  skipped in that ordinary command. The reserved disposable-PostgreSQL run
+  separately passed `4` tests covering schema constraints and 40 concurrent
+  view increments. All changed JavaScript and JSX passed focused Biome checks;
+  the reference-matched CSS retained only `8` non-blocking
+  descending-specificity warnings. Its compatibility gate passed `95` tests
+  across `18` existing dashboard, delivery, storage, and booking suites.
 
 Interpretation:
 

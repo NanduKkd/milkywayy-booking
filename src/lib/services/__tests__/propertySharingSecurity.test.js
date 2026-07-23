@@ -19,15 +19,15 @@ function listing(overrides = {}) {
 }
 
 describe("property sharing security helpers", () => {
-  it("creates 256-bit base64url tokens and persists stable SHA-256 digests", () => {
-    const token = security.createPropertyShareToken();
-    const digest = security.digestPropertyShareToken(token);
+  it("creates stable opaque 256-bit public identifiers", () => {
+    const publicId = security.createPropertyShareId();
 
-    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/u);
-    expect(Buffer.from(token, "base64url")).toHaveLength(32);
-    expect(digest).toMatch(/^[0-9a-f]{64}$/u);
-    expect(security.tokenDigestMatches(digest, digest)).toBe(true);
-    expect(security.digestPropertyShareToken("malformed")).toBeNull();
+    expect(publicId).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+    expect(Buffer.from(publicId, "base64url")).toHaveLength(32);
+    expect(security.isPropertyShareId(publicId)).toBe(true);
+    expect(security.isPropertyShareId("malformed")).toBe(false);
+    expect(security).not.toHaveProperty("digestPropertyShareToken");
+    expect(security).not.toHaveProperty("tokenDigestMatches");
   });
 
   it("normalizes and bounds every owner-authored listing field", () => {

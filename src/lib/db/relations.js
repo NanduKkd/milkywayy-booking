@@ -261,10 +261,6 @@ models.PropertyShareLink.hasMany(models.PropertyShareProperty, {
   foreignKey: "shareLinkId",
   as: "properties",
 });
-models.PropertyShareLink.hasMany(models.PropertyShareDailyView, {
-  foreignKey: "shareLinkId",
-  as: "dailyViews",
-});
 models.PropertyShareProperty.belongsTo(models.PropertyShareLink, {
   foreignKey: "shareLinkId",
   as: "shareLink",
@@ -272,27 +268,6 @@ models.PropertyShareProperty.belongsTo(models.PropertyShareLink, {
 models.PropertyShareProperty.belongsTo(models.Booking, {
   foreignKey: "bookingId",
   as: "booking",
-});
-models.PropertyShareProperty.hasMany(models.PropertyShareFile, {
-  foreignKey: "sharePropertyId",
-  as: "files",
-});
-models.PropertyShareFile.belongsTo(models.PropertyShareProperty, {
-  foreignKey: "sharePropertyId",
-  as: "property",
-});
-models.PropertyShareFile.belongsTo(models.BookingDeliveryFile, {
-  foreignKey: "deliveryFileId",
-  as: "deliveryFile",
-});
-models.PropertyShareFile.belongsTo(models.BookingDeliveryFileVersion, {
-  foreignKey: "deliveryFileVersionId",
-  as: "deliveryFileVersion",
-});
-
-models.PropertyShareDailyView.belongsTo(models.PropertyShareLink, {
-  foreignKey: "shareLinkId",
-  as: "shareLink",
 });
 models.PropertyShareListing.belongsTo(models.User, {
   foreignKey: "ownerUserId",
@@ -410,15 +385,6 @@ models.Booking.hasMany(models.PropertyShareLink, {
   foreignKey: "singleBookingId",
   as: "singlePropertyShareLinks",
 });
-models.BookingDeliveryFile.hasMany(models.PropertyShareFile, {
-  foreignKey: "deliveryFileId",
-  as: "propertyShareMemberships",
-});
-models.BookingDeliveryFileVersion.hasMany(models.PropertyShareFile, {
-  foreignKey: "deliveryFileVersionId",
-  as: "propertyShareMemberships",
-});
-
 models.OAuthClient.hasMany(models.OAuthAuthorizationCode, {
   foreignKey: "clientId",
   as: "authorizationCodes",

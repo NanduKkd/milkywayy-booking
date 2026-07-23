@@ -66,7 +66,9 @@ describe("public property showcase page", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Marina corner home" }),
+      screen.getByRole("heading", {
+        name: "Marina corner home · Synthetic Tower, Test District",
+      }),
     ).toBeInTheDocument();
     expect(screen.getByText("AED 2,350,000")).toBeInTheDocument();
     expect(screen.getByText("Full marina view")).toBeInTheDocument();
@@ -129,8 +131,8 @@ describe("public property showcase page", () => {
     expect(
       screen.getByRole("heading", { name: "2 homes picked for you" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Marina corner home")).toBeInTheDocument();
-    expect(screen.getByText("Beach home")).toBeInTheDocument();
+    expect(screen.getByText(/Marina corner home/u)).toBeInTheDocument();
+    expect(screen.getByText(/Beach home/u)).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Marina corner home/u }),
     ).toHaveAttribute("href", `/share/${token}?property=30`);
@@ -161,7 +163,9 @@ describe("public property showcase page", () => {
       31,
     );
     expect(
-      screen.getByRole("heading", { name: "Beach home" }),
+      screen.getByRole("heading", {
+        name: "Beach home · Synthetic Tower, Test District",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Back to the collection" }),

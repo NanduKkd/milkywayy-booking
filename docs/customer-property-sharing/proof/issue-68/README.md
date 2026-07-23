@@ -1,118 +1,79 @@
-# Issue #68 corrective browser proof
+# Issue #68 product-correction proof
 
-Captured on 22 July 2026 from the production build at the required
-1440 × 900 and 390 × 844 viewports. The proof used a disposable reserved-prefix
-PostgreSQL database, one synthetic owner, three synthetic completed properties,
-and nine synthetic JPEG objects attached to real `ACCEPTED` current delivery
-file versions. The database, temporary bearer material, and proof objects were
-destroyed after capture.
+The authoritative correction pass was captured on 23 July 2026 from the
+production build with an isolated disposable PostgreSQL database. It used one
+synthetic customer, three synthetic completed properties, five accepted current
+media records, two single-property links, and one master link. The temporary
+server and database were removed after verification.
 
 The supplied reference HTML was inspected directly for its `rcard`, `pshared`,
-`mcard`, `actionbar`, `desk`, `desk-grid`, `phone`, `sp-*`, `col-grid-d`, and
-`cmini` contracts. The in-app browser refused direct `file://` navigation under
-its local-file safety policy and explicitly prohibited workarounds, so a
-browser-rendered reference half could not be captured. The implementation
-screenshots below are therefore paired by viewport and surface, while visual
-comparison to the reference was performed from the supplied HTML/CSS source.
+`mcard`, `actionbar`, `modal`, `pv-*`, `desk`, `phone`, `sp-*`, `col-grid-d`,
+and `cmini` contracts. Files beginning with `corrected-` are the authoritative
+screenshots for the simplified product contract. Older PNG files in this folder
+are retained only as historical evidence for the superseded first pass and must
+not be used to infer the current link lifecycle.
 
-## Authenticated Properties management
+## Corrected authenticated UI
 
-- [`authenticated-management-desktop.png`](authenticated-management-desktop.png)
-  and [`authenticated-management-narrow.png`](authenticated-management-narrow.png)
-  show the application shell, Ready to Share, and the responsive management
-  introduction.
-- [`authenticated-shared-properties-desktop.png`](authenticated-shared-properties-desktop.png)
-  and [`authenticated-shared-properties-narrow.png`](authenticated-shared-properties-narrow.png)
-  show reference-style shared-property cards, live state, price/type, request
-  views, controls, and the two-column-to-one-column transition.
-- [`authenticated-listing-form-desktop.png`](authenticated-listing-form-desktop.png)
-  and [`authenticated-listing-form-narrow.png`](authenticated-listing-form-narrow.png)
-  show booking facts plus every owner-authored listing field. The desktop form
-  phone value was replaced with `[redacted phone]` in the unsaved browser form
-  before capture.
-- [`authenticated-master-selection-cards-desktop.png`](authenticated-master-selection-cards-desktop.png)
-  shows the two selected property cards. [`authenticated-master-selection-desktop.png`](authenticated-master-selection-desktop.png)
-  shows the fixed action bar together with the unchanged authenticated Files
-  surface and its private Download actions.
-- [`authenticated-master-links-desktop.png`](authenticated-master-links-desktop.png)
-  and [`authenticated-master-links-narrow.png`](authenticated-master-links-narrow.png)
-  show the collection card, state controls, request-view analytics, and
-  responsive layout.
+- [`corrected-management-desktop.jpg`](corrected-management-desktop.jpg) and
+  [`corrected-management-phone.jpg`](corrected-management-phone.jpg) show the
+  compact reference-style Ready to Share and Shared Properties surfaces with no
+  extra Properties title/intro panel.
+- [`corrected-listing-form-desktop.jpg`](corrected-listing-form-desktop.jpg) and
+  [`corrected-listing-form-phone.jpg`](corrected-listing-form-phone.jpg) show the
+  reference-width listing form, segmented furnishing control, owner contact
+  fields, and Generate & Copy Link action.
+- [`corrected-preview-desktop.jpg`](corrected-preview-desktop.jpg) and
+  [`corrected-preview-phone.jpg`](corrected-preview-phone.jpg) show that card
+  preview embeds the actual public page and switches between Desktop and Phone
+  frames.
 
-## Buyer-facing showcase and collection
+The isolated fixture deliberately used non-existent synthetic object URLs, so
+its corrected preview/public screenshots exercise the designed media-error
+fallback. Inline image/video bytes, range handling, MIME headers, and private
+object-URL isolation remain covered by the route/service/storage tests and the
+original live-object proof.
 
-- [`public-single-desktop.png`](public-single-desktop.png) and
-  [`public-single-narrow.png`](public-single-narrow.png) show the `sp-*`
-  hero/gallery, metadata chips, description, highlights, and desktop/phone
-  layouts. [`public-single-contact-narrow.png`](public-single-contact-narrow.png)
-  records the owner contact card, click-to-call presentation, WhatsApp CTA, and
-  Milkywayy footer.
-- [`public-master-desktop.png`](public-master-desktop.png) and
-  [`public-master-narrow.png`](public-master-narrow.png) show exactly the two
-  selected `cmini` collection cards. [`public-master-selected-narrow.png`](public-master-selected-narrow.png)
-  shows one card opened as the full showcase with a back-to-collection path
-  under the same bearer.
-- [`public-old-token-rejected.png`](public-old-token-rejected.png) shows the
-  uniform unavailable surface after rotation invalidated the old bearer.
+## Corrected public UI
 
-All public screenshots use the fixed synthetic phone sentinel
-`+971500000000`; it is not a real customer or contact. Screenshots contain no
-live customer data, bearer token, persisted media URL, browser address bar,
-cookie, host, or environment detail. Every tracked PNG was mechanically
-verified as exactly 1440 × 900 or 390 × 844. The browser captured the narrow
-content area at 375 × 812 inside a verified 390 × 844 viewport; its PNG canvas
-was padded, without rescaling or cropping the UI, to preserve the requested
-artifact dimensions.
+- [`corrected-public-single-desktop.jpg`](corrected-public-single-desktop.jpg)
+  and [`corrected-public-single-phone.jpg`](corrected-public-single-phone.jpg)
+  show the reference-style full property showcase, metadata, highlights,
+  contact actions, and branding.
+- [`corrected-public-master-desktop.jpg`](corrected-public-master-desktop.jpg)
+  and [`corrected-public-master-phone.jpg`](corrected-public-master-phone.jpg)
+  show the compact two-property curated collection.
 
-## Browser and live-route assertions
+## Browser assertions
 
-- Selecting gallery item 2 changed the active hero to view 2.
-- Single showcase DOM: `forms=0`, `download attributes=0`, authenticated
-  download links `=0`, phone links `=1`, WhatsApp links `=1`, horizontal
-  overflow `=false` at desktop and phone widths.
-- Master landing DOM: selected collection cards `=2`, `forms=0`, download
-  attributes `=0`, authenticated download links `=0`, phone links `=1`,
-  WhatsApp links `=1`, horizontal overflow `=false` at desktop and phone
-  widths.
-- Opening the second master card produced a full showcase, one back link, and
-  `sameBearer=true` without exposing an unselected property.
-- A live inline-media request returned `200 image/jpeg`,
-  `Cache-Control: private, no-store, max-age=0`, `nosniff`, no
-  `Content-Disposition`, and did not increment page analytics. A
-  `Range: bytes=0-63` request returned `206` with `Content-Range`.
-- One successful landing render incremented the aggregate by exactly one.
-  Media requests incremented it by zero.
-- Disabling the master link changed the public landing to `404`; re-enabling
-  restored `200`. Rotation replaced the digest, made the old bearer return
-  `404`, preserved the aggregate, and the failed stale request incremented it
-  by zero.
-- The management rotation flow displayed the one-time **Copy secure URL**
-  prompt; no plaintext bearer is persisted or recoverable after reload.
-
-Phone and WhatsApp destinations were verified from their validated link
-contracts without launching an external phone or messaging application.
+- Desktop management used a 1440 × 900 viewport; the browser content capture
+  was 1425 × 891. Phone management used a 390 × 844 viewport; the browser
+  content capture was 375 × 812.
+- Management, form, preview, single showcase, and master collection had no
+  horizontal overflow at either responsive width.
+- Shared cards were keyboard-addressable named buttons, and clicking a card
+  opened the actual public route in an iframe.
+- The public gallery ordered images before tour/video media.
+- The dashboard contained Copy Link, Disable/Enable, Edit, select-multiple, and
+  master controls. It contained no rotate, revoke, refresh-snapshot, expiry,
+  delete-link, agent-assignment, or visitor-contact controls.
+- Disabling the single link immediately produced the generic unavailable page.
+  Re-enabling restored the exact same public ID and URL. The stored total moved
+  only for successful landing renders and remained one simple aggregate.
+- The master landing contained exactly the two explicitly selected properties
+  and opened each under the same stable public ID.
 
 ## Verification recorded
 
-- Focused feature command (`jest --runInBand --silent --runTestsByPath` over
-  property-sharing security/service/action, migration/model, management,
-  public-page, media-route, and storage suites): **9 suites, 49 tests passed**.
-- Authenticated compatibility command over Files/FileList, dashboard layout,
-  Bookings, Invoices, hidden Wallet, Connections, access gate, workflow,
-  authenticated download/delivery, actions, and notifications: **18 suites,
-  95 tests passed**.
-- Real PostgreSQL migration/contention command with the guarded disposable
-  database harness: **1 suite, 4 tests passed**. It covered live single/master
-  uniqueness, owner+booking listing uniqueness, and 40 concurrent lossless
-  aggregate increments.
-- Changed-file `biome check`: **26 files checked, no errors or warnings**.
-- `npm run build`: **passed**, compiled and generated **74 routes**. It retained
-  the pre-existing non-fatal `/admin/promotions` dynamic-server diagnostic.
-- `git diff --check`: **passed**.
-- Repository Jest baseline: **11 failed, 1 skipped, 191 passed suites; 42
-  failed, 4 skipped, 1137 passed tests**. Failures are unrelated baselines in
-  PropertyCard autoscroll, OAuth URL/environment expectations, promotion and
-  invoice disposable-PostgreSQL opt-in suites, the disposable harness suite,
-  and the handoff promotion-preview Jest/ESM integration.
-- Repository Biome baseline: **613 files checked; 437 errors and 63 warnings**.
-  Changed issue-owned files are clean as recorded above.
+- Focused sharing/model/migration/action/management/public-route/storage command:
+  **10 suites and 52 tests passed**; the guarded PostgreSQL suite was skipped in
+  that ordinary command.
+- Reserved disposable-PostgreSQL command: **1 suite and 4 tests passed**,
+  covering single/master/listing uniqueness and 40 concurrent lossless
+  total-view increments.
+- Focused changed-file Biome check: no errors; the CSS module retains only
+  non-blocking descending-specificity warnings caused by independent
+  reference-matched component selectors.
+- `npm run build`: passed, compiled and generated **74 routes**. It retained the
+  pre-existing non-fatal `/admin/promotions` dynamic-server diagnostic.
+- `git diff --check`: passed.

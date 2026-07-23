@@ -2,7 +2,8 @@
 
 ## Configuration
 
-- `NEXT_PUBLIC_BASE_URL` supplies the public origin returned on create/rotate.
+- `NEXT_PUBLIC_BASE_URL` supplies the public origin used for every persisted
+  stable link.
 - Existing owned S3 configuration is used by server-side inline streaming.
 - No property-share-specific secret is required. In particular, there is no
   receipt secret, contact retention setting, or public download TTL.
@@ -23,8 +24,9 @@ failure counts, network addresses, or user-agent values.
 3. Run authenticated dashboard/file/download/workflow compatibility suites.
 4. Run a production build, changed-file Biome, and `git diff --check`.
 5. In a synthetic environment verify listing create/edit, single/master pages,
-   inline image/video/range behavior, phone/WhatsApp actions, disable/re-enable,
-   refresh, rotation, stale/unselected rejection, and aggregate counts.
+   card preview at Phone/Desktop widths, inline image/video/range behavior,
+   phone/WhatsApp actions, stable copy-after-reload, disable/re-enable,
+   unselected rejection, and total counts.
 6. Confirm every request-log layer redacts bearer-bearing routes.
 
 No backfill is required because the migration has not shipped and the previous
@@ -34,24 +36,19 @@ contact/receipt contract was never released.
 
 - **Edit listing:** changes owner-authored public copy/contact fields without
   changing media membership.
-- **Disable/re-enable:** takes effect on the next public resolution and keeps the
-  bearer, snapshot, and aggregates.
-- **Refresh media:** replaces exact media memberships with current eligible
-  versions for the existing selection.
-- **Update master:** replaces explicit ordered property selection and refreshes
-  those snapshots.
-- **Rotate:** atomically replaces the token digest; the old URL fails and
-  analytics remain.
-- **Revoke:** permanently disables the row and frees its live-link uniqueness
-  slot. It cannot be re-enabled.
+- **Copy link:** always copies the same persisted public URL, including after a
+  dashboard reload.
+- **Disable/re-enable:** takes effect on the next public resolution and keeps
+  the same URL and total link views.
+- **Update master:** replaces the explicit ordered property selection.
 
 ## Monitoring
 
 Monitor aggregate, non-secret signals only:
 
 - generic public unavailable/error and inline-media failure counts;
-- landing transaction latency and daily-upsert contention;
-- share/listing uniqueness conflicts, token rotations, and migration health;
+- landing transaction latency and total-view update contention;
+- share/listing uniqueness conflicts and migration health;
 - media MIME rejection and range-stream failure counts without URLs or bearers.
 
 Never add token, contact value, IP, user-agent, referrer, fingerprint, location,
@@ -59,8 +56,9 @@ cookie, raw event, or stored object URL dimensions.
 
 ## Failure modes and rollback
 
-Invalid owned storage, unsafe MIME, stale snapshots, and unselected media fail
-with the generic unavailable response. For urgent code rollback, remove or
+Invalid owned storage, unsafe MIME, ineligible current media, and unselected
+media fail with the generic unavailable response. For urgent code rollback,
+remove or
 disable public and authenticated sharing routes first so distributed links fail
 closed while rows remain intact. Do not run schema `down` while listing/share
 rows are needed; dropping populated data requires a separate approved decision.

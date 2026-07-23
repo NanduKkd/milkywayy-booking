@@ -1,4 +1,4 @@
-import { ArrowLeft, Phone } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -69,9 +69,6 @@ function CollectionCard({ token, property }) {
               src={mediaUrl(token, property.id, hero.id)}
             />
           : <div className={styles.mediaFallback}>Media preview</div>}
-        <span className={styles.collectionCount}>
-          {property.media.length} media
-        </span>
       </div>
       <div className={`cmini-body ${styles.collectionBody}`}>
         <div className={`cmini-price ${styles.collectionPrice}`}>
@@ -79,6 +76,7 @@ function CollectionCard({ token, property }) {
         </div>
         <div className={`cmini-name ${styles.collectionName}`}>
           {property.title}
+          {property.location ? ` · ${property.location}` : ""}
         </div>
         <div className={`sp-chips ${styles.chips} ${styles.collectionChips}`}>
           {property.bedrooms !== null
@@ -97,7 +95,6 @@ function CollectionCard({ token, property }) {
               </span>
             : null}
         </div>
-        <span className={styles.openProperty}>View property →</span>
       </div>
     </Link>
   );
@@ -127,23 +124,14 @@ export default async function SharedPropertyPage({ params, searchParams }) {
 
   return (
     <main className={`public-share-root ${styles.root}`}>
-      <header className={styles.header}>
-        <Link href="/" className={styles.brand} aria-label="Milkywayy home">
-          <span aria-hidden="true">▚</span> MILKYWAYY
-        </Link>
-        <span className={styles.privateBadge}>Private property showcase</span>
-      </header>
-
       {landing.kind === "MASTER" && !selectedProperty
         ? <section className={`collection ${styles.collection}`}>
             <div className={`col-pad ${styles.collectionHeading}`}>
-              <p className={styles.eyebrow}>CURATED COLLECTION</p>
               <h1 className={`col-head-m ${styles.collectionTitle}`}>
                 {landing.properties.length} homes picked for you
               </h1>
               <p className={`col-sub-m ${styles.collectionSubtitle}`}>
-                Explore the selected listings, then open any property for its
-                full gallery and details.
+                Curated by {landing.properties[0].contact.name}
               </p>
             </div>
             <div className={`col-grid-d ${styles.collectionGrid}`}>
@@ -156,11 +144,11 @@ export default async function SharedPropertyPage({ params, searchParams }) {
               ))}
             </div>
             <div className={styles.collectionContact}>
-              <p>
-                <Phone aria-hidden="true" /> Questions about this collection?
-              </p>
               <ContactCard contact={landing.properties[0].contact} compact />
             </div>
+            <footer className={`sp-footer ${styles.showcaseFooter}`}>
+              Media &amp; page by <b>MILKYWAYY</b> · milkywayy.com
+            </footer>
           </section>
         : selectedProperty
           ? <>
@@ -175,10 +163,6 @@ export default async function SharedPropertyPage({ params, searchParams }) {
               <PropertyShowcase property={selectedProperty} token={token} />
             </>
           : notFound()}
-
-      <footer className={`sp-footer ${styles.pageFooter}`}>
-        Media &amp; page by <b>MILKYWAYY</b> · milkywayy.com
-      </footer>
     </main>
   );
 }

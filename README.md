@@ -10,7 +10,7 @@ Twilio/WhatsApp communication, and a read-only GPT Actions integration.
 - [Project overview](./docs/PROJECT-OVERVIEW.md): product surfaces, architecture, integrations, and code map.
 - [Development guide](./docs/DEVELOPMENT.md): local setup, configuration, commands, and working conventions.
 - [Project status](./docs/PROJECT-STATUS.md): current repository health and release posture.
-- [Customer property showcases](./docs/customer-property-sharing/README.md): secure listing, media snapshot, inline showcase, analytics, and operations contract.
+- [Customer property showcases](./docs/customer-property-sharing/README.md): stable public links, reference-matched management UI, inline showcase, and operations contract.
 - [Feature delivery playbook](./docs/FEATURE-DELIVERY-PLAYBOOK.md): GitHub Issue, Project, pull-request, and durable-documentation workflow.
 - [GitHub Project 1](https://github.com/users/NanduKkd/projects/1): authoritative live workflow status.
 - [GitHub Issues](https://github.com/NanduKkd/milkywayy-booking/issues): feature plans, tasks, bugs, blockers, and requested proof.

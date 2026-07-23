@@ -16,9 +16,10 @@ flowchart LR
 ```
 
 `src/lib/services/propertySharing.js` owns listing validation integration,
-eligibility, ownership, transactions, snapshot membership, token lookup, public
-revalidation, safe-media classification, public DTOs, and aggregate updates.
-Client components receive serialized owner/public data and never decide access.
+eligibility, ownership, transactions, stable public-ID lookup, selected-booking
+membership, current-media revalidation, safe-media classification, public DTOs,
+and total-view updates. Client components receive serialized owner/public data
+and never decide access.
 
 ## Persistence
 
@@ -27,49 +28,46 @@ The unreleased migration `20260722090000-create-property-sharing.js` creates:
 | Table | Purpose |
 |---|---|
 | `property_share_listings` | One owner+booking listing configuration with bounded listing/contact fields and highlights. |
-| `property_share_links` | Owner, kind, optional single booking, unique SHA-256 token digest, enabled/revoked state, total request views, and last viewed time. |
+| `property_share_links` | Owner, kind, optional single booking, unique 43-character opaque public ID, enabled state, and total link views. |
 | `property_share_properties` | Explicit ordered booking membership for a link. |
-| `property_share_files` | Exact delivery-file and delivery-file-version membership for one shared property. |
-| `property_share_daily_views` | One aggregate request-view counter per share and Dubai calendar date. |
 
-Partial unique indexes enforce one non-revoked single link per owner/booking and
-one non-revoked master per owner. A unique owner+booking listing index prevents
-duplicate configuration. Owner-row locks serialize competing creates before
-the constraint backstop. Daily counts use atomic `INSERT ... ON CONFLICT` and
-the link total/last-viewed update in the same landing transaction.
+Unique indexes enforce one single link per owner/booking and one master per
+owner. A unique owner+booking listing index prevents duplicate configuration.
+Owner-row locks serialize competing creates before the constraint backstop.
+Successful landing requests atomically increment the link total.
 
-There is no contact-submission, receipt, plaintext-token, public-file-manifest,
-raw-view-event, visitor, IP, user-agent, referrer, fingerprint, or location
-schema.
+There is no contact-submission, receipt, media-snapshot, daily-view,
+public-file-manifest, raw-view-event, visitor, IP, user-agent, referrer,
+fingerprint, or location schema.
 
 ## Listing and link lifecycle
 
 Only the booking owner can save listing configuration, and only when the booking
 is completed, non-cancelled, and has at least one safe accepted current media
 version. Listing fields remain editable and update active public presentation.
-Media authorization remains immutable until an explicit snapshot refresh.
+Public media follows the booking's current accepted browser-safe deliverables.
 
-Creation and rotation generate 32 random bytes encoded as a 43-character
-base64url token. PostgreSQL stores only its unique lowercase SHA-256 digest.
-The plaintext public URL is returned only by that mutation response. Rotation
-atomically replaces the digest so the old bearer fails immediately while
-aggregate history remains on the link.
+Creation generates 32 random bytes encoded as a 43-character base64url public
+identifier. PostgreSQL persists that stable identifier so the owner can copy
+the same URL after reload. The identifier is intentionally shareable and has
+no rotation, revocation, expiry, or one-time presentation. Disabling and
+re-enabling changes only the enabled flag.
 
 ## Public resolution and inline media isolation
 
-Every public page and media request re-resolves the bearer and checks enabled
-and revoked state, selected membership, owner/booking/listing alignment,
-completion, exact pinned/current version identity, acceptance/deletion state,
-supersession, and a browser-safe MIME/type allow-list. Invalid, malformed,
-disabled, revoked, stale, wrong-property, unselected, and cross-owner scopes use
-the same generic unavailable result.
+Every public page and media request re-resolves the public ID and checks enabled
+state, selected membership, owner/booking/listing alignment, completion,
+current-version identity, acceptance/deletion state, supersession, and a
+browser-safe MIME/type allow-list. Invalid, malformed, disabled,
+wrong-property, unselected, and cross-owner scopes use the same generic
+unavailable result.
 
-Public page DTOs contain listing content and safe media membership identifiers,
+Public page DTOs contain listing content and safe current-media identifiers,
 but no persisted object URL. The browser builds only the token-scoped inline
 media path. The route parses the internally resolved owned object URL, requests
 that exact object server-side, forwards valid byte ranges, preserves accurate
 content type and range headers, and never redirects, advertises an attachment,
 or uses `/api/files/download`.
 
-Only successful collection/showcase resolution increments aggregate request
-views. Media requests and failed resolutions do not count.
+Only successful collection/showcase resolution increments total link views.
+Media requests and failed resolutions do not count.

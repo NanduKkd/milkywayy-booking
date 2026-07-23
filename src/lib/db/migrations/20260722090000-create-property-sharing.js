@@ -42,8 +42,8 @@ module.exports = {
             onUpdate: "CASCADE",
             onDelete: "CASCADE",
           },
-          token_digest: {
-            type: Sequelize.STRING(64),
+          public_id: {
+            type: Sequelize.STRING(43),
             allowNull: false,
           },
           enabled: {
@@ -51,18 +51,10 @@ module.exports = {
             allowNull: false,
             defaultValue: true,
           },
-          revoked_at: {
-            type: Sequelize.DATE,
-            allowNull: true,
-          },
           total_views: {
             type: Sequelize.BIGINT,
             allowNull: false,
             defaultValue: 0,
-          },
-          last_viewed_at: {
-            type: Sequelize.DATE,
-            allowNull: true,
           },
           ...timestamps(Sequelize),
         },
@@ -83,8 +75,8 @@ module.exports = {
       await queryInterface.sequelize.query(
         `
           ALTER TABLE property_share_links
-          ADD CONSTRAINT property_share_links_token_digest_check
-          CHECK (token_digest ~ '^[0-9a-f]{64}$')
+          ADD CONSTRAINT property_share_links_public_id_check
+          CHECK (public_id ~ '^[A-Za-z0-9_-]{43}$')
         `,
         { transaction },
       );
@@ -96,8 +88,8 @@ module.exports = {
         `,
         { transaction },
       );
-      await queryInterface.addIndex("property_share_links", ["token_digest"], {
-        name: "property_share_links_token_digest_unique",
+      await queryInterface.addIndex("property_share_links", ["public_id"], {
+        name: "property_share_links_public_id_unique",
         unique: true,
         transaction,
       });
@@ -108,17 +100,17 @@ module.exports = {
       );
       await queryInterface.sequelize.query(
         `
-          CREATE UNIQUE INDEX property_share_links_live_single_unique
+          CREATE UNIQUE INDEX property_share_links_single_unique
           ON property_share_links (owner_user_id, single_booking_id)
-          WHERE kind = 'SINGLE_PROPERTY' AND revoked_at IS NULL
+          WHERE kind = 'SINGLE_PROPERTY'
         `,
         { transaction },
       );
       await queryInterface.sequelize.query(
         `
-          CREATE UNIQUE INDEX property_share_links_live_master_unique
+          CREATE UNIQUE INDEX property_share_links_master_unique
           ON property_share_links (owner_user_id)
-          WHERE kind = 'MASTER' AND revoked_at IS NULL
+          WHERE kind = 'MASTER'
         `,
         { transaction },
       );
@@ -175,103 +167,6 @@ module.exports = {
         "property_share_properties",
         ["booking_id"],
         { name: "property_share_properties_booking_idx", transaction },
-      );
-
-      await queryInterface.createTable(
-        "property_share_files",
-        {
-          id: {
-            type: Sequelize.INTEGER,
-            primaryKey: true,
-            autoIncrement: true,
-          },
-          share_property_id: {
-            type: Sequelize.INTEGER,
-            allowNull: false,
-            references: { model: "property_share_properties", key: "id" },
-            onUpdate: "CASCADE",
-            onDelete: "CASCADE",
-          },
-          delivery_file_id: {
-            type: Sequelize.INTEGER,
-            allowNull: false,
-            references: { model: "booking_delivery_files", key: "id" },
-            onUpdate: "CASCADE",
-            onDelete: "CASCADE",
-          },
-          delivery_file_version_id: {
-            type: Sequelize.INTEGER,
-            allowNull: false,
-            references: {
-              model: "booking_delivery_file_versions",
-              key: "id",
-            },
-            onUpdate: "CASCADE",
-            onDelete: "CASCADE",
-          },
-          ...timestamps(Sequelize),
-        },
-        { transaction },
-      );
-      await queryInterface.addIndex(
-        "property_share_files",
-        ["share_property_id", "delivery_file_id"],
-        {
-          name: "property_share_files_property_file_unique",
-          unique: true,
-          transaction,
-        },
-      );
-      await queryInterface.addIndex(
-        "property_share_files",
-        ["delivery_file_version_id"],
-        { name: "property_share_files_version_idx", transaction },
-      );
-
-      await queryInterface.createTable(
-        "property_share_daily_views",
-        {
-          id: {
-            type: Sequelize.INTEGER,
-            primaryKey: true,
-            autoIncrement: true,
-          },
-          share_link_id: {
-            type: Sequelize.INTEGER,
-            allowNull: false,
-            references: { model: "property_share_links", key: "id" },
-            onUpdate: "CASCADE",
-            onDelete: "CASCADE",
-          },
-          view_date: {
-            type: Sequelize.DATEONLY,
-            allowNull: false,
-          },
-          request_views: {
-            type: Sequelize.BIGINT,
-            allowNull: false,
-            defaultValue: 0,
-          },
-          ...timestamps(Sequelize),
-        },
-        { transaction },
-      );
-      await queryInterface.sequelize.query(
-        `
-          ALTER TABLE property_share_daily_views
-          ADD CONSTRAINT property_share_daily_views_count_check
-          CHECK (request_views >= 0)
-        `,
-        { transaction },
-      );
-      await queryInterface.addIndex(
-        "property_share_daily_views",
-        ["share_link_id", "view_date"],
-        {
-          name: "property_share_daily_views_share_date_unique",
-          unique: true,
-          transaction,
-        },
       );
 
       await queryInterface.createTable(
@@ -379,10 +274,6 @@ module.exports = {
       await queryInterface.dropTable("property_share_listings", {
         transaction,
       });
-      await queryInterface.dropTable("property_share_daily_views", {
-        transaction,
-      });
-      await queryInterface.dropTable("property_share_files", { transaction });
       await queryInterface.dropTable("property_share_properties", {
         transaction,
       });

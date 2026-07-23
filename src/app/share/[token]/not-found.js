@@ -9,8 +9,7 @@ export default function SharedPropertyNotFound() {
         </p>
         <h1 className="mt-4 text-3xl font-bold">This link is unavailable</h1>
         <p className="mt-4 text-sm leading-6 text-zinc-400">
-          The link may be invalid, disabled, rotated, or no longer eligible for
-          sharing.
+          The link may be invalid, disabled, or no longer eligible for sharing.
         </p>
         <Link href="/" className="mt-8 inline-flex text-sm text-sky-300">
           Return to Milkywayy

@@ -15,8 +15,8 @@ does not create an agent, team, assignment, or visitor-contact model.
 
 The owner can publish:
 
-- one live single-property bearer link for each configured eligible property;
-- one live master bearer link containing at least two explicitly selected
+- one stable single-property public link for each configured eligible property;
+- one stable master public link containing at least two explicitly selected
   configured properties.
 
 A public single link opens a responsive buyer-facing showcase immediately. A
@@ -26,14 +26,20 @@ media, listing metadata, description, highlights, telephone and WhatsApp
 actions, and Milkywayy branding. They contain no buyer form, delivery manifest,
 download button, revision control, or authenticated file route.
 
-Media membership pins exact accepted current delivery-file versions when a link
-is created, a master selection is updated, or the owner explicitly refreshes
-the snapshot. Public media is streamed only through token/property/membership
-scoped inline routes. Persisted private object URLs are never serialized.
+The management UI follows the supplied reference: compact Ready to Share,
+Shared Properties, Master Links, and select-multiple/action-bar surfaces; a
+compact listing form; and card-click preview. Preview embeds the actual public
+buyer page and can be switched between Phone and Desktop widths.
 
-Owners can disable/re-enable, refresh media, rotate the bearer, permanently
-revoke, and inspect aggregate total/last-viewed/Dubai-day request views. There
-is no raw view event or visitor-identity store.
+Public pages always resolve the current accepted browser-safe media for the
+selected booking. Media is streamed only through link/property/file-scoped
+inline routes, and persisted private object URLs are never serialized.
+
+The public identifier is a stable, opaque 256-bit value. A link is deliberately
+public and reshareable. The owner can copy it after any reload and can disable
+or re-enable it; there is no rotate, revoke, refresh-snapshot, expiry, or
+one-time-copy lifecycle. The dashboard shows only a total link-view count.
+There is no raw view event or visitor-identity store.
 
 Continue with [architecture](./ARCHITECTURE.md), [accepted decisions](./DECISIONS.md),
 [operations](./OPERATIONS.md), the [security test plan](./SECURITY-TEST-PLAN.md),
@@ -42,7 +48,7 @@ and [issue #68 proof](./proof/issue-68/README.md).
 ## Scope boundaries
 
 The feature does not add buyer lead capture, contacts/CRM, receipts/cookies,
-agents, teams, assignment, delegated bookings, public downloads, public
-invoices, unique-visitor measurement, referral attribution, or third-party
-analytics. It does not add `/dashboard/properties` or change authenticated
-delivery-file behavior.
+agents, teams, assignment, delegated bookings, rotation/revocation/expiry,
+public downloads, public invoices, unique-visitor measurement, daily analytics,
+referral attribution, or third-party analytics. It does not add
+`/dashboard/properties` or change authenticated delivery-file behavior.

@@ -1,6 +1,6 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes } from "node:crypto";
 
-export const PROPERTY_SHARE_TOKEN_BYTES = 32;
+export const PROPERTY_SHARE_ID_BYTES = 32;
 export const PROPERTY_SHARE_LISTING_TYPES = Object.freeze([
   "FOR_SALE",
   "FOR_RENT_YEARLY",
@@ -23,7 +23,7 @@ export const PROPERTY_SHARE_LISTING_FIELDS = Object.freeze([
   "contactPhone",
 ]);
 
-const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
+const PUBLIC_ID_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const PHONE_PATTERN = /^\+?[0-9]{7,15}$/u;
 const PRICE_PATTERN = /^\d{1,10}(?:\.\d{1,2})?$/u;
 
@@ -35,23 +35,12 @@ export class PropertyShareInputError extends Error {
   }
 }
 
-export function createPropertyShareToken() {
-  return randomBytes(PROPERTY_SHARE_TOKEN_BYTES).toString("base64url");
+export function createPropertyShareId() {
+  return randomBytes(PROPERTY_SHARE_ID_BYTES).toString("base64url");
 }
 
-export function isPropertyShareToken(value) {
-  return typeof value === "string" && TOKEN_PATTERN.test(value);
-}
-
-export function digestPropertyShareToken(value) {
-  if (!isPropertyShareToken(value)) return null;
-  return createHash("sha256").update(value, "utf8").digest("hex");
-}
-
-export function tokenDigestMatches(left, right) {
-  if (!/^[0-9a-f]{64}$/u.test(String(left || ""))) return false;
-  if (!/^[0-9a-f]{64}$/u.test(String(right || ""))) return false;
-  return timingSafeEqual(Buffer.from(left, "hex"), Buffer.from(right, "hex"));
+export function isPropertyShareId(value) {
+  return typeof value === "string" && PUBLIC_ID_PATTERN.test(value);
 }
 
 function cleanText(value, { field, min = 0, max, multiline = false }) {

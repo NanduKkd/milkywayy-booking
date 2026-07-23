@@ -1,6 +1,6 @@
 # Project Overview
 
-- Last updated: 2026-07-22
+- Last updated: 2026-07-23
 
 ## What the application does
 
@@ -48,12 +48,13 @@ Start with [the public app](../src/app/page.js),
 - The dashboard exposes bookings, Properties, invoices, and connected
   applications. Properties remains at the compatible `/dashboard/files` route,
   retains authenticated delivery-file behavior and `fileId` deep links, and
-  adds secure single/master sharing for completed properties. Wallet code also
+  adds single/master public sharing for completed properties. Wallet code also
   exists, although its dashboard tab is currently hidden.
-- Shared properties use owner-authored listing/contact configuration, hash-only
-  bearer links, exact accepted media-version snapshots, token-scoped inline
-  viewers, single/master buyer showcases, and aggregate Dubai-day request views
-  without visitor identifiers. See [customer property showcases](./customer-property-sharing/README.md).
+- Shared properties use owner-authored listing/contact configuration, stable
+  opaque public links, current accepted media, link-scoped inline viewers,
+  single/master buyer showcases, and a simple total link-view count without
+  visitor identifiers. Owners can disable and re-enable a link; the URL stays
+  unchanged. See [customer property showcases](./customer-property-sharing/README.md).
 - Route-level access and role redirects are enforced by
   [`src/proxy.js`](../src/proxy.js), with additional ownership checks in server
   actions and route handlers.
@@ -168,9 +169,8 @@ Repository-wide health and known failures are recorded in
   activity.
 - `BookingDeliveryFile`, its versions, revisions, and upload sessions represent
   the deliverable lifecycle.
-- Property listing configuration, share links, selected booking memberships,
-  pinned media-version memberships, and daily aggregates represent the public
-  completed-property showcase boundary.
+- Property listing configuration, stable share links, and selected booking
+  memberships represent the public completed-property showcase boundary.
 - `DynamicConfig` stores editable configuration such as pricing.
 - `OurWork` and `Review` supply portfolio and social-proof content.
 - OAuth clients, codes, tokens, consents, audit events, and rate limits are

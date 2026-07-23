@@ -7,9 +7,6 @@ import {
   createMasterPropertyShare,
   createSinglePropertyShare,
   getPropertySharingDashboard,
-  refreshPropertyShareSnapshot,
-  revokePropertyShare,
-  rotatePropertyShareToken,
   savePropertyShareListing,
   setPropertyShareEnabled,
   updateMasterPropertyShare,
@@ -51,22 +48,8 @@ export const updateMasterPropertyShareAction = actionWrapper(
     ),
 );
 
-export const refreshPropertyShareSnapshotAction = actionWrapper((shareId) =>
-  withOwner((ownerUserId) =>
-    refreshPropertyShareSnapshot(ownerUserId, shareId),
-  ),
-);
-
 export const setPropertyShareEnabledAction = actionWrapper((shareId, enabled) =>
   withOwner((ownerUserId) =>
     setPropertyShareEnabled(ownerUserId, shareId, enabled),
   ),
-);
-
-export const rotatePropertyShareTokenAction = actionWrapper((shareId) =>
-  withOwner((ownerUserId) => rotatePropertyShareToken(ownerUserId, shareId)),
-);
-
-export const revokePropertyShareAction = actionWrapper((shareId) =>
-  withOwner((ownerUserId) => revokePropertyShare(ownerUserId, shareId)),
 );

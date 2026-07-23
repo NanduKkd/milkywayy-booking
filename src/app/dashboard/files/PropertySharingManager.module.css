@@ -1,4 +1,4 @@
-/* biome-ignore-all lint/style/noDescendingSpecificity: The component intentionally keeps the supplied reference HTML's selector hierarchy. */
+/* The Properties surface intentionally mirrors the supplied static reference. */
 .manager {
   --share-card: #131315;
   --share-card-2: #1a1a1d;
@@ -12,24 +12,21 @@
   color: var(--share-text);
 }
 
-.intro {
+.tabHint,
+.masterHint {
+  color: var(--share-dim);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.sectionRow {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 24px 26px;
-  border: 1px solid var(--share-border);
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(56, 189, 248, 0.07), transparent 50%),
-    var(--share-card);
+  gap: 14px;
+  margin: 28px 0 16px;
 }
 
-.intro > div:first-child {
-  max-width: 700px;
-}
-
-.intro p,
 .sectionLabel,
 .formSection {
   color: var(--share-dim);
@@ -38,92 +35,19 @@
   letter-spacing: 0.18em;
 }
 
-.intro h2 {
-  margin-top: 7px;
-  font-size: 24px;
-  font-weight: 800;
-}
-
-.introCopy {
-  display: block;
-  margin-top: 8px;
-  color: var(--share-muted);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.aggregateNote {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 270px;
-  padding: 11px 13px;
-  border: 1px solid var(--share-border-2);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.2);
-  color: var(--share-muted);
-  font-size: 11.5px;
-  line-height: 1.45;
-}
-
-.aggregateNote svg,
-.issuedUrl svg,
-.readyActions svg,
-.cardActions svg,
-.secondaryControls svg,
-.cardMetrics svg,
-.masterMetrics svg {
-  width: 15px;
-  height: 15px;
-  flex: none;
-}
-
-.issuedUrl {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-top: 16px;
-  padding: 15px 17px;
-  border: 1px solid rgba(74, 222, 128, 0.24);
-  border-radius: 15px;
-  background: rgba(74, 222, 128, 0.09);
-}
-
-.issuedUrl b,
-.issuedHelp {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.issuedHelp {
-  margin-top: 4px;
-  color: rgba(220, 252, 231, 0.7);
-  font-size: 11px;
-}
-
-.sectionRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin: 28px 0 14px;
-}
-
 .sectionButtons {
   display: flex;
-  flex-wrap: wrap;
   gap: 9px;
 }
 
 .sectionButtons button {
-  padding: 8px 14px;
+  padding: 8px 15px;
   border: 1px solid var(--share-border-2);
   border-radius: 999px;
   background: var(--share-card-2);
   color: var(--share-text);
-  font-size: 11.5px;
+  cursor: pointer;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -150,6 +74,7 @@
 .readyTop h3 {
   font-size: 17px;
   font-weight: 800;
+  line-height: 1.3;
 }
 
 .readyTop p {
@@ -175,35 +100,44 @@
 }
 
 .readyActions,
-.cardActions,
-.masterActions {
+.masterActions,
+.cardActions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 18px;
+}
+
+.readyActions {
+  margin-top: 20px;
 }
 
 .readyActions button,
 .readyActions a,
-.cardActions button,
 .masterActions button,
-.secondaryControls button {
+.cardActions button {
   display: inline-flex;
+  min-height: 39px;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 37px;
-  padding: 9px 13px;
+  padding: 9px 14px;
   border: 1px solid var(--share-border-2);
   border-radius: 11px;
   background: var(--share-card-2);
   color: var(--share-text);
-  font-size: 11.5px;
+  cursor: pointer;
+  font-size: 12px;
   font-weight: 700;
 }
 
-.readyActions .primaryButton,
-.cardActions .primaryButton {
+.readyActions svg,
+.masterActions svg,
+.cardActions svg {
+  width: 14px;
+  height: 14px;
+}
+
+.manager .primaryButton {
   border-color: #fff;
   background: #fff;
   color: #0a0a0b;
@@ -224,9 +158,19 @@
   border: 1px solid var(--share-border);
   border-radius: 18px;
   background: var(--share-card);
+  cursor: pointer;
   transition:
     border-color 150ms ease,
     transform 150ms ease;
+}
+
+.cardHitArea {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .sharedCard:hover {
@@ -234,18 +178,14 @@
   transform: translateY(-2px);
 }
 
-.selectable {
-  cursor: pointer;
+.sharedCard:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
 }
 
-.selected {
-  border-color: #fff;
-}
-
-.sharedHero,
-.previewHero {
+.sharedHero {
   position: relative;
-  height: 175px;
+  height: 170px;
   background:
     radial-gradient(120% 90% at 75% 10%, #3a4a63 0%, transparent 55%),
     linear-gradient(160deg, #2b3a52 0%, #141a24 75%);
@@ -269,38 +209,24 @@
 .selectCheck {
   position: absolute;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.58);
-  backdrop-filter: blur(7px);
-}
-
-.selectionButton {
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-}
-
-.selectionButton:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: -4px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
 }
 
 .liveTag,
 .offTag {
   top: 12px;
   left: 12px;
-  padding: 5px 10px;
+  padding: 5px 11px;
   border: 1px solid rgba(74, 222, 128, 0.25);
   color: #4ade80;
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
 }
 
 .offTag {
-  border-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.14);
   color: var(--share-dim);
 }
 
@@ -310,22 +236,28 @@
   padding: 5px 11px;
   color: #fff;
   font-size: 10.5px;
+  font-weight: 600;
 }
 
 .selectCheck {
   top: 12px;
   right: 12px;
-  width: 28px;
-  height: 28px;
+  z-index: 3;
   display: flex;
+  width: 27px;
+  height: 27px;
   align-items: center;
   justify-content: center;
-  border: 2px solid rgba(255, 255, 255, 0.58);
+  border: 2px solid rgba(255, 255, 255, 0.55);
 }
 
 .selectCheck svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
+}
+
+.selected {
+  border-color: #fff;
 }
 
 .selected .selectCheck {
@@ -350,97 +282,58 @@
   font-weight: 800;
 }
 
-.priceRow span,
-.previewChips span {
-  padding: 6px 11px;
+.priceRow span {
+  padding: 6px 12px;
   border: 1px solid var(--share-border-2);
   border-radius: 999px;
   background: var(--share-card-2);
   color: var(--share-muted);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .sharedBody h3 {
-  margin-top: 7px;
+  margin-top: 6px;
   overflow: hidden;
   color: var(--share-muted);
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.5;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sharedBody > p {
-  margin-top: 5px;
-  color: var(--share-dim);
-  font-size: 11px;
-}
-
-.cardMetrics,
-.masterMetrics {
+.cardFooter {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 15px;
+}
+
+.cardFooter > span {
   color: var(--share-dim);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.cardMetrics span,
-.masterMetrics span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.cardActions {
+  position: relative;
+  z-index: 2;
+  justify-content: flex-end;
 }
 
-.secondaryControls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 11px;
-  padding-top: 11px;
-  border-top: 1px solid var(--share-border);
+.cardActions button {
+  min-height: 36px;
+  padding: 8px 13px;
 }
 
-.secondaryControls button {
-  min-height: 31px;
-  padding: 7px 9px;
-  border: 0;
-  background: transparent;
-  color: var(--share-dim);
-  font-size: 10px;
+.selectable .cardFooter {
+  opacity: 0.35;
+  pointer-events: none;
 }
 
-.secondaryControls .danger {
-  color: #f87171;
-}
-
-.viewSeries {
-  margin-top: 13px;
-}
-
-.viewSeries > span {
-  color: var(--share-dim);
-  font-size: 9.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.viewSeries > div {
-  height: 32px;
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  margin-top: 6px;
-}
-
-.viewSeries i {
-  min-height: 2px;
-  flex: 1;
-  border-radius: 2px;
-  background: rgba(125, 211, 252, 0.62);
+.masterHint {
+  margin-bottom: 4px;
 }
 
 .masterCard {
@@ -465,17 +358,17 @@
 .masterTop p {
   margin-top: 4px;
   color: var(--share-muted);
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .livePill,
 .offPill {
-  padding: 6px 12px;
+  padding: 6px 14px;
   border: 1px solid rgba(74, 222, 128, 0.35);
   border-radius: 999px;
   background: rgba(74, 222, 128, 0.08);
   color: #4ade80;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -488,12 +381,16 @@
 .masterThumbs {
   display: flex;
   gap: 8px;
-  margin: 15px 0;
+  margin: 14px 0 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .masterThumbs i {
-  width: 68px;
-  height: 48px;
+  width: 64px;
+  height: 46px;
   border: 1px solid var(--share-border);
   border-radius: 9px;
   background: linear-gradient(145deg, #37465e, #1a2230);
@@ -507,6 +404,38 @@
   background: linear-gradient(145deg, #5a4a63, #241c2b);
 }
 
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 11px 14px;
+  border: 1px solid var(--share-border-2);
+  border-radius: 12px;
+  background: var(--share-card-2);
+}
+
+.linkRow span {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--share-muted);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkRow b {
+  color: var(--share-dim);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.masterActions {
+  margin-top: 18px;
+}
+
 .actionBar {
   position: fixed;
   z-index: 40;
@@ -515,14 +444,14 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px 9px 19px;
+  padding: 9px 10px 9px 20px;
   transform: translateX(-50%);
   border: 1px solid var(--share-border-2);
   border-radius: 999px;
   background: #151517;
   box-shadow: 0 16px 50px rgba(0, 0, 0, 0.55);
   color: var(--share-muted);
-  font-size: 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
@@ -530,26 +459,26 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 17px;
+  padding: 10px 18px;
   border: 0;
   border-radius: 999px;
   background: #fff;
   color: #0a0a0b;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 800;
 }
 
 .actionBar > button:last-child {
-  padding: 9px;
+  padding: 10px 12px;
   border: 0;
   background: transparent;
   color: var(--share-dim);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 700;
 }
 
 .actionBar button:disabled {
-  opacity: 0.42;
+  opacity: 0.4;
 }
 
 .overlay {
@@ -561,15 +490,14 @@
   justify-content: center;
   overflow-y: auto;
   padding: 34px 16px;
-  background: rgba(0, 0, 0, 0.78);
+  background: rgba(0, 0, 0, 0.76);
 }
 
-.listingModal,
-.preview {
+.listingModal {
   position: relative;
   width: 100%;
-  max-width: 650px;
-  padding: 27px;
+  max-width: 520px;
+  padding: 26px;
   border: 1px solid var(--share-border-2);
   border-radius: 22px;
   background: #151517;
@@ -577,14 +505,14 @@
 
 .listingModal > h3 {
   text-align: center;
-  font-size: 21px;
+  font-size: 20px;
   font-weight: 800;
 }
 
 .modalSubtitle {
-  margin: 6px auto 0;
+  margin-top: 6px;
   color: var(--share-muted);
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1.55;
   text-align: center;
 }
@@ -592,7 +520,7 @@
 .closeButton {
   position: absolute;
   top: 18px;
-  right: 18px;
+  right: 20px;
   border: 0;
   background: transparent;
   color: var(--share-dim);
@@ -604,7 +532,7 @@
 }
 
 .formSection {
-  margin: 20px 0 10px;
+  margin: 18px 0 10px;
 }
 
 .knownRow {
@@ -614,12 +542,12 @@
 }
 
 .knownRow span {
-  padding: 7px 12px;
+  padding: 7px 13px;
   border: 1px solid #27392e;
   border-radius: 999px;
   background: #17201b;
   color: #4ade80;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
 }
 
@@ -631,7 +559,7 @@
 .formGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 11px;
+  gap: 10px;
 }
 
 .formGrid label > span,
@@ -639,9 +567,9 @@
   display: block;
   margin-bottom: 6px;
   color: var(--share-dim);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
 }
 
 .formGrid input,
@@ -655,7 +583,13 @@
   background: var(--share-card-2);
   color: var(--share-text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
+}
+
+.formGrid textarea {
+  min-height: 66px;
+  resize: vertical;
+  line-height: 1.5;
 }
 
 .formGrid input:focus,
@@ -664,19 +598,46 @@
   border-color: #5a5a63;
 }
 
-.formGrid textarea {
-  min-height: 90px;
-  resize: vertical;
-  line-height: 1.5;
-}
-
 .fullField {
   grid-column: 1 / -1;
+}
+
+.segmentField {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.segment {
+  display: flex;
+  gap: 8px;
+}
+
+.segment button {
+  flex: 1;
+  padding: 11px;
+  border: 1px solid var(--share-border-2);
+  border-radius: 11px;
+  background: var(--share-card-2);
+  color: var(--share-muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.segment .selectedSegment {
+  border-color: #fff;
+  background: #fff;
+  color: #0a0a0b;
 }
 
 .highlightInput {
   display: flex;
   gap: 8px;
+}
+
+.highlightInput input {
+  flex: 1;
 }
 
 .highlightInput button {
@@ -685,6 +646,7 @@
   border-radius: 11px;
   background: var(--share-card-2);
   color: var(--share-text);
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -692,188 +654,163 @@
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  margin-top: 9px;
+  margin-top: 10px;
 }
 
 .highlightChips button {
-  padding: 6px 10px;
+  padding: 6px 11px;
   border: 1px solid var(--share-border-2);
   border-radius: 999px;
   background: var(--share-card-2);
   color: var(--share-muted);
-  font-size: 10.5px;
+  font-size: 11.5px;
+}
+
+.submitButton,
+.cancelButton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--share-border-2);
+  border-radius: 13px;
+  background: var(--share-card-2);
+  color: var(--share-text);
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .submitButton {
-  width: 100%;
   margin-top: 18px;
-  border-radius: 12px;
+  border-color: #fff;
+  background: #fff;
+  color: #0a0a0b;
+}
+
+.submitButton svg {
+  width: 16px;
+  height: 16px;
 }
 
 .formNote {
-  margin-top: 11px;
+  margin-top: 12px;
   color: var(--share-dim);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.55;
   text-align: center;
 }
 
 .preview {
-  max-width: 980px;
-  padding: 0;
-  overflow: hidden;
-  background: #0e0e10;
+  width: 100%;
+  max-width: 1040px;
 }
 
 .previewBar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 13px 17px;
-  border-bottom: 1px solid var(--share-border);
-  background: #131316;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.previewToggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--share-border-2);
+  border-radius: 999px;
+  background: var(--share-card);
+}
+
+.previewToggle button {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
   color: var(--share-muted);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
 }
 
-.previewBar button {
+.previewToggle .activeToggle {
+  background: #fff;
+  color: #0a0a0b;
+}
+
+.previewUrl {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 10px 18px;
+  border: 1px solid var(--share-border-2);
+  border-radius: 999px;
+  background: var(--share-card);
+  color: var(--share-muted);
+  font-size: 12px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewClose {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 11px;
+  padding: 9px 18px;
   border: 1px solid var(--share-border-2);
   border-radius: 999px;
   background: var(--share-card);
   color: var(--share-text);
+  font-size: 13px;
+  font-weight: 700;
 }
 
-.previewBar svg {
+.previewClose svg {
   width: 14px;
   height: 14px;
 }
 
-.previewGrid {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 24px;
-  padding: 25px;
-}
-
-.previewHero {
-  height: 370px;
-  border-radius: 16px;
-}
-
-.previewHero span {
-  position: absolute;
-  right: 13px;
-  bottom: 12px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.6);
-  font-size: 10px;
-}
-
-.previewBody > strong {
-  font-size: 26px;
-}
-
-.previewBody h3 {
-  margin-top: 6px;
-  color: var(--share-muted);
-  font-size: 15px;
-  line-height: 1.45;
-}
-
-.previewBody > p {
-  margin-top: 5px;
-  color: var(--share-dim);
-  font-size: 11.5px;
-}
-
-.previewChips {
+.previewStage {
   display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 15px 0;
+  justify-content: center;
 }
 
-.previewBody .previewDescription {
-  color: var(--share-muted);
-  font-size: 12.5px;
-  line-height: 1.65;
+.previewStage iframe {
+  border: 1px solid var(--share-border-2);
+  background: #0e0e10;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
 }
 
-.previewBody ul {
-  margin: 14px 0;
-  list-style: none;
-  color: var(--share-muted);
-  font-size: 12px;
-  line-height: 1.8;
+.previewDesktop {
+  width: 980px;
+  max-width: 100%;
+  height: 660px;
+  border-radius: 18px;
 }
 
-.previewContact {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--share-border);
-  border-radius: 13px;
-  background: var(--share-card);
-}
-
-.previewContact svg {
-  width: 18px;
-}
-
-.previewContact span {
-  display: grid;
-  flex: 1;
-  color: var(--share-dim);
-  font-size: 10px;
-}
-
-.previewContact b {
-  color: var(--share-text);
-  font-size: 12.5px;
-}
-
-.previewContact em {
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: #22c15e;
-  color: #04170b;
-  font-size: 10.5px;
-  font-style: normal;
-  font-weight: 800;
+.previewPhone {
+  width: 390px;
+  max-width: 100%;
+  height: 760px;
+  border-radius: 30px;
 }
 
 @media (max-width: 880px) {
-  .gridTwo,
-  .previewGrid {
+  .gridTwo {
     grid-template-columns: 1fr;
-  }
-
-  .previewHero {
-    height: 280px;
   }
 }
 
 @media (max-width: 640px) {
-  .intro,
-  .issuedUrl,
   .sectionRow,
   .readyTop,
-  .cardMetrics,
   .masterTop,
-  .masterMetrics {
+  .cardFooter {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .aggregateNote {
-    max-width: none;
   }
 
   .sectionButtons {
@@ -888,6 +825,10 @@
     text-align: left;
   }
 
+  .cardActions {
+    justify-content: flex-start;
+  }
+
   .formGrid {
     grid-template-columns: 1fr;
   }
@@ -898,6 +839,23 @@
 
   .listingModal {
     padding: 24px 18px;
+  }
+
+  .previewBar {
+    flex-wrap: wrap;
+  }
+
+  .previewToggle {
+    order: 1;
+  }
+
+  .previewClose {
+    order: 2;
+  }
+
+  .previewUrl {
+    order: 3;
+    flex-basis: 100%;
   }
 
   .actionBar {

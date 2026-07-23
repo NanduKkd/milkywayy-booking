@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Globe2, Phone, Play, Volume2 } from "lucide-react";
+import { Check, Globe2, Play, Volume2 } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import styles from "./showcase.module.css";
@@ -42,6 +42,7 @@ function ContactCard({ contact }) {
 export default function PropertyShowcase({ property, token }) {
   const [activeMediaId, setActiveMediaId] = useState(property.media[0]?.id);
   const [failedMedia, setFailedMedia] = useState(() => new Set());
+  const [showAllMedia, setShowAllMedia] = useState(false);
   const activeIndex = Math.max(
     0,
     property.media.findIndex((media) => media.id === activeMediaId),
@@ -120,35 +121,46 @@ export default function PropertyShowcase({ property, token }) {
           </div>
 
           <div className={`sp-thumbs ${styles.thumbnails}`}>
-            {property.media.map((media, index) => (
+            {(showAllMedia ? property.media : property.media.slice(0, 2)).map(
+              (media, index) => (
+                <button
+                  type="button"
+                  key={media.id}
+                  className={`thumb ${styles.thumbnail} ${media.id === activeMedia?.id ? styles.activeThumbnail : ""}`}
+                  aria-label={`View property media ${index + 1}`}
+                  aria-pressed={media.id === activeMedia?.id}
+                  onClick={() => setActiveMediaId(media.id)}
+                >
+                  {media.mimeType.startsWith("video/") ? (
+                    <span className={styles.videoThumb}>
+                      <Play aria-hidden="true" /> Video
+                    </span>
+                  ) : (
+                    <Image
+                      alt=""
+                      fill
+                      loading="lazy"
+                      sizes="(max-width: 600px) 33vw, 140px"
+                      unoptimized
+                      onError={() => markFailed(media.id)}
+                      src={mediaUrl(token, property.id, media.id)}
+                    />
+                  )}
+                  {media.kind === "TOUR" ? (
+                    <span className={styles.tourMark}>360°</span>
+                  ) : null}
+                </button>
+              ),
+            )}
+            {!showAllMedia && property.media.length > 2 ? (
               <button
                 type="button"
-                key={media.id}
-                className={`thumb ${styles.thumbnail} ${media.id === activeMedia?.id ? styles.activeThumbnail : ""}`}
-                aria-label={`View property media ${index + 1}`}
-                aria-pressed={media.id === activeMedia?.id}
-                onClick={() => setActiveMediaId(media.id)}
+                className={`thumb ${styles.thumbnail} ${styles.moreMedia}`}
+                onClick={() => setShowAllMedia(true)}
               >
-                {media.mimeType.startsWith("video/") ? (
-                  <span className={styles.videoThumb}>
-                    <Play aria-hidden="true" /> Video
-                  </span>
-                ) : (
-                  <Image
-                    alt=""
-                    fill
-                    loading="lazy"
-                    sizes="(max-width: 600px) 33vw, 140px"
-                    unoptimized
-                    onError={() => markFailed(media.id)}
-                    src={mediaUrl(token, property.id, media.id)}
-                  />
-                )}
-                {media.kind === "TOUR" ? (
-                  <span className={styles.tourMark}>360°</span>
-                ) : null}
+                + {property.media.length - 2} photos
               </button>
-            ))}
+            ) : null}
           </div>
 
           {videoMedia || tourMedia ? (
@@ -179,8 +191,10 @@ export default function PropertyShowcase({ property, token }) {
           <div className={`sp-price ${styles.price}`}>
             {property.displayPrice}
           </div>
-          <h1 className={`sp-title ${styles.title}`}>{property.title}</h1>
-          <p className={styles.location}>{property.location}</p>
+          <h1 className={`sp-title ${styles.title}`}>
+            {property.title}
+            {property.location ? ` · ${property.location}` : ""}
+          </h1>
           <div className={`sp-chips ${styles.chips}`}>
             <span className={`chip ${styles.chip}`}>
               {property.listingTypeLabel}
@@ -224,12 +238,12 @@ export default function PropertyShowcase({ property, token }) {
             </section>
           ) : null}
 
-          <div className={styles.contactHeading}>
-            <Phone aria-hidden="true" /> Contact about this property
-          </div>
           <ContactCard contact={property.contact} />
         </div>
       </div>
+      <footer className={`sp-footer ${styles.showcaseFooter}`}>
+        Media &amp; page by <b>MILKYWAYY</b> · milkywayy.com
+      </footer>
     </article>
   );
 }
