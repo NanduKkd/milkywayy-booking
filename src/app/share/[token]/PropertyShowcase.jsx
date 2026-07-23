@@ -2,7 +2,7 @@
 
 import { Check, Globe2, Play } from "lucide-react";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import styles from "./showcase.module.css";
 
 function mediaUrl(token, propertyId, mediaId) {
@@ -48,21 +48,6 @@ export default function PropertyShowcase({ property, token }) {
     property.media.findIndex((media) => media.id === activeMediaId),
   );
   const activeMedia = property.media[activeIndex];
-  const videoMedia = useMemo(
-    () => property.media.find((media) => media.kind === "VIDEO"),
-    [property.media],
-  );
-  const tourMedia = useMemo(
-    () => property.media.find((media) => media.kind === "TOUR"),
-    [property.media],
-  );
-  const badge = tourMedia
-    ? videoMedia
-      ? "360° + Video"
-      : "360° View"
-    : videoMedia
-      ? "Video Available"
-      : "Photo Gallery";
 
   const selectRelative = (offset) => {
     const next =
@@ -125,7 +110,6 @@ export default function PropertyShowcase({ property, token }) {
                 This media could not be displayed.
               </output>
             )}
-            <span className={`h-badge ${styles.heroBadge}`}>{badge}</span>
             <span className={`h-count ${styles.heroCount}`}>
               {activeIndex + 1} / {property.media.length}
             </span>

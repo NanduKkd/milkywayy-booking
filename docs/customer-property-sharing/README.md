@@ -30,7 +30,8 @@ Accepted 360 copy-link deliveries appear in the main media viewer as lazy
 iframes, using the same interactive presentation as the landing-page portfolio.
 They are selected from a text/icon media tile beside the photo and video items,
 without an image thumbnail. Video remains selectable in the media strip and has
-no separate Video Walkthrough button.
+no separate Video Walkthrough button. The hero retains only its media-position
+count and does not show a media-type badge.
 
 The single-property showcase owns the full browser surface. It has no outer
 card border, radius, shadow, or page gutter; the media and listing split fill

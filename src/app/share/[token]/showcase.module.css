@@ -86,7 +86,6 @@
   background: #050506;
 }
 
-.heroBadge,
 .heroCount {
   position: absolute;
   z-index: 2;
@@ -98,11 +97,6 @@
   font-weight: 700;
   padding: 6px 11px;
   backdrop-filter: blur(7px);
-}
-
-.heroBadge {
-  top: 14px;
-  right: 14px;
 }
 
 .heroCount {

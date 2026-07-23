@@ -90,6 +90,8 @@ describe("public property showcase page", () => {
     expect(
       screen.queryByRole("button", { name: "Video walkthrough" }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("360° + Video")).not.toBeInTheDocument();
+    expect(container.querySelector(".h-badge")).toBeNull();
     expect(screen.getByRole("button", { name: "View 360° tour" })).toHaveClass(
       "thumb",
     );
