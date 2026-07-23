@@ -173,6 +173,30 @@ function filenameMimeType(filename) {
   return null;
 }
 
+function normalizeTourEmbedUrl(value) {
+  const rawUrl = String(value || "").trim();
+  if (!rawUrl || rawUrl.length > 2048) return null;
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:" || url.username || url.password) return null;
+    const host = url.hostname.toLowerCase().replace(/^www\./u, "");
+    let youtubeId = null;
+    if (host === "youtu.be") {
+      youtubeId = url.pathname.split("/").filter(Boolean)[0] || null;
+    } else if (host === "youtube.com" || host.endsWith(".youtube.com")) {
+      const parts = url.pathname.split("/").filter(Boolean);
+      youtubeId =
+        url.searchParams.get("v") ||
+        (["embed", "shorts", "live"].includes(parts[0]) ? parts[1] : null);
+    }
+    return youtubeId
+      ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?rel=0&modestbranding=1`
+      : url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function getInlinePropertyMediaDetails(fileLike, versionLike) {
   const file = toPlain(fileLike) || {};
   const version = toPlain(versionLike) || {};
@@ -180,6 +204,17 @@ export function getInlinePropertyMediaDetails(fileLike, versionLike) {
     .split(";", 1)[0]
     .trim()
     .toLowerCase();
+  const typeLabel = `${file.type || ""} ${file.label || ""}`.toLowerCase();
+  const isTour = /360|virtual\s*tour|panorama/u.test(typeLabel);
+  if (isTour) {
+    const embedUrl =
+      file.deliveryMode === "copy_link" && declaredMimeType === "text/uri-list"
+        ? normalizeTourEmbedUrl(version.url)
+        : null;
+    return embedUrl
+      ? { kind: "TOUR", mimeType: "text/uri-list", embedUrl }
+      : null;
+  }
   const inferredMimeType = filenameMimeType(version.originalFilename);
   const mimeType = SAFE_INLINE_MIME_TYPES.has(declaredMimeType)
     ? declaredMimeType
@@ -187,14 +222,9 @@ export function getInlinePropertyMediaDetails(fileLike, versionLike) {
       ? inferredMimeType
       : null;
   if (!mimeType || !SAFE_INLINE_MIME_TYPES.has(mimeType)) return null;
-  const typeLabel = `${file.type || ""} ${file.label || ""}`.toLowerCase();
   return {
     mimeType,
-    kind: /360|virtual\s*tour|panorama/u.test(typeLabel)
-      ? "TOUR"
-      : mimeType.startsWith("video/")
-        ? "VIDEO"
-        : "IMAGE",
+    kind: mimeType.startsWith("video/") ? "VIDEO" : "IMAGE",
   };
 }
 
@@ -788,6 +818,7 @@ function serializePublicMedia(membershipLike, index) {
     id: Number(membership.id),
     kind: details.kind,
     mimeType: details.mimeType,
+    ...(details.kind === "TOUR" ? { embedUrl: details.embedUrl } : {}),
     label: String(
       file.label || file.type || `Property media ${index + 1}`,
     ).slice(0, 120),
@@ -886,7 +917,7 @@ export async function resolvePublicPropertyShareMedia({
     membership.deliveryFile,
     pinnedVersion,
   );
-  if (!details) return null;
+  if (!details || details.kind === "TOUR") return null;
   return {
     storageUrl: pinnedVersion.url,
     mimeType: details.mimeType,

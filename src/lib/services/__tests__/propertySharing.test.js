@@ -107,6 +107,27 @@ function eligibleBooking(overrides = {}) {
   };
 }
 
+function tourDeliveryFile() {
+  return {
+    id: 11,
+    type: "360 Virtual Tour",
+    label: "360 Virtual Tour",
+    deliveryMode: "copy_link",
+    status: "ACCEPTED",
+    deletedAt: null,
+    currentVersionId: 101,
+    currentVersion: {
+      id: 101,
+      deliveryFileId: 11,
+      supersededAt: null,
+      originalFilename: "360 Virtual Tour link",
+      mimeType: "text/uri-list",
+      sizeBytes: null,
+      url: "https://my.matterport.com/show/?m=synthetic",
+    },
+  };
+}
+
 function publicProperty(booking = eligibleBooking()) {
   return {
     id: 30,
@@ -261,10 +282,28 @@ describe("property sharing service", () => {
     ).toEqual({ kind: "VIDEO", mimeType: "video/mp4" });
     expect(
       getInlinePropertyMediaDetails(
-        { type: "360 Virtual Tour" },
-        { mimeType: "image/webp", originalFilename: "tour.webp" },
+        { type: "360 Virtual Tour", deliveryMode: "copy_link" },
+        {
+          mimeType: "text/uri-list",
+          originalFilename: "360 Virtual Tour link",
+          url: "https://my.matterport.com/show/?m=synthetic",
+        },
       ),
-    ).toEqual({ kind: "TOUR", mimeType: "image/webp" });
+    ).toEqual({
+      kind: "TOUR",
+      mimeType: "text/uri-list",
+      embedUrl: "https://my.matterport.com/show/?m=synthetic",
+    });
+    expect(
+      getInlinePropertyMediaDetails(
+        { type: "360 Virtual Tour", deliveryMode: "copy_link" },
+        {
+          mimeType: "text/uri-list",
+          originalFilename: "360 Virtual Tour link",
+          url: "http://example.com/insecure-tour",
+        },
+      ),
+    ).toBeNull();
     expect(
       getInlinePropertyMediaDetails(
         { type: "Unsafe" },
@@ -276,8 +315,10 @@ describe("property sharing service", () => {
   it("serializes a complete showcase without persisted private URLs", async () => {
     const publicId = createPropertyShareId();
     const share = publicShare(publicId);
+    const property = publicProperty();
+    property.booking.deliveryFiles.push(tourDeliveryFile());
     PropertyShareLink.findOne.mockResolvedValue(share);
-    PropertyShareProperty.findAll.mockResolvedValue([publicProperty()]);
+    PropertyShareProperty.findAll.mockResolvedValue([property]);
 
     const landing = await resolvePublicPropertyShareLanding(
       publicId,
@@ -303,6 +344,13 @@ describe("property sharing service", () => {
             kind: "IMAGE",
             label: "Final photography",
             mimeType: "image/jpeg",
+          },
+          {
+            id: 11,
+            kind: "TOUR",
+            label: "360 Virtual Tour",
+            mimeType: "text/uri-list",
+            embedUrl: "https://my.matterport.com/show/?m=synthetic",
           },
         ],
       }),
@@ -363,6 +411,22 @@ describe("property sharing service", () => {
       }),
     ).resolves.toBeNull();
     expect(sequelize.query).not.toHaveBeenCalled();
+  });
+
+  it("never sends external 360 links through the owned-object media route", async () => {
+    const publicId = createPropertyShareId();
+    const property = publicProperty();
+    property.booking.deliveryFiles.push(tourDeliveryFile());
+    PropertyShareLink.findOne.mockResolvedValue(publicShare(publicId));
+    PropertyShareProperty.findAll.mockResolvedValue([property]);
+
+    await expect(
+      resolvePublicPropertyShareMedia({
+        token: publicId,
+        propertyId: 30,
+        sharedFileId: 11,
+      }),
+    ).resolves.toBeNull();
   });
 
   it("fails closed when current accepted media is no longer eligible", async () => {

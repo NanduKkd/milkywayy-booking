@@ -62,12 +62,17 @@ browser-safe MIME/type allow-list. Invalid, malformed, disabled,
 wrong-property, unselected, and cross-owner scopes use the same generic
 unavailable result.
 
-Public page DTOs contain listing content and safe current-media identifiers,
-but no persisted object URL. The browser builds only the token-scoped inline
-media path. The route parses the internally resolved owned object URL, requests
-that exact object server-side, forwards valid byte ranges, preserves accurate
-content type and range headers, and never redirects, advertises an attachment,
-or uses `/api/files/download`.
+Public page DTOs contain listing content and safe current photo/video
+identifiers, but no persisted object URL. The browser builds only the
+token-scoped inline media path. The route parses the internally resolved owned
+object URL, requests that exact object server-side, forwards valid byte ranges,
+preserves accurate content type and range headers, and never redirects,
+advertises an attachment, or uses `/api/files/download`.
+
+An accepted 360 delivery is a validated HTTPS `text/uri-list` copy-link rather
+than an owned S3 object. The service emits its normalized embed URL separately;
+the showcase renders it in a no-referrer iframe in the main viewer, omits it
+from the thumbnail strip, and never sends it to the S3 media route.
 
 Only successful collection/showcase resolution increments total link views.
 Media requests and failed resolutions do not count.

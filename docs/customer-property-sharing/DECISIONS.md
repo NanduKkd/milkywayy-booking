@@ -52,13 +52,17 @@
 - Consequence: There is no buyer form, contact POST/table/retention, receipt,
   cookie/JWT, public manifest, download button, or public attachment route.
 
-## PROP-D007 — Stream authorized media inline
+## PROP-D007 — Stream owned media and embed 360 tours inline
 
 - Status: `ACCEPTED`
-- Decision: Public photo/video/360 content crosses only a bearer + selected
-  property + current accepted file route with byte-range support.
+- Decision: Public photos and videos cross only a bearer + selected property +
+  current accepted file route with byte-range support. Accepted HTTPS 360
+  copy-links render as no-referrer iframes in the main viewer, with a dedicated
+  action and no thumbnail.
 - Consequence: Persisted object URLs, authenticated download endpoints,
   attachment disposition, and download attributes remain outside public HTML.
+  External 360 embed URLs are intentionally public and never enter the owned
+  object route.
 
 ## PROP-D008 — Count total link views and fail uniformly
 

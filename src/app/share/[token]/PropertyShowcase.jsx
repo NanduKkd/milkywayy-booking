@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Globe2, Play, Volume2 } from "lucide-react";
+import { Check, Globe2, Play } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import styles from "./showcase.module.css";
@@ -52,6 +52,10 @@ export default function PropertyShowcase({ property, token }) {
     () => property.media.find((media) => media.kind === "VIDEO"),
     [property.media],
   );
+  const thumbnailMedia = useMemo(
+    () => property.media.filter((media) => media.kind !== "TOUR"),
+    [property.media],
+  );
   const tourMedia = useMemo(
     () => property.media.find((media) => media.kind === "TOUR"),
     [property.media],
@@ -86,7 +90,18 @@ export default function PropertyShowcase({ property, token }) {
         <div className={styles.mediaColumn}>
           <div className={`sp-hero ${styles.spHero}`}>
             {activeMedia && !failedMedia.has(activeMedia.id) ? (
-              activeMedia.mimeType.startsWith("video/") ? (
+              activeMedia.kind === "TOUR" && activeMedia.embedUrl ? (
+                <iframe
+                  key={activeMedia.id}
+                  src={activeMedia.embedUrl}
+                  title={`${property.title} — 360° tour`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  onError={() => markFailed(activeMedia.id)}
+                />
+              ) : activeMedia.mimeType.startsWith("video/") ? (
                 // biome-ignore lint/a11y/useMediaCaption: The delivery model does not persist a separate captions asset.
                 <video
                   key={activeMedia.id}
@@ -120,73 +135,67 @@ export default function PropertyShowcase({ property, token }) {
             </span>
           </div>
 
-          <div className={`sp-thumbs ${styles.thumbnails}`}>
-            {(showAllMedia ? property.media : property.media.slice(0, 2)).map(
-              (media, index) => (
+          {thumbnailMedia.length > 0 ? (
+            <div className={`sp-thumbs ${styles.thumbnails}`}>
+              {(showAllMedia ? thumbnailMedia : thumbnailMedia.slice(0, 2)).map(
+                (media) => {
+                  const mediaPosition =
+                    property.media.findIndex(
+                      (candidate) => candidate.id === media.id,
+                    ) + 1;
+                  return (
+                    <button
+                      type="button"
+                      key={media.id}
+                      className={`thumb ${styles.thumbnail} ${media.id === activeMedia?.id ? styles.activeThumbnail : ""}`}
+                      aria-label={`View property media ${mediaPosition}`}
+                      aria-pressed={media.id === activeMedia?.id}
+                      onClick={() => setActiveMediaId(media.id)}
+                    >
+                      {failedMedia.has(media.id) ? (
+                        <span className={styles.thumbnailFallback}>
+                          Unavailable
+                        </span>
+                      ) : media.mimeType.startsWith("video/") ? (
+                        <span className={styles.videoThumb}>
+                          <Play aria-hidden="true" /> Video
+                        </span>
+                      ) : (
+                        <Image
+                          alt=""
+                          fill
+                          loading="lazy"
+                          sizes="(max-width: 600px) 33vw, 140px"
+                          unoptimized
+                          onError={() => markFailed(media.id)}
+                          src={mediaUrl(token, property.id, media.id)}
+                        />
+                      )}
+                    </button>
+                  );
+                },
+              )}
+              {!showAllMedia && thumbnailMedia.length > 2 ? (
                 <button
                   type="button"
-                  key={media.id}
-                  className={`thumb ${styles.thumbnail} ${media.id === activeMedia?.id ? styles.activeThumbnail : ""}`}
-                  aria-label={`View property media ${index + 1}`}
-                  aria-pressed={media.id === activeMedia?.id}
-                  onClick={() => setActiveMediaId(media.id)}
+                  className={`thumb ${styles.thumbnail} ${styles.moreMedia}`}
+                  onClick={() => setShowAllMedia(true)}
                 >
-                  {failedMedia.has(media.id) ? (
-                    <span className={styles.thumbnailFallback}>
-                      Unavailable
-                    </span>
-                  ) : media.mimeType.startsWith("video/") ? (
-                    <span className={styles.videoThumb}>
-                      <Play aria-hidden="true" /> Video
-                    </span>
-                  ) : (
-                    <Image
-                      alt=""
-                      fill
-                      loading="lazy"
-                      sizes="(max-width: 600px) 33vw, 140px"
-                      unoptimized
-                      onError={() => markFailed(media.id)}
-                      src={mediaUrl(token, property.id, media.id)}
-                    />
-                  )}
-                  {media.kind === "TOUR" ? (
-                    <span className={styles.tourMark}>360°</span>
-                  ) : null}
+                  + {thumbnailMedia.length - 2} media
                 </button>
-              ),
-            )}
-            {!showAllMedia && property.media.length > 2 ? (
-              <button
-                type="button"
-                className={`thumb ${styles.thumbnail} ${styles.moreMedia}`}
-                onClick={() => setShowAllMedia(true)}
-              >
-                + {property.media.length - 2} photos
-              </button>
-            ) : null}
-          </div>
+              ) : null}
+            </div>
+          ) : null}
 
-          {videoMedia || tourMedia ? (
+          {tourMedia ? (
             <div className={`sp-actions ${styles.mediaActions}`}>
-              {videoMedia ? (
-                <button
-                  className={`act ${styles.mediaAction}`}
-                  type="button"
-                  onClick={() => setActiveMediaId(videoMedia.id)}
-                >
-                  <Volume2 aria-hidden="true" /> Video walkthrough
-                </button>
-              ) : null}
-              {tourMedia ? (
-                <button
-                  className={`act ${styles.mediaAction}`}
-                  type="button"
-                  onClick={() => setActiveMediaId(tourMedia.id)}
-                >
-                  <Globe2 aria-hidden="true" /> 360° view
-                </button>
-              ) : null}
+              <button
+                className={`act ${styles.mediaAction}`}
+                type="button"
+                onClick={() => setActiveMediaId(tourMedia.id)}
+              >
+                <Globe2 aria-hidden="true" /> 360° view
+              </button>
             </div>
           ) : null}
         </div>

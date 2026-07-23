@@ -26,6 +26,11 @@ media, listing metadata, description, highlights, telephone and WhatsApp
 actions, and Milkywayy branding. They contain no buyer form, delivery manifest,
 download button, revision control, or authenticated file route.
 
+Accepted 360 copy-link deliveries appear in the main media viewer as lazy
+iframes, using the same interactive presentation as the landing-page portfolio.
+They have a dedicated **360° view** action but no thumbnail image. Video remains
+selectable in the media strip and has no separate Video Walkthrough button.
+
 The single-property showcase owns the full browser surface. It has no outer
 card border, radius, shadow, or page gutter; the media and listing split fill
 the viewport on desktop and become an edge-to-edge single column on narrow
@@ -45,8 +50,11 @@ removed standalone section is no longer a customer entry point for creating or
 editing a master collection.
 
 Public pages always resolve the current accepted browser-safe media for the
-selected booking. Media is streamed only through link/property/file-scoped
-inline routes, and persisted private object URLs are never serialized.
+selected booking. Photos and videos are streamed only through
+link/property/file-scoped inline routes, and persisted private object URLs are
+never serialized. Validated HTTPS 360 tour links are intentionally exposed as
+iframe sources with a no-referrer policy; they never pass through the owned
+object route.
 
 The public identifier is a stable, opaque 256-bit value. A link is deliberately
 public and reshareable. The owner can copy it after any reload and can disable

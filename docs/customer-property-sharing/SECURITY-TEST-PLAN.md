@@ -20,7 +20,7 @@
 - Cancelled, incomplete, other-owner, and no-safe-media bookings are rejected.
 - Master links require at least two explicit configured properties.
 - Public media includes only accepted, non-deleted current browser-safe
-  image/video versions.
+  image/video versions and validated HTTPS 360 copy-links.
 - Wrong-booking, unsafe, deleted, superseded, and unselected media fail closed.
 
 ### Token, public page, and inline media boundary
@@ -36,6 +36,9 @@
 - Successful inline responses provide accurate MIME, `nosniff`, no-store,
   noindex, referrer policy, range support, and no attachment disposition or
   redirect.
+- 360 embed URLs require HTTPS, reject credentials/malformed values, render
+  with no-referrer iframes, have no thumbnail, and never enter the S3 media
+  route.
 - Successful page/collection renders count atomically; failed resolutions and
   media requests do not.
 
@@ -46,8 +49,10 @@
   FileList cards expose **Create Share Link**; existing shared cards expose
   contextual stable copy, edit, enable/disable, total views, and the actual
   Phone/Desktop public-page preview.
-- Single showcase covers gallery switching, metadata chips, description,
-  highlights, contact phone/WhatsApp actions, empty/error states, and branding.
+- Single showcase covers gallery switching, direct video selection without a
+  Video Walkthrough action, iframe-based 360 viewing without a thumbnail,
+  metadata chips, description, highlights, contact phone/WhatsApp actions,
+  empty/error states, and branding.
 - Master collection contains only selected cards and opens the full selected
   showcase under the same token with a back path.
 - Existing `fileId`, authenticated download/copy-link, revisions, replacements,
