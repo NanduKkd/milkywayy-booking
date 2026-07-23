@@ -1,0 +1,526 @@
+.root {
+  min-height: 100vh;
+  background: #0a0a0b;
+  color: #f4f4f5;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+}
+
+.showcaseRoot {
+  padding: 0;
+}
+
+.collectionRoot {
+  padding: 0;
+}
+
+.showcase {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0e0e10;
+}
+
+.collection {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0e0e10;
+}
+
+.showcaseGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+  gap: 26px;
+  padding: 26px;
+}
+
+.mediaColumn {
+  min-width: 0;
+}
+
+.spHero {
+  position: relative;
+  height: 320px;
+  overflow: hidden;
+  border: 1px solid #232327;
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 90% at 75% 10%, #3a4a63 0%, transparent 55%),
+    linear-gradient(160deg, #2b3a52 0%, #141a24 75%);
+  outline: none;
+}
+
+.spHero:focus-visible {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45);
+}
+
+.spHero img,
+.spHero video,
+.spHero iframe,
+.collectionImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.spHero video {
+  background: #050506;
+}
+
+.spHero img,
+.spHero video {
+  object-fit: contain;
+}
+
+.spHero iframe {
+  border: 0;
+  background: #050506;
+}
+
+.heroCount {
+  position: absolute;
+  z-index: 2;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 6px 11px;
+  backdrop-filter: blur(7px);
+}
+
+.heroCount {
+  right: 14px;
+  bottom: 12px;
+}
+
+.thumbnails {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 120px));
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+
+.thumbnail {
+  position: relative;
+  height: 76px;
+  overflow: hidden;
+  border: 1px solid #2e2e33;
+  border-radius: 10px;
+  background: #1a1a1d;
+  color: #f4f4f5;
+  cursor: pointer;
+  padding: 0;
+}
+
+.moreMedia {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.48), rgba(0, 0, 0, 0.48)),
+    linear-gradient(140deg, #2e3d3a, #161e1c);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.thumbnail:hover,
+.activeThumbnail {
+  border-color: #fff;
+}
+
+.thumbnail:focus-visible,
+.whatsappButton:focus-visible,
+.contactPhone:focus-visible,
+.collectionCard:focus-visible,
+.backLink:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.videoThumb,
+.tourThumb {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.thumbnailFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(120% 90% at 70% 15%, #3a4a63 0%, transparent 55%),
+    linear-gradient(160deg, #2b3a52 0%, #141a24 75%);
+  color: #a1a1aa;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.videoThumb svg,
+.tourThumb svg,
+.backLink svg {
+  width: 15px;
+  height: 15px;
+}
+
+.spBody {
+  align-self: start;
+  padding: 6px 0 0;
+}
+
+.price {
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.title {
+  margin: 3px 0 0;
+  color: #a1a1aa;
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 16px;
+}
+
+.chip {
+  border: 1px solid #2e2e33;
+  border-radius: 999px;
+  background: #1a1a1d;
+  color: #a1a1aa;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+
+.description {
+  margin: 0 0 16px;
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.highlightTitle {
+  margin-bottom: 9px;
+  color: #6b6b73;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.highlights ul {
+  display: block;
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 0;
+}
+
+.highlights li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  color: #a1a1aa;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.highlights li svg {
+  width: 14px;
+  height: 14px;
+  margin-top: 2px;
+  flex: none;
+  color: #4ade80;
+}
+
+.contactCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #232327;
+  border-radius: 14px;
+  background: #131315;
+  margin-bottom: 16px;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #5b6b84, #2c3648);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.contactMeta {
+  min-width: 0;
+  flex: 1;
+}
+
+.contactName {
+  color: #f4f4f5;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.contactPhone {
+  display: inline-block;
+  margin-top: 3px;
+  color: #a1a1aa;
+  font-size: 11.5px;
+}
+
+.whatsappButton {
+  border-radius: 999px;
+  background: #22c15e;
+  color: #04170b;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 10px 15px;
+  white-space: nowrap;
+}
+
+.mediaFallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(120% 90% at 70% 15%, #3a4a63 0%, transparent 55%),
+    linear-gradient(160deg, #2b3a52 0%, #141a24 75%);
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.backLink {
+  width: 100%;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  box-sizing: border-box;
+  padding: 16px 26px 14px;
+  color: #a1a1aa;
+  font-size: 13px;
+}
+
+.collectionHeading {
+  padding: 26px 26px 0;
+  text-align: center;
+}
+
+.collectionTitle {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.collectionSubtitle {
+  max-width: 560px;
+  margin: 6px auto 18px;
+  color: #a1a1aa;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.collectionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  padding: 26px 26px 6px;
+}
+
+.collectionCard {
+  overflow: hidden;
+  border: 1px solid #232327;
+  border-radius: 16px;
+  background: #131315;
+  color: #f4f4f5;
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease;
+}
+
+.collectionCard:hover {
+  transform: translateY(-2px);
+  border-color: #45454d;
+}
+
+.collectionImage {
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+  background: #1a1a1d;
+}
+
+.collectionBody {
+  padding: 14px;
+}
+
+.collectionPrice {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.collectionName {
+  margin: 3px 0 9px;
+  overflow: hidden;
+  color: #a1a1aa;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.collectionChips {
+  margin: 0;
+}
+
+.showcaseFooter {
+  padding: 13px;
+  border-top: 1px solid #232327;
+  color: #6b6b73;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+.showcaseFooter b {
+  color: #a1a1aa;
+  letter-spacing: 0.12em;
+}
+
+.collection > .showcaseFooter {
+  margin-top: auto;
+}
+
+@media (min-width: 901px) {
+  .showcase {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  .showcaseGrid {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .mediaColumn {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .spHero {
+    height: auto;
+    min-height: clamp(240px, 36dvh, 320px);
+    flex: 1 1 0;
+  }
+
+  .spBody {
+    max-height: 100%;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .showcaseGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .collectionGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .collectionRoot {
+    padding: 0;
+  }
+
+  .showcaseGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+  }
+
+  .spHero {
+    height: 240px;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .thumbnails {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 12px 20px 16px;
+  }
+
+  .thumbnail {
+    height: 66px;
+  }
+
+  .spBody {
+    padding: 21px 20px 4px;
+  }
+
+  .contactCard {
+    flex-wrap: wrap;
+  }
+
+  .whatsappButton {
+    text-align: center;
+  }
+
+  .backLink {
+    padding: 14px 20px 12px;
+  }
+
+  .collectionHeading {
+    padding: 24px 18px 0;
+  }
+
+  .collectionGrid {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .collectionImage {
+    height: 120px;
+  }
+}

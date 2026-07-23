@@ -22,6 +22,9 @@ import Promotion from "./promotion.js";
 import PromotionAssignment from "./promotionassignment.js";
 import PromotionAuditEvent from "./promotionauditevent.js";
 import PromotionRedemption from "./promotionredemption.js";
+import PropertyShareLink from "./propertysharelink.js";
+import PropertyShareListing from "./propertysharelisting.js";
+import PropertyShareProperty from "./propertyshareproperty.js";
 import Review from "./review.js";
 import Transaction from "./transaction.js";
 import User from "./user.js";
@@ -46,6 +49,9 @@ const models = {
   PromotionAssignment,
   PromotionRedemption,
   PromotionAuditEvent,
+  PropertyShareLink,
+  PropertyShareProperty,
+  PropertyShareListing,
   OAuthClient,
   OAuthAuthorizationCode,
   OAuthAccessToken,
@@ -76,6 +82,9 @@ export {
   PromotionAssignment,
   PromotionRedemption,
   PromotionAuditEvent,
+  PropertyShareLink,
+  PropertyShareProperty,
+  PropertyShareListing,
   OAuthClient,
   OAuthAuthorizationCode,
   OAuthAccessToken,

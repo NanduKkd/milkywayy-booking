@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Folder, Receipt } from "lucide-react";
+import { Building2, Calendar, Receipt } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
@@ -40,8 +40,8 @@ export default function DashboardLayout({ children }) {
     },
     {
       key: "/dashboard/files",
-      title: "Files",
-      icon: <Folder size={16} />,
+      title: "Properties",
+      icon: <Building2 size={16} />,
       href: "/dashboard/files",
     },
     // Wallet tab intentionally hidden for now.

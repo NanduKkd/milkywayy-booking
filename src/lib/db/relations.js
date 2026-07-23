@@ -249,6 +249,35 @@ models.OAuthAuditEvent.belongsTo(models.User, {
   as: "user",
 });
 
+models.PropertyShareLink.belongsTo(models.User, {
+  foreignKey: "ownerUserId",
+  as: "owner",
+});
+models.PropertyShareLink.belongsTo(models.Booking, {
+  foreignKey: "singleBookingId",
+  as: "singleBooking",
+});
+models.PropertyShareLink.hasMany(models.PropertyShareProperty, {
+  foreignKey: "shareLinkId",
+  as: "properties",
+});
+models.PropertyShareProperty.belongsTo(models.PropertyShareLink, {
+  foreignKey: "shareLinkId",
+  as: "shareLink",
+});
+models.PropertyShareProperty.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
+});
+models.PropertyShareListing.belongsTo(models.User, {
+  foreignKey: "ownerUserId",
+  as: "owner",
+});
+models.PropertyShareListing.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
+});
+
 // User has many transactions, wallet transactions, and bookings
 models.User.hasMany(models.Transaction, {
   foreignKey: "userId",
@@ -335,7 +364,27 @@ models.User.hasMany(models.OAuthAuditEvent, {
   foreignKey: "userId",
   as: "oauthAuditEvents",
 });
+models.User.hasMany(models.PropertyShareLink, {
+  foreignKey: "ownerUserId",
+  as: "propertyShareLinks",
+});
+models.User.hasMany(models.PropertyShareListing, {
+  foreignKey: "ownerUserId",
+  as: "propertyShareListings",
+});
 
+models.Booking.hasMany(models.PropertyShareProperty, {
+  foreignKey: "bookingId",
+  as: "propertyShareMemberships",
+});
+models.Booking.hasOne(models.PropertyShareListing, {
+  foreignKey: "bookingId",
+  as: "propertyShareListing",
+});
+models.Booking.hasMany(models.PropertyShareLink, {
+  foreignKey: "singleBookingId",
+  as: "singlePropertyShareLinks",
+});
 models.OAuthClient.hasMany(models.OAuthAuthorizationCode, {
   foreignKey: "clientId",
   as: "authorizationCodes",

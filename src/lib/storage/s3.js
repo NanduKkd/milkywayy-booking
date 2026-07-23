@@ -210,6 +210,20 @@ export const createDownloadUrl = async ({ key, fileName }) => {
   );
 };
 
+export const getBookingObject = async ({ key, range }) => {
+  if (!isBookingDeliverableKey(key)) {
+    throw new Error("Object key is outside the booking deliverables prefix");
+  }
+  const { bucket } = getS3Config();
+  return getS3Client().send(
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ...(range ? { Range: range } : {}),
+    }),
+  );
+};
+
 export const createInvoiceDownloadUrl = async ({ key, fileName }) => {
   if (!isInvoiceKey(key)) {
     throw new Error("Object key is outside the invoice prefix");

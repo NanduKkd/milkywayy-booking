@@ -5,7 +5,9 @@ import {
   isCustomerDeliveryFileVisible,
   isCustomerFileVisible,
 } from "@/lib/helpers/bookingWorkflow";
+import { getPropertySharingDashboard } from "@/lib/services/propertySharing";
 import FileList from "./FileList";
+import PropertySharingManager from "./PropertySharingManager";
 
 function parseRequestedFileId(rawValue) {
   const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
@@ -52,7 +54,10 @@ export default async function FilesPage({ searchParams }) {
     return null;
   }
 
-  const res = await getBookings(session.id);
+  const [res, propertySharing] = await Promise.all([
+    getBookings(session.id),
+    getPropertySharingDashboard(session.id),
+  ]);
   const bookings = res.success ? res.data : [];
   const bookingsWithFiles = bookings
     .map((b) => {
@@ -87,11 +92,19 @@ export default async function FilesPage({ searchParams }) {
   return (
     <div>
       <div className="max-w-6xl mx-auto">
+        <PropertySharingManager initialData={propertySharing} />
+        <h2
+          id="delivered-files"
+          className="mb-4 scroll-mt-24 text-xl font-semibold text-white"
+        >
+          Delivered files
+        </h2>
         <FileList
           bookings={bookingsWithFiles}
           highlightedFileId={requestedFileAvailable ? requestedFileId : null}
           requestedFileAvailable={requestedFileAvailable}
           requestedFileIdWasProvided={requestedFileIdWasProvided}
+          propertySharing={propertySharing}
         />
       </div>
     </div>

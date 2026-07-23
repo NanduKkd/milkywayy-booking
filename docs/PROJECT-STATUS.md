@@ -1,12 +1,12 @@
 # Project Status
 
-- Last updated: 2026-07-21
+- Last updated: 2026-07-23
 - Status: `ACTIVE`
 - Release posture: core product workflows are implemented, but repo-wide quality checks are not fully green
 
 ## Summary
 
-Milkywayy is an active Next.js application with working customer booking flows, dashboard access, admin operations, delivery-file workflow, wallet/invoice features, promotions, finance reporting, scheduling calendar workflows, and a completed first-release GPT Actions OAuth integration.
+Milkywayy is an active Next.js application with working customer booking flows, dashboard access, secure completed-property sharing, admin operations, delivery-file workflow, wallet/invoice features, promotions, finance reporting, scheduling calendar workflows, and a completed first-release GPT Actions OAuth integration.
 
 The root `README.md` indexes maintained repository documentation. GitHub Issues
 and Project 1 now govern planned work and live workflow status; the former
@@ -22,8 +22,14 @@ Notion workspace is retained only as a migration archive.
 
 ### Customer dashboard
 
-- Dashboard sections exist for bookings, files, invoices, wallet, and external connections under `src/app/dashboard/`.
-- Delivery-file listing and dashboard deep-link flow are implemented in `src/app/dashboard/files/` and related delivery services.
+- Dashboard sections exist for bookings, Properties, invoices, wallet, and external connections under `src/app/dashboard/`.
+- Properties retains `/dashboard/files`, delivery-file listing, and dashboard
+  deep links while adding stable single/master completed-property links,
+  owner-authored listing/contact configuration, FileList-based link creation,
+  reference-matched Shared, Master, selection, and listing-form management,
+  real Phone/Desktop buyer previews, responsive edge-to-edge public showcases,
+  inline media galleries, and a total link-view count without visitor PII.
+  Its durable contract is under `docs/customer-property-sharing/`.
 
 ### Admin surface
 
@@ -50,18 +56,22 @@ Notion workspace is retained only as a migration archive.
 
 ## Current repository health
 
-Most recent full-suite evidence recorded during issue #62 verification on
-2026-07-21:
+Most recent full-suite evidence recorded during issue #68 verification on
+2026-07-22:
 
-- `npm run test:jest:full`: `181` test suites passed and `11` failed. `1,089`
-  tests passed and `43` failed.
-- `npm run lint`: checked `579` files and reported `293` errors and `59`
-  warnings in the pre-existing repository-wide backlog.
-- `npm run verify:scheduling-calendar-rollout`: `212` tests passed across `36`
-  suites after issue #62 added token-scoped promotion preview, atomic handoff
-  booking synchronization, shared promotion/wallet summary parity, locked
-  checkout revalidation, promotion reservation retry, and Stripe failure
-  cleanup coverage.
+- `npm run test:jest:full -- --silent`: `193` test suites passed, `1` was
+  skipped behind its explicit disposable-PostgreSQL opt-in, and `11` failed.
+  `1,135` tests passed, `3` were skipped, and `42` failed.
+- A tracked-file Biome check reported the same pre-existing `293` errors and
+  `59` warnings.
+- The corrected issue #68 property-sharing verification on 2026-07-23 passed
+  `60` tests across `11` focused suites, with the guarded PostgreSQL suite
+  skipped in that ordinary command. The reserved disposable-PostgreSQL run
+  separately passed `4` tests covering schema constraints and 40 concurrent
+  view increments. All changed JavaScript and JSX passed focused Biome checks;
+  the reference-matched CSS retained only `8` non-blocking
+  descending-specificity warnings. Its compatibility gate passed `95` tests
+  across `18` existing dashboard, delivery, storage, and booking suites.
 
 Interpretation:
 
