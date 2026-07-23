@@ -61,49 +61,6 @@
   gap: 18px;
 }
 
-.readyCard {
-  padding: 22px;
-  border: 1px solid var(--share-border);
-  border-radius: 18px;
-  background: var(--share-card);
-}
-
-.readyTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.readyTop h3 {
-  font-size: 17px;
-  font-weight: 800;
-  line-height: 1.3;
-}
-
-.readyTop p {
-  margin-top: 5px;
-  color: var(--share-muted);
-  font-size: 12.5px;
-}
-
-.readyTop > div:last-child {
-  text-align: right;
-  white-space: nowrap;
-}
-
-.readyTop > div:last-child b,
-.readyTop > div:last-child span {
-  display: block;
-  font-size: 12px;
-}
-
-.readyTop > div:last-child span {
-  margin-top: 4px;
-  color: var(--share-dim);
-}
-
-.readyActions,
 .masterActions,
 .cardActions {
   display: flex;
@@ -111,12 +68,6 @@
   gap: 8px;
 }
 
-.readyActions {
-  margin-top: 20px;
-}
-
-.readyActions button,
-.readyActions a,
 .masterActions button,
 .cardActions button {
   display: inline-flex;
@@ -134,7 +85,6 @@
   font-weight: 700;
 }
 
-.readyActions svg,
 .masterActions svg,
 .cardActions svg {
   width: 14px;
@@ -253,6 +203,9 @@
   align-items: center;
   justify-content: center;
   border: 2px solid rgba(255, 255, 255, 0.55);
+  color: #0a0a0b;
+  cursor: pointer;
+  padding: 0;
 }
 
 .selectCheck svg {
@@ -819,7 +772,6 @@
 
 @media (max-width: 640px) {
   .sectionRow,
-  .readyTop,
   .masterTop,
   .cardFooter {
     align-items: stretch;
@@ -833,11 +785,6 @@
   .sectionButtons button {
     flex: 1;
   }
-
-  .readyTop > div:last-child {
-    text-align: left;
-  }
-
   .cardActions {
     justify-content: flex-start;
   }

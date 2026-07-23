@@ -41,16 +41,24 @@ without cropping. The layout becomes an edge-to-edge single column on narrow
 screens. If an authorized media object is missing, both the hero and its
 thumbnail show an explicit unavailable state rather than a broken image.
 
-The management UI follows the supplied reference: compact **Ready to Share**,
-**Shared Properties**, **Master Links**, and select-multiple/action-bar
-surfaces; a compact listing form; and card-click preview. Owners select two or
-more shared property cards to create or update the master collection. Preview
-embeds the actual public buyer page and can be switched between Phone and
-Desktop widths.
+The management UI follows the supplied reference with compact **Shared
+Properties**, **Master Links**, and select-multiple/action-bar surfaces, a
+compact listing form, and card-click preview. Eligible unshared completed
+projects expose **Create Share Link** in the authenticated `FileList` directly
+below the manager; published properties are managed above it. Owners select two
+or more shared property cards—including the visible check control—to create or
+update the master collection. Preview embeds the actual public buyer page and
+can be switched between Phone and Desktop widths.
 
 The existing authenticated `FileList` remains directly below the sharing
 manager with its download, revision, replacement, review, and completion
 behavior unchanged.
+
+The public master collection fills the browser bounds without an outer card
+margin, border, radius, or shadow. It does not repeat a collection-level contact
+card: contact and WhatsApp actions remain available inside each selected
+property's full showcase. The selected-property view keeps an inset,
+keyboard-focusable back-to-collection link above the showcase.
 
 Public pages always resolve the current accepted browser-safe media for the
 selected booking. Photos and videos are streamed only through

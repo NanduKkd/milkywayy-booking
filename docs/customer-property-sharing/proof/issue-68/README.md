@@ -1,26 +1,30 @@
 # Issue #68 product-correction proof
 
-The authoritative correction pass was captured on 23 July 2026 from the
-production build with an isolated disposable PostgreSQL database. It used one
-synthetic customer, three synthetic completed properties, five accepted current
-media records, two single-property links, and one master link. The temporary
-server and database were removed after verification.
+The authoritative correction pass and follow-up browser review were captured
+on 23 July 2026. The production-build pass used an isolated disposable
+PostgreSQL database with one synthetic customer, three synthetic completed
+properties, five accepted current media records, two single-property links, and
+one master link. The temporary server and database were removed after
+verification.
 
 The supplied reference HTML was inspected directly for its `rcard`, `pshared`,
 `mcard`, `actionbar`, `modal`, `pv-*`, `desk`, `phone`, `sp-*`, `col-grid-d`,
-and `cmini` contracts. The `corrected-management-*`,
-and other files beginning with `corrected-` are the authoritative screenshots
-for the final management, listing, preview, and public-page contract. The older
-PNG files and `contextual-sharing-*` files are retained only as historical
-evidence for superseded management iterations and must not be used to infer the
-current authenticated layout.
+and `cmini` contracts. The files beginning with `browser-review-` are the
+authoritative evidence for the final placement and public collection review.
+The `corrected-*` screenshots remain authoritative for the listing form,
+preview, and single-property page contracts. Older PNG files and
+`contextual-sharing-*` files are retained only as historical evidence for
+superseded management iterations.
 
 ## Corrected authenticated UI
 
-- [`corrected-management-desktop.jpg`](corrected-management-desktop.jpg) and
-  [`corrected-management-phone.jpg`](corrected-management-phone.jpg) show the
-  compact Ready to Share and Shared Properties surfaces, including the Master
-  Links and Select Multiple entry points.
+- [`browser-review-management.png`](browser-review-management.png) shows the
+  Shared Properties manager without a separate Ready to Share section. It also
+  captures the directly clickable visual selection controls and two-property
+  sticky update action.
+- [`browser-review-files-list.png`](browser-review-files-list.png) shows Create
+  Share Link restored to each eligible unshared Delivered files card. Already
+  shared properties do not repeat that action.
 - [`corrected-listing-form-desktop.jpg`](corrected-listing-form-desktop.jpg) and
   [`corrected-listing-form-phone.jpg`](corrected-listing-form-phone.jpg) show the
   reference-width listing form, explicit bordered controls, readable native
@@ -50,23 +54,32 @@ original live-object proof.
   contact actions, and branding.
 - [`corrected-public-master-desktop.jpg`](corrected-public-master-desktop.jpg)
   and [`corrected-public-master-phone.jpg`](corrected-public-master-phone.jpg)
-  show the compact two-property curated collection.
+  show the earlier compact curated collection.
+- [`browser-review-master-collection.png`](browser-review-master-collection.png)
+  supersedes that collection shell: it fills the viewport with no outer margin,
+  border, radius, or shadow and contains no duplicate collection-level contact
+  card.
+- [`browser-review-master-property.png`](browser-review-master-property.png)
+  shows the selected-property return path with deliberate top and horizontal
+  spacing. The property-level agent contact remains available.
 
 ## Browser assertions
 
-- Management was verified at 1440 × 900 and 390 × 844. Ready/Shared cards,
-  listing form, selection mode, action bar, and Master Links introduced no
-  horizontal overflow; the existing Delivered files list remained below the
-  manager.
+- Management was verified at 1440 × 900 and 390 × 844 during the production
+  pass, then at 880 × 964 for the follow-up review. Shared cards, listing form,
+  selection mode, action bar, and Master Links introduced no horizontal
+  overflow; the Delivered files list remained below the manager.
 - The public single showcase was verified at the same two viewport sizes. Its
   outer article matched the viewport origin and width, had no card treatment,
   and introduced no horizontal overflow. Above the desktop split breakpoint,
   its media hero filled the available viewport height above the thumbnail strip
   while photo/video content used contain sizing without cropping.
-- The Ready action opened the selected property's listing form. Shared cards
-  exposed Copy Link, Preview, Edit, and Disable/Enable controls, while card
-  selection required at least two properties before master creation. Preview
-  opened the actual public route in an iframe.
+- Create Share Link on an eligible unshared Delivered files card opened that
+  property's listing form. Shared cards exposed Copy Link, Preview, Edit, and
+  Disable/Enable controls, while card selection required at least two
+  properties before master creation. Both the whole card and its visible check
+  control toggled selection; the direct check-control test changed the selected
+  count from three to two. Preview opened the actual public route in an iframe.
 - The public gallery ordered images before video and 360 media.
 - A real accepted HTTPS 360 delivery rendered as an interactive no-referrer
   iframe in the main viewer at 1440 × 900 and 390 × 844. The page contained one
@@ -81,21 +94,24 @@ original live-object proof.
 - Disabling the single link immediately produced the generic unavailable page.
   Re-enabling restored the exact same public ID and URL. The stored total moved
   only for successful landing renders and remained one simple aggregate.
-- The master landing contained exactly the two explicitly selected properties
-  and opened each under the same stable public ID.
+- The reviewed master landing matched the 880 × 964 viewport exactly
+  (`x: 0`, `y: 0`, `width: 880`, `height: 964`) with `0px` border and radius,
+  `none` box shadow, no horizontal overflow, and zero collection-level contact
+  cards or WhatsApp links. It opened each property under the same stable public
+  ID.
+- The selected master property return path used 16px top, 26px left/right, and
+  14px bottom padding instead of touching the viewport edge.
 
 ## Verification recorded
 
 - Focused sharing/model/migration/action/management/public-route/storage command:
-  **11 suites and 60 tests passed**; the guarded PostgreSQL suite was skipped in
+  **12 suites and 61 tests passed**; the guarded PostgreSQL suite was skipped in
   that ordinary command.
 - Reserved disposable-PostgreSQL command: **1 suite and 5 tests passed**,
   covering booking-only row locks across the optional listing join,
   single/master/listing uniqueness, and 40 concurrent lossless total-view
   increments.
-- Focused changed-file Biome check: no errors; the CSS module retains only
-  non-blocking descending-specificity warnings caused by independent
-  reference-matched component selectors.
+- Focused changed-file Biome check: passed with no errors or warnings.
 - `npm run build`: passed, compiled and generated **74 routes**. It retained the
   pre-existing non-fatal `/admin/promotions` dynamic-server diagnostic.
 - `git diff --check`: passed.

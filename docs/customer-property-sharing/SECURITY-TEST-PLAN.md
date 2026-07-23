@@ -45,16 +45,17 @@
 ### Compatibility and UI
 
 - The tab says Properties but links to `/dashboard/files`.
-- Ready to Share, compact listing form, Shared Properties, Master Links,
-  select-multiple/action bar, total views, stable copy, enable/disable, and the
-  actual Phone/Desktop public-page preview are covered at desktop and narrow
-  sizes.
+- Eligible unshared FileList create action, compact listing form, Shared
+  Properties, Master Links, direct check-control selection, select-multiple
+  action bar, total views, stable copy, enable/disable, and the actual
+  Phone/Desktop public-page preview are covered at desktop and narrow sizes.
 - Single showcase covers gallery switching, direct video selection without a
   Video Walkthrough action, iframe-based 360 viewing from the media strip
   without an image thumbnail, metadata chips, description, highlights, contact
   phone/WhatsApp actions, empty/error states, and branding.
 - Master collection contains only selected cards and opens the full selected
-  showcase under the same token with a back path.
+  showcase under the same token with a spaced back path. The collection root is
+  edge-to-edge with no outer card treatment or repeated contact card.
 - Existing `fileId`, authenticated download/copy-link, revisions, replacements,
   review deadlines, completion, and other dashboard product areas retain
   focused compatibility coverage.
@@ -69,11 +70,13 @@ Record exact suite/test counts and separate unrelated baseline failures.
 ## Sanitized browser proof
 
 Use synthetic listings, media, contacts, and bearers. Capture 1440×900 and
-390×844 evidence for Ready/Shared management, listing form, select-multiple and
-master-link management, the unchanged FileList, a single showcase/gallery, and
-a master collection plus selected-property showcase. Record DOM/network checks
-for inline media and the absence of buyer POSTs, receipt cookies, public
-downloads/attachments, authenticated download calls, and persisted object URLs.
+390×844 evidence for Shared management, FileList creation, listing form,
+select-multiple and master-link management, the unchanged delivery controls, a
+single showcase/gallery, and an edge-to-edge master collection plus spaced
+selected-property back path. Record DOM/network checks for inline media and the
+absence of buyer POSTs, receipt cookies, public downloads/attachments,
+collection-level contact actions, authenticated download calls, and persisted
+object URLs.
 
 Verify disabled/unselected/current-media failures, stable re-enable behavior,
 total-only views, and unchanged authenticated FileList/download behavior.

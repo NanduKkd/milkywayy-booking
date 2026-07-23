@@ -104,6 +104,7 @@ export default async function FilesPage({ searchParams }) {
           highlightedFileId={requestedFileAvailable ? requestedFileId : null}
           requestedFileAvailable={requestedFileAvailable}
           requestedFileIdWasProvided={requestedFileIdWasProvided}
+          propertySharing={propertySharing}
         />
       </div>
     </div>

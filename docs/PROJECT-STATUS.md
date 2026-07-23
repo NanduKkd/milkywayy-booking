@@ -25,10 +25,10 @@ Notion workspace is retained only as a migration archive.
 - Dashboard sections exist for bookings, Properties, invoices, wallet, and external connections under `src/app/dashboard/`.
 - Properties retains `/dashboard/files`, delivery-file listing, and dashboard
   deep links while adding stable single/master completed-property links,
-  owner-authored listing/contact configuration, reference-matched Ready,
-  Shared, Master, selection, and listing-form management, real Phone/Desktop
-  buyer previews, responsive public showcases, inline media galleries, and a
-  total link-view count without visitor PII.
+  owner-authored listing/contact configuration, FileList-based link creation,
+  reference-matched Shared, Master, selection, and listing-form management,
+  real Phone/Desktop buyer previews, responsive edge-to-edge public showcases,
+  inline media galleries, and a total link-view count without visitor PII.
   Its durable contract is under `docs/customer-property-sharing/`.
 
 ### Admin surface

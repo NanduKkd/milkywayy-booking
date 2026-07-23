@@ -122,6 +122,7 @@ describe("dashboard files page", () => {
         }),
       ],
       highlightedFileId: 18,
+      propertySharing: { eligibleProperties: [], shares: [] },
       requestedFileAvailable: true,
       requestedFileIdWasProvided: true,
     });
@@ -154,6 +155,7 @@ describe("dashboard files page", () => {
     expect(mockFileList.mock.calls[0][0]).toEqual({
       bookings: [],
       highlightedFileId: null,
+      propertySharing: { eligibleProperties: [], shares: [] },
       requestedFileAvailable: false,
       requestedFileIdWasProvided: true,
     });

@@ -75,10 +75,22 @@
 ## PROP-D009 — Match the supplied reference interaction and visual contract
 
 - Status: `ACCEPTED`
-- Decision: Properties uses the reference's compact Ready, Shared, Master,
-  listing-form, action-bar, and buyer-showcase patterns. A shared card opens the
-  real public page in a Phone/Desktop preview.
+- Decision: Properties uses the reference's compact Shared, Master,
+  listing-form, action-bar, and buyer-showcase patterns. Eligible unshared
+  completed projects expose **Create Share Link** in the authenticated FileList
+  directly below the sharing manager. A shared card opens the real public page
+  in a Phone/Desktop preview.
 - Consequence: Extra explanatory headers, rotation/revocation/refresh controls,
   substitute preview markup, agent assignment, and team controls are outside
   the product contract. The authenticated delivery-file list remains available
   below the reference-style property-sharing manager.
+
+## PROP-D010 — Keep collection chrome edge-to-edge and property-specific
+
+- Status: `ACCEPTED`
+- Decision: The public master collection occupies the browser bounds without an
+  outer card margin, border, radius, or shadow. Collection cards remain compact,
+  while contact actions appear only inside each property's full showcase.
+- Consequence: A master landing does not repeat a collection-level contact card.
+  The selected-property back path retains clear inset spacing above the full
+  showcase.

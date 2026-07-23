@@ -193,7 +193,7 @@ describe("public property showcase page", () => {
       properties,
     });
 
-    render(
+    const { container } = render(
       await SharedPropertyPage({
         params: Promise.resolve({ token }),
         searchParams: Promise.resolve({}),
@@ -213,6 +213,10 @@ describe("public property showcase page", () => {
       undefined,
       null,
     );
+    expect(container.querySelector(".contact-card")).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "WhatsApp" }),
+    ).not.toBeInTheDocument();
   });
 
   it("requests and renders a selected master showcase with a back path", async () => {

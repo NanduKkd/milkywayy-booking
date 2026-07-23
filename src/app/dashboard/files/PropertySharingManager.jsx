@@ -1,29 +1,16 @@
 "use client";
 
-import { Check, Copy, Link2, Loader2, X } from "lucide-react";
+import { Check, Copy, Loader2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createMasterPropertyShareAction,
-  createSinglePropertyShareAction,
   getPropertySharingDashboardAction,
   savePropertyShareListingAction,
   setPropertyShareEnabledAction,
   updateMasterPropertyShareAction,
 } from "@/lib/actions/propertySharing";
 import styles from "./PropertySharingManager.module.css";
-
-function formatDate(value) {
-  if (!value) return "Delivered";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Delivered";
-  return new Intl.DateTimeFormat("en-AE", {
-    timeZone: "Asia/Dubai",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
 
 function formatPrice(listing) {
   if (!listing) return "Listing not configured";
@@ -351,18 +338,6 @@ export default function PropertySharingManager({ initialData }) {
     () => data.shares.filter((share) => share.kind === "SINGLE_PROPERTY"),
     [data.shares],
   );
-  const sharedBookingIds = useMemo(
-    () =>
-      new Set(
-        singleShares.flatMap((share) =>
-          share.properties.map((property) => property.bookingId),
-        ),
-      ),
-    [singleShares],
-  );
-  const readyProperties = data.eligibleProperties.filter(
-    (property) => !sharedBookingIds.has(property.id),
-  );
   const masterShare = data.shares.find((share) => share.kind === "MASTER");
 
   const reload = async () => {
@@ -398,24 +373,12 @@ export default function PropertySharingManager({ initialData }) {
 
   const saveListing = async (form) => {
     const property = editing.property;
-    const shouldCreate = editing.mode === "create";
-    const result = await run(`listing:${property.id}`, async () => {
-      const saved = await savePropertyShareListingAction(property.id, form);
-      if (!saved.success || !shouldCreate) return saved;
-      return createSinglePropertyShareAction(property.id);
-    });
+    const result = await run(`listing:${property.id}`, () =>
+      savePropertyShareListingAction(property.id, form),
+    );
     if (!result) return;
     setEditing(null);
-    if (shouldCreate && result.publicUrl) {
-      try {
-        await navigator.clipboard.writeText(result.publicUrl);
-        toast.success("Share link created and copied.");
-      } catch {
-        toast.success("Share link created.");
-      }
-    } else {
-      toast.success("Listing updated.");
-    }
+    toast.success("Listing updated.");
   };
 
   const toggleShare = async (share) => {
@@ -465,48 +428,6 @@ export default function PropertySharingManager({ initialData }) {
         Delivered shoots become shareable property pages — click a card to see
         exactly what viewers see.
       </p>
-
-      <div className={`sec-row ${styles.sectionRow}`}>
-        <div className={`sec-label ${styles.sectionLabel}`}>READY TO SHARE</div>
-      </div>
-      {readyProperties.length > 0 ? (
-        <div className={`grid2 ${styles.gridTwo}`}>
-          {readyProperties.map((property) => (
-            <article className={`rcard ${styles.readyCard}`} key={property.id}>
-              <div className={styles.readyTop}>
-                <div>
-                  <h3>{property.bookingTitle}</h3>
-                  <p>
-                    {property.location}
-                    {property.bedrooms !== null
-                      ? ` · ${property.bedrooms} Bed`
-                      : ""}{" "}
-                    · {property.mediaCount} media
-                  </p>
-                </div>
-                <div>
-                  <b>Delivered</b>
-                  <span>{formatDate(property.completedAt)}</span>
-                </div>
-              </div>
-              <div className={styles.readyActions}>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  onClick={() => setEditing({ property, mode: "create" })}
-                >
-                  <Link2 /> Create Share Link
-                </button>
-                <a href="#delivered-files">↓ Download Files</a>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <p className={styles.emptyState}>
-          No additional completed properties are ready to share.
-        </p>
-      )}
 
       <div className={`sec-row ${styles.sectionRow}`}>
         <div className={`sec-label ${styles.sectionLabel}`}>
@@ -628,14 +549,19 @@ export default function PropertySharingManager({ initialData }) {
                 <button
                   type="button"
                   className={styles.cardHitArea}
-                  aria-label={`${selectionMode ? (selected ? "Remove" : "Add") : "Preview"} ${property.listing?.listingTitle || property.bookingTitle}${selectionMode ? " from master collection" : ""}`}
+                  aria-label={`${selectionMode ? (selected ? "Remove" : "Add") : "Preview"} ${property.listing?.listingTitle || property.bookingTitle}${selectionMode ? `${selected ? " from" : " to"} master collection` : ""}`}
                   onClick={openOrSelect}
                 />
                 <div className={styles.sharedHero} data-tone={index % 3}>
                   {selectionMode ? (
-                    <span className={styles.selectCheck}>
+                    <button
+                      type="button"
+                      className={styles.selectCheck}
+                      aria-label={`${selected ? "Remove" : "Add"} ${property.listing?.listingTitle || property.bookingTitle} ${selected ? "from" : "to"} master collection`}
+                      onClick={openOrSelect}
+                    >
                       {selected ? <Check /> : null}
-                    </span>
+                    </button>
                   ) : null}
                   <span
                     className={share.enabled ? styles.liveTag : styles.offTag}

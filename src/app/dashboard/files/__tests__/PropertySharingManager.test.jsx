@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import PropertySharingManager from "../PropertySharingManager";
 
 const mockCreateMaster = jest.fn();
-const mockCreateSingle = jest.fn();
 const mockGetDashboard = jest.fn();
 const mockSaveListing = jest.fn();
 const mockSetEnabled = jest.fn();
@@ -10,7 +9,6 @@ const mockUpdateMaster = jest.fn();
 
 jest.mock("@/lib/actions/propertySharing", () => ({
   createMasterPropertyShareAction: (...args) => mockCreateMaster(...args),
-  createSinglePropertyShareAction: (...args) => mockCreateSingle(...args),
   getPropertySharingDashboardAction: (...args) => mockGetDashboard(...args),
   savePropertyShareListingAction: (...args) => mockSaveListing(...args),
   setPropertyShareEnabledAction: (...args) => mockSetEnabled(...args),
@@ -91,13 +89,6 @@ describe("PropertySharingManager", () => {
       success: true,
       data: { bookingId: 20 },
     });
-    mockCreateSingle.mockResolvedValue({
-      success: true,
-      data: {
-        shareId: 8,
-        publicUrl: "https://example.test/share/redacted-token-value",
-      },
-    });
     mockCreateMaster.mockResolvedValue({
       success: true,
       data: {
@@ -112,10 +103,13 @@ describe("PropertySharingManager", () => {
     });
   });
 
-  it("matches the Ready, Shared Properties, Master Links, and aggregate management contract", () => {
+  it("keeps Shared Properties and Master Links management above the file list without a Ready section", () => {
     render(<PropertySharingManager initialData={data()} />);
 
-    expect(screen.getByText("READY TO SHARE")).toBeInTheDocument();
+    expect(screen.queryByText("READY TO SHARE")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Create Share Link" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("SHARED PROPERTIES")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Master Links (0)" }),
@@ -132,63 +126,14 @@ describe("PropertySharingManager", () => {
     expect(screen.queryByText(/agent/u)).not.toBeInTheDocument();
   });
 
-  it("collects owner listing and contact configuration without assignment UI", () => {
-    render(<PropertySharingManager initialData={data()} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Create Share Link" }));
-
-    expect(
-      screen.getByRole("form", { name: "Create property listing" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("LISTING TITLE *")).toBeInTheDocument();
-    expect(screen.getByLabelText("PRICE (AED) *")).toBeInTheDocument();
-    expect(screen.getByLabelText("LISTING TYPE *")).toBeInTheDocument();
-    expect(screen.getByLabelText("BATHROOMS")).toBeInTheDocument();
-    expect(screen.getByLabelText("SIZE (SQFT)")).toBeInTheDocument();
-    expect(
-      screen.getByRole("group", { name: "FURNISHING *" }),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("DESCRIPTION")).toBeInTheDocument();
-    expect(screen.getByLabelText("CONTACT NAME *")).toBeInTheDocument();
-    expect(screen.getByLabelText("CONTACT PHONE *")).toBeInTheDocument();
-    expect(screen.queryByText(/ASSIGN TO AGENTS/u)).not.toBeInTheDocument();
-  });
-
-  it("saves listing configuration and creates a stable copied link", async () => {
-    const initial = data({ withShares: false });
-    mockGetDashboard.mockResolvedValue({ success: true, data: initial });
-    render(<PropertySharingManager initialData={initial} />);
-
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Create Share Link" })[0],
-    );
-    fireEvent.change(screen.getByLabelText("PRICE (AED) *"), {
-      target: { value: "2350000" },
-    });
-    fireEvent.change(screen.getByLabelText("CONTACT NAME *"), {
-      target: { value: "Synthetic Owner" },
-    });
-    fireEvent.change(screen.getByLabelText("CONTACT PHONE *"), {
-      target: { value: "+971500000000" },
-    });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Generate & Copy Link" }),
-    );
-
-    await waitFor(() => expect(mockSaveListing).toHaveBeenCalled());
-    expect(mockCreateSingle).toHaveBeenCalledWith(20);
-    await waitFor(() =>
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        "https://example.test/share/redacted-token-value",
-      ),
-    );
-  });
-
-  it("selects two shared properties and creates a master collection", async () => {
+  it("toggles the visible check controls and creates a master collection", async () => {
     render(<PropertySharingManager initialData={data()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Select Multiple" }));
-    const selectors = screen.getAllByLabelText(/master collection/u);
+    const selectors = screen
+      .getAllByRole("button", { name: /to master collection/u })
+      .filter((button) => button.className.includes("selectCheck"));
+    expect(selectors).toHaveLength(2);
     fireEvent.click(selectors[0]);
     fireEvent.click(selectors[1]);
 

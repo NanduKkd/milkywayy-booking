@@ -17,38 +17,6 @@ function mediaUrl(token, propertyId, mediaId) {
   return `/api/public/property-shares/${encodeURIComponent(token)}/properties/${encodeURIComponent(propertyId)}/media/${encodeURIComponent(mediaId)}`;
 }
 
-function ContactCard({ contact, compact = false }) {
-  const initials = contact.name
-    .split(/\s+/u)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-  return (
-    <div
-      className={`contact-card ${styles.contactCard} ${compact ? styles.compactContact : ""}`}
-    >
-      <div className={`avatar ${styles.avatar}`} aria-hidden="true">
-        {initials}
-      </div>
-      <div className={styles.contactMeta}>
-        <div className={styles.contactName}>{contact.name}</div>
-        <a className={styles.contactPhone} href={contact.telephoneUrl}>
-          {contact.phone}
-        </a>
-      </div>
-      <a
-        className={`wa-btn ${styles.whatsappButton}`}
-        href={contact.whatsappUrl}
-        rel="noreferrer"
-        target="_blank"
-      >
-        WhatsApp
-      </a>
-    </div>
-  );
-}
-
 function CollectionCard({ token, property }) {
   const hero = property.media.find((media) =>
     media.mimeType.startsWith("image/"),
@@ -146,9 +114,6 @@ export default async function SharedPropertyPage({ params, searchParams }) {
                   property={property}
                 />
               ))}
-            </div>
-            <div className={styles.collectionContact}>
-              <ContactCard contact={landing.properties[0].contact} compact />
             </div>
             <footer className={`sp-footer ${styles.showcaseFooter}`}>
               Media &amp; page by <b>MILKYWAYY</b> · milkywayy.com
