@@ -94,6 +94,15 @@ describe("PropertyShareDialog", () => {
     expect(
       screen.getByRole("form", { name: "Create property listing" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "For Sale" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "For Rent (yearly)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Holiday Home" }),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("PRICE (AED) *"), {
       target: { value: "2350000" },

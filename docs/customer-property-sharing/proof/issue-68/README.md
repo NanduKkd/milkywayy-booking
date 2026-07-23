@@ -24,8 +24,9 @@ authenticated layout.
   standalone Ready/Shared/Master management section or duplicated project list.
 - [`corrected-listing-form-desktop.jpg`](corrected-listing-form-desktop.jpg) and
   [`corrected-listing-form-phone.jpg`](corrected-listing-form-phone.jpg) show the
-  reference-width listing form, segmented furnishing control, owner contact
-  fields, and Generate & Copy Link action.
+  reference-width listing form, explicit bordered controls, readable native
+  dropdown choices, segmented furnishing control, owner contact fields, and
+  Generate & Copy Link action.
 - [`corrected-preview-desktop.jpg`](corrected-preview-desktop.jpg) and
   [`corrected-preview-phone.jpg`](corrected-preview-phone.jpg) show that card
   preview embeds the actual public page and switches between Desktop and Phone

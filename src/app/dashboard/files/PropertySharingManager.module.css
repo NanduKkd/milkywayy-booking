@@ -1,15 +1,19 @@
 /* The Properties surface intentionally mirrors the supplied static reference. */
-.manager {
+.manager,
+.overlay {
   --share-card: #131315;
   --share-card-2: #1a1a1d;
   --share-border: #232327;
-  --share-border-2: #2e2e33;
+  --share-border-2: #3a3a42;
   --share-text: #f4f4f5;
   --share-muted: #a1a1aa;
   --share-dim: #6b6b73;
+  color: var(--share-text);
+}
+
+.manager {
   position: relative;
   margin-bottom: 42px;
-  color: var(--share-text);
 }
 
 .tabHint,
@@ -584,6 +588,15 @@
   color: var(--share-text);
   font: inherit;
   font-size: 13px;
+}
+
+.formGrid select {
+  color-scheme: dark;
+}
+
+.formGrid select option {
+  background: #fff;
+  color: #111;
 }
 
 .formGrid textarea {
