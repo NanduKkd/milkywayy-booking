@@ -131,7 +131,11 @@ export default function PropertyShowcase({ property, token }) {
                   aria-pressed={media.id === activeMedia?.id}
                   onClick={() => setActiveMediaId(media.id)}
                 >
-                  {media.mimeType.startsWith("video/") ? (
+                  {failedMedia.has(media.id) ? (
+                    <span className={styles.thumbnailFallback}>
+                      Unavailable
+                    </span>
+                  ) : media.mimeType.startsWith("video/") ? (
                     <span className={styles.videoThumb}>
                       <Play aria-hidden="true" /> Video
                     </span>

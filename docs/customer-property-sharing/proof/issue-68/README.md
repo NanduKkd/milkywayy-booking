@@ -31,6 +31,11 @@ authenticated layout.
   [`corrected-preview-phone.jpg`](corrected-preview-phone.jpg) show that card
   preview embeds the actual public page and switches between Desktop and Phone
   frames.
+- [`full-viewport-public-single-desktop.jpg`](full-viewport-public-single-desktop.jpg)
+  and [`full-viewport-public-single-phone.jpg`](full-viewport-public-single-phone.jpg)
+  show the latest edge-to-edge single-property layout with no outer card
+  border, radius, shadow, or page gutter. The unavailable hero and thumbnail
+  are deliberate proof of the isolated fixture's missing synthetic object.
 
 The isolated fixture deliberately used non-existent synthetic object URLs, so
 its corrected preview/public screenshots exercise the designed media-error
@@ -53,6 +58,9 @@ original live-object proof.
 - Contextual placement was verified at 1440 × 900 and 390 × 844. Both sizes had
   one Delivered files list, no standalone sharing manager, and no horizontal
   overflow.
+- The public single showcase was verified at the same two viewport sizes. Its
+  outer article matched the viewport origin and width, had no card treatment,
+  and introduced no horizontal overflow.
 - The Create action opened the selected completed project's listing form.
   Existing shares exposed a named Manage action with Copy Link, Preview, Edit,
   and Disable/Enable controls. Preview opened the actual public route in an
@@ -70,7 +78,7 @@ original live-object proof.
 ## Verification recorded
 
 - Focused sharing/model/migration/action/management/public-route/storage command:
-  **11 suites and 61 tests passed**; the guarded PostgreSQL suite was skipped in
+  **11 suites and 62 tests passed**; the guarded PostgreSQL suite was skipped in
   that ordinary command.
 - Reserved disposable-PostgreSQL command: **1 suite and 5 tests passed**,
   covering booking-only row locks across the optional listing join,

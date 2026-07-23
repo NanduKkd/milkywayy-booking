@@ -123,7 +123,11 @@ export default async function SharedPropertyPage({ params, searchParams }) {
         );
 
   return (
-    <main className={`public-share-root ${styles.root}`}>
+    <main
+      className={`public-share-root ${styles.root} ${
+        selectedProperty ? styles.showcaseRoot : styles.collectionRoot
+      }`}
+    >
       {landing.kind === "MASTER" && !selectedProperty
         ? <section className={`collection ${styles.collection}`}>
             <div className={`col-pad ${styles.collectionHeading}`}>

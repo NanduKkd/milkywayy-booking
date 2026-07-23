@@ -26,6 +26,12 @@ media, listing metadata, description, highlights, telephone and WhatsApp
 actions, and Milkywayy branding. They contain no buyer form, delivery manifest,
 download button, revision control, or authenticated file route.
 
+The single-property showcase owns the full browser surface. It has no outer
+card border, radius, shadow, or page gutter; the media and listing split fill
+the viewport on desktop and become an edge-to-edge single column on narrow
+screens. If an authorized media object is missing, both the hero and its
+thumbnail show an explicit unavailable state rather than a broken image.
+
 Property sharing no longer repeats delivered projects in a standalone
 management section. Each eligible completed project card in the authenticated
 `FileList` contains its contextual **Create Share Link** action. After

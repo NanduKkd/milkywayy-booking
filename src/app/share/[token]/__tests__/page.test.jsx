@@ -114,6 +114,37 @@ describe("public property showcase page", () => {
     expect(container.querySelector("a[download]")).toBeNull();
   });
 
+  it("replaces failed hero and thumbnail images with unavailable states", async () => {
+    resolvePublicPropertyShareLanding.mockResolvedValue({
+      id: 4,
+      kind: "SINGLE_PROPERTY",
+      properties: [properties[0]],
+    });
+
+    render(
+      await SharedPropertyPage({
+        params: Promise.resolve({ token }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    fireEvent.error(
+      screen.getByRole("img", {
+        name: "Marina corner home — view 1",
+      }),
+    );
+
+    expect(
+      screen.getByText("This media could not be displayed."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Unavailable")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", {
+        name: "Marina corner home — view 1",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   it("renders only selected cmini-style master cards and opens them under the same bearer", async () => {
     resolvePublicPropertyShareLanding.mockResolvedValue({
       id: 4,
