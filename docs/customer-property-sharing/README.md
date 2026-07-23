@@ -41,17 +41,16 @@ without cropping. The layout becomes an edge-to-edge single column on narrow
 screens. If an authorized media object is missing, both the hero and its
 thumbnail show an explicit unavailable state rather than a broken image.
 
-Property sharing no longer repeats delivered projects in a standalone
-management section. Each eligible completed project card in the authenticated
-`FileList` contains its contextual **Create Share Link** action. After
-publication that action becomes **Manage Share Link**, opening the stable copy,
-preview, edit, and disable/enable controls for that property. The compact
-reference-style listing form opens directly from the card, and Preview embeds
-the actual public buyer page with Phone and Desktop widths.
+The management UI follows the supplied reference: compact **Ready to Share**,
+**Shared Properties**, **Master Links**, and select-multiple/action-bar
+surfaces; a compact listing form; and card-click preview. Owners select two or
+more shared property cards to create or update the master collection. Preview
+embeds the actual public buyer page and can be switched between Phone and
+Desktop widths.
 
-Existing master-link data and public collection routes remain readable, but the
-removed standalone section is no longer a customer entry point for creating or
-editing a master collection.
+The existing authenticated `FileList` remains directly below the sharing
+manager with its download, revision, replacement, review, and completion
+behavior unchanged.
 
 Public pages always resolve the current accepted browser-safe media for the
 selected booking. Photos and videos are streamed only through

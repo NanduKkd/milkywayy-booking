@@ -6,22 +6,21 @@ synthetic customer, three synthetic completed properties, five accepted current
 media records, two single-property links, and one master link. The temporary
 server and database were removed after verification.
 
-The supplied reference HTML was inspected directly for its `modal`, `pv-*`,
-`desk`, `phone`, `sp-*`, `col-grid-d`, and `cmini` contracts. The
-`contextual-sharing-*` screenshots are authoritative for the latest
-authenticated placement correction. Other files beginning with `corrected-`
-remain authoritative for the listing dialog, public preview, and public pages.
-Older PNG files and the earlier corrected management screenshots are retained
-only as historical evidence and must not be used to infer the current
-authenticated layout.
+The supplied reference HTML was inspected directly for its `rcard`, `pshared`,
+`mcard`, `actionbar`, `modal`, `pv-*`, `desk`, `phone`, `sp-*`, `col-grid-d`,
+and `cmini` contracts. The `corrected-management-*`,
+and other files beginning with `corrected-` are the authoritative screenshots
+for the final management, listing, preview, and public-page contract. The older
+PNG files and `contextual-sharing-*` files are retained only as historical
+evidence for superseded management iterations and must not be used to infer the
+current authenticated layout.
 
 ## Corrected authenticated UI
 
-- [`contextual-sharing-desktop.jpg`](contextual-sharing-desktop.jpg) and
-  [`contextual-sharing-phone.jpg`](contextual-sharing-phone.jpg) show the single
-  Delivered files project list. Eligible completed cards contain **Create Share
-  Link**; an already-shared card contains **Manage Share Link**. There is no
-  standalone Ready/Shared/Master management section or duplicated project list.
+- [`corrected-management-desktop.jpg`](corrected-management-desktop.jpg) and
+  [`corrected-management-phone.jpg`](corrected-management-phone.jpg) show the
+  compact Ready to Share and Shared Properties surfaces, including the Master
+  Links and Select Multiple entry points.
 - [`corrected-listing-form-desktop.jpg`](corrected-listing-form-desktop.jpg) and
   [`corrected-listing-form-phone.jpg`](corrected-listing-form-phone.jpg) show the
   reference-width listing form, explicit bordered controls, readable native
@@ -55,18 +54,19 @@ original live-object proof.
 
 ## Browser assertions
 
-- Contextual placement was verified at 1440 × 900 and 390 × 844. Both sizes had
-  one Delivered files list, no standalone sharing manager, and no horizontal
-  overflow.
+- Management was verified at 1440 × 900 and 390 × 844. Ready/Shared cards,
+  listing form, selection mode, action bar, and Master Links introduced no
+  horizontal overflow; the existing Delivered files list remained below the
+  manager.
 - The public single showcase was verified at the same two viewport sizes. Its
   outer article matched the viewport origin and width, had no card treatment,
   and introduced no horizontal overflow. Above the desktop split breakpoint,
   its media hero filled the available viewport height above the thumbnail strip
   while photo/video content used contain sizing without cropping.
-- The Create action opened the selected completed project's listing form.
-  Existing shares exposed a named Manage action with Copy Link, Preview, Edit,
-  and Disable/Enable controls. Preview opened the actual public route in an
-  iframe.
+- The Ready action opened the selected property's listing form. Shared cards
+  exposed Copy Link, Preview, Edit, and Disable/Enable controls, while card
+  selection required at least two properties before master creation. Preview
+  opened the actual public route in an iframe.
 - The public gallery ordered images before video and 360 media.
 - A real accepted HTTPS 360 delivery rendered as an interactive no-referrer
   iframe in the main viewer at 1440 × 900 and 390 × 844. The page contained one
@@ -74,9 +74,10 @@ original live-object proof.
   standalone 360 action, no Video Walkthrough action, no hero media-type badge,
   and no horizontal overflow. The bearer and iframe URL were excluded from
   proof.
-- The contextual single-share dialog contained Copy Link, Disable/Enable, Edit,
-  and Preview. It contained no rotate, revoke, refresh-snapshot, expiry,
-  delete-link, agent-assignment, visitor-contact, or duplicate-project controls.
+- The management surface contained stable Copy Link, Disable/Enable, Edit,
+  Preview, Select Multiple, and Master Links controls. It contained no rotate,
+  revoke, refresh-snapshot, expiry, delete-link, agent-assignment, or
+  visitor-contact controls.
 - Disabling the single link immediately produced the generic unavailable page.
   Re-enabling restored the exact same public ID and URL. The stored total moved
   only for successful landing renders and remained one simple aggregate.
@@ -86,7 +87,7 @@ original live-object proof.
 ## Verification recorded
 
 - Focused sharing/model/migration/action/management/public-route/storage command:
-  **11 suites and 64 tests passed**; the guarded PostgreSQL suite was skipped in
+  **11 suites and 60 tests passed**; the guarded PostgreSQL suite was skipped in
   that ordinary command.
 - Reserved disposable-PostgreSQL command: **1 suite and 5 tests passed**,
   covering booking-only row locks across the optional listing join,
