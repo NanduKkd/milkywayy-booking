@@ -41,6 +41,9 @@
   image thumbnail, and never enter the S3 media route.
 - Successful page/collection renders count atomically; failed resolutions and
   media requests do not.
+- Dynamic property metadata uses the listing title and description, canonical
+  represented share URL, and first ordered token-scoped image without exposing
+  a persisted object URL or incrementing the link view total.
 
 ### Compatibility and UI
 
@@ -49,6 +52,9 @@
   Properties, Master Links, direct check-control selection, select-multiple
   action bar, total views, stable copy, enable/disable, and the actual
   Phone/Desktop public-page preview are covered at desktop and narrow sizes.
+- A successful FileList share creation reconciles the refreshed server state
+  into Shared Properties immediately and removes the duplicate create action
+  without requiring a manual browser refresh.
 - Single showcase covers gallery switching, direct video selection without a
   Video Walkthrough action, iframe-based 360 viewing from the media strip
   without an image thumbnail, metadata chips, description, highlights, contact

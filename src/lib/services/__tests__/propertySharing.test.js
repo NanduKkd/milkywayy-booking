@@ -15,6 +15,7 @@ import {
   PropertyShareNotFoundError,
   resolvePublicPropertyShareLanding,
   resolvePublicPropertyShareMedia,
+  resolvePublicPropertyShareMetadata,
   savePropertyShareListing,
   setPropertyShareEnabled,
 } from "../propertySharing";
@@ -413,6 +414,24 @@ describe("property sharing service", () => {
     ).resolves.toBeNull();
     expect(share.update).not.toHaveBeenCalled();
     expect(sequelize.query).not.toHaveBeenCalled();
+  });
+
+  it("resolves public metadata without incrementing link views", async () => {
+    const publicId = createPropertyShareId();
+    const share = publicShare(publicId);
+    PropertyShareLink.findOne.mockResolvedValue(share);
+    PropertyShareProperty.findAll.mockResolvedValue([publicProperty()]);
+
+    const metadata = await resolvePublicPropertyShareMetadata(publicId);
+
+    expect(metadata.properties[0]).toEqual(
+      expect.objectContaining({
+        title: "Corner home with full marina view",
+        description: "Bright corner home near the marina.",
+      }),
+    );
+    expect(share.update).not.toHaveBeenCalled();
+    expect(JSON.stringify(metadata)).not.toContain("storage.invalid");
   });
 
   it("resolves only exact link, property, and current accepted media", async () => {

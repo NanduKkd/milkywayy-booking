@@ -76,4 +76,9 @@ thumbnail, renders it in a no-referrer iframe in the main viewer, and never
 sends it to the S3 media route.
 
 Only successful collection/showcase resolution increments total link views.
-Media requests and failed resolutions do not count.
+Metadata resolution reuses the same validity and membership checks without
+incrementing the total, so one rendered page contributes one view even though
+Next.js also builds dynamic head metadata. Open Graph images reference only the
+first ordered image through the token/property/media boundary; they never
+serialize an owned object URL. Media requests and failed resolutions do not
+count.

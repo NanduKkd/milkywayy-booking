@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { resolvePublicPropertyShareLanding } from "@/lib/services/propertySharing";
-import SharedPropertyPage from "../page";
+import {
+  resolvePublicPropertyShareLanding,
+  resolvePublicPropertyShareMetadata,
+} from "@/lib/services/propertySharing";
+import SharedPropertyPage, { generateMetadata } from "../page";
 
 jest.mock("next/navigation", () => ({
   notFound: jest.fn(() => {
@@ -9,6 +12,7 @@ jest.mock("next/navigation", () => ({
 }));
 jest.mock("@/lib/services/propertySharing", () => ({
   resolvePublicPropertyShareLanding: jest.fn(),
+  resolvePublicPropertyShareMetadata: jest.fn(),
 }));
 
 const token = "A".repeat(43);
@@ -56,6 +60,60 @@ const properties = [
 describe("public property showcase page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.NEXT_PUBLIC_BASE_URL = "https://example.test";
+  });
+
+  it("builds listing-specific Open Graph metadata from the first image without counting a view", async () => {
+    resolvePublicPropertyShareMetadata.mockResolvedValue({
+      id: 4,
+      kind: "SINGLE_PROPERTY",
+      properties: [properties[0]],
+    });
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ token }),
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(metadata).toEqual(
+      expect.objectContaining({
+        title: "Marina corner home | Milkywayy",
+        description: "Bright corner home near the marina.",
+        openGraph: expect.objectContaining({
+          title: "Marina corner home | Milkywayy",
+          description: "Bright corner home near the marina.",
+          url: new URL(`https://example.test/share/${token}`),
+          images: [
+            {
+              url: `https://example.test/api/public/property-shares/${token}/properties/30/media/300`,
+              alt: "Marina corner home",
+            },
+          ],
+        }),
+      }),
+    );
+    expect(resolvePublicPropertyShareMetadata).toHaveBeenCalledWith(
+      token,
+      null,
+    );
+    expect(resolvePublicPropertyShareLanding).not.toHaveBeenCalled();
+  });
+
+  it("keeps unavailable share metadata generic and non-enumerating", async () => {
+    resolvePublicPropertyShareMetadata.mockResolvedValue(null);
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ token }),
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(metadata).toEqual({
+      title: "Property showcase | Milkywayy",
+      description: "Explore this property showcase by Milkywayy.",
+      robots: { index: false, follow: false, nocache: true },
+      referrer: "no-referrer",
+    });
+    expect(metadata.openGraph).toBeUndefined();
   });
 
   it("renders a complete single showcase immediately with inline gallery and contact actions", async () => {

@@ -54,6 +54,18 @@ The existing authenticated `FileList` remains directly below the sharing
 manager with its download, revision, replacement, review, and completion
 behavior unchanged.
 
+After the owner creates a share from a Delivered files card, the refreshed
+server result is reconciled into both authenticated surfaces: the create action
+disappears and the new listing appears in **Shared Properties** immediately,
+without a manual browser refresh.
+
+Each valid property showcase publishes listing-specific browser and Open Graph
+metadata. The page title and Open Graph title use
+`<listing title> | Milkywayy`, the description uses the owner-authored listing
+description, the URL identifies the represented share page, and the preview
+image is the first ordered public image through the existing token-scoped
+inline media route. Invalid or unavailable links retain generic metadata.
+
 The public master collection fills the browser bounds without an outer card
 margin, border, radius, or shadow. It does not repeat a collection-level contact
 card: contact and WhatsApp actions remain available inside each selected
@@ -75,7 +87,8 @@ There is no raw view event or visitor-identity store.
 
 Continue with [architecture](./ARCHITECTURE.md), [accepted decisions](./DECISIONS.md),
 [operations](./OPERATIONS.md), the [security test plan](./SECURITY-TEST-PLAN.md),
-and [issue #68 proof](./proof/issue-68/README.md).
+[issue #68 proof](./proof/issue-68/README.md), and
+[issue #70 follow-up proof](./proof/issue-70/README.md).
 
 ## Scope boundaries
 

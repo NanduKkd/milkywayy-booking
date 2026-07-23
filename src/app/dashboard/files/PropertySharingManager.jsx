@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Copy, Loader2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createMasterPropertyShareAction,
@@ -339,6 +339,11 @@ export default function PropertySharingManager({ initialData }) {
     [data.shares],
   );
   const masterShare = data.shares.find((share) => share.kind === "MASTER");
+
+  useEffect(() => {
+    setData(initialData);
+    setMasterSelection(initialMasterSelection(initialData));
+  }, [initialData]);
 
   const reload = async () => {
     const result = await getPropertySharingDashboardAction();
