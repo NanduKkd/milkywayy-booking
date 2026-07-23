@@ -168,6 +168,12 @@ describe("property sharing service", () => {
 
     const result = await savePropertyShareListing(7, 20, listingInput);
 
+    expect(Booking.findAll).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transaction,
+        lock: { level: "UPDATE", of: Booking },
+      }),
+    );
     expect(PropertyShareListing.findOne).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { ownerUserId: 7, bookingId: 20 },

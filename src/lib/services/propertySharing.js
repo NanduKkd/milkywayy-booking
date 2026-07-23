@@ -287,7 +287,11 @@ async function findEligibleBookings(
     include: ELIGIBLE_BOOKING_INCLUDE,
     order: [["completedAt", "DESC"]],
     transaction,
-    ...(lock && transaction ? { lock: transaction.LOCK.UPDATE } : {}),
+    // The listing association is an optional outer join. PostgreSQL rejects an
+    // unscoped FOR UPDATE because the nullable side cannot be row-locked.
+    ...(lock && transaction
+      ? { lock: { level: transaction.LOCK.UPDATE, of: Booking } }
+      : {}),
   });
   const eligible = bookings.filter((booking) =>
     isEligibleBooking(booking, ownerUserId),

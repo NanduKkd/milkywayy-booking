@@ -35,6 +35,8 @@ describeWithPostgres(
     let queryInterface;
     let ownerUserId;
     let bookingId;
+    let BookingLockProbe;
+    let ListingLockProbe;
 
     beforeAll(async () => {
       database = await createDisposablePostgresDatabase({
@@ -95,6 +97,40 @@ describeWithPostgres(
       });
       sequelize = database.sequelize;
       queryInterface = database.queryInterface;
+      BookingLockProbe = sequelize.define(
+        "BookingLockProbe",
+        {
+          id: {
+            type: DataTypes.INTEGER,
+            primaryKey: true,
+          },
+        },
+        {
+          tableName: "bookings",
+          timestamps: false,
+        },
+      );
+      ListingLockProbe = sequelize.define(
+        "ListingLockProbe",
+        {
+          id: {
+            type: DataTypes.INTEGER,
+            primaryKey: true,
+          },
+          bookingId: {
+            type: DataTypes.INTEGER,
+            field: "booking_id",
+          },
+        },
+        {
+          tableName: "property_share_listings",
+          timestamps: false,
+        },
+      );
+      BookingLockProbe.hasOne(ListingLockProbe, {
+        as: "propertyShareListing",
+        foreignKey: "bookingId",
+      });
       const [users] = await sequelize.query(
         `INSERT INTO users (created_at, updated_at)
        VALUES (CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id`,
@@ -169,6 +205,28 @@ describeWithPostgres(
       expect(
         results.filter(({ status }) => status === "rejected"),
       ).toHaveLength(1);
+    });
+
+    it("locks booking rows without locking a nullable listing join", async () => {
+      await expect(
+        sequelize.transaction((transaction) =>
+          BookingLockProbe.findAll({
+            where: { id: bookingId },
+            include: [
+              {
+                model: ListingLockProbe,
+                as: "propertyShareListing",
+                required: false,
+              },
+            ],
+            transaction,
+            lock: {
+              level: transaction.LOCK.UPDATE,
+              of: BookingLockProbe,
+            },
+          }),
+        ),
+      ).resolves.toHaveLength(1);
     });
 
     it("allows exactly one stable master link per owner", async () => {

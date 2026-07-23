@@ -72,9 +72,10 @@ original live-object proof.
 - Focused sharing/model/migration/action/management/public-route/storage command:
   **11 suites and 61 tests passed**; the guarded PostgreSQL suite was skipped in
   that ordinary command.
-- Reserved disposable-PostgreSQL command: **1 suite and 4 tests passed**,
-  covering single/master/listing uniqueness and 40 concurrent lossless
-  total-view increments.
+- Reserved disposable-PostgreSQL command: **1 suite and 5 tests passed**,
+  covering booking-only row locks across the optional listing join,
+  single/master/listing uniqueness, and 40 concurrent lossless total-view
+  increments.
 - Focused changed-file Biome check: no errors; the CSS module retains only
   non-blocking descending-specificity warnings caused by independent
   reference-matched component selectors.
