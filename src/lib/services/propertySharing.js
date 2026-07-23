@@ -899,6 +899,21 @@ export async function resolvePublicPropertyShareLanding(
   });
 }
 
+export async function resolvePublicPropertyShareMetadata(
+  token,
+  requestedPropertyId = null,
+) {
+  const share = await loadValidPublicShare(token);
+  if (
+    !share ||
+    (requestedPropertyId !== null &&
+      !findPublicProperty(share, requestedPropertyId))
+  ) {
+    return null;
+  }
+  return serializePublicLanding(share);
+}
+
 export async function resolvePublicPropertyShareMedia({
   token,
   propertyId,

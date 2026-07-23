@@ -126,6 +126,32 @@ describe("PropertySharingManager", () => {
     expect(screen.queryByText(/agent/u)).not.toBeInTheDocument();
   });
 
+  it("reconciles refreshed server data after a share is created from the file list", async () => {
+    const initial = data({ withShares: false });
+    const refreshed = data();
+    const { rerender } = render(
+      <PropertySharingManager initialData={initial} />,
+    );
+
+    expect(screen.getByText("No shared properties yet.")).toBeInTheDocument();
+
+    rerender(<PropertySharingManager initialData={refreshed} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole("button", {
+          name: "Preview Corner home with full marina view",
+        }),
+      ).toHaveLength(2),
+    );
+    expect(
+      screen.queryByText("No shared properties yet."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Select Multiple" }),
+    ).toBeInTheDocument();
+  });
+
   it("toggles the visible check controls and creates a master collection", async () => {
     render(<PropertySharingManager initialData={data()} />);
 

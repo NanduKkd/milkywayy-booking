@@ -2,19 +2,100 @@ import { ArrowLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { resolvePublicPropertyShareLanding } from "@/lib/services/propertySharing";
+import {
+  resolvePublicPropertyShareLanding,
+  resolvePublicPropertyShareMetadata,
+} from "@/lib/services/propertySharing";
 import PropertyShowcase from "./PropertyShowcase";
 import styles from "./showcase.module.css";
 
 export const dynamic = "force-dynamic";
-export const metadata = {
+const genericMetadata = {
   title: "Property showcase | Milkywayy",
+  description: "Explore this property showcase by Milkywayy.",
   robots: { index: false, follow: false, nocache: true },
   referrer: "no-referrer",
 };
 
 function mediaUrl(token, propertyId, mediaId) {
   return `/api/public/property-shares/${encodeURIComponent(token)}/properties/${encodeURIComponent(propertyId)}/media/${encodeURIComponent(mediaId)}`;
+}
+
+function requestedPropertyId(searchParams) {
+  const rawValue = Array.isArray(searchParams?.property)
+    ? searchParams.property[0]
+    : searchParams?.property;
+  if (rawValue == null) return null;
+  const value = Number(rawValue);
+  return Number.isSafeInteger(value) && value > 0 ? value : Number.NaN;
+}
+
+function selectedProperty(landing, propertyId) {
+  return landing.kind === "SINGLE_PROPERTY"
+    ? landing.properties[0]
+    : landing.properties.find((property) => property.id === propertyId);
+}
+
+function publicOrigin() {
+  const configured = String(process.env.NEXT_PUBLIC_BASE_URL || "").trim();
+  try {
+    return new URL(configured || "http://localhost:3000");
+  } catch {
+    return new URL("http://localhost:3000");
+  }
+}
+
+function publicPageUrl(token, landing, property) {
+  const url = new URL(`/share/${encodeURIComponent(token)}`, publicOrigin());
+  if (landing.kind === "MASTER" && property) {
+    url.searchParams.set("property", String(property.id));
+  }
+  return url;
+}
+
+export async function generateMetadata({ params, searchParams }) {
+  const { token } = await params;
+  const query = await searchParams;
+  const propertyId = requestedPropertyId(query);
+  const landing = await resolvePublicPropertyShareMetadata(token, propertyId);
+  if (!landing) return genericMetadata;
+
+  const property = selectedProperty(landing, propertyId);
+  if (!property) return genericMetadata;
+
+  const title = `${property.title} | Milkywayy`;
+  const description =
+    String(property.description || "").trim() ||
+    `Explore ${property.title} on Milkywayy.`;
+  const url = publicPageUrl(token, landing, property);
+  const firstImage = property.media.find((media) => media.kind === "IMAGE");
+  const images = firstImage
+    ? [
+        {
+          url: new URL(
+            mediaUrl(token, property.id, firstImage.id),
+            publicOrigin(),
+          ).toString(),
+          alt: property.title,
+        },
+      ]
+    : [];
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "website",
+      siteName: "Milkywayy",
+      images,
+    },
+    robots: genericMetadata.robots,
+    referrer: genericMetadata.referrer,
+  };
 }
 
 function CollectionCard({ token, property }) {
@@ -71,32 +152,23 @@ function CollectionCard({ token, property }) {
 export default async function SharedPropertyPage({ params, searchParams }) {
   const { token } = await params;
   const query = await searchParams;
-  const rawRequestedPropertyId = Array.isArray(query?.property)
-    ? query.property[0]
-    : query?.property;
-  const requestedPropertyId =
-    rawRequestedPropertyId == null ? null : Number(rawRequestedPropertyId);
+  const propertyId = requestedPropertyId(query);
   const landing = await resolvePublicPropertyShareLanding(
     token,
     undefined,
-    requestedPropertyId,
+    propertyId,
   );
   if (!landing) notFound();
 
-  const selectedProperty =
-    landing.kind === "SINGLE_PROPERTY"
-      ? landing.properties[0]
-      : landing.properties.find(
-          (property) => property.id === requestedPropertyId,
-        );
+  const property = selectedProperty(landing, propertyId);
 
   return (
     <main
       className={`public-share-root ${styles.root} ${
-        selectedProperty ? styles.showcaseRoot : styles.collectionRoot
+        property ? styles.showcaseRoot : styles.collectionRoot
       }`}
     >
-      {landing.kind === "MASTER" && !selectedProperty
+      {landing.kind === "MASTER" && !property
         ? <section className={`collection ${styles.collection}`}>
             <div className={`col-pad ${styles.collectionHeading}`}>
               <h1 className={`col-head-m ${styles.collectionTitle}`}>
@@ -119,7 +191,7 @@ export default async function SharedPropertyPage({ params, searchParams }) {
               Media &amp; page by <b>MILKYWAYY</b> · milkywayy.com
             </footer>
           </section>
-        : selectedProperty
+        : property
           ? <>
               {landing.kind === "MASTER"
                 ? <Link
@@ -129,7 +201,7 @@ export default async function SharedPropertyPage({ params, searchParams }) {
                     <ArrowLeft aria-hidden="true" /> Back to the collection
                   </Link>
                 : null}
-              <PropertyShowcase property={selectedProperty} token={token} />
+              <PropertyShowcase property={property} token={token} />
             </>
           : notFound()}
     </main>
