@@ -52,10 +52,6 @@ export default function PropertyShowcase({ property, token }) {
     () => property.media.find((media) => media.kind === "VIDEO"),
     [property.media],
   );
-  const thumbnailMedia = useMemo(
-    () => property.media.filter((media) => media.kind !== "TOUR"),
-    [property.media],
-  );
   const tourMedia = useMemo(
     () => property.media.find((media) => media.kind === "TOUR"),
     [property.media],
@@ -135,9 +131,9 @@ export default function PropertyShowcase({ property, token }) {
             </span>
           </div>
 
-          {thumbnailMedia.length > 0 ? (
+          {property.media.length > 0 ? (
             <div className={`sp-thumbs ${styles.thumbnails}`}>
-              {(showAllMedia ? thumbnailMedia : thumbnailMedia.slice(0, 2)).map(
+              {(showAllMedia ? property.media : property.media.slice(0, 3)).map(
                 (media) => {
                   const mediaPosition =
                     property.media.findIndex(
@@ -148,13 +144,21 @@ export default function PropertyShowcase({ property, token }) {
                       type="button"
                       key={media.id}
                       className={`thumb ${styles.thumbnail} ${media.id === activeMedia?.id ? styles.activeThumbnail : ""}`}
-                      aria-label={`View property media ${mediaPosition}`}
+                      aria-label={
+                        media.kind === "TOUR"
+                          ? "View 360° tour"
+                          : `View property media ${mediaPosition}`
+                      }
                       aria-pressed={media.id === activeMedia?.id}
                       onClick={() => setActiveMediaId(media.id)}
                     >
                       {failedMedia.has(media.id) ? (
                         <span className={styles.thumbnailFallback}>
                           Unavailable
+                        </span>
+                      ) : media.kind === "TOUR" ? (
+                        <span className={styles.tourThumb}>
+                          <Globe2 aria-hidden="true" /> 360° view
                         </span>
                       ) : media.mimeType.startsWith("video/") ? (
                         <span className={styles.videoThumb}>
@@ -175,27 +179,15 @@ export default function PropertyShowcase({ property, token }) {
                   );
                 },
               )}
-              {!showAllMedia && thumbnailMedia.length > 2 ? (
+              {!showAllMedia && property.media.length > 3 ? (
                 <button
                   type="button"
                   className={`thumb ${styles.thumbnail} ${styles.moreMedia}`}
                   onClick={() => setShowAllMedia(true)}
                 >
-                  + {thumbnailMedia.length - 2} media
+                  + {property.media.length - 3} media
                 </button>
               ) : null}
-            </div>
-          ) : null}
-
-          {tourMedia ? (
-            <div className={`sp-actions ${styles.mediaActions}`}>
-              <button
-                className={`act ${styles.mediaAction}`}
-                type="button"
-                onClick={() => setActiveMediaId(tourMedia.id)}
-              >
-                <Globe2 aria-hidden="true" /> 360° view
-              </button>
             </div>
           ) : null}
         </div>

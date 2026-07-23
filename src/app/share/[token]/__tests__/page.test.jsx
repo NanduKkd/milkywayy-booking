@@ -36,6 +36,7 @@ function property(id, title) {
     services: ["Photography", "Videography"],
     media: [
       { id: id * 10, kind: "IMAGE", mimeType: "image/jpeg", label: "Photo" },
+      { id: id * 10 + 2, kind: "VIDEO", mimeType: "video/mp4", label: "Video" },
       {
         id: id * 10 + 1,
         kind: "TOUR",
@@ -43,7 +44,6 @@ function property(id, title) {
         label: "360 Virtual Tour",
         embedUrl: "https://example.com/virtual-tour",
       },
-      { id: id * 10 + 2, kind: "VIDEO", mimeType: "video/mp4", label: "Video" },
     ],
   };
 }
@@ -90,9 +90,10 @@ describe("public property showcase page", () => {
     expect(
       screen.queryByRole("button", { name: "Video walkthrough" }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "360° view" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "View 360° tour" })).toHaveClass(
+      "thumb",
+    );
+    expect(container.querySelector(".sp-actions")).toBeNull();
     expect(container.querySelector("form")).toBeNull();
     expect(container.querySelector("[download]")).toBeNull();
     expect(screen.queryByText(/Download/u)).not.toBeInTheDocument();
@@ -115,7 +116,7 @@ describe("public property showcase page", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "View property media 3" }),
+      screen.getByRole("button", { name: "View property media 2" }),
     );
 
     expect(container.querySelector("video[controls]")).not.toBeNull();
@@ -126,29 +127,30 @@ describe("public property showcase page", () => {
     expect(container.querySelector("a[download]")).toBeNull();
   });
 
-  it("embeds a 360 link in the main viewer without a tour thumbnail", async () => {
+  it("embeds a 360 link from the media strip without a thumbnail image", async () => {
     resolvePublicPropertyShareLanding.mockResolvedValue({
       id: 4,
       kind: "SINGLE_PROPERTY",
       properties: [properties[0]],
     });
 
-    render(
+    const { container } = render(
       await SharedPropertyPage({
         params: Promise.resolve({ token }),
         searchParams: Promise.resolve({}),
       }),
     );
 
-    expect(
-      screen.queryByRole("button", { name: "View property media 2" }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "360° view" }));
+    const tourTile = screen.getByRole("button", { name: "View 360° tour" });
+    expect(tourTile).toHaveClass("thumb");
+    expect(tourTile.querySelector("img")).toBeNull();
+    fireEvent.click(tourTile);
 
     expect(screen.getByTitle("Marina corner home — 360° tour")).toHaveAttribute(
       "src",
       "https://example.com/virtual-tour",
     );
+    expect(container.querySelector(".sp-actions")).toBeNull();
   });
 
   it("replaces failed hero and thumbnail images with unavailable states", async () => {

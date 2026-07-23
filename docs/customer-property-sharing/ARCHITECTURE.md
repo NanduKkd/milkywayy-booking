@@ -71,8 +71,9 @@ advertises an attachment, or uses `/api/files/download`.
 
 An accepted 360 delivery is a validated HTTPS `text/uri-list` copy-link rather
 than an owned S3 object. The service emits its normalized embed URL separately;
-the showcase renders it in a no-referrer iframe in the main viewer, omits it
-from the thumbnail strip, and never sends it to the S3 media route.
+the showcase exposes a text/icon tile in the media strip without an image
+thumbnail, renders it in a no-referrer iframe in the main viewer, and never
+sends it to the S3 media route.
 
 Only successful collection/showcase resolution increments total link views.
 Media requests and failed resolutions do not count.

@@ -57,8 +57,8 @@
 - Status: `ACCEPTED`
 - Decision: Public photos and videos cross only a bearer + selected property +
   current accepted file route with byte-range support. Accepted HTTPS 360
-  copy-links render as no-referrer iframes in the main viewer, with a dedicated
-  action and no thumbnail.
+  copy-links render as no-referrer iframes in the main viewer, selected through
+  a text/icon media-strip tile with no image thumbnail.
 - Consequence: Persisted object URLs, authenticated download endpoints,
   attachment disposition, and download attributes remain outside public HTML.
   External 360 embed URLs are intentionally public and never enter the owned

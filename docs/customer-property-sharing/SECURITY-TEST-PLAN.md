@@ -37,8 +37,8 @@
   noindex, referrer policy, range support, and no attachment disposition or
   redirect.
 - 360 embed URLs require HTTPS, reject credentials/malformed values, render
-  with no-referrer iframes, have no thumbnail, and never enter the S3 media
-  route.
+  with no-referrer iframes selected through a text/icon media tile with no
+  image thumbnail, and never enter the S3 media route.
 - Successful page/collection renders count atomically; failed resolutions and
   media requests do not.
 
@@ -50,9 +50,9 @@
   contextual stable copy, edit, enable/disable, total views, and the actual
   Phone/Desktop public-page preview.
 - Single showcase covers gallery switching, direct video selection without a
-  Video Walkthrough action, iframe-based 360 viewing without a thumbnail,
-  metadata chips, description, highlights, contact phone/WhatsApp actions,
-  empty/error states, and branding.
+  Video Walkthrough action, iframe-based 360 viewing from the media strip
+  without an image thumbnail, metadata chips, description, highlights, contact
+  phone/WhatsApp actions, empty/error states, and branding.
 - Master collection contains only selected cards and opens the full selected
   showcase under the same token with a back path.
 - Existing `fileId`, authenticated download/copy-link, revisions, replacements,

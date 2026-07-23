@@ -128,6 +128,26 @@ function tourDeliveryFile() {
   };
 }
 
+function videoDeliveryFile() {
+  return {
+    id: 12,
+    type: "Videography",
+    label: "Property video",
+    status: "ACCEPTED",
+    deletedAt: null,
+    currentVersionId: 102,
+    currentVersion: {
+      id: 102,
+      deliveryFileId: 12,
+      supersededAt: null,
+      originalFilename: "synthetic-property.mp4",
+      mimeType: "video/mp4",
+      sizeBytes: 4096,
+      url: "https://storage.invalid/deliverables/bookings/20/private.mp4",
+    },
+  };
+}
+
 function publicProperty(booking = eligibleBooking()) {
   return {
     id: 30,
@@ -316,7 +336,10 @@ describe("property sharing service", () => {
     const publicId = createPropertyShareId();
     const share = publicShare(publicId);
     const property = publicProperty();
-    property.booking.deliveryFiles.push(tourDeliveryFile());
+    property.booking.deliveryFiles.push(
+      tourDeliveryFile(),
+      videoDeliveryFile(),
+    );
     PropertyShareLink.findOne.mockResolvedValue(share);
     PropertyShareProperty.findAll.mockResolvedValue([property]);
 
@@ -344,6 +367,12 @@ describe("property sharing service", () => {
             kind: "IMAGE",
             label: "Final photography",
             mimeType: "image/jpeg",
+          },
+          {
+            id: 12,
+            kind: "VIDEO",
+            label: "Property video",
+            mimeType: "video/mp4",
           },
           {
             id: 11,

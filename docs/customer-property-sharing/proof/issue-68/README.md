@@ -65,11 +65,12 @@ original live-object proof.
   Existing shares exposed a named Manage action with Copy Link, Preview, Edit,
   and Disable/Enable controls. Preview opened the actual public route in an
   iframe.
-- The public gallery ordered images before tour/video media.
+- The public gallery ordered images before video and 360 media.
 - A real accepted HTTPS 360 delivery rendered as an interactive no-referrer
   iframe in the main viewer at 1440 × 900 and 390 × 844. The page contained one
-  **360° view** action, no 360 thumbnail, no Video Walkthrough action, and no
-  horizontal overflow. The bearer and iframe URL were excluded from proof.
+  text/icon 360 media tile alongside photo/video, no 360 image thumbnail, no
+  standalone 360 action, no Video Walkthrough action, and no horizontal
+  overflow. The bearer and iframe URL were excluded from proof.
 - The contextual single-share dialog contained Copy Link, Disable/Enable, Edit,
   and Preview. It contained no rotate, revoke, refresh-snapshot, expiry,
   delete-link, agent-assignment, visitor-contact, or duplicate-project controls.

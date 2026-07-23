@@ -142,7 +142,6 @@
 }
 
 .thumbnail:focus-visible,
-.mediaAction:focus-visible,
 .whatsappButton:focus-visible,
 .contactPhone:focus-visible,
 .collectionCard:focus-visible,
@@ -157,7 +156,8 @@
   object-fit: cover;
 }
 
-.videoThumb {
+.videoThumb,
+.tourThumb {
   height: 100%;
   display: flex;
   align-items: center;
@@ -182,31 +182,10 @@
 }
 
 .videoThumb svg,
-.mediaAction svg,
+.tourThumb svg,
 .backLink svg {
   width: 15px;
   height: 15px;
-}
-
-.mediaActions {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.mediaAction {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 43px;
-  border: 1px solid #2e2e33;
-  border-radius: 11px;
-  background: #1a1a1d;
-  color: #f4f4f5;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
 }
 
 .spBody {
@@ -497,10 +476,6 @@
 
   .thumbnail {
     height: 66px;
-  }
-
-  .mediaActions {
-    margin: 0 18px 2px;
   }
 
   .spBody {

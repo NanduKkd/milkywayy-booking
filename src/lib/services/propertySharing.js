@@ -230,7 +230,7 @@ export function getInlinePropertyMediaDetails(fileLike, versionLike) {
 
 function eligibleDeliveryFiles(bookingLike) {
   const booking = toPlain(bookingLike) || {};
-  const kindOrder = { IMAGE: 0, TOUR: 1, VIDEO: 2 };
+  const kindOrder = { IMAGE: 0, VIDEO: 1, TOUR: 2 };
   return (booking.deliveryFiles || [])
     .filter((fileLike) => {
       const file = toPlain(fileLike) || {};
