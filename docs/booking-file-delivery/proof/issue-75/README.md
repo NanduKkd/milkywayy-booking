@@ -24,6 +24,6 @@ DELIVERY_ZIP_MEMORY_BYTES=2147483648 npm run verify:delivery-zip-memory
 
 Result: one test passed while five concurrent logical 2 GiB archives streamed
 through reused 64 KiB synthetic chunks. Peak incremental process RSS was
-19.25 MiB, final incremental RSS was 19.34 MiB, and the maximum number of
+19.52 MiB, final incremental RSS was 19.52 MiB, and the maximum number of
 simultaneously open synthetic S3 bodies was five—one per archive. No archive
 was written to disk.

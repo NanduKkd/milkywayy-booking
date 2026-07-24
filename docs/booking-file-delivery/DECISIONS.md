@@ -21,8 +21,9 @@ Archive entries use Archiver's streaming ZIP implementation with store mode and
 forced ZIP64. Store mode avoids recompressing photos, video, and existing
 archives; ZIP64 supports valid groups beyond classic ZIP limits. Version 7 is
 pinned because it is the maintained package's CommonJS-compatible release for
-this repository's current Jest/Next toolchain; dependency audit results are
-recorded with the pull request.
+this repository's current Jest/Next toolchain. Scoped overrides keep its
+compatible `glob`, `minimatch`, and `lodash` transitives on patched releases;
+dependency audit results are recorded with the pull request.
 
 Admission is intentionally capped at five pipelines in the current single PM2
 process. This is not a distributed concurrency guarantee: adding web processes
