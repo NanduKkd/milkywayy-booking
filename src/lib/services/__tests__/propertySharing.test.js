@@ -4,6 +4,7 @@ import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import PropertyShareLink from "@/lib/db/models/propertysharelink";
 import PropertyShareListing from "@/lib/db/models/propertysharelisting";
+import PropertyShareMedia from "@/lib/db/models/propertysharemedia";
 import PropertyShareProperty from "@/lib/db/models/propertyshareproperty";
 import User from "@/lib/db/models/user";
 import {
@@ -13,6 +14,7 @@ import {
   getPropertySharingDashboard,
   PropertyShareConflictError,
   PropertyShareNotFoundError,
+  refreshPropertyShareMedia,
   resolvePublicPropertyShareLanding,
   resolvePublicPropertyShareMedia,
   resolvePublicPropertyShareMetadata,
@@ -42,6 +44,10 @@ jest.mock("@/lib/db/models/propertysharelisting", () => ({
   create: jest.fn(),
   findAll: jest.fn(),
   findOne: jest.fn(),
+}));
+jest.mock("@/lib/db/models/propertysharemedia", () => ({
+  bulkCreate: jest.fn(),
+  destroy: jest.fn(),
 }));
 jest.mock("@/lib/db/models/propertyshareproperty", () => ({
   create: jest.fn(),
@@ -88,6 +94,7 @@ function eligibleBooking(overrides = {}) {
     deliveryFiles: [
       {
         id: 10,
+        bookingId: 20,
         type: "Photography",
         label: "Final photography",
         status: "ACCEPTED",
@@ -111,6 +118,7 @@ function eligibleBooking(overrides = {}) {
 function tourDeliveryFile() {
   return {
     id: 11,
+    bookingId: 20,
     type: "360 Virtual Tour",
     label: "360 Virtual Tour",
     deliveryMode: "copy_link",
@@ -132,6 +140,7 @@ function tourDeliveryFile() {
 function videoDeliveryFile() {
   return {
     id: 12,
+    bookingId: 20,
     type: "Videography",
     label: "Property video",
     status: "ACCEPTED",
@@ -156,6 +165,14 @@ function publicProperty(booking = eligibleBooking()) {
     bookingId: booking.id,
     position: 0,
     booking,
+    files: booking.deliveryFiles.map((file) => ({
+      id: file.id,
+      sharePropertyId: 30,
+      deliveryFileId: file.id,
+      deliveryFileVersionId: file.currentVersionId,
+      deliveryFile: file,
+      deliveryFileVersion: file.currentVersion,
+    })),
   };
 }
 
@@ -236,8 +253,10 @@ describe("property sharing service", () => {
     ]);
   });
 
-  it("creates one stable opaque URL and selected-property membership", async () => {
+  it("creates one stable opaque URL with exact under-review and accepted media snapshots", async () => {
     const booking = eligibleBooking();
+    booking.deliveryFiles[0].status = "UNDER_REVIEW";
+    booking.deliveryFiles.push(videoDeliveryFile(), tourDeliveryFile());
     Booking.findAll.mockResolvedValue([booking]);
     PropertyShareLink.findOne.mockResolvedValue(null);
     PropertyShareLink.create.mockResolvedValue({ id: 4 });
@@ -256,9 +275,63 @@ describe("property sharing service", () => {
       { shareLinkId: 4, bookingId: 20, position: 0 },
       { transaction },
     );
+    expect(PropertyShareMedia.bulkCreate).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          sharePropertyId: 30,
+          deliveryFileId: 10,
+          deliveryFileVersionId: 100,
+          position: 0,
+        }),
+        expect.objectContaining({
+          sharePropertyId: 30,
+          deliveryFileId: 12,
+          deliveryFileVersionId: 102,
+          position: 1,
+        }),
+        expect.objectContaining({
+          sharePropertyId: 30,
+          deliveryFileId: 11,
+          deliveryFileVersionId: 101,
+          position: 2,
+        }),
+      ],
+      { transaction },
+    );
     expect(result.publicUrl).toMatch(
       /^https:\/\/example\.test\/share\/[A-Za-z0-9_-]{43}$/u,
     );
+  });
+
+  it("makes a confirmed incomplete booking eligible with safe under-review media", async () => {
+    const booking = eligibleBooking({
+      status: "CONFIRMED",
+      workflowStatus: "FILES_UPLOADED",
+      completedAt: null,
+    });
+    booking.deliveryFiles[0].status = "UNDER_REVIEW";
+    Booking.findAll.mockResolvedValue([booking]);
+    PropertyShareLink.findAll.mockResolvedValue([]);
+
+    const dashboard = await getPropertySharingDashboard(7);
+
+    expect(dashboard.eligibleProperties).toHaveLength(1);
+    expect(dashboard.eligibleProperties[0]).toEqual(
+      expect.objectContaining({ id: 20, mediaCount: 1 }),
+    );
+  });
+
+  it.each([
+    ["cross-owner", { userId: 8 }],
+    ["cancelled", { cancelledAt: new Date(), status: "CANCELLED" }],
+    ["draft", { status: "DRAFT" }],
+  ])("does not enumerate %s bookings", async (_label, overrides) => {
+    Booking.findAll.mockResolvedValue([eligibleBooking(overrides)]);
+    PropertyShareLink.findAll.mockResolvedValue([]);
+
+    const dashboard = await getPropertySharingDashboard(7);
+
+    expect(dashboard.eligibleProperties).toEqual([]);
   });
 
   it("requires listing configuration and at least two properties for a master", async () => {
@@ -352,6 +425,22 @@ describe("property sharing service", () => {
     property.booking.deliveryFiles.push(
       tourDeliveryFile(),
       videoDeliveryFile(),
+    );
+    property.files.push(
+      {
+        id: 12,
+        deliveryFileId: 12,
+        deliveryFileVersionId: 102,
+        deliveryFile: property.booking.deliveryFiles[2],
+        deliveryFileVersion: property.booking.deliveryFiles[2].currentVersion,
+      },
+      {
+        id: 11,
+        deliveryFileId: 11,
+        deliveryFileVersionId: 101,
+        deliveryFile: property.booking.deliveryFiles[1],
+        deliveryFileVersion: property.booking.deliveryFiles[1].currentVersion,
+      },
     );
     PropertyShareLink.findOne.mockResolvedValue(share);
     PropertyShareProperty.findAll.mockResolvedValue([property]);
@@ -473,10 +562,49 @@ describe("property sharing service", () => {
     expect(sequelize.query).not.toHaveBeenCalled();
   });
 
+  it("renders under-review snapshot media without exposing review state", async () => {
+    const publicId = createPropertyShareId();
+    const property = publicProperty();
+    property.files[0].deliveryFile.status = "UNDER_REVIEW";
+    PropertyShareLink.findOne.mockResolvedValue(publicShare(publicId));
+    PropertyShareProperty.findAll.mockResolvedValue([property]);
+
+    const landing = await resolvePublicPropertyShareLanding(publicId);
+
+    expect(landing.properties[0].media).toEqual([
+      expect.objectContaining({ id: 10, kind: "IMAGE" }),
+    ]);
+    expect(JSON.stringify(landing)).not.toMatch(
+      /UNDER_REVIEW|ACCEPTED|review status/u,
+    );
+  });
+
+  it("keeps later uploads outside an existing exact snapshot", async () => {
+    const publicId = createPropertyShareId();
+    const property = publicProperty();
+    property.booking.deliveryFiles.push(videoDeliveryFile());
+    PropertyShareLink.findOne.mockResolvedValue(publicShare(publicId));
+    PropertyShareProperty.findAll.mockResolvedValue([property]);
+
+    const landing = await resolvePublicPropertyShareLanding(publicId);
+
+    expect(landing.properties[0].media).toHaveLength(1);
+    expect(landing.properties[0].media[0]).toEqual(
+      expect.objectContaining({ id: 10, kind: "IMAGE" }),
+    );
+  });
+
   it("never sends external 360 links through the owned-object media route", async () => {
     const publicId = createPropertyShareId();
     const property = publicProperty();
     property.booking.deliveryFiles.push(tourDeliveryFile());
+    property.files.push({
+      id: 11,
+      deliveryFileId: 11,
+      deliveryFileVersionId: 101,
+      deliveryFile: property.booking.deliveryFiles[1],
+      deliveryFileVersion: property.booking.deliveryFiles[1].currentVersion,
+    });
     PropertyShareLink.findOne.mockResolvedValue(publicShare(publicId));
     PropertyShareProperty.findAll.mockResolvedValue([property]);
 
@@ -493,12 +621,67 @@ describe("property sharing service", () => {
     const publicId = createPropertyShareId();
     const property = publicProperty();
     property.booking.deliveryFiles[0].currentVersionId = 101;
+    property.files[0].deliveryFile.currentVersionId = 101;
     PropertyShareLink.findOne.mockResolvedValue(publicShare(publicId));
     PropertyShareProperty.findAll.mockResolvedValue([property]);
 
     await expect(
       resolvePublicPropertyShareLanding(publicId),
     ).resolves.toBeNull();
+  });
+
+  it("fails closed after a snapshotted file becomes changes requested", async () => {
+    const publicId = createPropertyShareId();
+    const property = publicProperty();
+    property.files[0].deliveryFile.status = "CHANGES_REQUESTED";
+    PropertyShareLink.findOne.mockResolvedValue(publicShare(publicId));
+    PropertyShareProperty.findAll.mockResolvedValue([property]);
+
+    await expect(
+      resolvePublicPropertyShareMedia({
+        token: publicId,
+        propertyId: 30,
+        sharedFileId: 10,
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("does not silently add a later upload until explicit media refresh", async () => {
+    const booking = eligibleBooking();
+    const property = {
+      id: 30,
+      bookingId: 20,
+      position: 0,
+    };
+    const share = publicShare(createPropertyShareId());
+    PropertyShareLink.findOne.mockResolvedValue(share);
+    PropertyShareProperty.findAll.mockResolvedValue([property]);
+    Booking.findAll.mockResolvedValue([
+      {
+        ...booking,
+        deliveryFiles: [booking.deliveryFiles[0], videoDeliveryFile()],
+      },
+    ]);
+
+    await refreshPropertyShareMedia(7, 4);
+
+    expect(PropertyShareMedia.destroy).toHaveBeenCalledWith({
+      where: { sharePropertyId: 30 },
+      transaction,
+    });
+    expect(PropertyShareMedia.bulkCreate).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          deliveryFileId: 10,
+          deliveryFileVersionId: 100,
+        }),
+        expect.objectContaining({
+          deliveryFileId: 12,
+          deliveryFileVersionId: 102,
+        }),
+      ],
+      { transaction },
+    );
   });
 
   it("disables and re-enables the same stable public identifier", async () => {

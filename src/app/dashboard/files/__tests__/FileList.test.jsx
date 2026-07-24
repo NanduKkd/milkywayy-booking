@@ -388,6 +388,29 @@ describe("customer FileList", () => {
     );
   });
 
+  it("places Create Share Link on an eligible booking while media is under review", () => {
+    const property = {
+      id: 1,
+      bookingTitle: "101, Tower A, Marina",
+    };
+    render(
+      <FileList
+        bookings={[makeBooking()]}
+        propertySharing={{
+          eligibleProperties: [property],
+          shares: [],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Create Share Link" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delivery In Progress" }),
+    ).toBeDisabled();
+  });
+
   it("leaves existing share management to Shared Properties cards", () => {
     render(
       <FileList

@@ -9,12 +9,12 @@
 - Consequence: Existing bookmarks, downloads, copy-link delivery, revisions,
   replacements, review deadlines, completion, and workflow links stay intact.
 
-## PROP-D002 — Model one listing as one owned completed booking
+## PROP-D002 — Model one listing as one owned confirmed booking
 
 - Status: `ACCEPTED`
 - Decision: Listing configuration is unique by owner+booking and is available
-  only for completed, non-cancelled, owner-owned bookings with safe accepted
-  current media.
+  for confirmed, non-cancelled, owner-owned bookings with safe current media
+  under review or accepted; completion is not required.
 - Consequence: There is no agent assignment, team, delegated owner, or visitor
   contact record.
 
@@ -26,14 +26,15 @@
 - Consequence: A visitor cannot widen a master collection by changing a query
   parameter.
 
-## PROP-D004 — Resolve current accepted media
+## PROP-D004 — Pin exact safe reviewable media
 
 - Status: `ACCEPTED`
-- Decision: Public pages resolve only supported accepted current
-  delivery-file/version pairs for each selected booking.
-- Consequence: The showcase follows the latest accepted deliverables without a
-  snapshot-refresh control. Deleted, superseded, changes-requested, unsafe,
-  and unselected files fail closed.
+- Decision: New and explicitly refreshed links pin every supported current
+  under-review or accepted delivery-file/version pair for each selected
+  booking.
+- Consequence: Later uploads and replacements require **Refresh Media**.
+  Deleted, stale, superseded, changes-requested, unsafe, and unselected files
+  fail closed, and internal review state is not shown publicly.
 
 ## PROP-D005 — Use stable opaque public identifiers
 
@@ -77,13 +78,14 @@
 - Status: `ACCEPTED`
 - Decision: Properties uses the reference's compact Shared, Master,
   listing-form, action-bar, and buyer-showcase patterns. Eligible unshared
-  completed projects expose **Create Share Link** in the authenticated FileList
-  directly below the sharing manager. A shared card opens the real public page
-  in a Phone/Desktop preview.
-- Consequence: Extra explanatory headers, rotation/revocation/refresh controls,
+  confirmed projects expose **Create Share Link** in the authenticated FileList
+  as soon as safe media is under review. A shared card opens the real public
+  page in a Phone/Desktop preview.
+- Consequence: Extra explanatory headers, rotation/revocation controls,
   substitute preview markup, agent assignment, and team controls are outside
-  the product contract. The authenticated delivery-file list remains available
-  below the reference-style property-sharing manager.
+  the product contract, except for the required **Refresh Media** snapshot
+  action. The authenticated delivery-file list remains available below the
+  reference-style property-sharing manager.
 
 ## PROP-D010 — Keep collection chrome edge-to-edge and property-specific
 

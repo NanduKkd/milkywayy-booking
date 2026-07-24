@@ -2,12 +2,14 @@ import { auth } from "@/lib/helpers/auth";
 import {
   createSinglePropertyShare,
   getPropertySharingDashboard,
+  refreshPropertyShareMedia,
   savePropertyShareListing,
   setPropertyShareEnabled,
 } from "@/lib/services/propertySharing";
 import {
   createSinglePropertyShareAction,
   getPropertySharingDashboardAction,
+  refreshPropertyShareMediaAction,
   savePropertyShareListingAction,
   setPropertyShareEnabledAction,
 } from "../propertySharing";
@@ -17,6 +19,7 @@ jest.mock("@/lib/services/propertySharing", () => ({
   createMasterPropertyShare: jest.fn(),
   createSinglePropertyShare: jest.fn(),
   getPropertySharingDashboard: jest.fn(),
+  refreshPropertyShareMedia: jest.fn(),
   savePropertyShareListing: jest.fn(),
   setPropertyShareEnabled: jest.fn(),
   updateMasterPropertyShare: jest.fn(),
@@ -52,6 +55,15 @@ describe("property sharing server actions", () => {
     );
     expect(getPropertySharingDashboard).toHaveBeenCalledWith(7);
     expect(setPropertyShareEnabled).toHaveBeenCalledWith(7, 4, false);
+  });
+
+  it("refreshes snapshots only through the authenticated owner boundary", async () => {
+    refreshPropertyShareMedia.mockResolvedValue({ shareId: 4 });
+
+    const result = await refreshPropertyShareMediaAction(4);
+
+    expect(result.success).toBe(true);
+    expect(refreshPropertyShareMedia).toHaveBeenCalledWith(7, 4);
   });
 
   it("passes owner-authored listing configuration through the authenticated boundary", async () => {

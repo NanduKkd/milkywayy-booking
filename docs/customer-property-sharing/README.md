@@ -7,11 +7,13 @@ revisions, replacement states, review deadlines, completion controls, and the
 full existing `FileList` retain their authenticated contracts.
 
 An authenticated property owner or real-estate agent can configure one public
-listing per owned completed booking. Configuration includes listing title, AED
-price, listing type, bathrooms, square-foot size, furnishing, description,
-highlights/amenities, contact name, and contact phone. Contact fields are
-owner-authored listing content; buyers never submit contact data and the feature
-does not create an agent, team, assignment, or visitor-contact model.
+listing per owned confirmed, non-cancelled booking as soon as it has a safe
+current media file under review or accepted. Booking completion is not
+required. Configuration includes listing title, AED price, listing type,
+bathrooms, square-foot size, furnishing, description, highlights/amenities,
+contact name, and contact phone. Contact fields are owner-authored listing
+content; buyers never submit contact data and the feature does not create an
+agent, team, assignment, or visitor-contact model.
 
 The owner can publish:
 
@@ -21,10 +23,12 @@ The owner can publish:
 
 A public single link opens a responsive buyer-facing showcase immediately. A
 master link opens a curated collection; selecting a card opens the complete
-showcase under the same bearer. Showcases include real accepted photo/video/360
-media, listing metadata, description, highlights, telephone and WhatsApp
-actions, and Milkywayy branding. They contain no buyer form, delivery manifest,
-download button, revision control, or authenticated file route.
+showcase under the same bearer. Showcases include the safe under-review and
+accepted photo/video/360 media pinned when the link was created or explicitly
+refreshed, listing metadata, description, highlights, telephone and WhatsApp
+actions, and Milkywayy branding. They contain no internal review status, buyer
+form, delivery manifest, download button, revision control, or authenticated
+file route.
 
 Accepted 360 copy-link deliveries appear in the main media viewer as lazy
 iframes, using the same interactive presentation as the landing-page portfolio.
@@ -43,12 +47,14 @@ thumbnail show an explicit unavailable state rather than a broken image.
 
 The management UI follows the supplied reference with compact **Shared
 Properties**, **Master Links**, and select-multiple/action-bar surfaces, a
-compact listing form, and card-click preview. Eligible unshared completed
-projects expose **Create Share Link** in the authenticated `FileList` directly
-below the manager; published properties are managed above it. Owners select two
-or more shared property cards—including the visible check control—to create or
-update the master collection. Preview embeds the actual public buyer page and
-can be switched between Phone and Desktop widths.
+compact listing form, and card-click preview. Eligible unshared completed or
+in-review projects expose **Create Share Link** in the authenticated `FileList`
+directly below the manager; published properties are managed above it. Owners
+can explicitly **Refresh Media** to replace a link's exact file+version
+snapshot after later uploads or replacements. Owners select two or more shared
+property cards—including the visible check control—to create or update the
+master collection. Preview embeds the actual public buyer page and can be
+switched between Phone and Desktop widths.
 
 The existing authenticated `FileList` remains directly below the sharing
 manager with its download, revision, replacement, review, and completion
@@ -72,23 +78,27 @@ card: contact and WhatsApp actions remain available inside each selected
 property's full showcase. The selected-property view keeps an inset,
 keyboard-focusable back-to-collection link above the showcase.
 
-Public pages always resolve the current accepted browser-safe media for the
-selected booking. Photos and videos are streamed only through
-link/property/file-scoped inline routes, and persisted private object URLs are
-never serialized. Validated HTTPS 360 tour links are intentionally exposed as
-iframe sources with a no-referrer policy; they never pass through the owned
-object route.
+Public pages resolve only the exact safe browser-viewable file+version
+memberships pinned for the selected booking. Every request re-checks that each
+member is still current, under review or accepted, non-deleted,
+non-superseded, selected, and safe. Later uploads and replacements do not alter
+an existing link until **Refresh Media**. Photos and videos are streamed only
+through link/property/file-scoped inline routes, and persisted private object
+URLs are never serialized. Validated HTTPS 360 tour links are intentionally
+exposed as iframe sources with a no-referrer policy; they never pass through
+the owned object route.
 
 The public identifier is a stable, opaque 256-bit value. A link is deliberately
-public and reshareable. The owner can copy it after any reload and can disable
-or re-enable it; there is no rotate, revoke, refresh-snapshot, expiry, or
-one-time-copy lifecycle. The dashboard shows only a total link-view count.
-There is no raw view event or visitor-identity store.
+public and reshareable. The owner can copy it after any reload, disable or
+re-enable it, and explicitly refresh its media snapshot; there is no rotate,
+revoke, expiry, or one-time-copy lifecycle. The dashboard shows only a total
+link-view count. There is no raw view event or visitor-identity store.
 
 Continue with [architecture](./ARCHITECTURE.md), [accepted decisions](./DECISIONS.md),
 [operations](./OPERATIONS.md), the [security test plan](./SECURITY-TEST-PLAN.md),
 [issue #68 proof](./proof/issue-68/README.md), and
-[issue #70 follow-up proof](./proof/issue-70/README.md).
+[issue #70 follow-up proof](./proof/issue-70/README.md). The review-time sharing
+acceptance proof is recorded under [issue #76 proof](./proof/issue-76/README.md).
 
 ## Scope boundaries
 

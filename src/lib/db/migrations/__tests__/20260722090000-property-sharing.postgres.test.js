@@ -6,6 +6,7 @@ const {
   TEST_ADMIN_OPT_IN_VALUE,
 } = require("../../testing/disposablePostgres");
 const migration = require("../20260722090000-create-property-sharing.js");
+const snapshotMigration = require("../20260724190000-create-property-share-media-snapshots.js");
 
 jest.setTimeout(30000);
 
@@ -74,6 +75,34 @@ describeWithPostgres(
               allowNull: false,
               references: { model: "bookings", key: "id" },
             },
+            type: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              defaultValue: "Photography",
+            },
+            label: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              defaultValue: "Photography",
+            },
+            delivery_mode: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              defaultValue: "download",
+            },
+            status: {
+              type: DataTypes.STRING,
+              allowNull: false,
+              defaultValue: "ACCEPTED",
+            },
+            current_version_id: {
+              type: DataTypes.INTEGER,
+              allowNull: true,
+            },
+            deleted_at: {
+              type: DataTypes.DATE,
+              allowNull: true,
+            },
             ...timestamps,
           });
           await setupQueryInterface.createTable(
@@ -89,10 +118,27 @@ describeWithPostgres(
                 allowNull: false,
                 references: { model: "booking_delivery_files", key: "id" },
               },
+              mime_type: {
+                type: DataTypes.STRING,
+                allowNull: true,
+              },
+              original_filename: {
+                type: DataTypes.STRING,
+                allowNull: true,
+              },
+              url: {
+                type: DataTypes.TEXT,
+                allowNull: true,
+              },
+              superseded_at: {
+                type: DataTypes.DATE,
+                allowNull: true,
+              },
               ...timestamps,
             },
           );
           await migration.up(setupQueryInterface, Sequelize);
+          await snapshotMigration.up(setupQueryInterface, Sequelize);
         },
       });
       sequelize = database.sequelize;
@@ -149,6 +195,7 @@ describeWithPostgres(
       try {
         if (database) {
           await sequelize.query("TRUNCATE property_share_links CASCADE");
+          await snapshotMigration.down(queryInterface);
           await migration.down(queryInterface);
         }
       } finally {
@@ -184,6 +231,102 @@ describeWithPostgres(
         },
       );
     }
+
+    it("backfills only legacy media accepted by the runtime safety classifier", async () => {
+      await snapshotMigration.down(queryInterface);
+      const [shareRows] = await insertShare({
+        kind: "SINGLE_PROPERTY",
+        singleBookingId: bookingId,
+        idCharacter: "g",
+      });
+      const shareLinkId = Number(shareRows[0].id);
+      const [propertyRows] = await sequelize.query(
+        `
+          INSERT INTO property_share_properties
+            (share_link_id, booking_id, position, created_at, updated_at)
+          VALUES
+            (:shareLinkId, :bookingId, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING id
+        `,
+        {
+          replacements: { shareLinkId, bookingId },
+          type: QueryTypes.INSERT,
+        },
+      );
+      const sharePropertyId = Number(propertyRows[0].id);
+      const [fileRows] = await sequelize.query(
+        `
+          INSERT INTO booking_delivery_files
+            (booking_id, type, label, delivery_mode, status,
+             created_at, updated_at)
+          VALUES
+            (:bookingId, 'Photography', 'Photography', 'download', 'ACCEPTED',
+             CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+            (:bookingId, 'Photography', 'Photography', 'download', 'ACCEPTED',
+             CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING id
+        `,
+        { replacements: { bookingId }, type: QueryTypes.INSERT },
+      );
+      const safeFileId = Number(fileRows[0].id);
+      const unsafeFileId = Number(fileRows[1].id);
+      const [versionRows] = await sequelize.query(
+        `
+          INSERT INTO booking_delivery_file_versions
+            (delivery_file_id, mime_type, original_filename, url,
+             created_at, updated_at)
+          VALUES
+            (:safeFileId, 'application/octet-stream', 'legacy-safe.JPG',
+             'private://legacy-safe', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+            (:unsafeFileId, 'image/svg+xml', 'unsafe.svg',
+             'private://unsafe', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING id, delivery_file_id
+        `,
+        {
+          replacements: { safeFileId, unsafeFileId },
+          type: QueryTypes.INSERT,
+        },
+      );
+      const versionByFile = new Map(
+        versionRows.map((row) => [
+          Number(row.delivery_file_id),
+          Number(row.id),
+        ]),
+      );
+      await sequelize.query(
+        `
+          UPDATE booking_delivery_files
+          SET current_version_id = CASE
+            WHEN id = :safeFileId THEN :safeVersionId
+            WHEN id = :unsafeFileId THEN :unsafeVersionId
+          END
+          WHERE id IN (:safeFileId, :unsafeFileId)
+        `,
+        {
+          replacements: {
+            safeFileId,
+            safeVersionId: versionByFile.get(safeFileId),
+            unsafeFileId,
+            unsafeVersionId: versionByFile.get(unsafeFileId),
+          },
+        },
+      );
+
+      await snapshotMigration.up(queryInterface, Sequelize);
+
+      const memberships = await sequelize.query(
+        `
+          SELECT delivery_file_id
+          FROM property_share_media
+          WHERE share_property_id = :sharePropertyId
+        `,
+        {
+          replacements: { sharePropertyId },
+          type: QueryTypes.SELECT,
+        },
+      );
+      expect(memberships).toEqual([{ delivery_file_id: safeFileId }]);
+    });
 
     it("allows exactly one stable single link for an owner and booking", async () => {
       const results = await Promise.allSettled([
@@ -304,6 +447,76 @@ describeWithPostgres(
         { replacements: { shareLinkId }, type: QueryTypes.SELECT },
       );
       expect(Number(link.total_views)).toBe(40);
+    });
+
+    it("pins one exact version for each file in a shared property snapshot", async () => {
+      const [shareRows] = await insertShare({
+        kind: "SINGLE_PROPERTY",
+        singleBookingId: bookingId,
+        idCharacter: "f",
+      });
+      const shareLinkId = Number(shareRows[0].id);
+      const [propertyRows] = await sequelize.query(
+        `
+          INSERT INTO property_share_properties
+            (share_link_id, booking_id, position, created_at, updated_at)
+          VALUES
+            (:shareLinkId, :bookingId, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING id
+        `,
+        {
+          replacements: { shareLinkId, bookingId },
+          type: QueryTypes.INSERT,
+        },
+      );
+      const sharePropertyId = Number(propertyRows[0].id);
+      const [fileRows] = await sequelize.query(
+        `
+          INSERT INTO booking_delivery_files
+            (booking_id, created_at, updated_at)
+          VALUES
+            (:bookingId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING id
+        `,
+        { replacements: { bookingId }, type: QueryTypes.INSERT },
+      );
+      const deliveryFileId = Number(fileRows[0].id);
+      const [versionRows] = await sequelize.query(
+        `
+          INSERT INTO booking_delivery_file_versions
+            (delivery_file_id, created_at, updated_at)
+          VALUES
+            (:deliveryFileId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+            (:deliveryFileId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          RETURNING id
+        `,
+        { replacements: { deliveryFileId }, type: QueryTypes.INSERT },
+      );
+      const insertMembership = (deliveryFileVersionId) =>
+        sequelize.query(
+          `
+            INSERT INTO property_share_media
+              (share_property_id, delivery_file_id, delivery_file_version_id,
+               position, created_at, updated_at)
+            VALUES
+              (:sharePropertyId, :deliveryFileId, :deliveryFileVersionId,
+               0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `,
+          {
+            replacements: {
+              sharePropertyId,
+              deliveryFileId,
+              deliveryFileVersionId,
+            },
+          },
+        );
+
+      await expect(
+        insertMembership(Number(versionRows[0].id)),
+      ).resolves.toBeDefined();
+      await expect(
+        insertMembership(Number(versionRows[1].id)),
+      ).rejects.toBeDefined();
     });
   },
 );
