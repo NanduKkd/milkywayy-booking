@@ -4,6 +4,7 @@ import "../../relations";
 import Booking from "../booking";
 import PropertyShareLink from "../propertysharelink";
 import PropertyShareListing from "../propertysharelisting";
+import PropertyShareMedia from "../propertysharemedia";
 import PropertyShareProperty from "../propertyshareproperty";
 import User from "../user";
 
@@ -16,6 +17,10 @@ describe("property sharing models", () => {
     expect(PropertyShareLink.rawAttributes.revokedAt).toBeUndefined();
     expect(PropertyShareLink.rawAttributes.lastViewedAt).toBeUndefined();
     expect(PropertyShareProperty.tableName).toBe("property_share_properties");
+    expect(PropertyShareMedia.tableName).toBe("property_share_media");
+    expect(PropertyShareMedia.rawAttributes.deliveryFileVersionId.field).toBe(
+      "delivery_file_version_id",
+    );
     expect(PropertyShareListing.tableName).toBe("property_share_listings");
     expect(PropertyShareListing.rawAttributes.listingTitle.field).toBe(
       "listing_title",
@@ -38,7 +43,13 @@ describe("property sharing models", () => {
     );
     expect(PropertyShareProperty.associations.booking.target).toBe(Booking);
     expect(PropertyShareLink.associations.dailyViews).toBeUndefined();
-    expect(PropertyShareProperty.associations.files).toBeUndefined();
+    expect(PropertyShareProperty.associations.files.target).toBe(
+      PropertyShareMedia,
+    );
+    expect(PropertyShareMedia.associations.deliveryFile.target).toBeDefined();
+    expect(
+      PropertyShareMedia.associations.deliveryFileVersion.target,
+    ).toBeDefined();
     expect(Booking.associations.propertyShareListing.target).toBe(
       PropertyShareListing,
     );

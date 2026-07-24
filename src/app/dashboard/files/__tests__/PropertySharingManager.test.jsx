@@ -3,6 +3,7 @@ import PropertySharingManager from "../PropertySharingManager";
 
 const mockCreateMaster = jest.fn();
 const mockGetDashboard = jest.fn();
+const mockRefreshMedia = jest.fn();
 const mockSaveListing = jest.fn();
 const mockSetEnabled = jest.fn();
 const mockUpdateMaster = jest.fn();
@@ -10,6 +11,7 @@ const mockUpdateMaster = jest.fn();
 jest.mock("@/lib/actions/propertySharing", () => ({
   createMasterPropertyShareAction: (...args) => mockCreateMaster(...args),
   getPropertySharingDashboardAction: (...args) => mockGetDashboard(...args),
+  refreshPropertyShareMediaAction: (...args) => mockRefreshMedia(...args),
   savePropertyShareListingAction: (...args) => mockSaveListing(...args),
   setPropertyShareEnabledAction: (...args) => mockSetEnabled(...args),
   updateMasterPropertyShareAction: (...args) => mockUpdateMaster(...args),
@@ -97,6 +99,7 @@ describe("PropertySharingManager", () => {
       },
     });
     mockSetEnabled.mockResolvedValue({ success: true, data: {} });
+    mockRefreshMedia.mockResolvedValue({ success: true, data: {} });
     mockUpdateMaster.mockResolvedValue({ success: true, data: {} });
     Object.assign(navigator, {
       clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
@@ -120,10 +123,34 @@ describe("PropertySharingManager", () => {
     expect(screen.getAllByText(/link views/u)).toHaveLength(2);
     expect(screen.getAllByLabelText(/Preview Corner home/u)).toHaveLength(2);
     expect(
-      screen.queryByRole("button", { name: /rotate|revoke|refresh/u }),
+      screen.queryByRole("button", { name: /rotate|revoke/u }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Refresh Media" }),
+    ).toHaveLength(2);
     expect(screen.queryByText(/Recent contacts/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/agent/u)).not.toBeInTheDocument();
+  });
+
+  it("explicitly refreshes exact media snapshots from a shared property card", async () => {
+    let resolveRefresh;
+    mockRefreshMedia.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRefresh = resolve;
+      }),
+    );
+    render(<PropertySharingManager initialData={data()} />);
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Refresh Media" })[0],
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Refreshing..." }),
+    ).toBeDisabled();
+    resolveRefresh({ success: true, data: {} });
+    await waitFor(() => expect(mockRefreshMedia).toHaveBeenCalledWith(4));
+    await waitFor(() => expect(mockGetDashboard).toHaveBeenCalled());
   });
 
   it("reconciles refreshed server data after a share is created from the file list", async () => {
@@ -200,5 +227,9 @@ describe("PropertySharingManager", () => {
         master.publicUrl,
       ),
     );
+
+    fireEvent.click(screen.getByRole("button", { name: "Refresh Media" }));
+    await waitFor(() => expect(mockRefreshMedia).toHaveBeenCalledWith(9));
+    expect(mockGetDashboard).toHaveBeenCalled();
   });
 });

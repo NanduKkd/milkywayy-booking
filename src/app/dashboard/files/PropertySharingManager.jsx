@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   createMasterPropertyShareAction,
   getPropertySharingDashboardAction,
+  refreshPropertyShareMediaAction,
   savePropertyShareListingAction,
   setPropertyShareEnabledAction,
   updateMasterPropertyShareAction,
@@ -395,6 +396,15 @@ export default function PropertySharingManager({ initialData }) {
     }
   };
 
+  const refreshMedia = async (share) => {
+    const result = await run(`${share.id}:refresh`, () =>
+      refreshPropertyShareMediaAction(share.id),
+    );
+    if (result) {
+      toast.success("Shared media refreshed.");
+    }
+  };
+
   const toggleSelected = (bookingId) => {
     setMasterSelection((current) =>
       current.includes(bookingId)
@@ -524,6 +534,16 @@ export default function PropertySharingManager({ initialData }) {
                 </button>
                 <button
                   type="button"
+                  disabled={loadingKey === `${masterShare.id}:refresh`}
+                  aria-busy={loadingKey === `${masterShare.id}:refresh`}
+                  onClick={() => refreshMedia(masterShare)}
+                >
+                  {loadingKey === `${masterShare.id}:refresh`
+                    ? "Refreshing..."
+                    : "Refresh Media"}
+                </button>
+                <button
+                  type="button"
                   onClick={() => setPreviewShare(masterShare)}
                 >
                   Preview
@@ -605,6 +625,19 @@ export default function PropertySharingManager({ initialData }) {
                           }}
                         >
                           {share.enabled ? "Disable" : "Enable"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={loadingKey === `${share.id}:refresh`}
+                          aria-busy={loadingKey === `${share.id}:refresh`}
+                          onClick={(event) => {
+                            stopPropagation(event);
+                            refreshMedia(share);
+                          }}
+                        >
+                          {loadingKey === `${share.id}:refresh`
+                            ? "Refreshing..."
+                            : "Refresh Media"}
                         </button>
                         <button
                           type="button"

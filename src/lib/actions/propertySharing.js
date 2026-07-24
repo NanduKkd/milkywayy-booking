@@ -7,6 +7,7 @@ import {
   createMasterPropertyShare,
   createSinglePropertyShare,
   getPropertySharingDashboard,
+  refreshPropertyShareMedia,
   savePropertyShareListing,
   setPropertyShareEnabled,
   updateMasterPropertyShare,
@@ -52,4 +53,8 @@ export const setPropertyShareEnabledAction = actionWrapper((shareId, enabled) =>
   withOwner((ownerUserId) =>
     setPropertyShareEnabled(ownerUserId, shareId, enabled),
   ),
+);
+
+export const refreshPropertyShareMediaAction = actionWrapper((shareId) =>
+  withOwner((ownerUserId) => refreshPropertyShareMedia(ownerUserId, shareId)),
 );

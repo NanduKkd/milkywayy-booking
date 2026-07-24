@@ -17,8 +17,9 @@ failure counts, network addresses, or user-agent values.
 
 ## Rollout
 
-1. Apply migration `20260722090000-create-property-sharing.js` before starting
-   code that imports the new models.
+1. Apply migrations `20260722090000-create-property-sharing.js` and
+   `20260724190000-create-property-share-media-snapshots.js` in order before
+   starting code that imports the snapshot model.
 2. Run focused migration/model/listing/service/action/public-media/UI tests and
    the real PostgreSQL uniqueness/contention suite.
 3. Run authenticated dashboard/file/download/workflow compatibility suites.
@@ -26,11 +27,14 @@ failure counts, network addresses, or user-agent values.
 5. In a synthetic environment verify listing create/edit, single/master pages,
    card preview at Phone/Desktop widths, inline image/video/range behavior,
    phone/WhatsApp actions, stable copy-after-reload, disable/re-enable,
-   unselected rejection, and total counts.
+   explicit media refresh, stale-version rejection, unselected rejection, and
+   total counts.
 6. Confirm every request-log layer redacts bearer-bearing routes.
 
-No backfill is required because the migration has not shipped and the previous
-contact/receipt contract was never released.
+The snapshot migration backfills each existing selected property with its
+current safe-looking under-review or accepted photo, video, and 360 membership.
+Public resolution still revalidates the exact file/version, booking state,
+storage/link safety, and supported media contract before serving anything.
 
 ## Owner support actions
 
@@ -40,6 +44,9 @@ contact/receipt contract was never released.
   dashboard reload.
 - **Disable/re-enable:** takes effect on the next public resolution and keeps
   the same URL and total link views.
+- **Refresh Media:** transactionally replaces exact snapshot membership with
+  all currently safe current under-review or accepted media for each selected
+  property. Use it after uploads or replacements become reviewable.
 - **Update master:** replaces the explicit ordered property selection.
 
 ## Monitoring
@@ -56,8 +63,8 @@ cookie, raw event, or stored object URL dimensions.
 
 ## Failure modes and rollback
 
-Invalid owned storage, unsafe MIME, ineligible current media, and unselected
-media fail with the generic unavailable response. For urgent code rollback,
+Invalid owned storage, unsafe MIME, stale/changes-requested snapshot media, and
+unselected media fail with the generic unavailable response. For urgent code rollback,
 remove or
 disable public and authenticated sharing routes first so distributed links fail
 closed while rows remain intact. Do not run schema `down` while listing/share

@@ -6,12 +6,10 @@ import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingDeliveryFileVersion from "@/lib/db/models/bookingdeliveryfileversion";
 import PropertyShareLink from "@/lib/db/models/propertysharelink";
 import PropertyShareListing from "@/lib/db/models/propertysharelisting";
+import PropertyShareMedia from "@/lib/db/models/propertysharemedia";
 import PropertyShareProperty from "@/lib/db/models/propertyshareproperty";
 import User from "@/lib/db/models/user";
-import {
-  BOOKING_WORKFLOW_STATUS,
-  DELIVERY_FILE_STATUS,
-} from "@/lib/helpers/bookingWorkflow";
+import { DELIVERY_FILE_STATUS } from "@/lib/helpers/bookingWorkflow";
 import {
   createPropertyShareId,
   isPropertyShareId,
@@ -54,6 +52,11 @@ const FURNISHING_LABELS = Object.freeze({
   FURNISHED: "Furnished",
   UNFURNISHED: "Unfurnished",
 });
+const SHAREABLE_BOOKING_STATUSES = ["CONFIRMED", "COMPLETED"];
+const SHAREABLE_MEDIA_STATUSES = [
+  DELIVERY_FILE_STATUS.UNDER_REVIEW,
+  DELIVERY_FILE_STATUS.ACCEPTED,
+];
 
 export class PropertyShareNotFoundError extends Error {
   constructor() {
@@ -237,7 +240,7 @@ function eligibleDeliveryFiles(bookingLike) {
       const version = toPlain(file.currentVersion) || {};
       return (
         !file.deletedAt &&
-        file.status === DELIVERY_FILE_STATUS.ACCEPTED &&
+        SHAREABLE_MEDIA_STATUSES.includes(file.status) &&
         Number.isSafeInteger(Number(file.currentVersionId)) &&
         Number(file.currentVersionId) === Number(version.id) &&
         !version.supersededAt &&
@@ -262,15 +265,20 @@ function eligibleDeliveryFiles(bookingLike) {
     });
 }
 
-function isEligibleBooking(bookingLike, ownerUserId) {
+function hasShareableBookingState(bookingLike, ownerUserId) {
   const booking = toPlain(bookingLike) || {};
   return (
     Number(booking.userId) === Number(ownerUserId) &&
-    booking.workflowStatus === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED &&
-    Boolean(booking.completedAt) &&
+    SHAREABLE_BOOKING_STATUSES.includes(booking.status) &&
     !booking.cancelledAt &&
-    booking.status !== "CANCELLED" &&
-    eligibleDeliveryFiles(booking).length > 0
+    booking.status !== "CANCELLED"
+  );
+}
+
+function isEligibleBooking(bookingLike, ownerUserId) {
+  return (
+    hasShareableBookingState(bookingLike, ownerUserId) &&
+    eligibleDeliveryFiles(bookingLike).length > 0
   );
 }
 
@@ -280,7 +288,7 @@ const ELIGIBLE_BOOKING_INCLUDE = [
     as: "deliveryFiles",
     required: true,
     where: {
-      status: DELIVERY_FILE_STATUS.ACCEPTED,
+      status: { [Op.in]: SHAREABLE_MEDIA_STATUSES },
       deletedAt: null,
     },
     include: [
@@ -288,7 +296,6 @@ const ELIGIBLE_BOOKING_INCLUDE = [
         model: BookingDeliveryFileVersion,
         as: "currentVersion",
         required: true,
-        attributes: { exclude: ["url"] },
       },
     ],
   },
@@ -308,10 +315,8 @@ async function findEligibleBookings(
   const bookings = await Booking.findAll({
     where: {
       userId: ownerUserId,
-      workflowStatus: BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED,
-      completedAt: { [Op.ne]: null },
+      status: { [Op.in]: SHAREABLE_BOOKING_STATUSES },
       cancelledAt: null,
-      status: { [Op.ne]: "CANCELLED" },
       ...(ids ? { id: { [Op.in]: ids } } : {}),
     },
     include: ELIGIBLE_BOOKING_INCLUDE,
@@ -492,6 +497,7 @@ async function replaceShareProperties(share, bookings, transaction) {
     }
   }
 
+  const selected = [];
   for (const [position, booking] of bookings.entries()) {
     let property = byBookingId.get(Number(booking.id));
     if (!property) {
@@ -502,6 +508,32 @@ async function replaceShareProperties(share, bookings, transaction) {
     } else if (Number(property.position) !== position) {
       await property.update({ position }, { transaction });
     }
+    selected.push({ property, booking });
+  }
+  return selected;
+}
+
+async function replacePropertyMediaSnapshot(property, booking, transaction) {
+  const media = eligibleDeliveryFiles(booking);
+  if (media.length === 0) throw new PropertyShareNotFoundError();
+  await PropertyShareMedia.destroy({
+    where: { sharePropertyId: property.id },
+    transaction,
+  });
+  await PropertyShareMedia.bulkCreate(
+    media.map((file, position) => ({
+      sharePropertyId: property.id,
+      deliveryFileId: file.id,
+      deliveryFileVersionId: file.currentVersionId,
+      position,
+    })),
+    { transaction },
+  );
+}
+
+async function replaceShareMediaSnapshots(selectedProperties, transaction) {
+  for (const { property, booking } of selectedProperties) {
+    await replacePropertyMediaSnapshot(property, booking, transaction);
   }
 }
 
@@ -555,7 +587,12 @@ async function createShare({ ownerUserId, kind, bookingIds }) {
         },
         { transaction },
       );
-      await replaceShareProperties(share, bookings, transaction);
+      const selectedProperties = await replaceShareProperties(
+        share,
+        bookings,
+        transaction,
+      );
+      await replaceShareMediaSnapshots(selectedProperties, transaction);
       return {
         shareId: Number(share.id),
         publicUrl: publicShareUrl(publicId),
@@ -617,7 +654,46 @@ export async function updateMasterPropertyShare(
       lock: true,
     });
     await requireConfiguredListings(ownerUserId, ids, transaction, true);
-    await replaceShareProperties(share, bookings, transaction);
+    const selectedProperties = await replaceShareProperties(
+      share,
+      bookings,
+      transaction,
+    );
+    await replaceShareMediaSnapshots(selectedProperties, transaction);
+    return { shareId: Number(share.id) };
+  });
+}
+
+export async function refreshPropertyShareMedia(ownerUserId, shareId) {
+  const ownerId = requirePositiveInteger(ownerUserId);
+  return sequelize.transaction(async (transaction) => {
+    await lockOwner(ownerId, transaction);
+    const share = await findOwnerShare(ownerId, shareId, transaction, true);
+    const properties = await PropertyShareProperty.findAll({
+      where: { shareLinkId: share.id },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+      order: [["position", "ASC"]],
+    });
+    const bookingIds = properties.map((property) => Number(property.bookingId));
+    const minimum = share.kind === PROPERTY_SHARE_KIND.MASTER ? 2 : 1;
+    if (bookingIds.length < minimum) throw new PropertyShareNotFoundError();
+    const bookings = await findEligibleBookings(ownerId, bookingIds, {
+      transaction,
+      lock: true,
+    });
+    await requireConfiguredListings(ownerId, bookingIds, transaction, true);
+    const byBookingId = new Map(
+      bookings.map((booking) => [Number(booking.id), booking]),
+    );
+    const selectedProperties = properties.map((property) => ({
+      property,
+      booking: byBookingId.get(Number(property.bookingId)),
+    }));
+    if (selectedProperties.some(({ booking }) => !booking)) {
+      throw new PropertyShareNotFoundError();
+    }
+    await replaceShareMediaSnapshots(selectedProperties, transaction);
     return { shareId: Number(share.id) };
   });
 }
@@ -648,7 +724,9 @@ function serializeOwnerShare(shareLike) {
         bookingId: Number(property.bookingId),
         ...serializeBookingFacts(booking),
         listing: serializeListing(booking.propertyShareListing),
-        mediaCount: eligibleDeliveryFiles(booking).length,
+        mediaCount: Array.isArray(property.files)
+          ? property.files.length
+          : eligibleDeliveryFiles(booking).length,
       };
     }),
   };
@@ -667,32 +745,30 @@ export async function getPropertySharingDashboard(ownerUserId) {
           required: false,
           include: [
             {
+              model: PropertyShareMedia,
+              as: "files",
+              required: false,
+              attributes: ["id"],
+            },
+            {
               model: Booking,
               as: "booking",
               required: true,
-              attributes: ["id", "propertyDetails", "completedAt"],
+              attributes: [
+                "id",
+                "userId",
+                "status",
+                "workflowStatus",
+                "propertyDetails",
+                "shootDetails",
+                "completedAt",
+                "cancelledAt",
+              ],
               include: [
                 {
                   model: PropertyShareListing,
                   as: "propertyShareListing",
                   required: true,
-                },
-                {
-                  model: BookingDeliveryFile,
-                  as: "deliveryFiles",
-                  required: false,
-                  where: {
-                    status: DELIVERY_FILE_STATUS.ACCEPTED,
-                    deletedAt: null,
-                  },
-                  include: [
-                    {
-                      model: BookingDeliveryFileVersion,
-                      as: "currentVersion",
-                      required: true,
-                      attributes: { exclude: ["url"] },
-                    },
-                  ],
                 },
               ],
             },
@@ -738,26 +814,30 @@ async function loadValidPublicShare(
             as: "propertyShareListing",
             required: true,
           },
+        ],
+      },
+      {
+        model: PropertyShareMedia,
+        as: "files",
+        required: true,
+        include: [
           {
             model: BookingDeliveryFile,
-            as: "deliveryFiles",
+            as: "deliveryFile",
             required: true,
-            where: {
-              status: DELIVERY_FILE_STATUS.ACCEPTED,
-              deletedAt: null,
-            },
-            include: [
-              {
-                model: BookingDeliveryFileVersion,
-                as: "currentVersion",
-                required: true,
-              },
-            ],
+          },
+          {
+            model: BookingDeliveryFileVersion,
+            as: "deliveryFileVersion",
+            required: true,
           },
         ],
       },
     ],
-    order: [["position", "ASC"]],
+    order: [
+      ["position", "ASC"],
+      [{ model: PropertyShareMedia, as: "files" }, "position", "ASC"],
+    ],
     transaction,
   });
   if (
@@ -778,22 +858,30 @@ async function loadValidPublicShare(
       Number(booking?.userId) !== Number(share.ownerUserId) ||
       Number(listing?.ownerUserId) !== Number(share.ownerUserId) ||
       Number(listing?.bookingId) !== Number(property.bookingId) ||
-      !isEligibleBooking(booking, share.ownerUserId)
+      !hasShareableBookingState(booking, share.ownerUserId)
     ) {
       return null;
     }
-    const media = eligibleDeliveryFiles(booking);
+    const media = (property.files || []).filter((membershipLike) => {
+      const membership = toPlain(membershipLike);
+      const file = toPlain(membership.deliveryFile) || {};
+      const version = toPlain(membership.deliveryFileVersion) || {};
+      return (
+        Number(file.bookingId) === Number(property.bookingId) &&
+        Number(version.deliveryFileId) === Number(file.id) &&
+        Number(membership.deliveryFileId) === Number(file.id) &&
+        Number(membership.deliveryFileVersionId) === Number(version.id) &&
+        Number(file.currentVersionId) === Number(version.id) &&
+        !file.deletedAt &&
+        SHAREABLE_MEDIA_STATUSES.includes(file.status) &&
+        !version.supersededAt &&
+        Boolean(getInlinePropertyMediaDetails(file, version))
+      );
+    });
     if (media.length === 0) {
       return null;
     }
-    property.files = media.map((fileLike) => {
-      const file = toPlain(fileLike);
-      return {
-        id: Number(file.id),
-        deliveryFile: file,
-        deliveryFileVersion: file.currentVersion,
-      };
-    });
+    property.files = media;
     publicProperties.push(property);
   }
   if (share.setDataValue) share.setDataValue("properties", publicProperties);

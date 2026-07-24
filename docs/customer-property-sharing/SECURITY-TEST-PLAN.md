@@ -6,8 +6,10 @@
 
 - Migration up/down creates/removes listing, stable-link, and selection tables
   in dependency-safe order.
-- Schema contains no contact submission, receipt, visitor identity, media
-  snapshot, daily analytics, revocation, or rotation state.
+- Snapshot migration creates exact property+file+version membership with unique
+  property/file and property/position constraints.
+- Schema contains no contact submission, receipt, visitor identity, daily
+  analytics, revocation, or rotation state.
 - Real PostgreSQL contention permits one single per owner/booking, one master
   per owner, and one listing per owner/booking.
 - Concurrent total-view increments are lossless.
@@ -17,11 +19,15 @@
 - Only the customer session owner can save/manage a listing or link.
 - Every listing field is bounded, normalized, unknown-key rejecting, and safely
   rendered; contact phone produces valid `tel:` and WhatsApp URLs.
-- Cancelled, incomplete, other-owner, and no-safe-media bookings are rejected.
+- Confirmed non-cancelled owner bookings become eligible with the first safe
+  current under-review or accepted file; draft, cancelled, other-owner,
+  private-only, changes-requested-only, and unsafe-only bookings are rejected.
 - Master links require at least two explicit configured properties.
-- Public media includes only accepted, non-deleted current browser-safe
-  image/video versions and validated HTTPS 360 copy-links.
-- Wrong-booking, unsafe, deleted, superseded, and unselected media fail closed.
+- New/explicitly refreshed snapshots include all safe current under-review and
+  accepted browser-safe image/video versions and validated HTTPS 360
+  copy-links across service types.
+- Wrong-booking, unsafe, deleted, stale, superseded, changes-requested, and
+  unselected media fail closed.
 
 ### Token, public page, and inline media boundary
 
@@ -31,8 +37,9 @@
   scopes share the same public unavailable shape.
 - Public DTO/HTML contains no persisted object URL, `/api/files/download`,
   `download` attribute, delivery manifest, buyer form, receipt, or cookie flow.
-- Media routes revalidate the public ID, property selection, current file/version,
-  current acceptance, supersession, safe MIME, and owned storage key.
+- Media routes revalidate the public ID, property selection, exact snapshot
+  membership, current file/version, under-review/accepted state, supersession,
+  safe MIME, and owned storage key.
 - Successful inline responses provide accurate MIME, `nosniff`, no-store,
   noindex, referrer policy, range support, and no attachment disposition or
   redirect.
@@ -50,8 +57,10 @@
 - The tab says Properties but links to `/dashboard/files`.
 - Eligible unshared FileList create action, compact listing form, Shared
   Properties, Master Links, direct check-control selection, select-multiple
-  action bar, total views, stable copy, enable/disable, and the actual
-  Phone/Desktop public-page preview are covered at desktop and narrow sizes.
+  action bar, total views, stable copy, enable/disable, explicit media refresh,
+  and the actual Phone/Desktop public-page preview are covered by focused
+  component tests. The in-review FileList create action is additionally
+  captured at desktop and 390px widths.
 - A successful FileList share creation reconciles the refreshed server state
   into Shared Properties immediately and removes the duplicate create action
   without requiring a manual browser refresh.

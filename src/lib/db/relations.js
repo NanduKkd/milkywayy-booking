@@ -269,6 +269,22 @@ models.PropertyShareProperty.belongsTo(models.Booking, {
   foreignKey: "bookingId",
   as: "booking",
 });
+models.PropertyShareProperty.hasMany(models.PropertyShareMedia, {
+  foreignKey: "sharePropertyId",
+  as: "files",
+});
+models.PropertyShareMedia.belongsTo(models.PropertyShareProperty, {
+  foreignKey: "sharePropertyId",
+  as: "shareProperty",
+});
+models.PropertyShareMedia.belongsTo(models.BookingDeliveryFile, {
+  foreignKey: "deliveryFileId",
+  as: "deliveryFile",
+});
+models.PropertyShareMedia.belongsTo(models.BookingDeliveryFileVersion, {
+  foreignKey: "deliveryFileVersionId",
+  as: "deliveryFileVersion",
+});
 models.PropertyShareListing.belongsTo(models.User, {
   foreignKey: "ownerUserId",
   as: "owner",

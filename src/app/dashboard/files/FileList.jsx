@@ -322,43 +322,41 @@ export default function FileList({
                     </p>
                   )}
                 </div>
-                {booking.completedAt ? (
-                  <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  {booking.completedAt ? (
                     <span className="inline-flex items-center gap-2 text-sm text-emerald-300">
                       <CheckCircle2 className="h-4 w-4" />
                       Project completed
                     </span>
-                    {shareableProperty && !existingShare ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() =>
-                          setCreateShareProperty(shareableProperty)
-                        }
-                      >
-                        <Link2 className="h-3.5 w-3.5" />
-                        Create Share Link
-                      </Button>
-                    ) : null}
-                  </div>
-                ) : (
-                  <Button
-                    type="button"
-                    disabled={
-                      !canCompleteBooking(booking, files) ||
-                      loadingKey === `complete-${booking.id}`
-                    }
-                    onClick={() => completeBooking(booking.id)}
-                  >
-                    {loadingKey === `complete-${booking.id}`
-                      ? "Completing..."
-                      : booking.deliveryFinishedAt
-                        ? unresolvedCount > 0
-                          ? "Changes Pending"
-                          : "Mark Complete"
-                        : "Delivery In Progress"}
-                  </Button>
-                )}
+                  ) : (
+                    <Button
+                      type="button"
+                      disabled={
+                        !canCompleteBooking(booking, files) ||
+                        loadingKey === `complete-${booking.id}`
+                      }
+                      onClick={() => completeBooking(booking.id)}
+                    >
+                      {loadingKey === `complete-${booking.id}`
+                        ? "Completing..."
+                        : booking.deliveryFinishedAt
+                          ? unresolvedCount > 0
+                            ? "Changes Pending"
+                            : "Mark Complete"
+                          : "Delivery In Progress"}
+                    </Button>
+                  )}
+                  {shareableProperty && !existingShare ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setCreateShareProperty(shareableProperty)}
+                    >
+                      <Link2 className="h-3.5 w-3.5" />
+                      Create Share Link
+                    </Button>
+                  ) : null}
+                </div>
               </div>
 
               <div className="mt-4 space-y-4">
