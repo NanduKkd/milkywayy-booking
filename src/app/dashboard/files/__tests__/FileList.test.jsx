@@ -97,8 +97,12 @@ describe("customer FileList", () => {
     ).toBeInTheDocument();
 
     const toggle = screen.getByRole("button", {
-      name: "Show Photography files",
+      name: "Show All Files for Photography",
     });
+    expect(screen.getByText("Show All Files")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Show Photography files"),
+    ).not.toBeInTheDocument();
     expect(toggle).toHaveAttribute("aria-expanded", "false");
     expect(toggle).toHaveAttribute(
       "aria-controls",
@@ -111,7 +115,7 @@ describe("customer FileList", () => {
     expect(region).toBeEmptyDOMElement();
   });
 
-  it("expands and collapses only the selected service group", () => {
+  it("expands and collapses a multi-file group while one-file groups stay visible", () => {
     render(
       <FileList
         bookings={[
@@ -143,27 +147,37 @@ describe("customer FileList", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Show Photography files" }),
+      screen.getByRole("button", {
+        name: "Show All Files for Photography",
+      }),
     );
 
     expect(screen.getByText("living-room.webp")).toBeInTheDocument();
     expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
-    expect(screen.queryByText("walkthrough.mp4")).not.toBeInTheDocument();
+    expect(screen.getByText("walkthrough.mp4")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Hide Photography files" }),
+      screen.getByRole("button", {
+        name: "Hide All Files for Photography",
+      }),
     ).toHaveAttribute("aria-expanded", "true");
     expect(
-      screen.getByRole("button", { name: "Show Long Form Video files" }),
-    ).toHaveAttribute("aria-expanded", "false");
+      screen.queryByRole("button", {
+        name: /all files for long form video/i,
+      }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Hide Photography files" }),
+      screen.getByRole("button", {
+        name: "Hide All Files for Photography",
+      }),
     );
 
     expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
     expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Show Photography files" }),
+      screen.getByRole("button", {
+        name: "Show All Files for Photography",
+      }),
     ).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -222,9 +236,6 @@ describe("customer FileList", () => {
 
   it("uses a real download link for browser-native mobile downloads", () => {
     render(<FileList bookings={[makeBooking()]} />);
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show Photography files" }),
-    );
 
     const link = screen.getByRole("link", { name: /download/i });
     expect(link).toHaveAttribute(
@@ -235,7 +246,7 @@ describe("customer FileList", () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 
-  it("keeps accepted one-file groups collapsible with their individual action", () => {
+  it("shows accepted one-file groups directly without a disclosure control", () => {
     render(
       <FileList
         bookings={[
@@ -252,10 +263,10 @@ describe("customer FileList", () => {
     );
 
     expect(screen.getByText("Accepted")).toBeInTheDocument();
-    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show Photography files" }),
-    );
+    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /all files for photography/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Download" })).toHaveAttribute(
       "href",
       "/api/files/download?fileId=10&name=living-room.webp",
@@ -297,7 +308,9 @@ describe("customer FileList", () => {
       screen.queryByRole("link", { name: /^download$/i }),
     ).not.toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole("button", { name: "Show Photography files" }),
+      screen.getByRole("button", {
+        name: "Show All Files for Photography",
+      }),
     );
     expect(screen.getAllByRole("link", { name: /^download$/i })).toHaveLength(
       2,
@@ -335,7 +348,9 @@ describe("customer FileList", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Show Photography files" }),
+      screen.getByRole("button", {
+        name: "Show All Files for Photography",
+      }),
     );
     expect(screen.getByText("living-room.webp")).toBeInTheDocument();
     expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
@@ -369,7 +384,9 @@ describe("customer FileList", () => {
       screen.getByRole("link", { name: "Download ZIP" }),
     ).toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole("button", { name: "Show Photography files" }),
+      screen.getByRole("button", {
+        name: "Show All Files for Photography",
+      }),
     );
     expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(
       "href",
@@ -462,9 +479,6 @@ describe("customer FileList", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show Photography files" }),
-    );
     expect(screen.queryByText("old-living-room.webp")).not.toBeInTheDocument();
     expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
     expect(screen.getByText(/1 awaiting replacement/i)).toBeInTheDocument();
@@ -576,7 +590,9 @@ describe("customer FileList", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: "Hide Photography files" }),
+      screen.getByRole("button", {
+        name: "Hide All Files for Photography",
+      }),
     ).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Selected file")).toBeInTheDocument();
     expect(
@@ -625,12 +641,6 @@ describe("customer FileList", () => {
         ]}
       />,
     );
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: /Show Review <script>alert\("x"\)<\/script>\s+Final files/,
-      }),
-    );
-
     expect(
       screen.getByText('living-room-<img src=x onerror=alert("x")>.webp'),
     ).toBeInTheDocument();

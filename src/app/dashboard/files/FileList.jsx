@@ -386,7 +386,9 @@ export default function FileList({
                     group.type,
                   );
                   const groupLabel = group.label || group.type;
-                  const isExpanded = expandedGroupKeys.has(groupKey);
+                  const isCollapsible = group.files.length > 1;
+                  const isExpanded =
+                    !isCollapsible || expandedGroupKeys.has(groupKey);
                   return (
                     <section
                       key={group.type}
@@ -465,7 +467,7 @@ export default function FileList({
                               </a>
                             </Button>
                           ) : null}
-                          {group.files.length > 0 ? (
+                          {isCollapsible ? (
                             <Button
                               type="button"
                               size="sm"
@@ -481,9 +483,12 @@ export default function FileList({
                                   isExpanded ? "rotate-180" : "",
                                 ].join(" ")}
                               />
-                              {isExpanded
-                                ? `Hide ${groupLabel} files`
-                                : `Show ${groupLabel} files`}
+                              <span>
+                                {isExpanded
+                                  ? "Hide All Files"
+                                  : "Show All Files"}
+                              </span>
+                              <span className="sr-only"> for {groupLabel}</span>
                             </Button>
                           ) : null}
                         </div>

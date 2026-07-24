@@ -51,14 +51,15 @@ every new upload.
 The customer Files dashboard now groups current delivery files by booking and
 their exact persisted type. Each group—including the legacy `Videography`
 group—is one review decision with one status, Dubai deadline, revision number,
-and revision request. Every non-empty service group starts with its individual
-file rows collapsed while the service summary, replacement state, revision
-action, and group ZIP action remain visible. A native button exposes the member
-list with an accessible expanded state and controlled-region relationship.
-Opening a `fileId` deep link automatically expands its service group before the
-existing selected-file highlight and scroll behavior runs. Expansion state is
-local to the current page visit and does not change server requests or group
-membership.
+and revision request. A one-file service shows its file and individual action
+directly. Multi-file services start with their file rows collapsed while the
+service summary, replacement state, revision action, and group ZIP action remain
+visible. A native `Show All Files` button exposes the member list with a
+service-specific accessible name, expanded state, and controlled-region
+relationship. Opening a `fileId` deep link automatically expands a collapsed
+multi-file service before the existing selected-file highlight and scroll
+behavior runs. Expansion state is local to the current page visit and does not
+change server requests or group membership.
 
 A customer revision request identifies only the booking and service type. The
 server authorizes that owner-scoped group, locks the booking and its current
