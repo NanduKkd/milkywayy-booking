@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
   completeDeliveredBooking,
-  requestFileRevision,
+  requestDeliveryServiceRevision,
 } from "@/lib/actions/bookings";
 import FileList from "../FileList";
 
@@ -16,7 +16,7 @@ jest.mock("next/navigation", () => ({
 
 jest.mock("@/lib/actions/bookings", () => ({
   completeDeliveredBooking: jest.fn(),
-  requestFileRevision: jest.fn(),
+  requestDeliveryServiceRevision: jest.fn(),
 }));
 jest.mock("../CreatePropertyShareDialog", () => ({
   __esModule: true,
@@ -54,7 +54,7 @@ const makeBooking = (overrides = {}) => ({
 describe("customer FileList", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    requestFileRevision.mockResolvedValue({ success: true });
+    requestDeliveryServiceRevision.mockResolvedValue({ success: true });
     completeDeliveredBooking.mockResolvedValue({ success: true });
     Element.prototype.scrollIntoView = jest.fn();
     Object.assign(navigator, {
@@ -62,7 +62,7 @@ describe("customer FileList", () => {
     });
   });
 
-  it("renders every physical file with its own counter and deadline", () => {
+  it("groups current service files under one counter and deadline", () => {
     render(
       <FileList
         bookings={[
@@ -86,9 +86,9 @@ describe("customer FileList", () => {
 
     expect(screen.getByText("living-room.webp")).toBeInTheDocument();
     expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
-    expect(screen.getByText("Revision 0/2")).toBeInTheDocument();
+    expect(screen.queryByText("Revision 0/2")).not.toBeInTheDocument();
     expect(screen.getByText("Revision 1/2")).toBeInTheDocument();
-    expect(screen.getAllByText(/review by/i)).toHaveLength(2);
+    expect(screen.getAllByText(/review by/i)).toHaveLength(1);
   });
 
   it("renders canonical video labels distinctly and keeps legacy Videography readable", () => {
@@ -133,9 +133,9 @@ describe("customer FileList", () => {
       />,
     );
 
-    expect(screen.getByText("Short Form Video")).toBeInTheDocument();
-    expect(screen.getByText("Long Form Video")).toBeInTheDocument();
-    expect(screen.getByText("Videography")).toBeInTheDocument();
+    expect(screen.getAllByText("Short Form Video")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Long Form Video")[0]).toBeInTheDocument();
+    expect(screen.getAllByText("Videography")[0]).toBeInTheDocument();
   });
 
   it("uses a real download link for browser-native mobile downloads", () => {
@@ -150,7 +150,7 @@ describe("customer FileList", () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 
-  it("submits a revision against only the selected file", async () => {
+  it("submits one revision against the selected service group", async () => {
     render(<FileList bookings={[makeBooking()]} />);
 
     fireEvent.click(screen.getByRole("button", { name: /request revision/i }));
@@ -162,8 +162,9 @@ describe("customer FileList", () => {
     fireEvent.click(submit);
 
     await waitFor(() => {
-      expect(requestFileRevision).toHaveBeenCalledWith(
-        10,
+      expect(requestDeliveryServiceRevision).toHaveBeenCalledWith(
+        1,
+        "Photography",
         "Brighten the kitchen",
       );
     });
@@ -192,7 +193,9 @@ describe("customer FileList", () => {
     );
 
     expect(screen.queryByText("old-living-room.webp")).not.toBeInTheDocument();
-    expect(screen.getByText("No files available yet.")).toBeInTheDocument();
+    expect(
+      screen.getByText(/replacement pending for this service/i),
+    ).toBeInTheDocument();
   });
 
   it("shows other files but not the old file awaiting replacement", () => {
@@ -385,7 +388,7 @@ describe("customer FileList", () => {
       screen.getByText('living-room-<img src=x onerror=alert("x")>.webp'),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Review <script>alert\("x"\)<\/script>/),
+      screen.getAllByText(/Review <script>alert\("x"\)<\/script>/)[0],
     ).toHaveTextContent('Review <script>alert("x")</script> Final');
     expect(container.querySelector("script")).toBeNull();
   });

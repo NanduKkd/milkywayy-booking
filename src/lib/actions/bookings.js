@@ -56,7 +56,7 @@ import {
 import {
   DELIVERY_FILE_INCLUDE,
   finishBookingDeliveryState,
-  requestFileRevisionState,
+  requestDeliveryServiceRevisionState,
 } from "@/lib/services/fileDelivery";
 import {
   finalizePaidPromotionCheckoutTransaction,
@@ -1606,13 +1606,14 @@ export const completeDeliveredBooking = actionWrapper(
   completeDeliveredBookingHandler,
 );
 
-const requestFileRevisionHandler = async (fileId, note) => {
+const requestDeliveryServiceRevisionHandler = async (bookingId, type, note) => {
   const session = await auth();
   if (!session?.id) throw new Error("Unauthorized");
-  return requestFileRevisionState(fileId, session.id, note);
+  return requestDeliveryServiceRevisionState(bookingId, type, session.id, note);
 };
-export const requestFileRevision = actionWrapper(requestFileRevisionHandler);
-export const requestBookingRevision = requestFileRevision;
+export const requestDeliveryServiceRevision = actionWrapper(
+  requestDeliveryServiceRevisionHandler,
+);
 
 const finishBookingDeliveryHandler = async (bookingId) => {
   await requireAdmin();

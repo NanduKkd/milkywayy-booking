@@ -144,6 +144,9 @@ export const completeDeliveredBookingState = async (bookingId, userId) =>
     }
 
     const now = new Date();
+    const reviewableIds = files
+      .filter((file) => file.status === DELIVERY_FILE_STATUS.UNDER_REVIEW)
+      .map((file) => file.id);
     await BookingDeliveryFile.update(
       {
         status: DELIVERY_FILE_STATUS.ACCEPTED,
@@ -152,8 +155,7 @@ export const completeDeliveredBookingState = async (bookingId, userId) =>
       },
       {
         where: {
-          bookingId: booking.id,
-          status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+          id: { [Op.in]: reviewableIds },
         },
         transaction,
       },
@@ -168,34 +170,60 @@ export const autoCompleteEligibleBookings = async (now = new Date()) => {
       status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
       reviewDeadlineAt: { [Op.lte]: now },
     },
-    attributes: ["id"],
+    attributes: ["bookingId", "type"],
   });
   let acceptedFileCount = 0;
+  const expiredGroups = new Map();
   for (const item of expiredFiles) {
+    expiredGroups.set(`${item.bookingId}:${item.type}`, item);
+  }
+  for (const item of expiredGroups.values()) {
     const accepted = await sequelize.transaction(async (transaction) => {
-      const file = await BookingDeliveryFile.findByPk(item.id, {
+      const booking = await Booking.findByPk(item.bookingId, {
         transaction,
         lock: transaction.LOCK.UPDATE,
       });
-      if (
-        !file ||
-        file.status !== DELIVERY_FILE_STATUS.UNDER_REVIEW ||
-        !file.reviewDeadlineAt ||
-        new Date(file.reviewDeadlineAt).getTime() > now.getTime()
-      ) {
-        return false;
+      if (!booking || booking.cancelledAt || booking.status === "CANCELLED") {
+        return 0;
       }
-      await file.update(
+      const files = await BookingDeliveryFile.findAll({
+        where: { bookingId: booking.id, type: item.type, deletedAt: null },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+        order: [["id", "ASC"]],
+      });
+      if (
+        files.length === 0 ||
+        files.some(
+          (file) =>
+            file.status !== DELIVERY_FILE_STATUS.UNDER_REVIEW ||
+            !file.reviewDeadlineAt ||
+            new Date(file.reviewDeadlineAt).getTime() > now.getTime(),
+        )
+      ) {
+        return 0;
+      }
+      await BookingDeliveryFile.update(
         {
           status: DELIVERY_FILE_STATUS.ACCEPTED,
           acceptedAt: now,
           reviewDeadlineAt: null,
         },
-        { transaction },
+        {
+          where: { id: { [Op.in]: files.map((file) => file.id) } },
+          transaction,
+        },
       );
-      return true;
+      for (const file of files) {
+        Object.assign(file, {
+          status: DELIVERY_FILE_STATUS.ACCEPTED,
+          acceptedAt: now,
+          reviewDeadlineAt: null,
+        });
+      }
+      return files.length;
     });
-    if (accepted) acceptedFileCount += 1;
+    acceptedFileCount += accepted;
   }
 
   const eligible = await Booking.findAll({
@@ -222,14 +250,18 @@ export const autoCompleteEligibleBookings = async (now = new Date()) => {
       ) {
         return false;
       }
-      const outstandingFiles = await BookingDeliveryFile.count({
-        where: {
-          bookingId: booking.id,
-          status: { [Op.ne]: DELIVERY_FILE_STATUS.ACCEPTED },
-        },
+      const files = await BookingDeliveryFile.findAll({
+        where: { bookingId: booking.id, deletedAt: null },
         transaction,
+        lock: transaction.LOCK.UPDATE,
+        order: [["id", "ASC"]],
       });
-      if (outstandingFiles > 0) return false;
+      if (
+        files.length === 0 ||
+        files.some((file) => file.status !== DELIVERY_FILE_STATUS.ACCEPTED)
+      ) {
+        return false;
+      }
       return finalizeBookingInTransaction(booking, transaction, now);
     });
     if (completed) completedCount += 1;

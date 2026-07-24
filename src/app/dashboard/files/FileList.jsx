@@ -25,13 +25,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   completeDeliveredBooking,
-  requestFileRevision,
+  requestDeliveryServiceRevision,
 } from "@/lib/actions/bookings";
 import {
   DELIVERY_FILE_STATUS,
   isCustomerDeliveryFileVisible,
   MAX_FILE_REVISIONS,
 } from "@/lib/helpers/bookingWorkflow";
+import { projectDeliveryServiceGroups } from "@/lib/services/deliveryServiceGroups";
 import CreatePropertyShareDialog from "./CreatePropertyShareDialog";
 
 const getFileIcon = (type) => {
@@ -75,11 +76,11 @@ const formatDeadline = (value) => {
   }).format(deadline);
 };
 
-const getStatusLabel = (file) => {
-  if (file.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED) {
+const getStatusLabel = (group) => {
+  if (group.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED) {
     return "Replacement pending";
   }
-  if (file.status === DELIVERY_FILE_STATUS.ACCEPTED) return "Accepted";
+  if (group.status === DELIVERY_FILE_STATUS.ACCEPTED) return "Accepted";
   return "Ready for review";
 };
 
@@ -102,29 +103,31 @@ export default function FileList({
   propertySharing = { eligibleProperties: [], shares: [] },
 }) {
   const router = useRouter();
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [revisionNote, setRevisionNote] = useState("");
   const [loadingKey, setLoadingKey] = useState("");
   const [copyingId, setCopyingId] = useState(null);
   const [createShareProperty, setCreateShareProperty] = useState(null);
   const highlightedFileRef = useRef(null);
 
-  const openRevision = (file) => {
-    setSelectedFile(file);
+  const openRevision = (group) => {
+    setSelectedGroup(group);
     setRevisionNote("");
   };
 
   const closeRevision = () => {
-    setSelectedFile(null);
+    setSelectedGroup(null);
     setRevisionNote("");
   };
 
   const submitRevision = async () => {
-    if (!selectedFile || !revisionNote.trim()) return;
-    setLoadingKey(`revision-${selectedFile.id}`);
+    if (!selectedGroup || !revisionNote.trim()) return;
+    const revisionKey = `revision-${selectedGroup.bookingId}-${selectedGroup.type}`;
+    setLoadingKey(revisionKey);
     try {
-      const result = await requestFileRevision(
-        selectedFile.id,
+      const result = await requestDeliveryServiceRevision(
+        selectedGroup.bookingId,
+        selectedGroup.type,
         revisionNote.trim(),
       );
       if (!result.success) throw new Error(result.message);
@@ -168,6 +171,9 @@ export default function FileList({
   const visibleBookings = (bookings || [])
     .map((booking) => {
       const allFiles = booking.deliveryFiles || [];
+      const serviceGroups = (
+        booking.serviceGroups || projectDeliveryServiceGroups(allFiles)
+      ).map((group) => ({ ...group, bookingId: booking.id }));
       return {
         ...booking,
         pendingReplacementCount:
@@ -178,9 +184,16 @@ export default function FileList({
               file.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
           ).length,
         deliveryFiles: allFiles.filter(isCustomerDeliveryFileVisible),
+        serviceGroups,
       };
     })
-    .filter((booking) => booking.deliveryFiles.length > 0);
+    .filter(
+      (booking) =>
+        booking.deliveryFiles.length > 0 ||
+        booking.serviceGroups.some(
+          (group) => group.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+        ),
+    );
   const showUnavailableLinkNotice =
     requestedFileIdWasProvided && !requestedFileAvailable;
   const assignHighlightedFileRef = (node) => {
@@ -302,116 +315,164 @@ export default function FileList({
                 )}
               </div>
 
-              <div className="mt-4 divide-y space-y-3">
-                {files.map((file) => {
-                  const Icon = getFileIcon(file.type);
-                  const accepted =
-                    file.status === DELIVERY_FILE_STATUS.ACCEPTED;
+              <div className="mt-4 space-y-4">
+                {booking.serviceGroups.map((group) => {
+                  const groupAccepted =
+                    group.status === DELIVERY_FILE_STATUS.ACCEPTED;
                   const limitReached =
-                    Number(file.revisionCount || 0) >= MAX_FILE_REVISIONS;
+                    Number(group.revisionCount || 0) >= MAX_FILE_REVISIONS;
                   const deadlineClosed =
-                    file.reviewDeadlineAt &&
-                    new Date(file.reviewDeadlineAt).getTime() <= Date.now();
+                    group.reviewDeadlineAt &&
+                    new Date(group.reviewDeadlineAt).getTime() <= Date.now();
                   const canRequest =
-                    !accepted && !limitReached && !deadlineClosed;
-                  const isHighlighted = highlightedFileId === file.id;
-
+                    group.status === DELIVERY_FILE_STATUS.UNDER_REVIEW &&
+                    !limitReached &&
+                    !deadlineClosed;
                   return (
-                    <div
-                      key={file.id}
-                      ref={isHighlighted ? assignHighlightedFileRef : null}
-                      data-highlighted={isHighlighted ? "true" : "false"}
-                      data-testid={`delivery-file-card-${file.id}`}
-                      className={[
-                        "p-4 transition-colors",
-                        isHighlighted
-                          ? "border-sky-300/70 bg-sky-400/[0.08] shadow-[0_0_0_1px_rgba(125,211,252,0.35)]"
-                          : "border-white/10",
-                      ].join(" ")}
+                    <section
+                      key={group.type}
+                      data-testid={`delivery-service-group-${booking.id}-${group.type}`}
+                      className="rounded-xl border border-white/10 bg-black/10 p-4"
                     >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="flex min-w-0 items-start gap-3">
-                          <Icon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            {isHighlighted ? (
-                              <span className="mb-2 inline-flex items-center rounded-full border border-sky-300/30 bg-sky-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
-                                Selected file
-                              </span>
-                            ) : null}
-                            <p className="truncate font-medium text-zinc-100">
-                              {getFileName(file)}
-                            </p>
-                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                              <span>{file.label || file.type}</span>
+                      <div className="flex flex-col gap-3 border-b border-white/10 pb-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <h3 className="font-semibold text-zinc-100">
+                            {group.label || group.type}
+                          </h3>
+                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            <span>
+                              {group.memberCount}{" "}
+                              {group.memberCount === 1 ? "file" : "files"}
+                            </span>
+                            <span>
+                              Revision {group.revisionCount || 0}/
+                              {MAX_FILE_REVISIONS}
+                            </span>
+                            <span
+                              className={
+                                groupAccepted ? "text-emerald-300" : ""
+                              }
+                            >
+                              {getStatusLabel(group)}
+                            </span>
+                            {group.reviewDeadlineAt && !groupAccepted ? (
                               <span>
-                                Revision {file.revisionCount || 0}/
-                                {MAX_FILE_REVISIONS}
+                                Review by{" "}
+                                {formatDeadline(group.reviewDeadlineAt)} Dubai
+                                time
                               </span>
-                              <span
-                                className={accepted ? "text-emerald-300" : ""}
-                              >
-                                {getStatusLabel(file)}
-                              </span>
-                              {file.reviewDeadlineAt && !accepted && (
-                                <span>
-                                  Review by{" "}
-                                  {formatDeadline(file.reviewDeadlineAt)} Dubai
-                                  time
-                                </span>
-                              )}
-                            </div>
-                            {isHighlighted ? (
-                              <p className="mt-2 text-xs text-sky-200">
-                                Opened from a shared dashboard link.
-                              </p>
                             ) : null}
                           </div>
                         </div>
-
-                        <div className="flex shrink-0 flex-wrap gap-2">
-                          {file.deliveryMode === "copy_link" && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => copyLink(file)}
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                              {copyingId === file.id ? "Copied" : "Copy Link"}
-                            </Button>
-                          )}
-                          {file.deliveryMode !== "copy_link" && (
-                            <Button asChild size="sm" variant="outline">
-                              <a
-                                href={getDownloadHref(file)}
-                                download={getFileName(file)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Download className="h-3.5 w-3.5" />
-                                Download
-                              </a>
-                            </Button>
-                          )}
-                          {!accepted && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={!canRequest}
-                              onClick={() => openRevision(file)}
-                            >
-                              <RefreshCcw className="h-3.5 w-3.5" />
-                              {limitReached
-                                ? "Revision Limit Reached"
-                                : deadlineClosed
-                                  ? "Review Closed"
-                                  : "Request Revision"}
-                            </Button>
-                          )}
-                        </div>
+                        {group.status ===
+                        DELIVERY_FILE_STATUS.CHANGES_REQUESTED ? (
+                          <p className="text-sm text-amber-300">
+                            Replacement pending for this service.
+                          </p>
+                        ) : !groupAccepted ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={!canRequest}
+                            onClick={() => openRevision(group)}
+                          >
+                            <RefreshCcw className="h-3.5 w-3.5" />
+                            {limitReached
+                              ? "Revision Limit Reached"
+                              : deadlineClosed
+                                ? "Review Closed"
+                                : "Request Revision"}
+                          </Button>
+                        ) : null}
                       </div>
-                    </div>
+                      {group.files.length > 0 ? (
+                        <div className="divide-y">
+                          {group.files.map((file) => {
+                            const Icon = getFileIcon(file.type);
+                            const isHighlighted = highlightedFileId === file.id;
+
+                            return (
+                              <div
+                                key={file.id}
+                                ref={
+                                  isHighlighted
+                                    ? assignHighlightedFileRef
+                                    : null
+                                }
+                                data-highlighted={
+                                  isHighlighted ? "true" : "false"
+                                }
+                                data-testid={`delivery-file-card-${file.id}`}
+                                className={[
+                                  "p-4 transition-colors",
+                                  isHighlighted
+                                    ? "border-sky-300/70 bg-sky-400/[0.08] shadow-[0_0_0_1px_rgba(125,211,252,0.35)]"
+                                    : "border-white/10",
+                                ].join(" ")}
+                              >
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                  <div className="flex min-w-0 items-start gap-3">
+                                    <Icon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                                    <div className="min-w-0">
+                                      {isHighlighted ? (
+                                        <span className="mb-2 inline-flex items-center rounded-full border border-sky-300/30 bg-sky-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
+                                          Selected file
+                                        </span>
+                                      ) : null}
+                                      <p className="truncate font-medium text-zinc-100">
+                                        {getFileName(file)}
+                                      </p>
+                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                        <span>{file.label || file.type}</span>
+                                      </div>
+                                      {isHighlighted ? (
+                                        <p className="mt-2 text-xs text-sky-200">
+                                          Opened from a shared dashboard link.
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex shrink-0 flex-wrap gap-2">
+                                    {file.deliveryMode === "copy_link" && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => copyLink(file)}
+                                      >
+                                        <Copy className="h-3.5 w-3.5" />
+                                        {copyingId === file.id
+                                          ? "Copied"
+                                          : "Copy Link"}
+                                      </Button>
+                                    )}
+                                    {file.deliveryMode !== "copy_link" && (
+                                      <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                      >
+                                        <a
+                                          href={getDownloadHref(file)}
+                                          download={getFileName(file)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <Download className="h-3.5 w-3.5" />
+                                          Download
+                                        </a>
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </section>
                   );
                 })}
               </div>
@@ -421,14 +482,15 @@ export default function FileList({
       </div>
 
       <Dialog
-        open={Boolean(selectedFile)}
+        open={Boolean(selectedGroup)}
         onOpenChange={(open) => !open && closeRevision()}
       >
         <DialogContent className="border-white/10 bg-[#181818] text-white sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Request File Revision</DialogTitle>
+            <DialogTitle>Request Service Revision</DialogTitle>
             <DialogDescription>
-              Describe the changes needed for {getFileName(selectedFile)}.
+              Describe the changes needed for every current{" "}
+              {selectedGroup?.label || selectedGroup?.type} file.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-3">
@@ -443,8 +505,8 @@ export default function FileList({
               rows={5}
             />
             <p className="text-xs text-muted-foreground">
-              Request {Number(selectedFile?.revisionCount || 0) + 1} of{" "}
-              {MAX_FILE_REVISIONS} for this file
+              Request {Number(selectedGroup?.revisionCount || 0) + 1} of{" "}
+              {MAX_FILE_REVISIONS} for this service
             </p>
           </div>
           <DialogFooter>
@@ -455,11 +517,13 @@ export default function FileList({
               type="button"
               disabled={
                 !revisionNote.trim() ||
-                loadingKey === `revision-${selectedFile?.id}`
+                loadingKey ===
+                  `revision-${selectedGroup?.bookingId}-${selectedGroup?.type}`
               }
               onClick={submitRevision}
             >
-              {loadingKey === `revision-${selectedFile?.id}`
+              {loadingKey ===
+              `revision-${selectedGroup?.bookingId}-${selectedGroup?.type}`
                 ? "Submitting..."
                 : "Submit Revision"}
             </Button>

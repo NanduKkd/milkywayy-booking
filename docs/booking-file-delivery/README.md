@@ -45,3 +45,23 @@ The delivery type and label columns already store strings, so this change does
 not require a database migration or production backfill. Operators should
 leave legacy rows untouched and select one of the four canonical choices for
 every new upload.
+
+## Customer review groups
+
+The customer Files dashboard now groups current delivery files by booking and
+their exact persisted type. Each group—including the legacy `Videography`
+group—is one review decision with one status, Dubai deadline, revision number,
+and revision request. Individual filenames, links/downloads, and `fileId`
+highlights remain inside their service section.
+
+A customer revision request identifies only the booking and service type. The
+server authorizes that owner-scoped group, locks the booking and its current
+members in deterministic order, records the same bounded note and request
+number on every member, and changes the whole group together. Requested groups
+remain pending until every requested member has a replacement; the final
+replacement reopens all current members under one fresh deadline. Adding a
+file to a reviewable or accepted group similarly reopens the complete group.
+
+Manual completion and deadline acceptance operate on locked complete groups;
+they never leave a service partially accepted. A booking still cannot complete
+while any private or changes-requested group remains.

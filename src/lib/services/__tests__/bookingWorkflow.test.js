@@ -86,8 +86,8 @@ describe("booking workflow service", () => {
     };
     Booking.findOne.mockResolvedValue(booking);
     BookingDeliveryFile.findAll.mockResolvedValue([
-      { status: DELIVERY_FILE_STATUS.UNDER_REVIEW },
-      { status: DELIVERY_FILE_STATUS.ACCEPTED },
+      { id: 10, status: DELIVERY_FILE_STATUS.UNDER_REVIEW },
+      { id: 11, status: DELIVERY_FILE_STATUS.ACCEPTED },
     ]);
 
     await completeDeliveredBookingState(1, 7);
@@ -98,10 +98,7 @@ describe("booking workflow service", () => {
         reviewDeadlineAt: null,
       }),
       expect.objectContaining({
-        where: {
-          bookingId: 1,
-          status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
-        },
+        where: { id: expect.anything() },
       }),
     );
     expect(booking.status).toBe("COMPLETED");
@@ -127,6 +124,8 @@ describe("booking workflow service", () => {
   it("accepts expired files and completes eligible bookings once", async () => {
     const file = {
       id: 5,
+      bookingId: 1,
+      type: "Photography",
       status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
       reviewDeadlineAt: new Date("2026-06-01T00:00:00.000Z"),
       update: jest.fn(async (values) => Object.assign(file, values)),
@@ -139,9 +138,17 @@ describe("booking workflow service", () => {
       completedAt: null,
       update: jest.fn(async (values) => Object.assign(booking, values)),
     };
-    BookingDeliveryFile.findAll.mockResolvedValue([{ id: 5 }]);
-    BookingDeliveryFile.findByPk.mockResolvedValue(file);
-    BookingDeliveryFile.count.mockResolvedValue(0);
+    const secondFile = {
+      id: 6,
+      bookingId: 1,
+      type: "Photography",
+      status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+      reviewDeadlineAt: new Date("2026-06-01T00:00:00.000Z"),
+    };
+    BookingDeliveryFile.findAll
+      .mockResolvedValueOnce([{ bookingId: 1, type: "Photography" }])
+      .mockResolvedValueOnce([file, secondFile])
+      .mockResolvedValueOnce([file, secondFile]);
     Booking.findAll.mockResolvedValue([{ id: 1 }]);
     Booking.findByPk.mockResolvedValue(booking);
     Booking.count.mockResolvedValue(0);
@@ -150,8 +157,9 @@ describe("booking workflow service", () => {
       new Date("2026-06-02T00:00:00.000Z"),
     );
 
-    expect(result).toEqual({ acceptedFileCount: 1, completedCount: 1 });
+    expect(result).toEqual({ acceptedFileCount: 2, completedCount: 1 });
     expect(file.status).toBe(DELIVERY_FILE_STATUS.ACCEPTED);
+    expect(secondFile.status).toBe(DELIVERY_FILE_STATUS.ACCEPTED);
     expect(WalletTransaction.update).toHaveBeenCalledTimes(1);
   });
 });
