@@ -102,6 +102,17 @@ export const isBookingDeliverableKey = (key) =>
     String(key || ""),
   );
 
+export const isBookingDeliverableKeyForBooking = (key, bookingId) => {
+  const normalizedBookingId = Number(bookingId);
+  if (!Number.isSafeInteger(normalizedBookingId) || normalizedBookingId <= 0) {
+    return false;
+  }
+  const match = String(key || "").match(
+    /^(?:deliverables\/bookings|bookings|photography\/bookings|videography\/bookings|360\/bookings)\/([^/]+)\//u,
+  );
+  return match?.[1] === String(normalizedBookingId);
+};
+
 export const isInvoiceKey = (key) => /^invoices\//.test(String(key || ""));
 
 const decodeKey = (pathname) => {
@@ -156,10 +167,11 @@ export const parseOwnedBookingObjectUrl = (value) =>
 export const parseOwnedInvoiceObjectUrl = (value) =>
   parseOwnedObjectUrl(value, isInvoiceKey);
 
-export const headBookingObject = async (key) => {
+export const headBookingObject = async (key, { abortSignal } = {}) => {
   const { bucket } = getS3Config();
   return getS3Client().send(
     new HeadObjectCommand({ Bucket: bucket, Key: key }),
+    { abortSignal },
   );
 };
 
@@ -210,7 +222,7 @@ export const createDownloadUrl = async ({ key, fileName }) => {
   );
 };
 
-export const getBookingObject = async ({ key, range }) => {
+export const getBookingObject = async ({ key, range, abortSignal }) => {
   if (!isBookingDeliverableKey(key)) {
     throw new Error("Object key is outside the booking deliverables prefix");
   }
@@ -221,6 +233,7 @@ export const getBookingObject = async ({ key, range }) => {
       Key: key,
       ...(range ? { Range: range } : {}),
     }),
+    { abortSignal },
   );
 };
 

@@ -63,6 +63,9 @@ const getFileName = (file) => {
 const getDownloadHref = (file) =>
   `/api/files/download?fileId=${encodeURIComponent(file.id)}&name=${encodeURIComponent(getFileName(file))}`;
 
+const getZipDownloadHref = (bookingId, type) =>
+  `/api/files/download-zip?bookingId=${encodeURIComponent(bookingId)}&type=${encodeURIComponent(type)}`;
+
 const formatDeadline = (value) => {
   if (!value) return "";
   const deadline = new Date(value);
@@ -328,6 +331,12 @@ export default function FileList({
                     group.status === DELIVERY_FILE_STATUS.UNDER_REVIEW &&
                     !limitReached &&
                     !deadlineClosed;
+                  const canDownloadZip =
+                    group.files.length >= 2 &&
+                    [
+                      DELIVERY_FILE_STATUS.UNDER_REVIEW,
+                      DELIVERY_FILE_STATUS.ACCEPTED,
+                    ].includes(group.status);
                   return (
                     <section
                       key={group.type}
@@ -383,6 +392,23 @@ export default function FileList({
                               : deadlineClosed
                                 ? "Review Closed"
                                 : "Request Revision"}
+                          </Button>
+                        ) : null}
+                        {canDownloadZip ? (
+                          <Button
+                            asChild
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                          >
+                            <a
+                              href={getZipDownloadHref(booking.id, group.type)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              Download ZIP
+                            </a>
                           </Button>
                         ) : null}
                       </div>

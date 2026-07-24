@@ -150,6 +150,115 @@ describe("customer FileList", () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 
+  it("offers one ZIP action only for multi-file service groups", () => {
+    const { rerender } = render(<FileList bookings={[makeBooking()]} />);
+    expect(screen.queryByRole("link", { name: "Download ZIP" })).toBeNull();
+
+    rerender(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile(),
+              makeFile({
+                id: 11,
+                currentVersion: {
+                  id: 101,
+                  originalFilename: "kitchen.webp",
+                  url: "https://bucket.example/kitchen.webp",
+                },
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByRole("link", { name: "Download ZIP" })).toHaveAttribute(
+      "href",
+      "/api/files/download-zip?bookingId=1&type=Photography",
+    );
+    expect(screen.getByRole("link", { name: "Download ZIP" })).toHaveAttribute(
+      "rel",
+      "noopener noreferrer",
+    );
+    expect(screen.getAllByRole("link", { name: /^download$/i })).toHaveLength(
+      2,
+    );
+  });
+
+  it("does not offer a partial ZIP while any service member awaits replacement", () => {
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile(),
+              makeFile({
+                id: 11,
+                currentVersion: {
+                  id: 101,
+                  originalFilename: "kitchen.webp",
+                  url: "https://bucket.example/kitchen.webp",
+                },
+              }),
+              makeFile({
+                id: 12,
+                status: "CHANGES_REQUESTED",
+                currentVersion: {
+                  id: 102,
+                  originalFilename: "old-balcony.webp",
+                  url: "https://bucket.example/old-balcony.webp",
+                },
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
+    expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
+    expect(screen.queryByText("old-balcony.webp")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Download ZIP" })).toBeNull();
+  });
+
+  it("keeps individual direct and copy-link actions in a mixed ZIP group", async () => {
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile(),
+              makeFile({
+                id: 11,
+                deliveryMode: "copy_link",
+                currentVersion: {
+                  id: 101,
+                  originalFilename: "tour-link",
+                  url: "https://example.test/tour",
+                },
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Download ZIP" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(
+      "href",
+      "/api/files/download?fileId=10&name=living-room.webp",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Copy Link" }));
+    await waitFor(() => {
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        "https://example.test/tour",
+      );
+    });
+  });
+
   it("submits one revision against the selected service group", async () => {
     render(<FileList bookings={[makeBooking()]} />);
 
