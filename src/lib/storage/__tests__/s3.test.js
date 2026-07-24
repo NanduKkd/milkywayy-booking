@@ -2,6 +2,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import {
   createBookingObjectKey,
   createDownloadUrl,
+  isBookingDeliverableKeyForBooking,
   parseOwnedBookingObjectUrl,
   parseOwnedInvoiceObjectUrl,
   sanitizeFilename,
@@ -80,6 +81,25 @@ describe("booking S3 storage helpers", () => {
         "https://delivery-bucket.s3.ap-south-1.amazonaws.com/portfolio/file.jpg",
       ),
     ).toBeNull();
+  });
+
+  it("binds current and legacy booking object keys to the exact booking", () => {
+    for (const key of [
+      "deliverables/bookings/42/id/file.mp4",
+      "bookings/42/file.mp4",
+      "photography/bookings/42/photo.jpg",
+      "videography/bookings/42/video.mp4",
+      "360/bookings/42/tour.zip",
+    ]) {
+      expect(isBookingDeliverableKeyForBooking(key, 42)).toBe(true);
+      expect(isBookingDeliverableKeyForBooking(key, 4)).toBe(false);
+    }
+    expect(
+      isBookingDeliverableKeyForBooking(
+        "deliverables/bookings/420/file.mp4",
+        42,
+      ),
+    ).toBe(false);
   });
 
   it("parses only owned invoice object URLs", () => {

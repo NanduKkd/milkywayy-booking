@@ -4,7 +4,11 @@ const nextConfig = {
   reactCompiler: true,
   logging: {
     incomingRequests: {
-      ignore: [/\/share\//u, /\/api\/public\/property-shares\//u],
+      ignore: [
+        /\/share\//u,
+        /\/api\/public\/property-shares\//u,
+        /\/api\/files\/download-zip/u,
+      ],
     },
   },
   async rewrites() {

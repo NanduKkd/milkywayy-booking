@@ -65,3 +65,14 @@ file to a reviewable or accepted group similarly reopens the complete group.
 Manual completion and deadline acceptance operate on locked complete groups;
 they never leave a service partially accepted. A booking still cannot complete
 while any private or changes-requested group remains.
+
+## Multi-file downloads
+
+Reviewable or accepted groups with two or more current customer-visible members
+expose **Download ZIP** alongside every member's existing download or copy-link
+action. A group awaiting any replacement exposes no partial ZIP. The
+authenticated ZIP route derives the owner-scoped booking and exact service type
+on the server, then snapshots and preflights eligible current versions before
+it starts streaming. S3 objects are stored in the ZIP without recompression;
+copy-link deliveries are written to `EXTERNAL_LINKS.txt` and are never fetched
+by the application.
