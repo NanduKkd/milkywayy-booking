@@ -62,7 +62,7 @@ describe("customer FileList", () => {
     });
   });
 
-  it("groups current service files under one counter and deadline", () => {
+  it("collapses service files by default while retaining summary and group actions", () => {
     render(
       <FileList
         bookings={[
@@ -84,11 +84,87 @@ describe("customer FileList", () => {
       />,
     );
 
-    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
-    expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
+    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
+    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
     expect(screen.queryByText("Revision 0/2")).not.toBeInTheDocument();
     expect(screen.getByText("Revision 1/2")).toBeInTheDocument();
     expect(screen.getAllByText(/review by/i)).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "Request Revision" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Download ZIP" }),
+    ).toBeInTheDocument();
+
+    const toggle = screen.getByRole("button", {
+      name: "Show Photography files",
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(toggle).toHaveAttribute(
+      "aria-controls",
+      "delivery-service-files-1:Photography",
+    );
+    const region = document.getElementById(
+      "delivery-service-files-1:Photography",
+    );
+    expect(region).toHaveAttribute("hidden");
+    expect(region).toBeEmptyDOMElement();
+  });
+
+  it("expands and collapses only the selected service group", () => {
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile(),
+              makeFile({
+                id: 11,
+                currentVersion: {
+                  id: 101,
+                  originalFilename: "kitchen.webp",
+                  url: "https://bucket.example/kitchen.webp",
+                },
+              }),
+              makeFile({
+                id: 12,
+                type: "Long Form Video",
+                label: "Long Form Video",
+                currentVersion: {
+                  id: 102,
+                  originalFilename: "walkthrough.mp4",
+                  url: "https://bucket.example/walkthrough.mp4",
+                },
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show Photography files" }),
+    );
+
+    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
+    expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
+    expect(screen.queryByText("walkthrough.mp4")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Hide Photography files" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByRole("button", { name: "Show Long Form Video files" }),
+    ).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Hide Photography files" }),
+    );
+
+    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
+    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show Photography files" }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("renders canonical video labels distinctly and keeps legacy Videography readable", () => {
@@ -133,13 +209,22 @@ describe("customer FileList", () => {
       />,
     );
 
-    expect(screen.getAllByText("Short Form Video")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Long Form Video")[0]).toBeInTheDocument();
-    expect(screen.getAllByText("Videography")[0]).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Short Form Video" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Long Form Video" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Videography" }),
+    ).toBeInTheDocument();
   });
 
   it("uses a real download link for browser-native mobile downloads", () => {
     render(<FileList bookings={[makeBooking()]} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show Photography files" }),
+    );
 
     const link = screen.getByRole("link", { name: /download/i });
     expect(link).toHaveAttribute(
@@ -148,6 +233,33 @@ describe("customer FileList", () => {
     );
     expect(link).toHaveAttribute("download", "living-room.webp");
     expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("keeps accepted one-file groups collapsible with their individual action", () => {
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile({
+                status: "ACCEPTED",
+                reviewDeadlineAt: null,
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Accepted")).toBeInTheDocument();
+    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show Photography files" }),
+    );
+    expect(screen.getByRole("link", { name: "Download" })).toHaveAttribute(
+      "href",
+      "/api/files/download?fileId=10&name=living-room.webp",
+    );
   });
 
   it("offers one ZIP action only for multi-file service groups", () => {
@@ -180,6 +292,12 @@ describe("customer FileList", () => {
     expect(screen.getByRole("link", { name: "Download ZIP" })).toHaveAttribute(
       "rel",
       "noopener noreferrer",
+    );
+    expect(
+      screen.queryByRole("link", { name: /^download$/i }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show Photography files" }),
     );
     expect(screen.getAllByRole("link", { name: /^download$/i })).toHaveLength(
       2,
@@ -216,6 +334,9 @@ describe("customer FileList", () => {
       />,
     );
 
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show Photography files" }),
+    );
     expect(screen.getByText("living-room.webp")).toBeInTheDocument();
     expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
     expect(screen.queryByText("old-balcony.webp")).not.toBeInTheDocument();
@@ -247,6 +368,9 @@ describe("customer FileList", () => {
     expect(
       screen.getByRole("link", { name: "Download ZIP" }),
     ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show Photography files" }),
+    );
     expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(
       "href",
       "/api/files/download?fileId=10&name=living-room.webp",
@@ -305,6 +429,9 @@ describe("customer FileList", () => {
     expect(
       screen.getByText(/replacement pending for this service/i),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /photography files/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows other files but not the old file awaiting replacement", () => {
@@ -335,6 +462,9 @@ describe("customer FileList", () => {
       />,
     );
 
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show Photography files" }),
+    );
     expect(screen.queryByText("old-living-room.webp")).not.toBeInTheDocument();
     expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
     expect(screen.getByText(/1 awaiting replacement/i)).toBeInTheDocument();
@@ -445,6 +575,9 @@ describe("customer FileList", () => {
       expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
     });
 
+    expect(
+      screen.getByRole("button", { name: "Hide Photography files" }),
+    ).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Selected file")).toBeInTheDocument();
     expect(
       screen.getByText("Opened from a shared dashboard link."),
@@ -491,6 +624,11 @@ describe("customer FileList", () => {
           }),
         ]}
       />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /Show Review <script>alert\("x"\)<\/script>\s+Final files/,
+      }),
     );
 
     expect(
