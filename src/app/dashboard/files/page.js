@@ -5,6 +5,7 @@ import {
   isCustomerDeliveryFileVisible,
   isCustomerFileVisible,
 } from "@/lib/helpers/bookingWorkflow";
+import { projectDeliveryServiceGroups } from "@/lib/services/deliveryServiceGroups";
 import { getPropertySharingDashboard } from "@/lib/services/propertySharing";
 import FileList from "./FileList";
 import PropertySharingManager from "./PropertySharingManager";
@@ -65,7 +66,10 @@ export default async function FilesPage({ searchParams }) {
       const deliveryFiles = Array.isArray(booking.deliveryFiles)
         ? booking.deliveryFiles
         : [];
-      const pendingReplacementCount = deliveryFiles.filter(
+      const safeDeliveryFiles = deliveryFiles.map(
+        ({ versions: _versions, fileRevisions: _revisions, ...file }) => file,
+      );
+      const pendingReplacementCount = safeDeliveryFiles.filter(
         (file) =>
           !file.deletedAt &&
           file.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
@@ -74,15 +78,19 @@ export default async function FilesPage({ searchParams }) {
       return {
         ...booking,
         pendingReplacementCount,
-        deliveryFiles: deliveryFiles
+        deliveryFiles: safeDeliveryFiles
           .filter(isCustomerDeliveryFileVisible)
-          .map(
-            ({ versions: _versions, fileRevisions: _revisions, ...file }) =>
-              file,
-          ),
+          .map((file) => file),
+        serviceGroups: projectDeliveryServiceGroups(safeDeliveryFiles),
       };
     })
-    .filter((b) => isCustomerFileVisible(b));
+    .filter(
+      (booking) =>
+        isCustomerFileVisible(booking) ||
+        booking.serviceGroups.some(
+          (group) => group.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+        ),
+    );
   const requestedFileAvailable = requestedFileId
     ? bookingsWithFiles.some((booking) =>
         booking.deliveryFiles.some((file) => file.id === requestedFileId),

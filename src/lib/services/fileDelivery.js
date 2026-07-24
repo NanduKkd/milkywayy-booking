@@ -10,6 +10,7 @@ import {
   getDubaiReviewDeadline,
   isDeliveryFileType,
   isNewDeliveryFileType,
+  MAX_FILE_REVISION_NOTE_LENGTH,
   MAX_FILE_REVISIONS,
 } from "@/lib/helpers/bookingWorkflow";
 
@@ -55,6 +56,49 @@ const getFileNameFromUrl = (url) => {
     );
   } catch {
     return "deliverable";
+  }
+};
+
+const DELIVERY_GROUP_UNAVAILABLE = "Delivery group unavailable";
+
+const findLockedDeliveryGroup = ({ bookingId, type, transaction }) =>
+  BookingDeliveryFile.findAll({
+    where: { bookingId, type, deletedAt: null },
+    include: [
+      {
+        model: BookingDeliveryFileVersion,
+        as: "currentVersion",
+        required: true,
+      },
+    ],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+    order: [["id", "ASC"]],
+  });
+
+const groupRevisionCount = (files) =>
+  Math.max(0, ...files.map((file) => Number(file.revisionCount || 0)));
+
+const reopenDeliveryGroup = async ({ files, deadline, transaction }) => {
+  const ids = files.map((file) => file.id);
+  if (ids.length === 0) return;
+  const revisionCount = groupRevisionCount(files);
+  await BookingDeliveryFile.update(
+    {
+      status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+      reviewDeadlineAt: deadline,
+      acceptedAt: null,
+      revisionCount,
+    },
+    { where: { id: { [Op.in]: ids } }, transaction },
+  );
+  for (const file of files) {
+    Object.assign(file, {
+      status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+      reviewDeadlineAt: deadline,
+      acceptedAt: null,
+      revisionCount,
+    });
   }
 };
 
@@ -235,8 +279,6 @@ export const addUploadedDeliveryFiles = async ({
       );
       await deliveryFile.update(
         {
-          status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
-          reviewDeadlineAt: deadline,
           currentVersionId: replacement.id,
           deliveryMode,
           acceptedAt: null,
@@ -244,8 +286,41 @@ export const addUploadedDeliveryFiles = async ({
         { transaction },
       );
       deliveryFile.setDataValue("currentVersion", replacement);
+
+      // A requested service remains unavailable until every requested member
+      // has a replacement. The final replacement reopens every member together.
+      const group = await findLockedDeliveryGroup({
+        bookingId: booking.id,
+        type: deliveryFile.type,
+        transaction,
+      });
+      const unresolvedRevisions = await BookingFileRevision.count({
+        where: {
+          deliveryFileId: { [Op.in]: group.map((file) => file.id) },
+          resolvedAt: null,
+        },
+        transaction,
+      });
+      if (Number(unresolvedRevisions || 0) === 0) {
+        await reopenDeliveryGroup({ files: group, deadline, transaction });
+      }
       createdFiles.push(deliveryFile);
     } else {
+      const existingGroup = await findLockedDeliveryGroup({
+        bookingId: booking.id,
+        type,
+        transaction,
+      });
+      if (
+        existingGroup.some(
+          (file) => file.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+        )
+      ) {
+        throw new Error(
+          "Requested service files must be replaced before adding another file",
+        );
+      }
+      const revisionCount = groupRevisionCount(existingGroup);
       for (const upload of normalizedUploads) {
         const deliveryFile = await BookingDeliveryFile.create(
           {
@@ -255,6 +330,7 @@ export const addUploadedDeliveryFiles = async ({
             deliveryMode,
             status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
             reviewDeadlineAt: deadline,
+            revisionCount,
           },
           { transaction },
         );
@@ -278,6 +354,14 @@ export const addUploadedDeliveryFiles = async ({
         deliveryFile.setDataValue("currentVersion", version);
         createdFiles.push(deliveryFile);
       }
+
+      // Adding a member changes the review decision. Existing accepted or
+      // reviewable members are deliberately reopened under one deadline.
+      await reopenDeliveryGroup({
+        files: [...existingGroup, ...createdFiles],
+        deadline,
+        transaction,
+      });
     }
 
     const bookingUpdates = {
@@ -309,71 +393,85 @@ export const addUploadedDeliveryFiles = async ({
     : sequelize.transaction(registerUploads);
 };
 
-export const requestFileRevisionState = async (fileId, userId, note) =>
+export const requestDeliveryServiceRevisionState = async (
+  bookingId,
+  type,
+  userId,
+  note,
+) =>
   sequelize.transaction(async (transaction) => {
-    const deliveryFile = await BookingDeliveryFile.findByPk(fileId, {
-      include: [
-        {
-          model: BookingDeliveryFileVersion,
-          as: "currentVersion",
-          required: true,
-        },
-      ],
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
-    if (!deliveryFile) throw new Error("Delivery file not found");
-
+    if (!Number.isSafeInteger(Number(bookingId)) || Number(bookingId) <= 0) {
+      throw new Error(DELIVERY_GROUP_UNAVAILABLE);
+    }
     const booking = await Booking.findOne({
-      where: { id: deliveryFile.bookingId, userId },
+      where: { id: Number(bookingId), userId },
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
-    if (!booking) throw new Error("Delivery file not found");
+    if (!booking) throw new Error(DELIVERY_GROUP_UNAVAILABLE);
     if (booking.cancelledAt || booking.status === "CANCELLED") {
       throw new Error("Cancelled bookings cannot be revised");
     }
-    if (deliveryFile.status !== DELIVERY_FILE_STATUS.UNDER_REVIEW) {
-      throw new Error("This file is not available for revision");
-    }
-    if (
-      deliveryFile.reviewDeadlineAt &&
-      new Date(deliveryFile.reviewDeadlineAt).getTime() <= Date.now()
-    ) {
-      throw new Error("The revision window has closed");
-    }
 
     const trimmedNote = String(note || "").trim();
-    if (!trimmedNote) throw new Error("Revision details are required");
-    if (Number(deliveryFile.revisionCount || 0) >= MAX_FILE_REVISIONS) {
-      throw new Error("Maximum revision requests reached for this file");
+    if (!trimmedNote || trimmedNote.length > MAX_FILE_REVISION_NOTE_LENGTH) {
+      throw new Error("Revision details are invalid");
     }
 
-    const requestNumber = Number(deliveryFile.revisionCount || 0) + 1;
+    const normalizedType = String(type || "").trim();
+    if (!normalizedType || normalizedType.length > 120) {
+      throw new Error(DELIVERY_GROUP_UNAVAILABLE);
+    }
+    const files = await findLockedDeliveryGroup({
+      bookingId: booking.id,
+      type: normalizedType,
+      transaction,
+    });
+    if (
+      files.length === 0 ||
+      files.some(
+        (file) =>
+          file.status !== DELIVERY_FILE_STATUS.UNDER_REVIEW ||
+          !file.currentVersionId ||
+          !file.reviewDeadlineAt ||
+          new Date(file.reviewDeadlineAt).getTime() <= Date.now(),
+      )
+    ) {
+      throw new Error(DELIVERY_GROUP_UNAVAILABLE);
+    }
+
+    const requestNumber = groupRevisionCount(files) + 1;
+    if (requestNumber > MAX_FILE_REVISIONS) {
+      throw new Error("Maximum revision requests reached for this service");
+    }
     const now = new Date();
-    await BookingFileRevision.create(
-      {
-        deliveryFileId: deliveryFile.id,
-        versionId: deliveryFile.currentVersionId,
-        requestNumber,
-        note: trimmedNote,
-        requestedAt: now,
-      },
-      { transaction },
-    );
-    await deliveryFile.update(
+    for (const file of files) {
+      await BookingFileRevision.create(
+        {
+          deliveryFileId: file.id,
+          versionId: file.currentVersionId,
+          requestNumber,
+          note: trimmedNote,
+          requestedAt: now,
+        },
+        { transaction },
+      );
+    }
+    await BookingDeliveryFile.update(
       {
         status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
         revisionCount: requestNumber,
         reviewDeadlineAt: null,
         acceptedAt: null,
       },
-      { transaction },
+      { where: { id: { [Op.in]: files.map((file) => file.id) } }, transaction },
     );
     const filesUrl = await syncLegacyFilesPayload(booking.id, transaction);
 
     return {
-      deliveryFile: serializeDeliveryFile(deliveryFile),
+      bookingId: booking.id,
+      type: normalizedType,
+      requestNumber,
       filesUrl,
     };
   });

@@ -11,7 +11,7 @@ import {
   deleteDeliveryFileState,
   finishBookingDeliveryState,
   publishPrivateDeliveryFilesState,
-  requestFileRevisionState,
+  requestDeliveryServiceRevisionState,
 } from "@/lib/services/fileDelivery";
 
 const mockTransaction = { LOCK: { UPDATE: "UPDATE" } };
@@ -39,6 +39,7 @@ jest.mock("@/lib/db/models/bookingdeliveryfileversion", () => ({
 }));
 jest.mock("@/lib/db/models/bookingfilerevision", () => ({
   create: jest.fn(),
+  count: jest.fn(),
   update: jest.fn(),
 }));
 
@@ -65,6 +66,7 @@ const createDeliveryFile = (overrides = {}) => {
     deliveryMode: "download",
     status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
     revisionCount: 0,
+    reviewDeadlineAt: new Date("2099-12-28T20:00:00.000Z"),
     currentVersionId: 100,
     currentVersion: { id: 100, url: "https://bucket/old.jpg" },
     versions: [{ id: 100, url: "https://bucket/old.jpg" }],
@@ -79,7 +81,7 @@ const createDeliveryFile = (overrides = {}) => {
   return file;
 };
 
-describe("per-file delivery service", () => {
+describe("delivery service groups", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -172,19 +174,25 @@ describe("per-file delivery service", () => {
     expect(Booking.findByPk).not.toHaveBeenCalled();
   });
 
-  it("requests changes only for the selected file", async () => {
+  it("requests changes atomically for every current service member", async () => {
     const booking = createBooking({
       workflowStatus: "FILES_UPLOADED",
       userId: 7,
     });
     const file = createDeliveryFile();
-    BookingDeliveryFile.findByPk.mockResolvedValue(file);
     Booking.findOne.mockResolvedValue(booking);
     Booking.findByPk.mockResolvedValue(booking);
-    BookingDeliveryFile.findAll.mockResolvedValue([]);
+    const secondFile = createDeliveryFile({ id: 11, currentVersionId: 101 });
+    BookingDeliveryFile.findAll.mockResolvedValue([file, secondFile]);
 
-    await requestFileRevisionState(file.id, 7, "Brighten the kitchen");
+    await requestDeliveryServiceRevisionState(
+      1,
+      "Photography",
+      7,
+      "Brighten the kitchen",
+    );
 
+    expect(BookingFileRevision.create).toHaveBeenCalledTimes(2);
     expect(BookingFileRevision.create).toHaveBeenCalledWith(
       expect.objectContaining({
         deliveryFileId: file.id,
@@ -194,8 +202,16 @@ describe("per-file delivery service", () => {
       }),
       { transaction: mockTransaction },
     );
-    expect(file.status).toBe(DELIVERY_FILE_STATUS.CHANGES_REQUESTED);
-    expect(file.revisionCount).toBe(1);
+    expect(BookingDeliveryFile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+        revisionCount: 1,
+      }),
+      expect.objectContaining({ transaction: mockTransaction }),
+    );
+    expect(Booking.findOne.mock.invocationCallOrder[0]).toBeLessThan(
+      BookingDeliveryFile.findAll.mock.invocationCallOrder[0],
+    );
   });
 
   it("enforces two requests per file", async () => {
@@ -204,12 +220,17 @@ describe("per-file delivery service", () => {
       userId: 7,
     });
     const file = createDeliveryFile({ revisionCount: MAX_FILE_REVISIONS });
-    BookingDeliveryFile.findByPk.mockResolvedValue(file);
     Booking.findOne.mockResolvedValue(booking);
+    BookingDeliveryFile.findAll.mockResolvedValue([file]);
 
     await expect(
-      requestFileRevisionState(file.id, 7, "Another change"),
-    ).rejects.toThrow("Maximum revision requests reached for this file");
+      requestDeliveryServiceRevisionState(
+        1,
+        "Photography",
+        7,
+        "Another change",
+      ),
+    ).rejects.toThrow("Maximum revision requests reached for this service");
   });
 
   it("replaces a legacy Videography file without changing its type or label", async () => {
@@ -255,6 +276,75 @@ describe("per-file delivery service", () => {
       expect.objectContaining({ replacementVersionId: 101 }),
       expect.any(Object),
     );
+  });
+
+  it("keeps a service pending until the final requested member is replaced", async () => {
+    const booking = createBooking({ workflowStatus: "FILES_UPLOADED" });
+    const replaced = createDeliveryFile({
+      id: 10,
+      status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+    });
+    const stillPending = createDeliveryFile({
+      id: 11,
+      status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+      currentVersionId: 101,
+    });
+    Booking.findByPk.mockResolvedValue(booking);
+    BookingDeliveryFile.findOne.mockResolvedValue(replaced);
+    BookingDeliveryFileVersion.count.mockResolvedValue(1);
+    BookingDeliveryFileVersion.create.mockResolvedValue({
+      id: 102,
+      url: "https://bucket/new.jpg",
+    });
+    BookingDeliveryFile.findAll.mockResolvedValue([replaced, stillPending]);
+    BookingFileRevision.count.mockResolvedValue(1);
+
+    await addUploadedDeliveryFiles({
+      bookingId: 1,
+      uploads: [{ url: "https://bucket/new.jpg" }],
+      type: "Photography",
+      deliveryMode: "download",
+      replacementFileId: 10,
+    });
+
+    expect(BookingDeliveryFile.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ status: DELIVERY_FILE_STATUS.UNDER_REVIEW }),
+      expect.anything(),
+    );
+    expect(replaced.status).toBe(DELIVERY_FILE_STATUS.CHANGES_REQUESTED);
+  });
+
+  it("reopens every member when a later file joins an accepted service", async () => {
+    const booking = createBooking({ workflowStatus: "FILES_UPLOADED" });
+    const accepted = createDeliveryFile({
+      id: 10,
+      status: DELIVERY_FILE_STATUS.ACCEPTED,
+      acceptedAt: new Date(),
+    });
+    const added = createDeliveryFile({
+      id: 11,
+      status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
+    });
+    Booking.findByPk.mockResolvedValue(booking);
+    BookingDeliveryFile.findAll
+      .mockResolvedValueOnce([accepted])
+      .mockResolvedValue([]);
+    BookingDeliveryFile.create.mockResolvedValue(added);
+    BookingDeliveryFileVersion.create.mockResolvedValue({
+      id: 101,
+      url: "https://bucket/new.jpg",
+    });
+
+    await addUploadedDeliveryFiles({
+      bookingId: 1,
+      uploads: [{ url: "https://bucket/new.jpg" }],
+      type: "Photography",
+      deliveryMode: "download",
+    });
+
+    expect(accepted.status).toBe(DELIVERY_FILE_STATUS.UNDER_REVIEW);
+    expect(added.status).toBe(DELIVERY_FILE_STATUS.UNDER_REVIEW);
+    expect(accepted.reviewDeadlineAt).toEqual(added.reviewDeadlineAt);
   });
 
   it("rejects a replacement type that differs from the target file", async () => {
