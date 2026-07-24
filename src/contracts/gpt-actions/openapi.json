@@ -759,7 +759,13 @@
       },
       "FileType": {
         "type": "string",
-        "enum": ["Photography", "Videography", "360 Virtual Tour"]
+        "enum": [
+          "Photography",
+          "Short Form Video",
+          "Long Form Video",
+          "Videography",
+          "360 Virtual Tour"
+        ]
       },
       "Pagination": {
         "type": "object",

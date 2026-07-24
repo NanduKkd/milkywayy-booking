@@ -95,6 +95,28 @@ describe("Admin Upload API Route", () => {
     );
   });
 
+  it.each(["Short Form Video", "Long Form Video"])(
+    "uses video upload categorization for %s",
+    async (deliverableType) => {
+      const response = await POST(
+        createRequest({
+          files: [createImage("preview.jpg")],
+          folder: "category-proof",
+          deliverableType,
+        }),
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.url).toContain("/videography/category-proof/");
+      expect(PutObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Key: expect.stringMatching(/^videography\/category-proof\//),
+        }),
+      );
+    },
+  );
+
   it("rejects booking file bodies in favor of multipart upload", async () => {
     Booking.findByPk.mockResolvedValue({
       status: "CONFIRMED",
@@ -139,17 +161,47 @@ describe("Admin Upload API Route", () => {
     expect(addUploadedDeliveryFiles).not.toHaveBeenCalled();
   });
 
-  it("registers an external videography file as a normal download", async () => {
-    Booking.findByPk.mockResolvedValue({
-      status: "CONFIRMED",
-      workflowStatus: "EDITING",
-    });
-    addUploadedDeliveryFiles.mockResolvedValue({
-      booking: { id: 42, workflowStatus: "FILES_UPLOADED", filesUrl: "{}" },
-      deliveryFiles: [{ id: 10 }],
-    });
+  it.each(["Short Form Video", "Long Form Video"])(
+    "registers an external %s file with matching type and label",
+    async (deliverableType) => {
+      Booking.findByPk.mockResolvedValue({
+        status: "CONFIRMED",
+        workflowStatus: "EDITING",
+      });
+      addUploadedDeliveryFiles.mockResolvedValue({
+        booking: { id: 42, workflowStatus: "FILES_UPLOADED", filesUrl: "{}" },
+        deliveryFiles: [{ id: 10 }],
+      });
 
-    await POST(
+      await POST(
+        createRequest({
+          bookingId: "42",
+          deliverableType,
+          externalUrl:
+            "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/final-video.mp4",
+        }),
+      );
+
+      expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bookingId: "42",
+          type: deliverableType,
+          label: deliverableType,
+          deliveryMode: "direct_download",
+          uploads: [
+            expect.objectContaining({
+              originalFilename: "final-video.mp4",
+              mimeType: "video/mp4",
+            }),
+          ],
+        }),
+      );
+      expect(PutObjectCommand).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects compatibility-only Videography for a new delivery", async () => {
+    const response = await POST(
       createRequest({
         bookingId: "42",
         deliverableType: "Videography",
@@ -158,21 +210,9 @@ describe("Admin Upload API Route", () => {
       }),
     );
 
-    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bookingId: "42",
-        type: "Videography",
-        label: "Videography",
-        deliveryMode: "direct_download",
-        uploads: [
-          expect.objectContaining({
-            originalFilename: "final-video.mp4",
-            mimeType: "video/mp4",
-          }),
-        ],
-      }),
-    );
-    expect(PutObjectCommand).not.toHaveBeenCalled();
+    expect(response.status).toBe(400);
+    expect(Booking.findByPk).not.toHaveBeenCalled();
+    expect(addUploadedDeliveryFiles).not.toHaveBeenCalled();
   });
 
   it("rejects unknown booking deliverable types", async () => {
@@ -216,7 +256,7 @@ describe("Admin Upload API Route", () => {
     );
   });
 
-  it("targets a single logical file for replacement", async () => {
+  it("allows a compatibility-only Videography replacement", async () => {
     Booking.findByPk.mockResolvedValue({
       status: "CONFIRMED",
       workflowStatus: "FILES_UPLOADED",
@@ -229,15 +269,19 @@ describe("Admin Upload API Route", () => {
     await POST(
       createRequest({
         bookingId: "42",
-        deliverableType: "Photography",
+        deliverableType: "Videography",
         replacementFileId: "10",
         externalUrl:
-          "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/replacement.jpg",
+          "https://milkywayy.s3.ap-south-1.amazonaws.com/bookings/42/replacement.mp4",
       }),
     );
 
     expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
-      expect.objectContaining({ replacementFileId: 10 }),
+      expect.objectContaining({
+        label: "Videography",
+        replacementFileId: 10,
+        type: "Videography",
+      }),
     );
   });
 

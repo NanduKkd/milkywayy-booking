@@ -8,6 +8,8 @@ import {
   BOOKING_WORKFLOW_STATUS,
   DELIVERY_FILE_STATUS,
   getDubaiReviewDeadline,
+  isDeliveryFileType,
+  isNewDeliveryFileType,
   MAX_FILE_REVISIONS,
 } from "@/lib/helpers/bookingWorkflow";
 
@@ -136,11 +138,17 @@ export const addUploadedDeliveryFiles = async ({
   bookingId,
   uploads,
   type,
-  label,
   deliveryMode,
   replacementFileId = null,
   transaction: providedTransaction = null,
 }) => {
+  const validType = replacementFileId
+    ? isDeliveryFileType(type)
+    : isNewDeliveryFileType(type);
+  if (!validType) {
+    throw new Error("Invalid deliverableType");
+  }
+
   const registerUploads = async (transaction) => {
     const booking = await Booking.findByPk(bookingId, {
       transaction,
@@ -178,6 +186,9 @@ export const addUploadedDeliveryFiles = async ({
       if (!deliveryFile) throw new Error("Delivery file not found");
       if (deliveryFile.status !== DELIVERY_FILE_STATUS.CHANGES_REQUESTED) {
         throw new Error("This file is not awaiting a replacement");
+      }
+      if (deliveryFile.type !== type) {
+        throw new Error("deliverableType does not match replacement file");
       }
 
       const versionNumber = await BookingDeliveryFileVersion.count({
@@ -240,7 +251,7 @@ export const addUploadedDeliveryFiles = async ({
           {
             bookingId: booking.id,
             type,
-            label: label || type,
+            label: type,
             deliveryMode,
             status: DELIVERY_FILE_STATUS.UNDER_REVIEW,
             reviewDeadlineAt: deadline,

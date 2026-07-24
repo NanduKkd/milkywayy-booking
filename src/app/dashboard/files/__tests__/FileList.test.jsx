@@ -91,6 +91,53 @@ describe("customer FileList", () => {
     expect(screen.getAllByText(/review by/i)).toHaveLength(2);
   });
 
+  it("renders canonical video labels distinctly and keeps legacy Videography readable", () => {
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile({
+                id: 10,
+                type: "Short Form Video",
+                label: "Short Form Video",
+                currentVersion: {
+                  id: 100,
+                  originalFilename: "short.mp4",
+                  url: "https://bucket.example/short.mp4",
+                },
+              }),
+              makeFile({
+                id: 11,
+                type: "Long Form Video",
+                label: "Long Form Video",
+                currentVersion: {
+                  id: 101,
+                  originalFilename: "long.mp4",
+                  url: "https://bucket.example/long.mp4",
+                },
+              }),
+              makeFile({
+                id: 12,
+                type: "Videography",
+                label: "Videography",
+                currentVersion: {
+                  id: 102,
+                  originalFilename: "legacy.mp4",
+                  url: "https://bucket.example/legacy.mp4",
+                },
+              }),
+            ],
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Short Form Video")).toBeInTheDocument();
+    expect(screen.getByText("Long Form Video")).toBeInTheDocument();
+    expect(screen.getByText("Videography")).toBeInTheDocument();
+  });
+
   it("uses a real download link for browser-native mobile downloads", () => {
     render(<FileList bookings={[makeBooking()]} />);
 

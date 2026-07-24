@@ -43,7 +43,7 @@ jest.mock("next/server", () => ({
 const request = (body) => ({ json: async () => body });
 const validBody = {
   bookingId: 42,
-  deliverableType: "Videography",
+  deliverableType: "Short Form Video",
   fileName: "final.mp4",
   mimeType: "video/mp4",
   sizeBytes: 128,
@@ -72,8 +72,19 @@ describe("initiate booking upload", () => {
     expect(BookingDeliveryUpload.create).toHaveBeenCalledWith(
       expect.objectContaining({
         bookingId: 42,
+        deliverableType: "Short Form Video",
         sizeBytes: 128,
         s3UploadId: "s3-upload",
+      }),
+    );
+  });
+
+  it("creates a multipart session for Long Form Video", async () => {
+    await POST(request({ ...validBody, deliverableType: "Long Form Video" }));
+
+    expect(BookingDeliveryUpload.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deliverableType: "Long Form Video",
       }),
     );
   });

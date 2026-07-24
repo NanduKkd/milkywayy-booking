@@ -303,6 +303,18 @@ describe("property sharing service", () => {
     ).toEqual({ kind: "VIDEO", mimeType: "video/mp4" });
     expect(
       getInlinePropertyMediaDetails(
+        { type: "Short Form Video" },
+        { mimeType: "video/mp4", originalFilename: "reel.mp4" },
+      ),
+    ).toEqual({ kind: "VIDEO", mimeType: "video/mp4" });
+    expect(
+      getInlinePropertyMediaDetails(
+        { type: "Long Form Video" },
+        { mimeType: "video/webm", originalFilename: "walkthrough.webm" },
+      ),
+    ).toEqual({ kind: "VIDEO", mimeType: "video/webm" });
+    expect(
+      getInlinePropertyMediaDetails(
         { type: "360 Virtual Tour", deliveryMode: "copy_link" },
         {
           mimeType: "text/uri-list",

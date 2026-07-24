@@ -39,6 +39,7 @@ import {
   getWorkflowStatus,
   hasTeamArrivedNotificationBeenSent,
   isBookingDispatched,
+  NEW_DELIVERY_FILE_TYPES,
 } from "@/lib/helpers/bookingWorkflow";
 import {
   buildInvoiceDownloadUrl,
@@ -473,6 +474,7 @@ export default function BookingsPage() {
       setFiles([]);
       setExternalUrl("");
       setReplacementFileId(null);
+      setDeliverableType(DELIVERY_FILE_TYPE.PHOTOGRAPHY);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error(error);
@@ -1320,7 +1322,12 @@ export default function BookingsPage() {
                             type="button"
                             size="sm"
                             variant="ghost"
-                            onClick={() => setReplacementFileId(null)}
+                            onClick={() => {
+                              setReplacementFileId(null);
+                              setDeliverableType(
+                                DELIVERY_FILE_TYPE.PHOTOGRAPHY,
+                              );
+                            }}
                             className="text-[hsl(var(--admin-warning))] hover:bg-transparent hover:text-[hsl(var(--admin-warning))]"
                           >
                             Cancel
@@ -1336,19 +1343,29 @@ export default function BookingsPage() {
                           >
                             Deliverable Type
                           </label>
-                          <select
-                            id="deliverable-type"
-                            value={deliverableType}
-                            disabled={Boolean(replacementFileId) || uploading}
-                            onChange={(event) =>
-                              setDeliverableType(event.target.value)
-                            }
-                            className="admin-input h-9 w-full rounded-lg px-3 text-sm"
-                          >
-                            {Object.values(DELIVERY_FILE_TYPE).map((type) => (
-                              <option key={type}>{type}</option>
-                            ))}
-                          </select>
+                          {replacementFileId ? (
+                            <div
+                              id="deliverable-type"
+                              data-testid="replacement-deliverable-type"
+                              className="admin-input flex h-9 w-full items-center rounded-lg px-3 text-sm"
+                            >
+                              {deliverableType}
+                            </div>
+                          ) : (
+                            <select
+                              id="deliverable-type"
+                              value={deliverableType}
+                              disabled={uploading}
+                              onChange={(event) =>
+                                setDeliverableType(event.target.value)
+                              }
+                              className="admin-input h-9 w-full rounded-lg px-3 text-sm"
+                            >
+                              {NEW_DELIVERY_FILE_TYPES.map((type) => (
+                                <option key={type}>{type}</option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                         <div className="md:col-span-2">
                           <label

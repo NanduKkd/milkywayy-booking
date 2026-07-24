@@ -58,49 +58,59 @@ describe("complete booking upload", () => {
     headBookingObject.mockResolvedValue({ ContentLength: 20 });
   });
 
-  it("registers the object and session result in one DB transaction", async () => {
-    const upload = {
-      id: "session-1",
-      bookingId: 42,
-      replacementFileId: null,
-      objectKey: "deliverables/bookings/42/file.mp4",
-      s3UploadId: "s3-upload",
-      originalFilename: "file.mp4",
-      mimeType: "video/mp4",
-      sizeBytes: 20,
-      deliverableType: "Videography",
-      status: "INITIATED",
-      update: jest.fn(),
-    };
-    findOwnedUploadSession.mockResolvedValue(upload);
-    const transaction = { LOCK: { UPDATE: "UPDATE" } };
-    sequelize.transaction.mockImplementation((callback) =>
-      callback(transaction),
-    );
-    addUploadedDeliveryFiles.mockResolvedValue({
-      booking: { id: 42, filesUrl: "{}" },
-      deliveryFiles: [{ id: 9 }],
-    });
-
-    const response = await POST(request, {
-      params: Promise.resolve({ sessionId: "session-1" }),
-    });
-    const data = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(data.deliveryFiles).toEqual([{ id: 9 }]);
-    expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
-      expect.objectContaining({
+  it.each(["Short Form Video", "Long Form Video"])(
+    "registers %s with matching type and label in one DB transaction",
+    async (deliverableType) => {
+      const upload = {
+        id: "session-1",
         bookingId: 42,
-        deliveryMode: "direct_download",
-        transaction,
-      }),
-    );
-    expect(upload.update).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "COMPLETED" }),
-      { transaction },
-    );
-  });
+        replacementFileId: null,
+        objectKey: "deliverables/bookings/42/file.mp4",
+        s3UploadId: "s3-upload",
+        originalFilename: "file.mp4",
+        mimeType: "video/mp4",
+        sizeBytes: 20,
+        deliverableType,
+        status: "INITIATED",
+        update: jest.fn(),
+      };
+      findOwnedUploadSession.mockResolvedValue(upload);
+      const transaction = { LOCK: { UPDATE: "UPDATE" } };
+      sequelize.transaction.mockImplementation((callback) =>
+        callback(transaction),
+      );
+      addUploadedDeliveryFiles.mockResolvedValue({
+        booking: { id: 42, filesUrl: "{}" },
+        deliveryFiles: [{ id: 9 }],
+      });
+
+      const response = await POST(request, {
+        params: Promise.resolve({ sessionId: "session-1" }),
+      });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.deliveryFiles).toEqual([{ id: 9 }]);
+      expect(assertUploadTarget).toHaveBeenCalledWith({
+        bookingId: 42,
+        deliverableType,
+        replacementFileId: null,
+      });
+      expect(addUploadedDeliveryFiles).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bookingId: 42,
+          deliveryMode: "direct_download",
+          label: deliverableType,
+          transaction,
+          type: deliverableType,
+        }),
+      );
+      expect(upload.update).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "COMPLETED" }),
+        { transaction },
+      );
+    },
+  );
 
   it("returns a completed session result without touching S3", async () => {
     findOwnedUploadSession.mockResolvedValue({

@@ -47,6 +47,8 @@ const shouldRemoveCompletedObject = (error) =>
     "Deliverables can only be uploaded after editing starts",
     "Delivery file not found",
     "This file is not awaiting a replacement",
+    "deliverableType does not match replacement file",
+    "Invalid deliverableType",
   ].includes(error?.message);
 
 export async function POST(request, { params }) {
@@ -79,6 +81,7 @@ export async function POST(request, { params }) {
     await assertUploadTarget({
       bookingId: upload.bookingId,
       replacementFileId: upload.replacementFileId,
+      deliverableType: upload.deliverableType,
     });
     const { partBytes } = getBookingUploadConfig();
     const expectedCount = Math.ceil(Number(upload.sizeBytes) / partBytes);
