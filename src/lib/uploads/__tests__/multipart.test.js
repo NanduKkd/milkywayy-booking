@@ -71,7 +71,7 @@ describe("multipart booking upload client", () => {
 
     const result = await uploadBookingFile({
       bookingId: 42,
-      deliverableType: "Videography",
+      deliverableType: "Short Form Video",
       file,
       signal: new AbortController().signal,
       onState: (state) => states.push(state),
@@ -98,7 +98,7 @@ describe("multipart booking upload client", () => {
     await expect(
       uploadBookingFile({
         bookingId: 42,
-        deliverableType: "Videography",
+        deliverableType: "Long Form Video",
         file: { name: "huge.mp4", size: 2_147_483_649 },
         onState: jest.fn(),
       }),

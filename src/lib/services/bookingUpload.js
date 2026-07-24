@@ -4,12 +4,11 @@ import BookingDeliveryUpload from "@/lib/db/models/bookingdeliveryupload";
 import {
   BOOKING_WORKFLOW_STATUS,
   DELIVERY_FILE_STATUS,
-  DELIVERY_FILE_TYPE,
   getWorkflowStatus,
+  isDeliveryFileType,
+  isNewDeliveryFileType,
 } from "@/lib/helpers/bookingWorkflow";
 import { getBookingUploadConfig, sanitizeFilename } from "@/lib/storage/s3";
-
-const DELIVERY_TYPES = new Set(Object.values(DELIVERY_FILE_TYPE));
 
 export const validateInitiatePayload = (payload) => {
   const bookingId = Number(payload?.bookingId);
@@ -44,7 +43,10 @@ export const validateInitiatePayload = (payload) => {
   if (mimeType.length > 255 || !/^[^\s/]+\/[^\s/]+$/.test(mimeType)) {
     throw new Error("mimeType is invalid");
   }
-  if (!DELIVERY_TYPES.has(deliverableType)) {
+  const validDeliverableType = replacementFileId
+    ? isDeliveryFileType(deliverableType)
+    : isNewDeliveryFileType(deliverableType);
+  if (!validDeliverableType) {
     throw new Error("Invalid deliverableType");
   }
 
@@ -58,7 +60,11 @@ export const validateInitiatePayload = (payload) => {
   };
 };
 
-export const assertUploadTarget = async ({ bookingId, replacementFileId }) => {
+export const assertUploadTarget = async ({
+  bookingId,
+  replacementFileId,
+  deliverableType,
+}) => {
   const booking = await Booking.findByPk(bookingId);
   if (!booking) throw new Error("Booking not found");
   if (booking.cancelledAt || booking.status === "CANCELLED") {
@@ -83,6 +89,9 @@ export const assertUploadTarget = async ({ bookingId, replacementFileId }) => {
     if (!deliveryFile) throw new Error("Delivery file not found");
     if (deliveryFile.status !== DELIVERY_FILE_STATUS.CHANGES_REQUESTED) {
       throw new Error("This file is not awaiting a replacement");
+    }
+    if (deliveryFile.type !== deliverableType) {
+      throw new Error("deliverableType does not match replacement file");
     }
   }
   return booking;

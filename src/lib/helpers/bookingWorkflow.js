@@ -29,9 +29,36 @@ export const DELIVERY_FILE_STATUS = {
 
 export const DELIVERY_FILE_TYPE = {
   PHOTOGRAPHY: "Photography",
+  SHORT_FORM_VIDEO: "Short Form Video",
+  LONG_FORM_VIDEO: "Long Form Video",
   VIDEOGRAPHY: "Videography",
   TOUR_360: "360 Virtual Tour",
 };
+
+export const NEW_DELIVERY_FILE_TYPES = [
+  DELIVERY_FILE_TYPE.PHOTOGRAPHY,
+  DELIVERY_FILE_TYPE.SHORT_FORM_VIDEO,
+  DELIVERY_FILE_TYPE.LONG_FORM_VIDEO,
+  DELIVERY_FILE_TYPE.TOUR_360,
+];
+
+export const VIDEO_DELIVERY_FILE_TYPES = [
+  DELIVERY_FILE_TYPE.SHORT_FORM_VIDEO,
+  DELIVERY_FILE_TYPE.LONG_FORM_VIDEO,
+  DELIVERY_FILE_TYPE.VIDEOGRAPHY,
+];
+
+const DELIVERY_FILE_TYPES = new Set(Object.values(DELIVERY_FILE_TYPE));
+const NEW_DELIVERY_FILE_TYPE_SET = new Set(NEW_DELIVERY_FILE_TYPES);
+const VIDEO_DELIVERY_FILE_TYPE_SET = new Set(VIDEO_DELIVERY_FILE_TYPES);
+
+export const isDeliveryFileType = (type) => DELIVERY_FILE_TYPES.has(type);
+
+export const isNewDeliveryFileType = (type) =>
+  NEW_DELIVERY_FILE_TYPE_SET.has(type);
+
+export const isVideoDeliveryFileType = (type) =>
+  VIDEO_DELIVERY_FILE_TYPE_SET.has(type);
 
 export const isBookingDispatched = (booking) =>
   Boolean(booking?.deliveryNotificationMetadata?.teamOnTheWaySentAt);

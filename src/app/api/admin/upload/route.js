@@ -10,6 +10,9 @@ import {
   BOOKING_WORKFLOW_STATUS,
   DELIVERY_FILE_TYPE,
   getWorkflowStatus,
+  isDeliveryFileType,
+  isNewDeliveryFileType,
+  isVideoDeliveryFileType,
 } from "@/lib/helpers/bookingWorkflow";
 import { addUploadedDeliveryFiles } from "@/lib/services/fileDelivery";
 import {
@@ -32,8 +35,6 @@ const s3Client = new S3Client({
 
 const MAX_IMAGE_DIMENSION = 2400;
 const IMAGE_QUALITY = 82;
-const DELIVERY_FILE_TYPES = new Set(Object.values(DELIVERY_FILE_TYPE));
-
 function slugifySegment(value, fallback = "general") {
   return (
     String(value || "")
@@ -67,7 +68,7 @@ function detectUploadCategory({ deliverableType, contentType }) {
   }
 
   if (
-    deliverableType === DELIVERY_FILE_TYPE.VIDEOGRAPHY ||
+    isVideoDeliveryFileType(deliverableType) ||
     deliverableType === OUR_WORK_TYPES.VIDEO ||
     deliverableType === OUR_WORK_TYPES.SHORT_VIDEO ||
     normalizedContentType.startsWith("video/")
@@ -202,7 +203,10 @@ export async function POST(request) {
         { status: 400 },
       );
     }
-    if (bookingId && !DELIVERY_FILE_TYPES.has(deliverableType)) {
+    const validBookingDeliverableType = replacementFileId
+      ? isDeliveryFileType(deliverableType)
+      : isNewDeliveryFileType(deliverableType);
+    if (bookingId && !validBookingDeliverableType) {
       return NextResponse.json(
         { error: "Invalid deliverableType" },
         { status: 400 },
@@ -395,6 +399,7 @@ export async function POST(request) {
               "Upload exactly one replacement file",
               "Delivery file not found",
               "This file is not awaiting a replacement",
+              "deliverableType does not match replacement file",
             ].includes(message)
           ? 409
           : 500;

@@ -1,15 +1,43 @@
 import {
   BOOKING_WORKFLOW_STATUS,
   DELIVERY_FILE_STATUS,
+  DELIVERY_FILE_TYPE,
   getDubaiReviewDeadline,
   hasTeamArrivedNotificationBeenSent,
   hasUploadedDeliverables,
   isBookingDispatched,
   isCustomerDeliveryFileVisible,
   isCustomerFileVisible,
+  isDeliveryFileType,
+  isNewDeliveryFileType,
+  isVideoDeliveryFileType,
+  NEW_DELIVERY_FILE_TYPES,
+  VIDEO_DELIVERY_FILE_TYPES,
 } from "@/lib/helpers/bookingWorkflow";
 
 describe("booking workflow helpers", () => {
+  it("defines the exact new-delivery choices and legacy video compatibility", () => {
+    expect(NEW_DELIVERY_FILE_TYPES).toEqual([
+      "Photography",
+      "Short Form Video",
+      "Long Form Video",
+      "360 Virtual Tour",
+    ]);
+    expect(VIDEO_DELIVERY_FILE_TYPES).toEqual([
+      "Short Form Video",
+      "Long Form Video",
+      "Videography",
+    ]);
+
+    expect(isNewDeliveryFileType(DELIVERY_FILE_TYPE.VIDEOGRAPHY)).toBe(false);
+    expect(isDeliveryFileType(DELIVERY_FILE_TYPE.VIDEOGRAPHY)).toBe(true);
+    expect(isDeliveryFileType("Unsupported Video")).toBe(false);
+    expect(isVideoDeliveryFileType("Short Form Video")).toBe(true);
+    expect(isVideoDeliveryFileType("Long Form Video")).toBe(true);
+    expect(isVideoDeliveryFileType("Videography")).toBe(true);
+    expect(isVideoDeliveryFileType("Photography")).toBe(false);
+  });
+
   it("sets the deadline after two full Dubai calendar days", () => {
     const uploadedAt = new Date("2026-06-06T18:30:00.000Z");
 

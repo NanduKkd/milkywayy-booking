@@ -63,6 +63,22 @@ describe("Admin Bookings Page", () => {
     ).toBeInTheDocument();
   });
 
+  it("offers exactly the four canonical types for new deliveries", async () => {
+    render(<BookingsPage />);
+    fireEvent.click(await screen.findByText("101, Tower A, Marina"));
+
+    const selector = screen.getByLabelText("Deliverable Type");
+    expect(
+      Array.from(selector.options, (option) => option.textContent),
+    ).toEqual([
+      "Photography",
+      "Short Form Video",
+      "Long Form Video",
+      "360 Virtual Tour",
+    ]);
+    expect(screen.queryByRole("option", { name: "Videography" })).toBeNull();
+  });
+
   it("advances the workflow before delivery starts", async () => {
     const booking = { ...baseBooking, workflowStatus: "SHOOT_DONE" };
     global.fetch.mockResolvedValue({
@@ -288,9 +304,11 @@ describe("Admin Bookings Page", () => {
     );
   });
 
-  it("shows revision notes and uploads a targeted replacement", async () => {
+  it("shows revision notes and retains legacy Videography for replacement", async () => {
     const requestedFile = {
       ...deliveryFile,
+      type: "Videography",
+      label: "Videography",
       status: "CHANGES_REQUESTED",
       revisionCount: 1,
       fileRevisions: [
@@ -329,6 +347,10 @@ describe("Admin Bookings Page", () => {
     fireEvent.click(await screen.findByText("101, Tower A, Marina"));
     expect(screen.getByText("Brighten the kitchen")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /replace file/i }));
+    expect(
+      screen.getByTestId("replacement-deliverable-type"),
+    ).toHaveTextContent("Videography");
+    expect(screen.queryByLabelText("Deliverable Type")).toBeNull();
 
     const fileInput = document.querySelector('input[type="file"]');
     fireEvent.change(fileInput, {
@@ -349,10 +371,13 @@ describe("Admin Bookings Page", () => {
         expect.objectContaining({
           bookingId: 1,
           replacementFileId: 10,
-          deliverableType: "Photography",
+          deliverableType: "Videography",
         }),
       );
     });
+    expect(screen.getByLabelText("Deliverable Type")).toHaveValue(
+      "Photography",
+    );
   });
 
   it("marks a resolved delivery as finished", async () => {

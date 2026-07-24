@@ -119,6 +119,59 @@ describe("per-file delivery service", () => {
     expect(booking.deliveryFinishedAt).toBeNull();
   });
 
+  it.each(["Short Form Video", "Long Form Video"])(
+    "persists canonical %s as the exact type and label",
+    async (type) => {
+      const booking = createBooking();
+      const createdFiles = [];
+      Booking.findByPk.mockResolvedValue(booking);
+      BookingDeliveryFile.create.mockImplementation(async (values) => {
+        const file = createDeliveryFile({ ...values });
+        createdFiles.push(file);
+        return file;
+      });
+      BookingDeliveryFileVersion.create.mockResolvedValue({
+        id: 100,
+        versionNumber: 1,
+        url: "https://bucket/final.mp4",
+      });
+      BookingDeliveryFile.findAll.mockImplementation(async () => createdFiles);
+
+      await addUploadedDeliveryFiles({
+        bookingId: 1,
+        uploads: [{ url: "https://bucket/final.mp4" }],
+        type,
+        label: "Client-supplied label is not authoritative",
+        deliveryMode: "direct_download",
+      });
+
+      expect(BookingDeliveryFile.create).toHaveBeenCalledWith(
+        expect.objectContaining({ type, label: type }),
+        { transaction: mockTransaction },
+      );
+    },
+  );
+
+  it("rejects compatibility-only or unsupported types for new deliveries", async () => {
+    await expect(
+      addUploadedDeliveryFiles({
+        bookingId: 1,
+        uploads: [{ url: "https://bucket/final.mp4" }],
+        type: "Videography",
+        deliveryMode: "direct_download",
+      }),
+    ).rejects.toThrow("Invalid deliverableType");
+    await expect(
+      addUploadedDeliveryFiles({
+        bookingId: 1,
+        uploads: [{ url: "https://bucket/final.mp4" }],
+        type: "Unsupported Video",
+        deliveryMode: "direct_download",
+      }),
+    ).rejects.toThrow("Invalid deliverableType");
+    expect(Booking.findByPk).not.toHaveBeenCalled();
+  });
+
   it("requests changes only for the selected file", async () => {
     const booking = createBooking({
       workflowStatus: "FILES_UPLOADED",
@@ -159,12 +212,14 @@ describe("per-file delivery service", () => {
     ).rejects.toThrow("Maximum revision requests reached for this file");
   });
 
-  it("replaces the same logical file without resetting its count", async () => {
+  it("replaces a legacy Videography file without changing its type or label", async () => {
     const booking = createBooking({
       workflowStatus: "FILES_UPLOADED",
       deliveryFinishedAt: new Date("2026-06-01T00:00:00.000Z"),
     });
     const file = createDeliveryFile({
+      type: "Videography",
+      label: "Videography",
       deliveryMode: "direct_download",
       status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
       revisionCount: 1,
@@ -181,15 +236,17 @@ describe("per-file delivery service", () => {
 
     await addUploadedDeliveryFiles({
       bookingId: 1,
-      uploads: [{ url: "https://bucket/replacement.jpg" }],
-      type: "Photography",
-      label: "Photography",
-      deliveryMode: "download",
+      uploads: [{ url: "https://bucket/replacement.mp4" }],
+      type: "Videography",
+      label: "Long Form Video",
+      deliveryMode: "direct_download",
       replacementFileId: file.id,
     });
 
     expect(file.status).toBe(DELIVERY_FILE_STATUS.UNDER_REVIEW);
-    expect(file.deliveryMode).toBe("download");
+    expect(file.type).toBe("Videography");
+    expect(file.label).toBe("Videography");
+    expect(file.deliveryMode).toBe("direct_download");
     expect(file.revisionCount).toBe(1);
     expect(booking.deliveryFinishedAt).toEqual(
       new Date("2026-06-01T00:00:00.000Z"),
@@ -198,6 +255,28 @@ describe("per-file delivery service", () => {
       expect.objectContaining({ replacementVersionId: 101 }),
       expect.any(Object),
     );
+  });
+
+  it("rejects a replacement type that differs from the target file", async () => {
+    const booking = createBooking({ workflowStatus: "FILES_UPLOADED" });
+    const file = createDeliveryFile({
+      type: "Videography",
+      label: "Videography",
+      status: DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+    });
+    Booking.findByPk.mockResolvedValue(booking);
+    BookingDeliveryFile.findOne.mockResolvedValue(file);
+
+    await expect(
+      addUploadedDeliveryFiles({
+        bookingId: 1,
+        uploads: [{ url: "https://bucket/replacement.mp4" }],
+        type: "Long Form Video",
+        deliveryMode: "direct_download",
+        replacementFileId: file.id,
+      }),
+    ).rejects.toThrow("deliverableType does not match replacement file");
+    expect(BookingDeliveryFileVersion.create).not.toHaveBeenCalled();
   });
 
   it("blocks finalization while a replacement is pending", async () => {
