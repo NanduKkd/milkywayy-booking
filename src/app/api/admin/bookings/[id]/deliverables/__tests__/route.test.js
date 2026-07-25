@@ -1,24 +1,26 @@
 import { auth } from "@/lib/helpers/auth";
 import {
-  deleteDeliveryFileState,
+  deleteDeliveryCategoryState,
   finishBookingDeliveryState,
   publishPrivateDeliveryFilesState,
 } from "@/lib/services/fileDelivery";
 import {
   deleteBookingObject,
+  isBookingDeliverableKeyForBooking,
   parseOwnedBookingObjectUrl,
 } from "@/lib/storage/s3";
 import { DELETE, POST } from "../route";
 
 jest.mock("@/lib/storage/s3", () => ({
   deleteBookingObject: jest.fn(),
+  isBookingDeliverableKeyForBooking: jest.fn(),
   parseOwnedBookingObjectUrl: jest.fn(),
 }));
 jest.mock("@/lib/helpers/auth", () => ({
   auth: jest.fn(),
 }));
 jest.mock("@/lib/services/fileDelivery", () => ({
-  deleteDeliveryFileState: jest.fn(),
+  deleteDeliveryCategoryState: jest.fn(),
   finishBookingDeliveryState: jest.fn(),
   publishPrivateDeliveryFilesState: jest.fn(),
 }));
@@ -43,6 +45,7 @@ describe("Admin booking deliverables API", () => {
     parseOwnedBookingObjectUrl.mockImplementation((url) => ({
       key: new URL(url).pathname.replace(/^\//, ""),
     }));
+    isBookingDeliverableKeyForBooking.mockReturnValue(true);
     deleteBookingObject.mockResolvedValue(true);
   });
 
@@ -71,8 +74,11 @@ describe("Admin booking deliverables API", () => {
     expect(data.booking.deliveryFinishedAt).toBeTruthy();
   });
 
-  it("deletes one normalized delivery file", async () => {
-    deleteDeliveryFileState.mockResolvedValue({
+  it("deletes one exact-type delivery category and cleans every owned version", async () => {
+    deleteDeliveryCategoryState.mockResolvedValue({
+      type: "Photography",
+      deletedFileIds: [10, 11],
+      bookingId: 42,
       urls: [
         "https://milkywayy-bookings.s3.amazonaws.com/bookings/42/old.jpg",
         "https://milkywayy-bookings.s3.amazonaws.com/bookings/42/replacement.jpg",
@@ -80,27 +86,60 @@ describe("Admin booking deliverables API", () => {
       filesUrl: "{}",
     });
 
-    const response = await DELETE(createRequest({ fileId: 10 }), context);
+    const response = await DELETE(
+      createRequest({ type: "Photography" }),
+      context,
+    );
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(deleteDeliveryFileState).toHaveBeenCalledWith(10, "42");
+    expect(deleteDeliveryCategoryState).toHaveBeenCalledWith(
+      "42",
+      "Photography",
+    );
     expect(deleteBookingObject).toHaveBeenCalledTimes(2);
-    expect(data.fileId).toBe(10);
+    expect(data).toEqual({ deletedFileIds: [10, 11], filesUrl: "{}" });
+    expect(isBookingDeliverableKeyForBooking).toHaveBeenCalledWith(
+      "bookings/42/old.jpg",
+      42,
+    );
   });
 
   it("returns a safe deletion error instead of a database error", async () => {
-    deleteDeliveryFileState.mockRejectedValue(
+    deleteDeliveryCategoryState.mockRejectedValue(
       new Error(
         "FOR UPDATE cannot be applied to the nullable side of an outer join",
       ),
     );
 
-    const response = await DELETE(createRequest({ fileId: 10 }), context);
+    const response = await DELETE(
+      createRequest({ type: "Photography" }),
+      context,
+    );
     const data = await response.json();
 
     expect(response.status).toBe(409);
     expect(data.error).toBe("Unable to delete file");
+  });
+
+  it("does not clean an object unless its key belongs to the deleted booking", async () => {
+    deleteDeliveryCategoryState.mockResolvedValue({
+      deletedFileIds: [10],
+      bookingId: 42,
+      filesUrl: "{}",
+      urls: [
+        "https://milkywayy-bookings.s3.amazonaws.com/bookings/99/nope.jpg",
+      ],
+    });
+    isBookingDeliverableKeyForBooking.mockReturnValue(false);
+
+    const response = await DELETE(
+      createRequest({ type: "Photography" }),
+      context,
+    );
+
+    expect(response.status).toBe(200);
+    expect(deleteBookingObject).not.toHaveBeenCalled();
   });
 
   it("publishes staged legacy files", async () => {

@@ -8,6 +8,13 @@ If an operator sees a group awaiting replacement, replacements must be
 submitted against the existing logical files. Do not alter persisted type,
 revision, or status rows manually; doing so can violate the review boundary.
 
+Admin `Delete Category` is intentionally whole-category only. Operators should
+confirm the displayed active-file count before deletion; the command clears the
+booking's delivery-finished marker and removes all active files of that exact
+type. Historical storage cleanup runs only after the transaction and only for
+validated application-owned objects belonging to the same booking. Do not use
+database or storage tools to remove one member from a category.
+
 ## ZIP delivery guardrails
 
 The current PM2 production deployment runs one web process. ZIP admission is

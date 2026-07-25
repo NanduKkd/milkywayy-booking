@@ -2,21 +2,24 @@ import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
 import { auth } from "@/lib/helpers/auth";
 import {
-  deleteDeliveryFileState,
+  deleteDeliveryCategoryState,
   finishBookingDeliveryState,
   publishPrivateDeliveryFilesState,
 } from "@/lib/services/fileDelivery";
 import {
   deleteBookingObject,
+  isBookingDeliverableKeyForBooking,
   parseOwnedBookingObjectUrl,
 } from "@/lib/storage/s3";
 
 const DELIVERABLE_ACTION_ERRORS = new Set([
   "Booking not found",
   "Cancelled bookings cannot receive files",
+  "Completed bookings cannot delete delivery categories",
   "Only confirmed bookings can receive files",
   "Deliverables can only be uploaded after editing starts",
   "Delivery file not found",
+  "Delivery category unavailable",
   "Upload at least one deliverable first",
   "Resolve all private or requested files first",
   "No staged files are available",
@@ -38,12 +41,17 @@ const authorizeAdmin = async () => {
   return null;
 };
 
-const deleteOwnedS3Object = async (fileUrl) => {
+const deleteOwnedS3Object = async (fileUrl, bookingId) => {
   try {
     const ownedObject = parseOwnedBookingObjectUrl(fileUrl);
-    if (ownedObject) await deleteBookingObject(ownedObject.key);
-  } catch (error) {
-    console.error("Failed to remove deliverable from S3:", error);
+    if (
+      ownedObject &&
+      isBookingDeliverableKeyForBooking(ownedObject.key, bookingId)
+    ) {
+      await deleteBookingObject(ownedObject.key);
+    }
+  } catch {
+    console.error("Failed to remove deliverable from S3");
   }
 };
 
@@ -81,16 +89,20 @@ export async function DELETE(request, { params }) {
   if (authError) return authError;
 
   const { id } = await params;
-  const { fileId } = await request.json();
-  if (!fileId) {
-    return NextResponse.json({ error: "fileId is required" }, { status: 400 });
+  const { type } = await request.json();
+  if (!String(type || "").trim()) {
+    return NextResponse.json({ error: "type is required" }, { status: 400 });
   }
 
   try {
-    const result = await deleteDeliveryFileState(fileId, id);
-    await Promise.all((result.urls || []).map(deleteOwnedS3Object));
+    const result = await deleteDeliveryCategoryState(id, type);
+    await Promise.all(
+      (result.urls || []).map((fileUrl) =>
+        deleteOwnedS3Object(fileUrl, result.bookingId),
+      ),
+    );
     return NextResponse.json({
-      fileId: Number(fileId),
+      deletedFileIds: result.deletedFileIds,
       filesUrl: result.filesUrl,
     });
   } catch (error) {

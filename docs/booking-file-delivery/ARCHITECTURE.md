@@ -11,6 +11,14 @@ members (ascending file id), then update the full member set in one Sequelize
 transaction. This keeps revision, replacement reopening, manual acceptance,
 and worker acceptance at a single service boundary.
 
+The admin category projection shares that exact-type identity and derived
+status/revision/deadline logic, but deliberately projects all active nondeleted
+members rather than applying customer visibility filtering. Admin category
+deletion locks the booking first and category members in ascending id order,
+loads version history in a separate query to avoid PostgreSQL outer-join lock
+errors, deletes only those logical rows, and returns the historical URLs for
+post-commit validated owned-object cleanup.
+
 The ZIP download route uses the same derived group identity, but takes a
 request-start read snapshot rather than holding a database transaction while
 bytes are transferred. It loads every active row for the owner, booking, and

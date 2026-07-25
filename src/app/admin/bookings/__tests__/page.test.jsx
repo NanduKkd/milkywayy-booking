@@ -1,6 +1,12 @@
 import { updateBookingWorkflow } from "../../../../lib/actions/bookings";
 import { uploadBookingFile } from "../../../../lib/uploads/multipart";
-import { fireEvent, render, screen, waitFor } from "../../../../test-utils";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "../../../../test-utils";
 import BookingsPage from "../page";
 
 global.fetch = jest.fn();
@@ -396,6 +402,307 @@ describe("Admin Bookings Page", () => {
     expect(screen.getByLabelText("Deliverable Type")).toHaveValue(
       "Photography",
     );
+  });
+
+  it("collapses multi-file categories while rendering one-file categories directly", async () => {
+    const requestedPhotographyFiles = [
+      {
+        ...deliveryFile,
+        id: 10,
+        status: "CHANGES_REQUESTED",
+        currentVersion: {
+          ...deliveryFile.currentVersion,
+          originalFilename: "first-photo.jpg",
+        },
+        fileRevisions: [
+          {
+            id: 1,
+            note: "One category-level request",
+            requestedAt: "2026-07-01T00:00:00.000Z",
+            resolvedAt: null,
+          },
+        ],
+      },
+      {
+        ...deliveryFile,
+        id: 11,
+        status: "CHANGES_REQUESTED",
+        currentVersion: {
+          id: 101,
+          originalFilename: "second-photo.jpg",
+          url: "https://example.com/second-photo.jpg",
+        },
+        fileRevisions: [
+          {
+            id: 2,
+            note: "One category-level request",
+            requestedAt: "2026-07-01T00:00:00.000Z",
+            resolvedAt: null,
+          },
+        ],
+      },
+    ];
+    const booking = {
+      ...baseBooking,
+      workflowStatus: "FILES_UPLOADED",
+      deliveryFiles: [
+        ...requestedPhotographyFiles,
+        {
+          ...deliveryFile,
+          id: 12,
+          type: "Videography",
+          label: "Videography",
+          currentVersion: {
+            id: 102,
+            originalFilename: "legacy-video.mp4",
+            url: "https://example.com/legacy-video.mp4",
+          },
+        },
+      ],
+    };
+    global.fetch.mockResolvedValue({ ok: true, json: async () => [booking] });
+
+    render(<BookingsPage />);
+    fireEvent.click(await screen.findByText("101, Tower A, Marina"));
+
+    const photographyCategory = screen.getByTestId(
+      "delivery-category-photography",
+    );
+    const disclosure = within(photographyCategory).getByRole("button", {
+      name: "Show All Files for Photography",
+    });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    const controlledRegion = document.getElementById(
+      disclosure.getAttribute("aria-controls"),
+    );
+    expect(controlledRegion).toBeInTheDocument();
+    expect(controlledRegion).toHaveAttribute("hidden");
+    expect(screen.queryByText("first-photo.jpg")).not.toBeInTheDocument();
+    expect(screen.getAllByText("One category-level request")).toHaveLength(1);
+    expect(
+      within(screen.getByTestId("delivery-category-videography")).getByText(
+        "legacy-video.mp4",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("delivery-category-videography")).queryByRole(
+        "button",
+        { name: "Show All Files for Videography" },
+      ),
+    ).toBeNull();
+
+    fireEvent.click(disclosure);
+    expect(disclosure).toHaveAttribute("aria-expanded", "true");
+    expect(controlledRegion).not.toHaveAttribute("hidden");
+    expect(screen.getByText("first-photo.jpg")).toBeInTheDocument();
+    expect(screen.getByText("second-photo.jpg")).toBeInTheDocument();
+    expect(
+      within(photographyCategory).getAllByRole("button", {
+        name: "Replace File",
+      }),
+    ).toHaveLength(2);
+  });
+
+  it("confirms and reconciles a category delete using only returned file ids", async () => {
+    const photographyFiles = [
+      { ...deliveryFile, id: 10 },
+      {
+        ...deliveryFile,
+        id: 11,
+        currentVersion: {
+          id: 101,
+          originalFilename: "second-photo.jpg",
+          url: "https://example.com/second-photo.jpg",
+        },
+      },
+    ];
+    const booking = {
+      ...baseBooking,
+      workflowStatus: "FILES_UPLOADED",
+      deliveryFiles: [
+        ...photographyFiles,
+        {
+          ...deliveryFile,
+          id: 12,
+          type: "Long Form Video",
+          label: "Long Form Video",
+        },
+      ],
+    };
+    global.fetch.mockImplementation((url, init) => {
+      if (url === "/api/admin/bookings") {
+        return Promise.resolve({ ok: true, json: async () => [booking] });
+      }
+      if (
+        url === "/api/admin/bookings/1/deliverables" &&
+        init?.method === "DELETE"
+      ) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            deletedFileIds: [10, 11],
+            filesUrl: "{}",
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<BookingsPage />);
+    fireEvent.click(await screen.findByText("101, Tower A, Marina"));
+    fireEvent.click(
+      within(screen.getByTestId("delivery-category-photography")).getByRole(
+        "button",
+        { name: "Delete Category" },
+      ),
+    );
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      "Delete 2 active files from the Photography category?",
+    );
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/admin/bookings/1/deliverables",
+        expect.objectContaining({
+          method: "DELETE",
+          body: JSON.stringify({ type: "Photography" }),
+        }),
+      );
+    });
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("delivery-category-photography"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByTestId("delivery-category-long-form-video"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("clears replacement mode when deleting its selected category", async () => {
+    const requestedFiles = [
+      {
+        ...deliveryFile,
+        id: 10,
+        status: "CHANGES_REQUESTED",
+        currentVersion: {
+          ...deliveryFile.currentVersion,
+          originalFilename: "first-photo.jpg",
+        },
+        fileRevisions: [
+          { id: 1, note: "Replace this category", resolvedAt: null },
+        ],
+      },
+      {
+        ...deliveryFile,
+        id: 11,
+        status: "CHANGES_REQUESTED",
+        currentVersion: {
+          id: 101,
+          originalFilename: "second-photo.jpg",
+          url: "https://example.com/second-photo.jpg",
+        },
+        fileRevisions: [
+          { id: 2, note: "Replace this category", resolvedAt: null },
+        ],
+      },
+    ];
+    const booking = {
+      ...baseBooking,
+      workflowStatus: "FILES_UPLOADED",
+      deliveryFiles: [
+        ...requestedFiles,
+        {
+          ...deliveryFile,
+          id: 12,
+          type: "Long Form Video",
+          label: "Long Form Video",
+        },
+      ],
+    };
+    global.fetch.mockImplementation((url, init) => {
+      if (url === "/api/admin/bookings") {
+        return Promise.resolve({ ok: true, json: async () => [booking] });
+      }
+      if (
+        url === "/api/admin/bookings/1/deliverables" &&
+        init?.method === "DELETE"
+      ) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ deletedFileIds: [10, 11], filesUrl: "{}" }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    render(<BookingsPage />);
+    fireEvent.click(await screen.findByText("101, Tower A, Marina"));
+    const photographyCategory = screen.getByTestId(
+      "delivery-category-photography",
+    );
+    fireEvent.click(
+      within(photographyCategory).getByRole("button", {
+        name: "Show All Files for Photography",
+      }),
+    );
+    fireEvent.click(
+      within(photographyCategory).getAllByRole("button", {
+        name: "Replace File",
+      })[0],
+    );
+    expect(
+      screen.getByTestId("replacement-deliverable-type"),
+    ).toHaveTextContent("Photography");
+    fireEvent.change(screen.getByLabelText("Delivery file"), {
+      target: {
+        files: [
+          new File(["replacement"], "replacement.jpg", {
+            type: "image/jpeg",
+          }),
+        ],
+      },
+    });
+    expect(screen.getByText("1 file(s) selected")).toBeInTheDocument();
+
+    fireEvent.click(
+      within(photographyCategory).getByRole("button", {
+        name: "Delete Category",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("replacement-deliverable-type"),
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Deliverable Type")).toHaveValue(
+        "Photography",
+      );
+      expect(screen.queryByText("1 file(s) selected")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Upload Files" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("delivery-category-long-form-video"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("hides category deletion for cancelled bookings", async () => {
+    const booking = {
+      ...baseBooking,
+      status: "CANCELLED",
+      cancelledAt: "2026-07-02T00:00:00.000Z",
+      deliveryFiles: [deliveryFile],
+    };
+    global.fetch.mockResolvedValue({ ok: true, json: async () => [booking] });
+
+    render(<BookingsPage />);
+    fireEvent.click(await screen.findByText("101, Tower A, Marina"));
+
+    expect(
+      screen.queryByRole("button", { name: "Delete Category" }),
+    ).not.toBeInTheDocument();
   });
 
   it("marks a resolved delivery as finished", async () => {

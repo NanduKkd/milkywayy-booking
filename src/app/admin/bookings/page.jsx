@@ -45,6 +45,7 @@ import {
   buildInvoiceDownloadUrl,
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
+import { projectAdminDeliveryServiceGroups } from "@/lib/services/deliveryServiceGroups";
 import {
   MAX_BOOKING_UPLOAD_BYTES,
   uploadBookingFile,
@@ -226,11 +227,15 @@ export default function BookingsPage() {
   );
   const [externalUrl, setExternalUrl] = useState("");
   const [replacementFileId, setReplacementFileId] = useState(null);
+  const [expandedDeliveryTypes, setExpandedDeliveryTypes] = useState({});
   const [uploadItems, setUploadItems] = useState([]);
   const fileInputRef = useRef(null);
   const replacementUploaderRef = useRef(null);
   const uploadAbortRef = useRef(null);
   const selectedTransaction = selectedBooking?.transaction;
+  const deliveryGroups = projectAdminDeliveryServiceGroups(
+    getDeliveryFiles(selectedBooking),
+  );
   const selectedInvoiceNumber = selectedTransaction?.id
     ? formatInvoiceNumber(selectedTransaction)
     : null;
@@ -329,6 +334,8 @@ export default function BookingsPage() {
 
   const handleRowClick = (booking) => {
     setSelectedBooking(booking);
+    setExpandedDeliveryTypes({});
+    setReplacementFileId(null);
     setIsOpen(true);
   };
 
@@ -511,11 +518,17 @@ export default function BookingsPage() {
     );
   };
 
-  const handleDeleteDeliverable = async (fileId) => {
+  const handleDeleteDeliveryCategory = async (type, memberCount) => {
     if (!selectedBooking?.id) return;
-    if (!window.confirm("Delete this file from the booking?")) return;
+    if (
+      !window.confirm(
+        `Delete ${memberCount} active file${memberCount === 1 ? "" : "s"} from the ${type} category?`,
+      )
+    ) {
+      return;
+    }
 
-    const actionKey = `delete:${fileId}`;
+    const actionKey = `delete:${type}`;
     setDeliverableAction(actionKey);
     try {
       const response = await fetch(
@@ -523,7 +536,7 @@ export default function BookingsPage() {
         {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileId }),
+          body: JSON.stringify({ type }),
         },
       );
       const data = await response.json();
@@ -533,10 +546,23 @@ export default function BookingsPage() {
       updateSelectedBooking({
         filesUrl: data.filesUrl,
         deliveryFiles: getDeliveryFiles(selectedBooking).filter(
-          (file) => file.id !== fileId,
+          (file) => !data.deletedFileIds?.includes(file.id),
         ),
         deliveryFinishedAt: null,
       });
+      setExpandedDeliveryTypes((current) => {
+        const next = { ...current };
+        delete next[type];
+        return next;
+      });
+      if (data.deletedFileIds?.some((fileId) => fileId === replacementFileId)) {
+        setReplacementFileId(null);
+        setDeliverableType(DELIVERY_FILE_TYPE.PHOTOGRAPHY);
+        setFiles([]);
+        setExternalUrl("");
+        setUploadItems([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
     } catch (error) {
       console.error(error);
       alert(error.message || "Failed to delete file");
@@ -1164,8 +1190,8 @@ export default function BookingsPage() {
                         ) : null}
                       </div>
                       <p className="text-sm text-[hsl(var(--admin-muted))]">
-                        Each physical file keeps its current two-request
-                        revision allowance and existing publish/delete actions.
+                        Files are grouped by their exact delivery category for
+                        one review summary and intentional category deletion.
                       </p>
                     </div>
 
@@ -1211,97 +1237,185 @@ export default function BookingsPage() {
                     </div>
                   </div>
 
-                  {getDeliveryFiles(selectedBooking).length > 0 ? (
+                  {deliveryGroups.length > 0 ? (
                     <div className="mt-5 space-y-3">
-                      {getDeliveryFiles(selectedBooking).map((file) => {
-                        const activeRevision = (file.fileRevisions || []).find(
-                          (revision) => !revision.resolvedAt,
+                      {deliveryGroups.map((group) => {
+                        const isMultiFile = group.memberCount > 1;
+                        const isExpanded = Boolean(
+                          expandedDeliveryTypes[group.type],
                         );
-                        const versions = file.versions || [];
+                        const shouldRenderFileRows = !isMultiFile || isExpanded;
+                        const groupRegionId = `delivery-category-${group.type
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, "-")}-files`;
 
                         return (
                           <div
-                            key={file.id}
+                            key={group.type}
+                            data-testid={`delivery-category-${group.type
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]+/g, "-")}`}
                             className="admin-panel-muted rounded-xl border border-white/8 p-4"
                           >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="min-w-0 space-y-2">
-                                <Link
-                                  href={file.currentVersion?.url || "#"}
-                                  target="_blank"
-                                  className="block truncate text-sm font-semibold text-[hsl(var(--admin-foreground))] underline-offset-4 hover:underline"
-                                >
-                                  {getFileName(file)}
-                                </Link>
+                                <p className="text-sm font-semibold text-[hsl(var(--admin-foreground))]">
+                                  {group.label}
+                                </p>
                                 <div className="flex flex-wrap gap-2">
-                                  <AdminBadge tone="neutral">
-                                    {file.label || file.type}
-                                  </AdminBadge>
                                   <AdminBadge
-                                    tone={getDeliverableStatusTone(file.status)}
+                                    tone={getDeliverableStatusTone(
+                                      group.status,
+                                    )}
                                   >
-                                    {file.status.replaceAll("_", " ")}
+                                    {group.status.replaceAll("_", " ")}
                                   </AdminBadge>
                                   <AdminBadge tone="neutral">
-                                    Revision {file.revisionCount || 0}/2
+                                    {group.memberCount} file
+                                    {group.memberCount === 1 ? "" : "s"}
                                   </AdminBadge>
                                   <AdminBadge tone="neutral">
-                                    Version {versions.length || 1}
+                                    Revision {group.revisionCount || 0}/2
                                   </AdminBadge>
+                                  {group.reviewDeadlineAt ? (
+                                    <AdminBadge tone="neutral">
+                                      Review deadline{" "}
+                                      {new Date(
+                                        group.reviewDeadlineAt,
+                                      ).toLocaleDateString("en-GB", {
+                                        timeZone: "Asia/Dubai",
+                                      })}
+                                    </AdminBadge>
+                                  ) : null}
                                 </div>
 
-                                {activeRevision ? (
+                                {group.requestedNote ? (
                                   <div className="rounded-lg border border-[hsl(var(--admin-warning)/0.28)] bg-[hsl(var(--admin-warning)/0.1)] px-3 py-2.5 text-sm">
                                     <p className="font-medium text-[hsl(var(--admin-warning))]">
                                       Requested changes
                                     </p>
                                     <p className="mt-1 whitespace-pre-wrap text-[hsl(var(--admin-muted))]">
-                                      {activeRevision.note}
+                                      {group.requestedNote}
                                     </p>
                                   </div>
                                 ) : null}
                               </div>
 
                               <div className="flex shrink-0 gap-2">
-                                {file.status === "CHANGES_REQUESTED" ? (
+                                {isMultiFile ? (
                                   <Button
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                      setReplacementFileId(file.id);
-                                      setDeliverableType(file.type);
-                                      setFiles([]);
-                                      setExternalUrl("");
-                                      setUploadItems([]);
-                                      if (fileInputRef.current) {
-                                        fileInputRef.current.value = "";
-                                      }
-                                    }}
+                                    aria-expanded={isExpanded}
+                                    aria-controls={groupRegionId}
+                                    onClick={() =>
+                                      setExpandedDeliveryTypes((current) => ({
+                                        ...current,
+                                        [group.type]: !isExpanded,
+                                      }))
+                                    }
                                     className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
                                   >
-                                    <RefreshCcw className="mr-2 h-4 w-4" />
-                                    Replace File
+                                    {isExpanded
+                                      ? "Hide All Files"
+                                      : "Show All Files"}
+                                    <span className="sr-only">
+                                      {` for ${group.label}`}
+                                    </span>
                                   </Button>
                                 ) : null}
 
-                                {!selectedBooking.completedAt ? (
+                                {!selectedBooking.completedAt &&
+                                !isCancelledBooking(selectedBooking) ? (
                                   <Button
                                     type="button"
-                                    size="icon"
-                                    variant="ghost"
-                                    aria-label={`Delete ${getFileName(file)}`}
-                                    className="text-[hsl(var(--admin-muted))] hover:bg-[hsl(var(--admin-danger)/0.1)] hover:text-[hsl(var(--admin-danger))]"
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-[hsl(var(--admin-danger)/0.42)] bg-transparent text-[hsl(var(--admin-danger))] hover:bg-[hsl(var(--admin-danger)/0.1)] hover:text-[hsl(var(--admin-danger))]"
                                     disabled={deliverableAction !== null}
                                     onClick={() =>
-                                      handleDeleteDeliverable(file.id)
+                                      handleDeleteDeliveryCategory(
+                                        group.type,
+                                        group.memberCount,
+                                      )
                                     }
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    {deliverableAction ===
+                                    `delete:${group.type}`
+                                      ? "Deleting..."
+                                      : "Delete Category"}
                                   </Button>
                                 ) : null}
                               </div>
                             </div>
+
+                            {isMultiFile || shouldRenderFileRows ? (
+                              <div
+                                id={isMultiFile ? groupRegionId : undefined}
+                                hidden={isMultiFile && !isExpanded}
+                                className="mt-4 space-y-3 border-t border-white/8 pt-4"
+                              >
+                                {shouldRenderFileRows
+                                  ? group.files.map((file) => {
+                                      const versions = file.versions || [];
+                                      return (
+                                        <div
+                                          key={file.id}
+                                          className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+                                        >
+                                          <div className="min-w-0 space-y-2">
+                                            <Link
+                                              href={
+                                                file.currentVersion?.url || "#"
+                                              }
+                                              target="_blank"
+                                              className="block truncate text-sm font-medium text-[hsl(var(--admin-foreground))] underline-offset-4 hover:underline"
+                                            >
+                                              {getFileName(file)}
+                                            </Link>
+                                            <div className="flex flex-wrap gap-2">
+                                              <AdminBadge tone="neutral">
+                                                Version {versions.length || 1}
+                                              </AdminBadge>
+                                              <AdminBadge tone="neutral">
+                                                {String(
+                                                  file.deliveryMode ||
+                                                    "download",
+                                                ).replaceAll("_", " ")}
+                                              </AdminBadge>
+                                            </div>
+                                          </div>
+                                          {file.status ===
+                                          "CHANGES_REQUESTED" ? (
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => {
+                                                setReplacementFileId(file.id);
+                                                setDeliverableType(file.type);
+                                                setFiles([]);
+                                                setExternalUrl("");
+                                                setUploadItems([]);
+                                                if (fileInputRef.current) {
+                                                  fileInputRef.current.value =
+                                                    "";
+                                                }
+                                              }}
+                                              className="border-[hsl(var(--admin-border)/0.88)] bg-transparent text-[hsl(var(--admin-foreground))] hover:bg-white/[0.05] hover:text-[hsl(var(--admin-foreground))]"
+                                            >
+                                              <RefreshCcw className="mr-2 h-4 w-4" />
+                                              Replace File
+                                            </Button>
+                                          ) : null}
+                                        </div>
+                                      );
+                                    })
+                                  : null}
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })}
