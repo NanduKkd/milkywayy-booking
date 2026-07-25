@@ -38,10 +38,12 @@ const deliveryFile = {
   versions: [{ id: 100, versionNumber: 1 }],
   fileRevisions: [],
 };
+const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
 
 describe("Admin Bookings Page", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    HTMLElement.prototype.scrollIntoView = jest.fn();
     window.confirm = jest.fn(() => true);
     window.alert = jest.fn();
     global.fetch.mockImplementation((url) => {
@@ -50,6 +52,14 @@ describe("Admin Bookings Page", () => {
       }
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
+  });
+
+  afterAll(() => {
+    if (originalScrollIntoView) {
+      HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
+    } else {
+      delete HTMLElement.prototype.scrollIntoView;
+    }
   });
 
   it("renders bookings and opens details", async () => {
@@ -347,12 +357,20 @@ describe("Admin Bookings Page", () => {
     fireEvent.click(await screen.findByText("101, Tower A, Marina"));
     expect(screen.getByText("Brighten the kitchen")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /replace file/i }));
-    expect(
-      screen.getByTestId("replacement-deliverable-type"),
-    ).toHaveTextContent("Videography");
+    const replacementType = screen.getByTestId("replacement-deliverable-type");
+    const fileInput = screen.getByLabelText("Delivery file");
+    const uploadReplacement = screen.getByRole("button", {
+      name: /upload replacement/i,
+    });
+    expect(replacementType).toHaveTextContent("Videography");
     expect(screen.queryByLabelText("Deliverable Type")).toBeNull();
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "center",
+    });
+    expect(fileInput).toHaveFocus();
+    expect(uploadReplacement).toBeInTheDocument();
 
-    const fileInput = document.querySelector('input[type="file"]');
     fireEvent.change(fileInput, {
       target: {
         files: [
