@@ -85,7 +85,10 @@ describe("public property showcase page", () => {
           url: new URL(`https://example.test/share/${token}`),
           images: [
             {
-              url: `https://example.test/api/public/property-shares/${token}/properties/30/media/300`,
+              url: `https://example.test/api/public/property-shares/${token}/properties/30/media/300/preview`,
+              type: "image/jpeg",
+              width: 1200,
+              height: 630,
               alt: "Marina corner home",
             },
           ],
@@ -114,6 +117,38 @@ describe("public property showcase page", () => {
       referrer: "no-referrer",
     });
     expect(metadata.openGraph).toBeUndefined();
+  });
+
+  it("keeps metadata generic when no authorized image can produce a preview", async () => {
+    resolvePublicPropertyShareMetadata.mockResolvedValue({
+      id: 4,
+      kind: "SINGLE_PROPERTY",
+      properties: [
+        {
+          ...properties[0],
+          media: [
+            {
+              id: 302,
+              kind: "VIDEO",
+              mimeType: "video/mp4",
+              label: "Video",
+            },
+          ],
+        },
+      ],
+    });
+
+    const metadata = await generateMetadata({
+      params: Promise.resolve({ token }),
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(metadata).toEqual({
+      title: "Property showcase | Milkywayy",
+      description: "Explore this property showcase by Milkywayy.",
+      robots: { index: false, follow: false, nocache: true },
+      referrer: "no-referrer",
+    });
   });
 
   it("renders a complete single showcase immediately with inline gallery and contact actions", async () => {

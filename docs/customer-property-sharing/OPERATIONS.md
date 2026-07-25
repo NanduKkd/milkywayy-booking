@@ -26,6 +26,8 @@ failure counts, network addresses, or user-agent values.
 4. Run a production build, changed-file Biome, and `git diff --check`.
 5. In a synthetic environment verify listing create/edit, single/master pages,
    card preview at Phone/Desktop widths, inline image/video/range behavior,
+   Open Graph JPEG preview dimensions/content type/byte ceiling and malformed
+   or oversized preview-source rejection,
    phone/WhatsApp actions, stable copy-after-reload, disable/re-enable,
    explicit media refresh, stale-version rejection, unselected rejection, and
    total counts.
@@ -54,6 +56,8 @@ storage/link safety, and supported media contract before serving anything.
 Monitor aggregate, non-secret signals only:
 
 - generic public unavailable/error and inline-media failure counts;
+- generic Open Graph preview rejection counts for source-size, decoding, and
+  owned-storage failures, without route paths or object identifiers;
 - landing transaction latency and total-view update contention;
 - share/listing uniqueness conflicts and migration health;
 - media MIME rejection and range-stream failure counts without URLs or bearers.
@@ -63,8 +67,10 @@ cookie, raw event, or stored object URL dimensions.
 
 ## Failure modes and rollback
 
-Invalid owned storage, unsafe MIME, stale/changes-requested snapshot media, and
-unselected media fail with the generic unavailable response. For urgent code rollback,
+Invalid owned storage, unsafe MIME, stale/changes-requested snapshot media,
+unselected media, and malformed or bounded-out preview images fail with the
+generic unavailable response. Preview responses are private and `no-store`, so
+an enabled-state or snapshot change is not publicly cached. For urgent code rollback,
 remove or
 disable public and authenticated sharing routes first so distributed links fail
 closed while rows remain intact. Do not run schema `down` while listing/share

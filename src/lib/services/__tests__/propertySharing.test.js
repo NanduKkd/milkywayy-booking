@@ -18,6 +18,7 @@ import {
   resolvePublicPropertyShareLanding,
   resolvePublicPropertyShareMedia,
   resolvePublicPropertyShareMetadata,
+  resolvePublicPropertySharePreview,
   savePropertyShareListing,
   setPropertyShareEnabled,
 } from "../propertySharing";
@@ -560,6 +561,44 @@ describe("property sharing service", () => {
       }),
     ).resolves.toBeNull();
     expect(sequelize.query).not.toHaveBeenCalled();
+  });
+
+  it("resolves previews only for an exact current image snapshot without counting a view", async () => {
+    const publicId = createPropertyShareId();
+    const property = publicProperty();
+    property.booking.deliveryFiles.push(videoDeliveryFile());
+    property.files.push({
+      id: 12,
+      deliveryFileId: 12,
+      deliveryFileVersionId: 102,
+      deliveryFile: property.booking.deliveryFiles[1],
+      deliveryFileVersion: property.booking.deliveryFiles[1].currentVersion,
+    });
+    const share = publicShare(publicId);
+    PropertyShareLink.findOne.mockResolvedValue(share);
+    PropertyShareProperty.findAll.mockResolvedValue([property]);
+
+    await expect(
+      resolvePublicPropertySharePreview({
+        token: publicId,
+        propertyId: 30,
+        sharedFileId: 10,
+      }),
+    ).resolves.toEqual({
+      storageUrl:
+        "https://storage.invalid/deliverables/bookings/20/private.jpg",
+      mimeType: "image/jpeg",
+      sizeBytes: 2048,
+      bookingId: 20,
+    });
+    await expect(
+      resolvePublicPropertySharePreview({
+        token: publicId,
+        propertyId: 30,
+        sharedFileId: 12,
+      }),
+    ).resolves.toBeNull();
+    expect(share.update).not.toHaveBeenCalled();
   });
 
   it("renders under-review snapshot media without exposing review state", async () => {

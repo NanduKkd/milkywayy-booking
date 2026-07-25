@@ -11,8 +11,11 @@ flowchart LR
     Showcase --> Service
     Visitor --> Media["Token/property/media route"]
     Media --> Service
+    Visitor --> Preview["Token/property/image preview route"]
+    Preview --> Service
     Service --> DB["Sequelize / PostgreSQL"]
     Media --> S3["Owned object streamed inline"]
+    Preview --> S3["Owned image decoded and reduced server-side"]
 ```
 
 `src/lib/services/propertySharing.js` owns listing validation integration,
@@ -86,7 +89,12 @@ sends it to the S3 media route.
 Only successful collection/showcase resolution increments total link views.
 Metadata resolution reuses the same validity and membership checks without
 incrementing the total, so one rendered page contributes one view even though
-Next.js also builds dynamic head metadata. Open Graph images reference only the
-first ordered image through the token/property/media boundary; they never
-serialize an owned object URL. Media requests and failed resolutions do not
-count.
+Next.js also builds dynamic head metadata. Open Graph images reference the first
+ordered image through a sibling token/property/media preview boundary, never an
+owned object URL or the inline original. That route repeats the same resolver
+with an image-only requirement, verifies the parsed owned key belongs to the
+resolved booking, checks bounded persisted (when known) and S3-declared source
+sizes, reads the body with a 32 MiB actual-byte cap, and uses Sharp with
+decoded-pixel and deadline limits to render an exact 1200×630 JPEG under a
+fixed output cap. Preview,
+inline-media, metadata, and failed resolutions do not count views.
