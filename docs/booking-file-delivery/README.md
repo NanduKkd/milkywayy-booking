@@ -73,6 +73,21 @@ Manual completion and deadline acceptance operate on locked complete groups;
 they never leave a service partially accepted. A booking still cannot complete
 while any private or changes-requested group remains.
 
+## Admin delivery categories
+
+The admin booking Deliverables panel derives the same exact-type categories as
+customer review, but includes every active nondeleted member so operators can
+also manage private and replacement-pending files. Each category shows one
+derived status, revision count, review deadline, and unresolved request note.
+Multi-file categories start collapsed behind `Show All Files`; one-file
+categories render their member directly. Requested members retain individual
+replacement controls only when their category is visible.
+
+`Delete Category` operates on the server-derived `(booking_id, exact type)`
+group, never a client-supplied file list. It removes every active member and
+its owned historical storage objects after the database transaction commits,
+clears delivery-finished state, and leaves other categories unchanged.
+
 ## Multi-file downloads
 
 Reviewable or accepted groups with two or more current customer-visible members

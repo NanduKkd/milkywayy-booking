@@ -10,6 +10,14 @@
   deterministic member locks and leave no split status/deadline/revision state.
 - Verify legacy `Videography` remains a separate readable and replaceable group
   without any data migration.
+- Verify the admin category projection includes all active nondeleted members,
+  including private and replacement-pending files, while customer visibility
+  remains unchanged; category notes must be resolved from persisted revisions
+  and rendered once.
+- Verify category deletion accepts only a booking plus exact type, locks the
+  booking before ascending member ids, separately loads all historical versions,
+  rejects empty/cross-type/cross-booking groups uniformly, and cannot remove
+  unrelated rows or storage objects.
 - Verify ZIP requests are owner-, booking-, exact-type-, visibility-, current-
   version-, and member-count-scoped with a uniform unavailable response.
 - Verify unsafe member/header names are sanitized and made unique; `copy_link`

@@ -60,6 +60,7 @@ const getFileNameFromUrl = (url) => {
 };
 
 const DELIVERY_GROUP_UNAVAILABLE = "Delivery group unavailable";
+const DELIVERY_CATEGORY_UNAVAILABLE = "Delivery category unavailable";
 
 const findLockedDeliveryGroup = ({ bookingId, type, transaction }) =>
   BookingDeliveryFile.findAll({
@@ -599,4 +600,56 @@ export const deleteDeliveryFileState = async (fileId, bookingId) =>
     await booking.update({ deliveryFinishedAt: null }, { transaction });
     const filesUrl = await syncLegacyFilesPayload(booking.id, transaction);
     return { urls, filesUrl, bookingId: booking.id };
+  });
+
+export const deleteDeliveryCategoryState = async (bookingId, type) =>
+  sequelize.transaction(async (transaction) => {
+    const booking = await Booking.findByPk(bookingId, {
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    assertUploadableBooking(booking);
+    if (booking.completedAt) {
+      throw new Error("Completed bookings cannot delete delivery categories");
+    }
+
+    const normalizedType = String(type || "").trim();
+    if (!normalizedType || normalizedType.length > 120) {
+      throw new Error(DELIVERY_CATEGORY_UNAVAILABLE);
+    }
+    const deliveryFiles = await BookingDeliveryFile.findAll({
+      where: { bookingId: booking.id, type: normalizedType, deletedAt: null },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+      order: [["id", "ASC"]],
+    });
+    if (deliveryFiles.length === 0) {
+      throw new Error(DELIVERY_CATEGORY_UNAVAILABLE);
+    }
+
+    const versions = await BookingDeliveryFileVersion.findAll({
+      where: {
+        deliveryFileId: { [Op.in]: deliveryFiles.map((file) => file.id) },
+      },
+      transaction,
+      order: [
+        ["deliveryFileId", "ASC"],
+        ["versionNumber", "ASC"],
+      ],
+    });
+    const urls = [
+      ...new Set(versions.map((version) => version.url).filter(Boolean)),
+    ];
+    for (const deliveryFile of deliveryFiles) {
+      await deliveryFile.destroy({ transaction });
+    }
+    await booking.update({ deliveryFinishedAt: null }, { transaction });
+    const filesUrl = await syncLegacyFilesPayload(booking.id, transaction);
+    return {
+      type: normalizedType,
+      deletedFileIds: deliveryFiles.map((file) => file.id),
+      urls,
+      filesUrl,
+      bookingId: booking.id,
+    };
   });

@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import Booking from "@/lib/db/models/booking";
 import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingDeliveryFileVersion from "@/lib/db/models/bookingdeliveryfileversion";
@@ -8,6 +9,7 @@ import {
 } from "@/lib/helpers/bookingWorkflow";
 import {
   addUploadedDeliveryFiles,
+  deleteDeliveryCategoryState,
   deleteDeliveryFileState,
   finishBookingDeliveryState,
   publishPrivateDeliveryFilesState,
@@ -451,5 +453,78 @@ describe("delivery service groups", () => {
     expect(file.destroy).toHaveBeenCalledWith({
       transaction: mockTransaction,
     });
+  });
+
+  it("deletes only one locked exact-type category and returns every historical URL", async () => {
+    const booking = createBooking({
+      workflowStatus: "FILES_UPLOADED",
+      deliveryFinishedAt: new Date("2026-07-01T00:00:00.000Z"),
+    });
+    const firstPhotographyFile = createDeliveryFile({ id: 10 });
+    const secondPhotographyFile = createDeliveryFile({ id: 11 });
+    const unrelatedVideoFile = createDeliveryFile({
+      id: 12,
+      type: "Videography",
+    });
+    Booking.findByPk.mockResolvedValue(booking);
+    BookingDeliveryFile.findAll
+      .mockResolvedValueOnce([firstPhotographyFile, secondPhotographyFile])
+      .mockResolvedValueOnce([unrelatedVideoFile]);
+    BookingDeliveryFileVersion.findAll.mockResolvedValue([
+      { id: 100, deliveryFileId: 10, url: "https://bucket/old.jpg" },
+      { id: 101, deliveryFileId: 10, url: "https://bucket/current.jpg" },
+      { id: 102, deliveryFileId: 11, url: "https://bucket/second.jpg" },
+    ]);
+
+    const result = await deleteDeliveryCategoryState(booking.id, "Photography");
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        deletedFileIds: [10, 11],
+        urls: [
+          "https://bucket/old.jpg",
+          "https://bucket/current.jpg",
+          "https://bucket/second.jpg",
+        ],
+      }),
+    );
+    expect(BookingDeliveryFile.findAll).toHaveBeenNthCalledWith(1, {
+      where: { bookingId: booking.id, type: "Photography", deletedAt: null },
+      transaction: mockTransaction,
+      lock: mockTransaction.LOCK.UPDATE,
+      order: [["id", "ASC"]],
+    });
+    expect(BookingDeliveryFileVersion.findAll).toHaveBeenCalledWith({
+      where: { deliveryFileId: { [Op.in]: [10, 11] } },
+      transaction: mockTransaction,
+      order: [
+        ["deliveryFileId", "ASC"],
+        ["versionNumber", "ASC"],
+      ],
+    });
+    expect(Booking.findByPk.mock.invocationCallOrder[0]).toBeLessThan(
+      BookingDeliveryFile.findAll.mock.invocationCallOrder[0],
+    );
+    expect(firstPhotographyFile.destroy).toHaveBeenCalledWith({
+      transaction: mockTransaction,
+    });
+    expect(secondPhotographyFile.destroy).toHaveBeenCalledWith({
+      transaction: mockTransaction,
+    });
+    expect(unrelatedVideoFile.destroy).not.toHaveBeenCalled();
+    expect(booking.deliveryFinishedAt).toBeNull();
+  });
+
+  it("rejects category deletion for a completed booking before finding members", async () => {
+    const booking = createBooking({
+      workflowStatus: "FILES_UPLOADED",
+      completedAt: new Date("2026-07-02T00:00:00.000Z"),
+    });
+    Booking.findByPk.mockResolvedValue(booking);
+
+    await expect(
+      deleteDeliveryCategoryState(booking.id, "Photography"),
+    ).rejects.toThrow("Completed bookings cannot delete delivery categories");
+    expect(BookingDeliveryFile.findAll).not.toHaveBeenCalled();
   });
 });
