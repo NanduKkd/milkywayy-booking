@@ -26,6 +26,7 @@ import {
   BOOKING_WORKFLOW_STATUS,
   getWorkflowStatus,
   isBookingDispatched,
+  isCustomerDeliveryFileVisible,
 } from "@/lib/helpers/bookingWorkflow";
 import {
   buildInvoiceDownloadUrl,
@@ -35,6 +36,16 @@ import {
 
 const RESCHEDULE_CUTOFF_HOURS = 6;
 const PARTIAL_REFUND_CUTOFF_HOURS = 3;
+
+const getAvailableDeliveryCategories = (booking) =>
+  [
+    ...new Set(
+      (booking?.deliveryFiles || [])
+        .filter(isCustomerDeliveryFileVisible)
+        .map((file) => String(file.type || "").trim())
+        .filter(Boolean),
+    ),
+  ].sort((left, right) => left.localeCompare(right));
 
 export default function BookingList({ bookings }) {
   const router = useRouter();
@@ -248,6 +259,7 @@ export default function BookingList({ bookings }) {
     const files = (booking.deliveryFiles || []).filter(
       (file) => !file.deletedAt && file.status !== "PRIVATE",
     );
+    const availableCategories = getAvailableDeliveryCategories(booking);
     const requestedCount = files.filter(
       (file) => file.status === "CHANGES_REQUESTED",
     ).length;
@@ -255,7 +267,9 @@ export default function BookingList({ bookings }) {
     return (
       <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
         <p className="text-sm font-medium text-zinc-200">
-          {files.length} {files.length === 1 ? "file" : "files"} available
+          {availableCategories.length > 0
+            ? `Available categories: ${availableCategories.join(" · ")}`
+            : "No files currently available"}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {requestedCount > 0

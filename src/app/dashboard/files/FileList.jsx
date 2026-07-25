@@ -3,7 +3,6 @@
 import {
   Camera,
   CheckCircle2,
-  ChevronDown,
   Copy,
   Download,
   FileArchive,
@@ -12,7 +11,7 @@ import {
   Video,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,12 +66,6 @@ const getDownloadHref = (file) =>
 const getZipDownloadHref = (bookingId, type) =>
   `/api/files/download-zip?bookingId=${encodeURIComponent(bookingId)}&type=${encodeURIComponent(type)}`;
 
-const getGroupKey = (bookingId, type) =>
-  `${String(bookingId)}:${encodeURIComponent(String(type))}`;
-
-const getGroupRegionId = (bookingId, type) =>
-  `delivery-service-files-${getGroupKey(bookingId, type)}`;
-
 const formatDeadline = (value) => {
   if (!value) return "";
   const deadline = new Date(value);
@@ -118,43 +111,7 @@ export default function FileList({
   const [loadingKey, setLoadingKey] = useState("");
   const [copyingId, setCopyingId] = useState(null);
   const [createShareProperty, setCreateShareProperty] = useState(null);
-  const [expandedGroupKeys, setExpandedGroupKeys] = useState(() => new Set());
   const highlightedFileRef = useRef(null);
-
-  useEffect(() => {
-    if (highlightedFileId === null) return;
-
-    for (const booking of bookings || []) {
-      const groups =
-        booking.serviceGroups ||
-        projectDeliveryServiceGroups(booking.deliveryFiles || []);
-      const highlightedGroup = groups.find((group) =>
-        group.files.some((file) => file.id === highlightedFileId),
-      );
-      if (!highlightedGroup) continue;
-
-      const groupKey = getGroupKey(booking.id, highlightedGroup.type);
-      setExpandedGroupKeys((current) => {
-        if (current.has(groupKey)) return current;
-        const next = new Set(current);
-        next.add(groupKey);
-        return next;
-      });
-      return;
-    }
-  }, [bookings, highlightedFileId]);
-
-  const toggleGroup = (groupKey) => {
-    setExpandedGroupKeys((current) => {
-      const next = new Set(current);
-      if (next.has(groupKey)) {
-        next.delete(groupKey);
-      } else {
-        next.add(groupKey);
-      }
-      return next;
-    });
-  };
 
   const openRevision = (group) => {
     setSelectedGroup(group);
@@ -378,22 +335,14 @@ export default function FileList({
                       DELIVERY_FILE_STATUS.UNDER_REVIEW,
                       DELIVERY_FILE_STATUS.ACCEPTED,
                     ].includes(group.status);
-                  const groupKey = getGroupKey(booking.id, group.type);
-                  const groupRegionId = getGroupRegionId(
-                    booking.id,
-                    group.type,
-                  );
                   const groupLabel = group.label || group.type;
-                  const isCollapsible = group.files.length > 1;
-                  const isExpanded =
-                    !isCollapsible || expandedGroupKeys.has(groupKey);
                   return (
                     <section
                       key={group.type}
                       data-testid={`delivery-service-group-${booking.id}-${group.type}`}
                       className="rounded-xl border border-white/10 bg-black/10 p-4"
                     >
-                      <div className="flex flex-col gap-3 border-b border-white/10 pb-3 md:flex-row md:items-start md:justify-between">
+                      <div className="flex flex-col gap-3 pb-1 md:flex-row md:items-start md:justify-between">
                         <div className="min-w-0">
                           <h3 className="font-semibold text-zinc-100">
                             {groupLabel}
@@ -465,122 +414,92 @@ export default function FileList({
                               </a>
                             </Button>
                           ) : null}
-                          {isCollapsible ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              aria-expanded={isExpanded}
-                              aria-controls={groupRegionId}
-                              onClick={() => toggleGroup(groupKey)}
-                            >
-                              <ChevronDown
-                                aria-hidden="true"
-                                className={[
-                                  "h-4 w-4 transition-transform",
-                                  isExpanded ? "rotate-180" : "",
-                                ].join(" ")}
-                              />
-                              <span>
-                                {isExpanded
-                                  ? "Hide All Files"
-                                  : "Show All Files"}
-                              </span>
-                              <span className="sr-only"> for {groupLabel}</span>
-                            </Button>
-                          ) : null}
                         </div>
                       </div>
                       {group.files.length > 0 ? (
-                        <div
-                          id={groupRegionId}
-                          className="divide-y"
-                          hidden={!isExpanded}
-                        >
-                          {isExpanded &&
-                            group.files.map((file) => {
-                              const Icon = getFileIcon(file.type);
-                              const isHighlighted =
-                                highlightedFileId === file.id;
+                        <div className="divide-y">
+                          {group.files.map((file) => {
+                            const Icon = getFileIcon(file.type);
+                            const isHighlighted = highlightedFileId === file.id;
 
-                              return (
-                                <div
-                                  key={file.id}
-                                  ref={
-                                    isHighlighted
-                                      ? assignHighlightedFileRef
-                                      : null
-                                  }
-                                  data-highlighted={
-                                    isHighlighted ? "true" : "false"
-                                  }
-                                  data-testid={`delivery-file-card-${file.id}`}
-                                  className={[
-                                    "p-4 transition-colors",
-                                    isHighlighted
-                                      ? "border-sky-300/70 bg-sky-400/[0.08] shadow-[0_0_0_1px_rgba(125,211,252,0.35)]"
-                                      : "border-white/10",
-                                  ].join(" ")}
-                                >
-                                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                    <div className="flex min-w-0 items-start gap-3">
-                                      <Icon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
-                                      <div className="min-w-0">
-                                        {isHighlighted ? (
-                                          <span className="mb-2 inline-flex items-center rounded-full border border-sky-300/30 bg-sky-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
-                                            Selected file
-                                          </span>
-                                        ) : null}
-                                        <p className="truncate font-medium text-zinc-100">
-                                          {getFileName(file)}
-                                        </p>
-                                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                          <span>{file.label || file.type}</span>
-                                        </div>
-                                        {isHighlighted ? (
-                                          <p className="mt-2 text-xs text-sky-200">
-                                            Opened from a shared dashboard link.
-                                          </p>
-                                        ) : null}
+                            return (
+                              <div
+                                key={file.id}
+                                ref={
+                                  isHighlighted
+                                    ? assignHighlightedFileRef
+                                    : null
+                                }
+                                data-highlighted={
+                                  isHighlighted ? "true" : "false"
+                                }
+                                data-testid={`delivery-file-card-${file.id}`}
+                                className={[
+                                  "p-4 transition-colors",
+                                  isHighlighted
+                                    ? "border-sky-300/70 bg-sky-400/[0.08] shadow-[0_0_0_1px_rgba(125,211,252,0.35)]"
+                                    : "border-white/10",
+                                ].join(" ")}
+                              >
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                  <div className="flex min-w-0 items-start gap-3">
+                                    <Icon className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                                    <div className="min-w-0">
+                                      {isHighlighted ? (
+                                        <span className="mb-2 inline-flex items-center rounded-full border border-sky-300/30 bg-sky-300/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-200">
+                                          Selected file
+                                        </span>
+                                      ) : null}
+                                      <p className="truncate font-medium text-zinc-100">
+                                        {getFileName(file)}
+                                      </p>
+                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                        <span>{file.label || file.type}</span>
                                       </div>
-                                    </div>
-
-                                    <div className="flex shrink-0 flex-wrap gap-2">
-                                      {file.deliveryMode === "copy_link" && (
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => copyLink(file)}
-                                        >
-                                          <Copy className="h-3.5 w-3.5" />
-                                          {copyingId === file.id
-                                            ? "Copied"
-                                            : "Copy Link"}
-                                        </Button>
-                                      )}
-                                      {file.deliveryMode !== "copy_link" && (
-                                        <Button
-                                          asChild
-                                          size="sm"
-                                          variant="outline"
-                                        >
-                                          <a
-                                            href={getDownloadHref(file)}
-                                            download={getFileName(file)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                          >
-                                            <Download className="h-3.5 w-3.5" />
-                                            Download
-                                          </a>
-                                        </Button>
-                                      )}
+                                      {isHighlighted ? (
+                                        <p className="mt-2 text-xs text-sky-200">
+                                          Opened from a shared dashboard link.
+                                        </p>
+                                      ) : null}
                                     </div>
                                   </div>
+
+                                  <div className="flex shrink-0 flex-wrap gap-2">
+                                    {file.deliveryMode === "copy_link" && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => copyLink(file)}
+                                      >
+                                        <Copy className="h-3.5 w-3.5" />
+                                        {copyingId === file.id
+                                          ? "Copied"
+                                          : "Copy Link"}
+                                      </Button>
+                                    )}
+                                    {file.deliveryMode !== "copy_link" && (
+                                      <Button
+                                        asChild
+                                        size="sm"
+                                        variant="outline"
+                                      >
+                                        <a
+                                          href={getDownloadHref(file)}
+                                          download={getFileName(file)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <Download className="h-3.5 w-3.5" />
+                                          Download
+                                        </a>
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
-                              );
-                            })}
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : null}
                     </section>

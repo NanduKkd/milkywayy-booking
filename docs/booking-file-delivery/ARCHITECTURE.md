@@ -11,6 +11,11 @@ members (ascending file id), then update the full member set in one Sequelize
 transaction. This keeps revision, replacement reopening, manual acceptance,
 and worker acceptance at a single service boundary.
 
+Customer surfaces render every member admitted by the existing customer-visible
+file policy directly. Booking summaries derive their available categories from
+the same policy and exact persisted `type`, sorting and deduplicating only after
+hidden, deleted, and replacement-pending members are excluded.
+
 The admin category projection shares that exact-type identity and derived
 status/revision/deadline logic, but deliberately projects all active nondeleted
 members rather than applying customer visibility filtering. Admin category
