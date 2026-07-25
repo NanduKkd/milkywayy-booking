@@ -268,7 +268,7 @@ export default function BookingList({ bookings }) {
       <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
         <p className="text-sm font-medium text-zinc-200">
           {availableCategories.length > 0
-            ? `Available categories: ${availableCategories.join(" · ")}`
+            ? `Files ready for review: ${availableCategories.join(" · ")}`
             : "No files currently available"}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">

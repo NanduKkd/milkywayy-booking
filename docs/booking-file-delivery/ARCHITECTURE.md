@@ -11,9 +11,12 @@ members (ascending file id), then update the full member set in one Sequelize
 transaction. This keeps revision, replacement reopening, manual acceptance,
 and worker acceptance at a single service boundary.
 
-Customer surfaces render every member admitted by the existing customer-visible
-file policy directly. Booking summaries derive their available categories from
-the same policy and exact persisted `type`, sorting and deduplicating only after
+Customer surfaces render an admitted member directly only when its exact-type
+service group contains one customer-visible file. Multi-file groups expose
+their category summary and group-level revision and ZIP actions without member
+rows; an owned member deep link targets the containing category. Booking
+summaries state that files are ready for review in categories derived from the
+same policy and exact persisted `type`, sorting and deduplicating only after
 hidden, deleted, and replacement-pending members are excluded.
 
 The admin category projection shares that exact-type identity and derived

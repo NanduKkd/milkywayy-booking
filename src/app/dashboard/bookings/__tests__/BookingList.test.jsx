@@ -113,7 +113,7 @@ describe("BookingList", () => {
     );
 
     expect(
-      screen.getByText("Available categories: Photography"),
+      screen.getByText("Files ready for review: Photography"),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/1 file is awaiting replacement/i),
@@ -165,7 +165,7 @@ describe("BookingList", () => {
 
     expect(
       screen.getByText(
-        "Available categories: Long Form Video · Photography · Videography",
+        "Files ready for review: Long Form Video · Photography · Videography",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Short Form Video/)).not.toBeInTheDocument();

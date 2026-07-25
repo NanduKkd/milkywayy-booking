@@ -62,7 +62,7 @@ describe("customer FileList", () => {
     });
   });
 
-  it("renders every multi-file service member directly while retaining group actions", () => {
+  it("hides multi-file service members while retaining category actions", () => {
     render(
       <FileList
         bookings={[
@@ -84,8 +84,8 @@ describe("customer FileList", () => {
       />,
     );
 
-    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
-    expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
+    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
+    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
     expect(screen.queryByText("Revision 0/2")).not.toBeInTheDocument();
     expect(screen.getByText("Revision 1/2")).toBeInTheDocument();
     expect(screen.getAllByText(/review by/i)).toHaveLength(1);
@@ -102,9 +102,14 @@ describe("customer FileList", () => {
     expect(
       screen.queryByRole("button", { name: /all files for photography/i }),
     ).not.toBeInTheDocument();
+    expect(screen.getByTestId("delivered-project-header-1")).not.toHaveClass(
+      "border-b",
+      "pb-4",
+    );
+    expect(screen.getByTestId("delivery-service-list-1")).toHaveClass("mt-3");
   });
 
-  it("renders multi-file and one-file groups directly without disclosure controls", () => {
+  it("hides multi-file members while rendering one-file groups directly", () => {
     render(
       <FileList
         bookings={[
@@ -135,8 +140,8 @@ describe("customer FileList", () => {
       />,
     );
 
-    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
-    expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
+    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
+    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
     expect(screen.getByText("walkthrough.mp4")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", {
@@ -268,9 +273,7 @@ describe("customer FileList", () => {
       "rel",
       "noopener noreferrer",
     );
-    expect(screen.getAllByRole("link", { name: /^download$/i })).toHaveLength(
-      2,
-    );
+    expect(screen.queryByRole("link", { name: /^download$/i })).toBeNull();
   });
 
   it("does not offer a partial ZIP while any service member awaits replacement", () => {
@@ -303,13 +306,13 @@ describe("customer FileList", () => {
       />,
     );
 
-    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
-    expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
+    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
+    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
     expect(screen.queryByText("old-balcony.webp")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Download ZIP" })).toBeNull();
   });
 
-  it("keeps individual direct and copy-link actions in a mixed ZIP group", async () => {
+  it("omits individual direct and copy-link actions in a mixed ZIP group", () => {
     render(
       <FileList
         bookings={[
@@ -334,10 +337,31 @@ describe("customer FileList", () => {
     expect(
       screen.getByRole("link", { name: "Download ZIP" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(
-      "href",
-      "/api/files/download?fileId=10&name=living-room.webp",
+    expect(screen.queryByRole("link", { name: /^download$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copy Link" })).toBeNull();
+    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
+  });
+
+  it("keeps the copy-link action for a one-file service group", async () => {
+    render(
+      <FileList
+        bookings={[
+          makeBooking({
+            deliveryFiles: [
+              makeFile({
+                deliveryMode: "copy_link",
+                currentVersion: {
+                  id: 100,
+                  originalFilename: "tour-link",
+                  url: "https://example.test/tour",
+                },
+              }),
+            ],
+          }),
+        ]}
+      />,
     );
+
     fireEvent.click(screen.getByRole("button", { name: "Copy Link" }));
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
@@ -397,7 +421,7 @@ describe("customer FileList", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows other files but not the old file awaiting replacement", () => {
+  it("hides the remaining member when another file in its category awaits replacement", () => {
     render(
       <FileList
         bookings={[
@@ -426,7 +450,7 @@ describe("customer FileList", () => {
     );
 
     expect(screen.queryByText("old-living-room.webp")).not.toBeInTheDocument();
-    expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
+    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
     expect(screen.getByText(/1 awaiting replacement/i)).toBeInTheDocument();
   });
 
@@ -530,7 +554,7 @@ describe("customer FileList", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("scrolls to and visually identifies the requested file card", async () => {
+  it("scrolls to and visually identifies a requested multi-file category", async () => {
     render(
       <FileList
         bookings={[
@@ -561,14 +585,14 @@ describe("customer FileList", () => {
     expect(
       screen.queryByRole("button", { name: /all files for photography/i }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Selected file")).toBeInTheDocument();
+    expect(screen.queryByText("Selected file")).not.toBeInTheDocument();
     expect(
-      screen.getByText("Opened from a shared dashboard link."),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("delivery-file-card-11")).toHaveAttribute(
-      "data-highlighted",
-      "true",
-    );
+      screen.queryByText("Opened from a shared dashboard link."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("delivery-file-card-11")).toBeNull();
+    expect(
+      screen.getByTestId("delivery-service-group-1-Photography"),
+    ).toHaveAttribute("data-highlighted", "true");
   });
 
   it("shows a generic notice for missing or inaccessible deep-linked files", () => {

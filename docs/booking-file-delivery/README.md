@@ -52,16 +52,17 @@ The customer Files dashboard now groups current delivery files by booking and
 their exact persisted type. Each group—including the legacy `Videography`
 group—is one review decision with one status, Dubai deadline, revision number,
 and revision request. Every customer-visible member row renders directly for
-both one-file and multi-file services, while the summary, replacement state,
-revision action, group ZIP action, and individual file actions remain visible.
-Opening an owned `fileId` deep link highlights and scrolls to its visible member
-without a disclosure state or additional request.
+one-file services. Multi-file services omit their individual member rows and
+show only the category summary, replacement state, revision action, and group
+ZIP action. Opening an owned `fileId` deep link for a one-file service
+highlights its member; a link into a multi-file service highlights and scrolls
+to the category without revealing an individual row.
 
-The customer Bookings dashboard summarizes available delivery by sorted,
-deduplicated exact persisted types with customer-visible members. Legacy
-`Videography` remains a distinct category; private, deleted, and
-changes-requested members do not appear as available categories, while existing
-replacement and team-progress messages remain separate.
+The customer Bookings dashboard states which sorted, deduplicated exact
+persisted categories have files ready for review. Legacy `Videography` remains
+a distinct category; private, deleted, and changes-requested members do not
+appear as ready categories, while existing replacement and team-progress
+messages remain separate.
 
 A customer revision request identifies only the booking and service type. The
 server authorizes that owner-scoped group, locks the booking and its current
@@ -93,8 +94,9 @@ clears delivery-finished state, and leaves other categories unchanged.
 ## Multi-file downloads
 
 Reviewable or accepted groups with two or more current customer-visible members
-expose **Download ZIP** alongside every member's existing download or copy-link
-action. A group awaiting any replacement exposes no partial ZIP. The
+expose **Download ZIP** without rendering individual member actions. One-file
+groups retain their individual download or copy-link action. A group awaiting
+any replacement exposes no partial ZIP. The
 authenticated ZIP route derives the owner-scoped booking and exact service type
 on the server, then snapshots and preflights eligible current versions before
 it starts streaming. S3 objects are stored in the ZIP without recompression;
