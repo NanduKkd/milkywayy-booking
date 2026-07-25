@@ -216,7 +216,7 @@ describe("customer FileList", () => {
   });
 
   it("shows accepted one-file groups directly without a disclosure control", () => {
-    render(
+    const { container } = render(
       <FileList
         bookings={[
           makeBooking({
@@ -240,6 +240,15 @@ describe("customer FileList", () => {
       "href",
       "/api/files/download?fileId=10&name=living-room.webp",
     );
+    const fileList = container.querySelector(
+      '[data-testid="delivery-service-group-1-Photography"] > div:last-child',
+    );
+    expect(fileList).toHaveClass("border-t", "border-white/10");
+    expect(screen.getByText("living-room.webp")).toHaveClass(
+      "text-sm",
+      "font-normal",
+    );
+    expect(screen.queryByText("Photography", { selector: "span" })).toBeNull();
   });
 
   it("offers one ZIP action only for multi-file service groups", () => {
@@ -635,9 +644,11 @@ describe("customer FileList", () => {
     expect(
       screen.getByText('living-room-<img src=x onerror=alert("x")>.webp'),
     ).toBeInTheDocument();
-    expect(
-      screen.getAllByText(/Review <script>alert\("x"\)<\/script>/)[0],
-    ).toHaveTextContent('Review <script>alert("x")</script> Final');
+    const categoryLabels = screen.getAllByText(
+      /Review <script>alert\("x"\)<\/script>/,
+    );
+    expect(categoryLabels).toHaveLength(1);
+    expect(categoryLabels[0].tagName).toBe("H3");
     expect(container.querySelector("script")).toBeNull();
   });
 });

@@ -54,9 +54,12 @@ group—is one review decision with one status, Dubai deadline, revision number,
 and revision request. Every customer-visible member row renders directly for
 one-file services. Multi-file services omit their individual member rows and
 show only the category summary, replacement state, revision action, and group
-ZIP action. Opening an owned `fileId` deep link for a one-file service
-highlights its member; a link into a multi-file service highlights and scrolls
-to the category without revealing an individual row.
+ZIP action. A one-file member row is separated from its category summary by a
+divider, presents the filename as normal body text without a repeated category
+subtitle, and retains its individual action. Opening an owned `fileId` deep
+link for a one-file service highlights its member; a link into a multi-file
+service highlights and scrolls to the category without revealing an individual
+row.
 
 The customer Bookings dashboard states which sorted, deduplicated exact
 persisted categories have files ready for review. Legacy `Videography` remains

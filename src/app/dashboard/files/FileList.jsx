@@ -437,7 +437,7 @@ export default function FileList({
                         </div>
                       </div>
                       {!isMultiFileGroup && group.files.length === 1 ? (
-                        <div className="divide-y">
+                        <div className="mt-3 border-t border-white/10">
                           {group.files.map((file) => {
                             const Icon = getFileIcon(file.type);
                             const isHighlighted = highlightedFileId === file.id;
@@ -470,12 +470,9 @@ export default function FileList({
                                           Selected file
                                         </span>
                                       ) : null}
-                                      <p className="truncate font-medium text-zinc-100">
+                                      <p className="truncate text-sm font-normal text-zinc-200">
                                         {getFileName(file)}
                                       </p>
-                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                        <span>{file.label || file.type}</span>
-                                      </div>
                                       {isHighlighted ? (
                                         <p className="mt-2 text-xs text-sky-200">
                                           Opened from a shared dashboard link.
