@@ -21,6 +21,10 @@ function mediaUrl(token, propertyId, mediaId) {
   return `/api/public/property-shares/${encodeURIComponent(token)}/properties/${encodeURIComponent(propertyId)}/media/${encodeURIComponent(mediaId)}`;
 }
 
+function previewUrl(token, propertyId, mediaId) {
+  return `${mediaUrl(token, propertyId, mediaId)}/preview`;
+}
+
 function requestedPropertyId(searchParams) {
   const rawValue = Array.isArray(searchParams?.property)
     ? searchParams.property[0]
@@ -62,24 +66,26 @@ export async function generateMetadata({ params, searchParams }) {
 
   const property = selectedProperty(landing, propertyId);
   if (!property) return genericMetadata;
+  const firstImage = property.media.find((media) => media.kind === "IMAGE");
+  if (!firstImage) return genericMetadata;
 
   const title = `${property.title} | Milkywayy`;
   const description =
     String(property.description || "").trim() ||
     `Explore ${property.title} on Milkywayy.`;
   const url = publicPageUrl(token, landing, property);
-  const firstImage = property.media.find((media) => media.kind === "IMAGE");
-  const images = firstImage
-    ? [
-        {
-          url: new URL(
-            mediaUrl(token, property.id, firstImage.id),
-            publicOrigin(),
-          ).toString(),
-          alt: property.title,
-        },
-      ]
-    : [];
+  const images = [
+    {
+      url: new URL(
+        previewUrl(token, property.id, firstImage.id),
+        publicOrigin(),
+      ).toString(),
+      type: "image/jpeg",
+      width: 1200,
+      height: 630,
+      alt: property.title,
+    },
+  ];
 
   return {
     title,

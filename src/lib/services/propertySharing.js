@@ -1002,11 +1002,10 @@ export async function resolvePublicPropertyShareMetadata(
   return serializePublicLanding(share);
 }
 
-export async function resolvePublicPropertyShareMedia({
-  token,
-  propertyId,
-  sharedFileId,
-}) {
+async function resolvePublicPropertyShareMediaInternal(
+  { token, propertyId, sharedFileId },
+  { imageOnly = false } = {},
+) {
   const share = await loadValidPublicShare(token);
   if (!share) return null;
   const property = findPublicProperty(share, propertyId);
@@ -1020,7 +1019,13 @@ export async function resolvePublicPropertyShareMedia({
     membership.deliveryFile,
     pinnedVersion,
   );
-  if (!details || details.kind === "TOUR") return null;
+  if (
+    !details ||
+    details.kind === "TOUR" ||
+    (imageOnly && details.kind !== "IMAGE")
+  ) {
+    return null;
+  }
   return {
     storageUrl: pinnedVersion.url,
     mimeType: details.mimeType,
@@ -1028,5 +1033,14 @@ export async function resolvePublicPropertyShareMedia({
       pinnedVersion.sizeBytes === null || pinnedVersion.sizeBytes === undefined
         ? null
         : Number(pinnedVersion.sizeBytes),
+    ...(imageOnly ? { bookingId: Number(property.bookingId) } : {}),
   };
+}
+
+export async function resolvePublicPropertyShareMedia(args) {
+  return resolvePublicPropertyShareMediaInternal(args);
+}
+
+export async function resolvePublicPropertySharePreview(args) {
+  return resolvePublicPropertyShareMediaInternal(args, { imageOnly: true });
 }

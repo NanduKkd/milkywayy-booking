@@ -68,9 +68,12 @@ without a manual browser refresh.
 Each valid property showcase publishes listing-specific browser and Open Graph
 metadata. The page title and Open Graph title use
 `<listing title> | Milkywayy`, the description uses the owner-authored listing
-description, the URL identifies the represented share page, and the preview
-image is the first ordered public image through the existing token-scoped
-inline media route. Invalid or unavailable links retain generic metadata.
+description, and the URL identifies the represented share page. When an
+eligible image exists, `og:image` uses a separate token/property/media-scoped
+preview route that returns a bounded 1200×630 `image/jpeg` with declared type,
+dimensions, and listing-title alt text. It never points at an original or
+private object URL. Invalid, unavailable, and image-less links retain generic
+or image-less non-enumerating metadata.
 
 The public master collection fills the browser bounds without an outer card
 margin, border, radius, or shadow. It does not repeat a collection-level contact

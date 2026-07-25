@@ -43,14 +43,23 @@
 - Successful inline responses provide accurate MIME, `nosniff`, no-store,
   noindex, referrer policy, range support, and no attachment disposition or
   redirect.
+- Preview routes repeat token/property/current-snapshot authorization with an
+  image-only requirement and owned-key-to-booking match; video, tour,
+  cross-booking, stale, disabled, and unselected requests share the generic
+  unavailable response.
+- Preview tests verify a 1200×630 `image/jpeg`, declared Open Graph URL/type/
+  dimensions/alt, no view increment, no persisted URL or redirect, private
+  no-store headers, declared and streamed source-byte caps, S3-size failures,
+  malformed input, decoded-pixel limits, deadline handling, and output-byte
+  ceiling.
 - 360 embed URLs require HTTPS, reject credentials/malformed values, render
   with no-referrer iframes selected through a text/icon media tile with no
   image thumbnail, and never enter the S3 media route.
 - Successful page/collection renders count atomically; failed resolutions and
   media requests do not.
 - Dynamic property metadata uses the listing title and description, canonical
-  represented share URL, and first ordered token-scoped image without exposing
-  a persisted object URL or incrementing the link view total.
+  represented share URL, and first ordered token-scoped reduced JPEG preview
+  without exposing a persisted object URL or incrementing the link view total.
 
 ### Compatibility and UI
 
