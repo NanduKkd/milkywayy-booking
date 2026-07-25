@@ -11,6 +11,22 @@ import {
   parseOwnedBookingObjectUrl,
 } from "@/lib/storage/s3";
 
+const DELIVERABLE_ACTION_ERRORS = new Set([
+  "Booking not found",
+  "Cancelled bookings cannot receive files",
+  "Only confirmed bookings can receive files",
+  "Deliverables can only be uploaded after editing starts",
+  "Delivery file not found",
+  "Upload at least one deliverable first",
+  "Resolve all private or requested files first",
+  "No staged files are available",
+]);
+
+const getActionableDeliverableError = (error, fallback) => {
+  const message = error instanceof Error ? error.message : "";
+  return DELIVERABLE_ACTION_ERRORS.has(message) ? message : fallback;
+};
+
 const authorizeAdmin = async () => {
   const session = await auth();
   if (!session?.id) {
@@ -49,7 +65,12 @@ export async function POST(request, { params }) {
     return NextResponse.json({ booking });
   } catch (error) {
     return NextResponse.json(
-      { error: error.message || "Unable to finish delivery" },
+      {
+        error: getActionableDeliverableError(
+          error,
+          "Unable to finish delivery",
+        ),
+      },
       { status: 409 },
     );
   }
@@ -74,7 +95,7 @@ export async function DELETE(request, { params }) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error.message || "Unable to delete file" },
+      { error: getActionableDeliverableError(error, "Unable to delete file") },
       { status: 409 },
     );
   }

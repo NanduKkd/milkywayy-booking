@@ -572,36 +572,28 @@ export const publishPrivateDeliveryFilesState = async (bookingId) =>
 
 export const deleteDeliveryFileState = async (fileId, bookingId) =>
   sequelize.transaction(async (transaction) => {
-    const deliveryFile = await BookingDeliveryFile.findOne({
-      where: { id: fileId, bookingId },
-      include: [
-        {
-          model: BookingDeliveryFileVersion,
-          as: "currentVersion",
-          required: true,
-        },
-        {
-          model: BookingDeliveryFileVersion,
-          as: "versions",
-          required: false,
-        },
-      ],
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
-    if (!deliveryFile) throw new Error("Delivery file not found");
-    const booking = await Booking.findByPk(deliveryFile.bookingId, {
+    const booking = await Booking.findByPk(bookingId, {
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
     assertUploadableBooking(booking);
+
+    const deliveryFile = await BookingDeliveryFile.findOne({
+      where: { id: fileId, bookingId: booking.id },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    if (!deliveryFile) throw new Error("Delivery file not found");
+
+    // PostgreSQL cannot lock the nullable side of an outer join. Lock the
+    // booking and logical delivery row first, then read the version history
+    // separately for post-transaction storage cleanup.
+    const versions = await BookingDeliveryFileVersion.findAll({
+      where: { deliveryFileId: deliveryFile.id },
+      transaction,
+    });
     const urls = [
-      ...new Set(
-        [
-          ...(deliveryFile.versions || []).map((version) => version.url),
-          deliveryFile.currentVersion?.url,
-        ].filter(Boolean),
-      ),
+      ...new Set(versions.map((version) => version.url).filter(Boolean)),
     ];
     await deliveryFile.destroy({ transaction });
     await booking.update({ deliveryFinishedAt: null }, { transaction });

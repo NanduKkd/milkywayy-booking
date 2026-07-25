@@ -35,6 +35,7 @@ jest.mock("@/lib/db/models/bookingdeliveryfile", () => ({
 jest.mock("@/lib/db/models/bookingdeliveryfileversion", () => ({
   create: jest.fn(),
   count: jest.fn(),
+  findAll: jest.fn(),
   update: jest.fn(),
 }));
 jest.mock("@/lib/db/models/bookingfilerevision", () => ({
@@ -406,17 +407,18 @@ describe("delivery service groups", () => {
     expect(booking.workflowStatus).toBe("FILES_UPLOADED");
   });
 
-  it("returns every stored version when deleting a logical file", async () => {
+  it("locks the booking then delivery row and reads all versions separately when deleting", async () => {
     const booking = createBooking({ workflowStatus: "FILES_UPLOADED" });
     const file = createDeliveryFile({
-      versions: [
-        { id: 100, url: "https://bucket/old.jpg" },
-        { id: 101, url: "https://bucket/replacement.jpg" },
-      ],
-      currentVersion: { id: 101, url: "https://bucket/replacement.jpg" },
+      versions: undefined,
+      currentVersion: undefined,
     });
-    BookingDeliveryFile.findOne.mockResolvedValue(file);
     Booking.findByPk.mockResolvedValue(booking);
+    BookingDeliveryFile.findOne.mockResolvedValue(file);
+    BookingDeliveryFileVersion.findAll.mockResolvedValue([
+      { id: 100, url: "https://bucket/old.jpg" },
+      { id: 101, url: "https://bucket/replacement.jpg" },
+    ]);
     BookingDeliveryFile.findAll.mockResolvedValue([]);
 
     const result = await deleteDeliveryFileState(file.id, booking.id);
@@ -425,6 +427,27 @@ describe("delivery service groups", () => {
       "https://bucket/old.jpg",
       "https://bucket/replacement.jpg",
     ]);
+    expect(Booking.findByPk).toHaveBeenCalledWith(booking.id, {
+      transaction: mockTransaction,
+      lock: mockTransaction.LOCK.UPDATE,
+    });
+    expect(BookingDeliveryFile.findOne).toHaveBeenCalledWith({
+      where: { id: file.id, bookingId: booking.id },
+      transaction: mockTransaction,
+      lock: mockTransaction.LOCK.UPDATE,
+    });
+    expect(BookingDeliveryFileVersion.findAll).toHaveBeenCalledWith({
+      where: { deliveryFileId: file.id },
+      transaction: mockTransaction,
+    });
+    expect(Booking.findByPk.mock.invocationCallOrder[0]).toBeLessThan(
+      BookingDeliveryFile.findOne.mock.invocationCallOrder[0],
+    );
+    expect(
+      BookingDeliveryFile.findOne.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      BookingDeliveryFileVersion.findAll.mock.invocationCallOrder[0],
+    );
     expect(file.destroy).toHaveBeenCalledWith({
       transaction: mockTransaction,
     });

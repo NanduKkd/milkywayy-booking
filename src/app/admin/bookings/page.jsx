@@ -228,6 +228,7 @@ export default function BookingsPage() {
   const [replacementFileId, setReplacementFileId] = useState(null);
   const [uploadItems, setUploadItems] = useState([]);
   const fileInputRef = useRef(null);
+  const replacementUploaderRef = useRef(null);
   const uploadAbortRef = useRef(null);
   const selectedTransaction = selectedBooking?.transaction;
   const selectedInvoiceNumber = selectedTransaction?.id
@@ -290,6 +291,16 @@ export default function BookingsPage() {
       uploadAbortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!replacementFileId) return;
+
+    replacementUploaderRef.current?.scrollIntoView?.({
+      behavior: "smooth",
+      block: "center",
+    });
+    fileInputRef.current?.focus();
+  }, [replacementFileId]);
 
   const handleRefreshBookings = async () => {
     setIsLoading(true);
@@ -1262,6 +1273,7 @@ export default function BookingsPage() {
                                       setDeliverableType(file.type);
                                       setFiles([]);
                                       setExternalUrl("");
+                                      setUploadItems([]);
                                       if (fileInputRef.current) {
                                         fileInputRef.current.value = "";
                                       }
@@ -1307,7 +1319,10 @@ export default function BookingsPage() {
                     BOOKING_WORKFLOW_STATUS.EDITING,
                     BOOKING_WORKFLOW_STATUS.FILES_UPLOADED,
                   ].includes(getWorkflowStatus(selectedBooking)) ? (
-                    <div className="admin-panel-muted mt-5 rounded-xl border border-white/8 p-4">
+                    <div
+                      ref={replacementUploaderRef}
+                      className="admin-panel-muted mt-5 rounded-xl border border-white/8 p-4"
+                    >
                       {replacementFileId ? (
                         <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-[hsl(var(--admin-warning)/0.26)] bg-[hsl(var(--admin-warning)/0.1)] px-3 py-2 text-xs text-[hsl(var(--admin-warning))]">
                           <span>
@@ -1389,8 +1404,12 @@ export default function BookingsPage() {
                       </div>
 
                       <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <label htmlFor="deliverable-file" className="sr-only">
+                          Delivery file
+                        </label>
                         <Input
                           ref={fileInputRef}
+                          id="deliverable-file"
                           type="file"
                           multiple={!replacementFileId}
                           disabled={uploading}

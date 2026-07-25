@@ -89,6 +89,20 @@ describe("Admin booking deliverables API", () => {
     expect(data.fileId).toBe(10);
   });
 
+  it("returns a safe deletion error instead of a database error", async () => {
+    deleteDeliveryFileState.mockRejectedValue(
+      new Error(
+        "FOR UPDATE cannot be applied to the nullable side of an outer join",
+      ),
+    );
+
+    const response = await DELETE(createRequest({ fileId: 10 }), context);
+    const data = await response.json();
+
+    expect(response.status).toBe(409);
+    expect(data.error).toBe("Unable to delete file");
+  });
+
   it("publishes staged legacy files", async () => {
     publishPrivateDeliveryFilesState.mockResolvedValue({
       id: 42,
