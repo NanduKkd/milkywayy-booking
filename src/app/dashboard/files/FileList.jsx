@@ -199,7 +199,7 @@ export default function FileList({
     );
   const showUnavailableLinkNotice =
     requestedFileIdWasProvided && !requestedFileAvailable;
-  const assignHighlightedFileRef = (node) => {
+  const assignHighlightedTargetRef = (node) => {
     if (!node || highlightedFileRef.current === node) {
       return;
     }
@@ -256,7 +256,10 @@ export default function FileList({
               data-testid={`delivered-project-${booking.id}`}
               className="rounded-2xl border border-white/10 bg-card p-5 md:p-6"
             >
-              <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-start md:justify-between">
+              <div
+                data-testid={`delivered-project-header-${booking.id}`}
+                className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between"
+              >
                 <div>
                   <h2 className="text-xl font-semibold text-white">
                     {[
@@ -316,7 +319,10 @@ export default function FileList({
                 </div>
               </div>
 
-              <div className="mt-4 space-y-4">
+              <div
+                data-testid={`delivery-service-list-${booking.id}`}
+                className="mt-3 space-y-4"
+              >
                 {booking.serviceGroups.map((group) => {
                   const groupAccepted =
                     group.status === DELIVERY_FILE_STATUS.ACCEPTED;
@@ -336,11 +342,25 @@ export default function FileList({
                       DELIVERY_FILE_STATUS.ACCEPTED,
                     ].includes(group.status);
                   const groupLabel = group.label || group.type;
+                  const isMultiFileGroup =
+                    Number(group.memberCount || group.files.length) > 1;
+                  const isHighlightedGroup =
+                    isMultiFileGroup &&
+                    group.files.some((file) => highlightedFileId === file.id);
                   return (
                     <section
                       key={group.type}
+                      ref={
+                        isHighlightedGroup ? assignHighlightedTargetRef : null
+                      }
+                      data-highlighted={isHighlightedGroup ? "true" : "false"}
                       data-testid={`delivery-service-group-${booking.id}-${group.type}`}
-                      className="rounded-xl border border-white/10 bg-black/10 p-4"
+                      className={[
+                        "rounded-xl border bg-black/10 p-4 transition-colors",
+                        isHighlightedGroup
+                          ? "border-sky-300/70 bg-sky-400/[0.08] shadow-[0_0_0_1px_rgba(125,211,252,0.35)]"
+                          : "border-white/10",
+                      ].join(" ")}
                     >
                       <div className="flex flex-col gap-3 pb-1 md:flex-row md:items-start md:justify-between">
                         <div className="min-w-0">
@@ -416,8 +436,8 @@ export default function FileList({
                           ) : null}
                         </div>
                       </div>
-                      {group.files.length > 0 ? (
-                        <div className="divide-y">
+                      {!isMultiFileGroup && group.files.length === 1 ? (
+                        <div className="mt-3 border-t border-white/10">
                           {group.files.map((file) => {
                             const Icon = getFileIcon(file.type);
                             const isHighlighted = highlightedFileId === file.id;
@@ -427,7 +447,7 @@ export default function FileList({
                                 key={file.id}
                                 ref={
                                   isHighlighted
-                                    ? assignHighlightedFileRef
+                                    ? assignHighlightedTargetRef
                                     : null
                                 }
                                 data-highlighted={
@@ -450,12 +470,9 @@ export default function FileList({
                                           Selected file
                                         </span>
                                       ) : null}
-                                      <p className="truncate font-medium text-zinc-100">
+                                      <p className="truncate text-sm font-normal text-zinc-200">
                                         {getFileName(file)}
                                       </p>
-                                      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                                        <span>{file.label || file.type}</span>
-                                      </div>
                                       {isHighlighted ? (
                                         <p className="mt-2 text-xs text-sky-200">
                                           Opened from a shared dashboard link.
