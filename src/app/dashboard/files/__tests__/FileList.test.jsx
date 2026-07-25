@@ -62,7 +62,7 @@ describe("customer FileList", () => {
     });
   });
 
-  it("collapses service files by default while retaining summary and group actions", () => {
+  it("renders every multi-file service member directly while retaining group actions", () => {
     render(
       <FileList
         bookings={[
@@ -84,8 +84,8 @@ describe("customer FileList", () => {
       />,
     );
 
-    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
-    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
+    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
+    expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
     expect(screen.queryByText("Revision 0/2")).not.toBeInTheDocument();
     expect(screen.getByText("Revision 1/2")).toBeInTheDocument();
     expect(screen.getAllByText(/review by/i)).toHaveLength(1);
@@ -96,26 +96,15 @@ describe("customer FileList", () => {
       screen.getByRole("link", { name: "Download ZIP" }),
     ).toBeInTheDocument();
 
-    const toggle = screen.getByRole("button", {
-      name: "Show All Files for Photography",
-    });
-    expect(screen.getByText("Show All Files")).toBeInTheDocument();
     expect(
       screen.queryByText("Show Photography files"),
     ).not.toBeInTheDocument();
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveAttribute(
-      "aria-controls",
-      "delivery-service-files-1:Photography",
-    );
-    const region = document.getElementById(
-      "delivery-service-files-1:Photography",
-    );
-    expect(region).toHaveAttribute("hidden");
-    expect(region).toBeEmptyDOMElement();
+    expect(
+      screen.queryByRole("button", { name: /all files for photography/i }),
+    ).not.toBeInTheDocument();
   });
 
-  it("expands and collapses a multi-file group while one-file groups stay visible", () => {
+  it("renders multi-file and one-file groups directly without disclosure controls", () => {
     render(
       <FileList
         bookings={[
@@ -146,39 +135,14 @@ describe("customer FileList", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Show All Files for Photography",
-      }),
-    );
-
     expect(screen.getByText("living-room.webp")).toBeInTheDocument();
     expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
     expect(screen.getByText("walkthrough.mp4")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", {
-        name: "Hide All Files for Photography",
-      }),
-    ).toHaveAttribute("aria-expanded", "true");
-    expect(
       screen.queryByRole("button", {
-        name: /all files for long form video/i,
+        name: /all files/i,
       }),
     ).not.toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Hide All Files for Photography",
-      }),
-    );
-
-    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
-    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: "Show All Files for Photography",
-      }),
-    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("renders canonical video labels distinctly and keeps legacy Videography readable", () => {
@@ -304,14 +268,6 @@ describe("customer FileList", () => {
       "rel",
       "noopener noreferrer",
     );
-    expect(
-      screen.queryByRole("link", { name: /^download$/i }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Show All Files for Photography",
-      }),
-    );
     expect(screen.getAllByRole("link", { name: /^download$/i })).toHaveLength(
       2,
     );
@@ -347,11 +303,6 @@ describe("customer FileList", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Show All Files for Photography",
-      }),
-    );
     expect(screen.getByText("living-room.webp")).toBeInTheDocument();
     expect(screen.getByText("kitchen.webp")).toBeInTheDocument();
     expect(screen.queryByText("old-balcony.webp")).not.toBeInTheDocument();
@@ -383,11 +334,6 @@ describe("customer FileList", () => {
     expect(
       screen.getByRole("link", { name: "Download ZIP" }),
     ).toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Show All Files for Photography",
-      }),
-    );
     expect(screen.getByRole("link", { name: /^download$/i })).toHaveAttribute(
       "href",
       "/api/files/download?fileId=10&name=living-room.webp",
@@ -613,10 +559,8 @@ describe("customer FileList", () => {
     });
 
     expect(
-      screen.getByRole("button", {
-        name: "Hide All Files for Photography",
-      }),
-    ).toHaveAttribute("aria-expanded", "true");
+      screen.queryByRole("button", { name: /all files for photography/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByText("Selected file")).toBeInTheDocument();
     expect(
       screen.getByText("Opened from a shared dashboard link."),

@@ -4,6 +4,11 @@ import BookingList from "../BookingList";
 
 // Mock window.confirm
 window.confirm = jest.fn();
+const mockPush = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush, refresh: jest.fn() }),
+}));
 
 const mockBookings = [
   {
@@ -89,21 +94,32 @@ describe("BookingList", () => {
             workflowStatus: "FILES_UPLOADED",
             deliveryFinishedAt: "2099-12-28T20:00:00.000Z",
             deliveryFiles: [
-              { id: 10, status: "UNDER_REVIEW", deletedAt: null },
-              { id: 11, status: "CHANGES_REQUESTED", deletedAt: null },
+              {
+                id: 10,
+                type: "Photography",
+                status: "UNDER_REVIEW",
+                deletedAt: null,
+              },
+              {
+                id: 11,
+                type: "Photography",
+                status: "CHANGES_REQUESTED",
+                deletedAt: null,
+              },
             ],
           },
         ]}
       />,
     );
 
-    expect(screen.getByText(/2 files available/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("Available categories: Photography"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/1 file is awaiting replacement/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /review files/i }),
-    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /review files/i }));
+    expect(mockPush).toHaveBeenCalledWith("/dashboard/files");
     expect(screen.getByText("Under Review")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /request revision/i }),
@@ -111,5 +127,75 @@ describe("BookingList", () => {
 
     fireEvent.click(screen.getByText("101, Tower A, Marina"));
     expect(screen.getAllByText("Under Review")).toHaveLength(2);
+  });
+
+  it("lists deduplicated exact visible categories while omitting hidden and replacement-only files", () => {
+    render(
+      <BookingList
+        bookings={[
+          {
+            ...mockBookings[0],
+            workflowStatus: "FILES_UPLOADED",
+            deliveryFiles: [
+              { id: 10, type: "Photography", status: "UNDER_REVIEW" },
+              { id: 11, type: "Photography", status: "ACCEPTED" },
+              { id: 12, type: "Videography", status: "UNDER_REVIEW" },
+              {
+                id: 13,
+                type: "Long Form Video",
+                status: "UNDER_REVIEW",
+              },
+              {
+                id: 14,
+                type: "Short Form Video",
+                status: "CHANGES_REQUESTED",
+              },
+              { id: 15, type: "Photography", status: "PRIVATE" },
+              {
+                id: 16,
+                type: "Videography",
+                status: "UNDER_REVIEW",
+                deletedAt: "2026-07-01T00:00:00.000Z",
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByText(
+        "Available categories: Long Form Video · Photography · Videography",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Short Form Video/)).not.toBeInTheDocument();
+  });
+
+  it("does not label replacement-only files as available", () => {
+    render(
+      <BookingList
+        bookings={[
+          {
+            ...mockBookings[0],
+            workflowStatus: "FILES_UPLOADED",
+            deliveryFiles: [
+              {
+                id: 10,
+                type: "Photography",
+                status: "CHANGES_REQUESTED",
+              },
+              { id: 11, type: "Videography", status: "PRIVATE" },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    expect(
+      screen.getByText("No files currently available"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("1 file is awaiting replacement."),
+    ).toBeInTheDocument();
   });
 });
