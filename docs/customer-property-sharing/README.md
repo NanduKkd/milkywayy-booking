@@ -34,28 +34,32 @@ actions, and Milkywayy branding. They contain no internal review status, buyer
 form, delivery manifest, download button, revision control, or authenticated
 file route.
 
-Accepted 360 copy-link deliveries appear in the main media viewer as lazy
-iframes, using the same interactive presentation as the landing-page portfolio.
-They are selected from a text/icon media tile beside the photo and video items,
-without an image thumbnail. Video remains selectable in the media strip and has
-no separate Video Walkthrough button. The hero retains only its media-position
-count and does not show a media-type badge.
+The showcase gallery is photo-only: its 3:2 hero, previous/next controls,
+counter, and thumbnail strip never duplicate video or 360 deliveries. When
+there are more than four photos, the strip shows the first three plus a
+`+ N More Photos` tile that opens the photo gallery; four or fewer photos are
+shown directly. A separate **Video walkthrough** action opens the selected
+video in a modal (or first offers a picker when multiple videos are available).
+A separate **360° virtual tour** action opens the validated HTTPS tour in a new
+browser tab.
 
 The single-property showcase owns the full browser surface. It has no outer
 card border, radius, shadow, or page gutter; the media and listing split fill
-the viewport on desktop, the media hero stretches through the available
-viewport height above its thumbnail strip, and photos/videos use contain sizing
-without cropping. The layout becomes an edge-to-edge single column on narrow
-screens. If an authorized media object is missing, both the hero and its
-thumbnail show an explicit unavailable state rather than a broken image.
+the viewport on desktop, and the photo hero uses a stable 3:2 crop. Videos use
+contain sizing inside their modal. The layout becomes an edge-to-edge single
+column on narrow screens. If an authorized media object is missing, both the
+hero and its thumbnail show an explicit unavailable state rather than a broken
+image.
 
-The management UI follows the supplied reference with compact **Shared
-Properties**, **Master Links**, and select-multiple/action-bar surfaces, a
-compact listing form, and card-click preview. Eligible unshared completed or
-in-review projects expose **Create Share Link** in the authenticated `FileList`
-directly below the manager; published properties are managed above it. Owners
-manage property-level media order, visibility, and cover choice. Owners select
-two or more shared
+The management UI follows the supplied reference with a dedicated **Ready to
+Share** card before **Shared Properties**, plus **Master Links**,
+select-multiple/action-bar surfaces, a compact listing form, and card-click
+preview. Shared cards use a 3:2 cover, live-state control, exact photo/video/360
+summary, listing hierarchy, link views, and Copy/View/Edit actions. Eligible
+unshared completed or in-review projects also expose **Create Share Link** in
+the authenticated `FileList` directly below the manager; published properties
+are managed above it. Owners manage property-level media order, visibility,
+and cover choice. Owners select two or more shared
 property cards—including the visible check control—to create or update the
 master collection. Preview embeds the actual public buyer page and can be
 switched between Phone and Desktop widths.
@@ -99,8 +103,8 @@ update active links transactionally while preserving logical-file preferences.
 Photos and videos are streamed only
 through link/property/file-scoped inline routes, and persisted private object
 URLs are never serialized. Validated HTTPS 360 tour links are intentionally
-exposed as iframe sources with a no-referrer policy; they never pass through
-the owned object route.
+exposed only as new-tab links with a no-referrer policy; they never pass
+through the owned object route.
 
 The public identifier is a stable, opaque 256-bit value. A link is deliberately
 public and reshareable. The owner can copy it after any reload, disable or

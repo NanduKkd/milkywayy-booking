@@ -75,7 +75,7 @@
 
 .spHero {
   position: relative;
-  height: 320px;
+  aspect-ratio: 3 / 2;
   overflow: hidden;
   border: 1px solid #232327;
   border-radius: 16px;
@@ -98,7 +98,6 @@
   background: #050506;
 }
 
-.spHero img,
 .spHero video {
   object-fit: contain;
 }
@@ -165,7 +164,7 @@
 
 .thumbnails {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin: 8px 0 0;
 }
@@ -271,6 +270,7 @@
   cursor: pointer;
   padding: 10px 13px;
   text-align: left;
+  text-decoration: none;
 }
 
 .mediaAction:hover {
@@ -558,6 +558,34 @@
   gap: 10px;
 }
 
+.videoModalContent {
+  max-width: 960px;
+}
+
+.videoPickerContent {
+  max-width: 620px;
+}
+
+.videoPickerList {
+  display: grid;
+  gap: 9px;
+}
+
+.videoModalPlayer {
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border: 1px solid #232327;
+  border-radius: 16px;
+  background: #050506;
+}
+
+.videoModalPlayer video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
 .lightboxPhoto {
   position: relative;
   aspect-ratio: 3 / 2;
@@ -681,8 +709,8 @@
 
   .spHero {
     height: auto;
-    min-height: clamp(240px, 42dvh, 460px);
-    flex: 1 1 0;
+    min-height: 0;
+    flex: none;
   }
 
   .spBody {
@@ -731,7 +759,7 @@
   }
 
   .spHero {
-    height: 240px;
+    height: auto;
     border-right: 0;
     border-left: 0;
     border-radius: 0;
@@ -749,10 +777,6 @@
 
   .thumbnail {
     height: 66px;
-  }
-
-  .thumbnails .thumbnail:nth-child(5) {
-    display: none;
   }
 
   .mediaActions {

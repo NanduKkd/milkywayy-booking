@@ -116,99 +116,134 @@ export default function FileList({
               ),
           );
           return (
-            <section
-              key={booking.id}
-              data-testid={`delivered-project-${booking.id}`}
-              className="rounded-[18px] border border-white/10 bg-[#131315] p-5 sm:p-6"
-            >
-              <div
-                data-testid={`delivered-project-header-${booking.id}`}
-                className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+            <div key={booking.id} className="space-y-3">
+              <section
+                data-testid={`delivered-project-${booking.id}`}
+                className="overflow-hidden rounded-[18px] border border-white/10 bg-[#131315]"
               >
-                <div className="min-w-0">
-                  <h2 className="truncate text-lg font-extrabold text-white sm:text-xl">
-                    {propertyTitle(booking)}
-                  </h2>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold">
-                    {booking.serviceGroups.map((group) => (
-                      <span
-                        key={group.type}
-                        className={
-                          group.status === DELIVERY_FILE_STATUS.ACCEPTED
-                            ? "text-emerald-300"
-                            : group.status ===
-                                DELIVERY_FILE_STATUS.CHANGES_REQUESTED
-                              ? "text-amber-200"
-                              : "text-sky-200"
-                        }
-                      >
-                        {groupSummary(group)}
-                      </span>
-                    ))}
+                <div className="grid lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.95fr)]">
+                  <div
+                    aria-hidden="true"
+                    className="relative flex min-h-56 items-center justify-center overflow-hidden bg-[radial-gradient(120%_90%_at_75%_10%,#31405a_0%,transparent_54%),linear-gradient(160deg,#273650_0%,#121721_75%)] sm:min-h-72"
+                  >
+                    <div className="grid h-28 w-48 place-items-center rounded-2xl border-[3px] border-[#667797]/50 bg-[#314361]/45 text-center text-[10px] font-extrabold tracking-[0.18em] text-[#9caccc]/70 sm:h-36 sm:w-60">
+                      PHOTO READY
+                    </div>
+                    <span className="absolute bottom-3 right-3 rounded-full bg-black/45 px-3 py-1.5 text-[10px] font-bold text-zinc-100 backdrop-blur">
+                      {booking.deliveryFiles.length} delivered file
+                      {booking.deliveryFiles.length === 1 ? "" : "s"}
+                    </span>
                   </div>
-                  {!booking.deliveryFinishedAt ? (
-                    <p className="mt-2 text-xs text-amber-200">
-                      More files may still be added by the team.
-                    </p>
-                  ) : null}
+                  <div
+                    data-testid={`delivered-project-header-${booking.id}`}
+                    className="flex min-w-0 flex-col p-5 sm:p-6"
+                  >
+                    <div>
+                      <h2 className="truncate text-lg font-extrabold text-white sm:text-xl">
+                        {propertyTitle(booking)}
+                      </h2>
+                      <div className="mt-1 flex flex-wrap gap-x-2 text-sm text-zinc-400">
+                        <span>
+                          {booking.propertyDetails?.community ||
+                            "Property shoot"}
+                        </span>
+                        <span aria-hidden="true">·</span>
+                        <span>
+                          {booking.completedAt
+                            ? `Delivered ${new Intl.DateTimeFormat("en-GB", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              }).format(new Date(booking.completedAt))}`
+                            : "Delivered files ready"}
+                        </span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {booking.serviceGroups.map((group) => (
+                          <span
+                            key={group.type}
+                            className={
+                              group.status === DELIVERY_FILE_STATUS.ACCEPTED
+                                ? "rounded-full border border-emerald-400/35 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-bold text-emerald-300"
+                                : group.status ===
+                                    DELIVERY_FILE_STATUS.CHANGES_REQUESTED
+                                  ? "rounded-full border border-amber-300/35 bg-amber-300/10 px-2.5 py-1 text-[11px] font-bold text-amber-200"
+                                  : "rounded-full border border-sky-300/35 bg-sky-300/10 px-2.5 py-1 text-[11px] font-bold text-sky-200"
+                            }
+                          >
+                            {groupSummary(group)}
+                          </span>
+                        ))}
+                      </div>
+                      {!booking.deliveryFinishedAt ? (
+                        <p className="mt-3 text-xs text-amber-200">
+                          More files may still be added by the team.
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-6 flex flex-wrap gap-2 lg:mt-auto">
+                      {shareableProperty && !existingShare ? (
+                        <Button
+                          type="button"
+                          className="min-h-12 flex-1 rounded-xl bg-white text-black hover:bg-zinc-200"
+                          onClick={() =>
+                            setCreateShareProperty(shareableProperty)
+                          }
+                        >
+                          <Link2 className="h-4 w-4" />
+                          Create Share Link
+                        </Button>
+                      ) : null}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-12 flex-1 rounded-xl"
+                        onClick={() => setSelectedBooking(booking)}
+                      >
+                        <Download className="h-4 w-4" />
+                        Download Files
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-xl"
-                    onClick={() => setSelectedBooking(booking)}
-                  >
-                    <Download className="h-4 w-4" />
-                    Download Files
-                  </Button>
-                  {shareableProperty && !existingShare ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-5 py-3.5 sm:px-6">
+                  <span className="text-sm text-zinc-400">
+                    {booking.deliveryFiles.length}{" "}
+                    {booking.deliveryFiles.length === 1 ? "file" : "files"}{" "}
+                    across {booking.serviceGroups.length}{" "}
+                    {booking.serviceGroups.length === 1
+                      ? "service"
+                      : "services"}
+                  </span>
+                  {booking.completedAt ? (
+                    <span className="inline-flex items-center gap-2 text-sm text-emerald-300">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Project completed
+                    </span>
+                  ) : (
                     <Button
                       type="button"
-                      className="rounded-xl bg-white text-black hover:bg-zinc-200"
-                      onClick={() => setCreateShareProperty(shareableProperty)}
+                      size="sm"
+                      disabled={
+                        !canCompleteBooking(booking, booking.deliveryFiles) ||
+                        loadingBookingId === booking.id
+                      }
+                      onClick={() => completeBooking(booking.id)}
                     >
-                      <Link2 className="h-4 w-4" />
-                      Create Share Link
+                      {loadingBookingId === booking.id
+                        ? "Completing..."
+                        : booking.deliveryFinishedAt
+                          ? Number(booking.pendingReplacementCount || 0) > 0
+                            ? "Changes Pending"
+                            : "Mark Complete"
+                          : "Delivery In Progress"}
                     </Button>
-                  ) : null}
+                  )}
                 </div>
-              </div>
-
-              <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
-                <span className="text-sm text-zinc-400">
-                  {booking.deliveryFiles.length}{" "}
-                  {booking.deliveryFiles.length === 1 ? "file" : "files"} across{" "}
-                  {booking.serviceGroups.length}{" "}
-                  {booking.serviceGroups.length === 1 ? "service" : "services"}
-                </span>
-                {booking.completedAt ? (
-                  <span className="inline-flex items-center gap-2 text-sm text-emerald-300">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Project completed
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      !canCompleteBooking(booking, booking.deliveryFiles) ||
-                      loadingBookingId === booking.id
-                    }
-                    onClick={() => completeBooking(booking.id)}
-                  >
-                    {loadingBookingId === booking.id
-                      ? "Completing..."
-                      : booking.deliveryFinishedAt
-                        ? Number(booking.pendingReplacementCount || 0) > 0
-                          ? "Changes Pending"
-                          : "Mark Complete"
-                        : "Delivery In Progress"}
-                  </Button>
-                )}
-              </div>
-            </section>
+              </section>
+            </div>
           );
         })}
       </div>

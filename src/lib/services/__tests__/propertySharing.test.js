@@ -339,7 +339,33 @@ describe("property sharing service", () => {
 
     expect(dashboard.eligibleProperties).toHaveLength(1);
     expect(dashboard.eligibleProperties[0]).toEqual(
-      expect.objectContaining({ id: 20, mediaCount: 1 }),
+      expect.objectContaining({ id: 20, mediaCount: 1, videoCount: 0 }),
+    );
+  });
+
+  it("reports the exact eligible video count for ready-to-share cards", async () => {
+    const booking = eligibleBooking();
+    const secondVideo = videoDeliveryFile();
+    secondVideo.id = 13;
+    secondVideo.currentVersionId = 103;
+    secondVideo.currentVersion = {
+      ...secondVideo.currentVersion,
+      id: 103,
+      deliveryFileId: 13,
+    };
+    booking.deliveryFiles.push(videoDeliveryFile(), secondVideo);
+    Booking.findAll.mockResolvedValue([booking]);
+    PropertyShareLink.findAll.mockResolvedValue([]);
+
+    const dashboard = await getPropertySharingDashboard(7);
+
+    expect(dashboard.eligibleProperties[0]).toEqual(
+      expect.objectContaining({
+        mediaCount: 3,
+        imageCount: 1,
+        videoCount: 2,
+        hasVideo: true,
+      }),
     );
   });
 
@@ -740,6 +766,16 @@ describe("property sharing service", () => {
     expect(dashboard.shares[0].linkViews).toBe(5);
     expect(dashboard.shares[0].publicUrl).toBe(
       `https://example.test/share/${publicId}`,
+    );
+    expect(dashboard.shares[0].properties[0]).toEqual(
+      expect.objectContaining({
+        mediaCount: 1,
+        imageCount: 1,
+        videoCount: 0,
+        hasVideo: false,
+        hasTour: false,
+        coverUrl: `/api/public/property-shares/${publicId}/properties/30/media/10`,
+      }),
     );
     expect(dashboard.shares[0]).not.toHaveProperty("analytics");
   });

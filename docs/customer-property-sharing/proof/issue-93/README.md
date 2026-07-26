@@ -38,6 +38,11 @@ real active single/master shares after applying the migration.
 - The authenticated Properties page loaded after `npx sequelize-cli
   db:migrate`, and the redesigned booking, sharing, listing, invoice, single,
   and master surfaces rendered at both requested responsive sizes.
+- Browser-comment follow-up verification confirmed a distinct **Ready to
+  Share** card, reference-shaped shared cards with exact media summaries, a
+  photo-only thumbnail strip, a 3:2 hero (measured at 1.503 in the embedded
+  desktop preview), a video walkthrough modal, and a 360° action with
+  `target="_blank"` and `rel="noreferrer"`.
 
 No bearer identifiers, saved-contact values beyond disposable development
 fixtures, filenames, or storage URLs are recorded in this proof.
@@ -46,6 +51,9 @@ fixtures, filenames, or storage URLs are recorded in this proof.
 
 - Focused issue suite: 16 suites and 124 tests passed, including OpenAPI
   contract validation for the generic Properties URL.
+- Browser-comment regression suite: 4 suites and 52 tests passed, covering
+  dashboard cards, delivered-file cards, serialized owner media summaries,
+  photo overflow behavior, single/multiple video modals, and 360° links.
 - Disposable PostgreSQL property-sharing suite: 8 tests passed, including the
   new migration's real up/down round trip and database constraints.
 - `npm run build`: passed. Next.js emitted the pre-existing dynamic-server

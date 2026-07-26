@@ -416,23 +416,15 @@ function serializeBookingFacts(bookingLike) {
 
 function summarizeMedia(bookingLike) {
   const media = eligibleDeliveryFiles(bookingLike);
+  const kinds = media.map(
+    (file) => getInlinePropertyMediaDetails(file, file.currentVersion)?.kind,
+  );
   return {
     mediaCount: media.length,
-    imageCount: media.filter(
-      (file) =>
-        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
-        "IMAGE",
-    ).length,
-    hasVideo: media.some(
-      (file) =>
-        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
-        "VIDEO",
-    ),
-    hasTour: media.some(
-      (file) =>
-        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
-        "TOUR",
-    ),
+    imageCount: kinds.filter((kind) => kind === "IMAGE").length,
+    videoCount: kinds.filter((kind) => kind === "VIDEO").length,
+    hasVideo: kinds.includes("VIDEO"),
+    hasTour: kinds.includes("TOUR"),
   };
 }
 
@@ -1069,14 +1061,28 @@ function serializeOwnerShare(shareLike) {
     properties: (share.properties || []).map((propertyLike) => {
       const property = toPlain(propertyLike);
       const booking = toPlain(property.booking) || {};
+      const media = [...(property.files || [])]
+        .sort(
+          (leftLike, rightLike) =>
+            Number(toPlain(leftLike).position || 0) -
+              Number(toPlain(rightLike).position || 0) ||
+            Number(toPlain(leftLike).id) - Number(toPlain(rightLike).id),
+        )
+        .map(serializePublicMedia);
+      const cover = media.find((item) => item.kind === "IMAGE");
       return {
         id: Number(property.id),
         bookingId: Number(property.bookingId),
         ...serializeBookingFacts(booking),
         listing: serializeListing(booking.propertyShareListing),
-        mediaCount: Array.isArray(property.files)
-          ? property.files.length
-          : eligibleDeliveryFiles(booking).length,
+        mediaCount: media.length,
+        imageCount: media.filter((item) => item.kind === "IMAGE").length,
+        videoCount: media.filter((item) => item.kind === "VIDEO").length,
+        hasVideo: media.some((item) => item.kind === "VIDEO"),
+        hasTour: media.some((item) => item.kind === "TOUR"),
+        coverUrl: cover
+          ? `/api/public/property-shares/${encodeURIComponent(share.publicId)}/properties/${encodeURIComponent(property.id)}/media/${encodeURIComponent(cover.id)}`
+          : null,
       };
     }),
   };
@@ -1098,7 +1104,26 @@ export async function getPropertySharingDashboard(ownerUserId) {
               model: PropertyShareMedia,
               as: "files",
               required: false,
-              attributes: ["id"],
+              attributes: [
+                "id",
+                "position",
+                "deliveryFileId",
+                "deliveryFileVersionId",
+              ],
+              include: [
+                {
+                  model: BookingDeliveryFile,
+                  as: "deliveryFile",
+                  required: true,
+                  attributes: ["id", "type", "label", "deliveryMode"],
+                },
+                {
+                  model: BookingDeliveryFileVersion,
+                  as: "deliveryFileVersion",
+                  required: true,
+                  attributes: ["id", "mimeType", "originalFilename", "url"],
+                },
+              ],
             },
             {
               model: Booking,

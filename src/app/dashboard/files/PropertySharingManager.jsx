@@ -10,10 +10,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createMasterPropertyShareAction,
+  createSinglePropertyShareAction,
   deletePropertyContactAction,
   getPropertySharingDashboardAction,
   savePropertyContactAction,
@@ -39,6 +41,30 @@ function initialMasterSelection(data) {
 
 function stopPropagation(event) {
   event.stopPropagation();
+}
+
+function mediaSummary(property) {
+  const parts = [];
+  if (property.imageCount) {
+    parts.push(
+      `${property.imageCount} photo${property.imageCount === 1 ? "" : "s"}`,
+    );
+  }
+  if (property.hasVideo) {
+    const count = Number(property.videoCount || 1);
+    parts.push(`${count} video${count === 1 ? "" : "s"}`);
+  }
+  if (property.hasTour) parts.push("360°");
+  return parts.join(" · ") || `${property.mediaCount || 0} media`;
+}
+
+function completedLabel(value) {
+  if (!value) return "Delivered files ready";
+  return `Delivered ${new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value))}`;
 }
 
 export function BuyerPreview({ share, onClose }) {
@@ -568,6 +594,7 @@ export default function PropertySharingManager({ initialData }) {
   const [data, setData] = useState(initialData);
   const [loadingKey, setLoadingKey] = useState("");
   const [editing, setEditing] = useState(null);
+  const [creating, setCreating] = useState(null);
   const [previewShare, setPreviewShare] = useState(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [showMasterLinks, setShowMasterLinks] = useState(false);
@@ -580,6 +607,16 @@ export default function PropertySharingManager({ initialData }) {
     [data.shares],
   );
   const masterShare = data.shares.find((share) => share.kind === "MASTER");
+  const readyProperties = useMemo(() => {
+    const sharedBookingIds = new Set(
+      singleShares.flatMap((share) =>
+        share.properties.map((property) => property.bookingId),
+      ),
+    );
+    return data.eligibleProperties.filter(
+      (property) => !sharedBookingIds.has(property.id),
+    );
+  }, [data.eligibleProperties, singleShares]);
 
   useEffect(() => {
     setData(initialData);
@@ -643,6 +680,37 @@ export default function PropertySharingManager({ initialData }) {
     toast.success("Listing updated.");
   };
 
+  const createShare = async ({ listing, media }) => {
+    const property = creating;
+    const result = await run(`create:${property.id}`, async () => {
+      const savedListing = await savePropertyShareListingAction(
+        property.id,
+        listing,
+      );
+      if (!savedListing.success) return savedListing;
+      if (media.length > 0) {
+        const savedMedia = await savePropertyMediaPreferencesAction(
+          property.id,
+          media.map(({ deliveryFileId, visible, isCover }) => ({
+            deliveryFileId,
+            visible,
+            isCover,
+          })),
+        );
+        if (!savedMedia.success) return savedMedia;
+      }
+      return createSinglePropertyShareAction(property.id);
+    });
+    if (!result) return;
+    setCreating(null);
+    try {
+      await navigator.clipboard.writeText(result.publicUrl);
+      toast.success("Share link created and copied.");
+    } catch {
+      toast.success("Share link created.");
+    }
+  };
+
   const toggleShare = async (share) => {
     const result = await run(`${share.id}:toggle`, () =>
       setPropertyShareEnabledAction(share.id, !share.enabled),
@@ -704,6 +772,66 @@ export default function PropertySharingManager({ initialData }) {
         Delivered shoots become shareable property pages — click a card to see
         exactly what viewers see.
       </p>
+
+      {!showMasterLinks && readyProperties.length > 0 ? (
+        <section className={styles.readySection} aria-label="Ready to share">
+          <div className={styles.sectionLabel}>READY TO SHARE</div>
+          <div className={styles.readyGrid}>
+            {readyProperties.map((property, index) => (
+              <article className={styles.readyCard} key={property.id}>
+                <div className={styles.readyHero} data-tone={index % 3}>
+                  {property.coverUrl ? (
+                    <Image
+                      alt=""
+                      className={styles.sharedHeroImage}
+                      fill
+                      sizes="(max-width: 640px) 100vw, 72vw"
+                      src={property.coverUrl}
+                      unoptimized
+                    />
+                  ) : (
+                    <div className={styles.photoPlaceholder} aria-hidden="true">
+                      PHOTO READY
+                    </div>
+                  )}
+                  <span className={styles.mediaCount}>
+                    {mediaSummary(property)}
+                  </span>
+                </div>
+                <div className={styles.readyBody}>
+                  <div>
+                    <h3>{property.bookingTitle}</h3>
+                    <p>
+                      {property.location}
+                      {property.bedrooms !== null
+                        ? ` · ${property.bedrooms} Bed`
+                        : ""}
+                      {` · ${completedLabel(property.completedAt)}`}
+                    </p>
+                    <div className={styles.readyBadges}>
+                      {property.imageCount ? (
+                        <span>✓ {property.imageCount} Photos</span>
+                      ) : null}
+                      {property.hasVideo ? <span>✓ Video</span> : null}
+                      {property.hasTour ? <span>✓ 360° Tour</span> : null}
+                    </div>
+                  </div>
+                  <div className={styles.readyActions}>
+                    <button
+                      type="button"
+                      className={styles.primaryButton}
+                      onClick={() => setCreating(property)}
+                    >
+                      <Copy /> Create Share Link
+                    </button>
+                    <a href="#delivered-files">↓ Download Files</a>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className={`sec-row ${styles.sectionRow}`}>
         <div className={`sec-label ${styles.sectionLabel}`}>
@@ -839,20 +967,34 @@ export default function PropertySharingManager({ initialData }) {
                       {selected ? <Check /> : null}
                     </button>
                   ) : null}
-                  <span
+                  <button
+                    type="button"
                     className={share.enabled ? styles.liveTag : styles.offTag}
+                    aria-label={`${share.enabled ? "Disable" : "Enable"} ${property.listing?.listingTitle || property.bookingTitle}`}
+                    onClick={(event) => {
+                      stopPropagation(event);
+                      toggleShare(share);
+                    }}
                   >
-                    ● {share.enabled ? "LIVE" : "DISABLED"}
-                  </span>
+                    <span className={styles.statusSwitch} aria-hidden="true">
+                      <i />
+                    </span>
+                    {share.enabled ? "LIVE" : "DISABLED"}
+                  </button>
+                  <div className={styles.photoPlaceholder} aria-hidden="true">
+                    PHOTO READY
+                  </div>
                   <span className={styles.mediaCount}>
-                    {property.mediaCount} media
+                    {mediaSummary(property)}
                   </span>
                 </div>
                 <div className={styles.sharedBody}>
-                  <div className={styles.priceRow}>
-                    <b>{formatPrice(property.listing)}</b>
-                    <span>{property.listing?.listingTypeLabel}</span>
-                  </div>
+                  <p className={styles.listingType}>
+                    {property.listing?.listingTypeLabel || "For Sale"}
+                  </p>
+                  <b className={styles.listingPrice}>
+                    {formatPrice(property.listing)}
+                  </b>
                   <h3>{property.listing?.listingTitle}</h3>
                   <div className={styles.cardFooter}>
                     <span>◉ {share.linkViews} link views</span>
@@ -872,10 +1014,10 @@ export default function PropertySharingManager({ initialData }) {
                           type="button"
                           onClick={(event) => {
                             stopPropagation(event);
-                            toggleShare(share);
+                            setPreviewShare(share);
                           }}
                         >
-                          {share.enabled ? "Disable" : "Enable"}
+                          <Eye /> View Page
                         </button>
                         <button
                           type="button"
@@ -935,6 +1077,18 @@ export default function PropertySharingManager({ initialData }) {
           busy={loadingKey === `listing:${editing.property.id}`}
           onClose={() => setEditing(null)}
           onSubmit={saveListing}
+          onSaveContact={saveContact}
+          onDeleteContact={deleteContact}
+        />
+      ) : null}
+      {creating ? (
+        <ListingForm
+          property={creating}
+          savedContacts={data.savedContacts || []}
+          mode="create"
+          busy={loadingKey === `create:${creating.id}`}
+          onClose={() => setCreating(null)}
+          onSubmit={createShare}
           onSaveContact={saveContact}
           onDeleteContact={deleteContact}
         />

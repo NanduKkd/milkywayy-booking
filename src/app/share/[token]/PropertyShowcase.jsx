@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./showcase.module.css";
 
 function mediaUrl(token, propertyId, mediaId) {
@@ -48,11 +48,75 @@ function ContactCard({ contact }) {
   );
 }
 
-function MediaThumbnail({ active, failed, media, onClick, property, token }) {
-  const label =
-    media.kind === "TOUR"
-      ? "View 360° tour"
-      : `View property media ${property.media.indexOf(media) + 1}`;
+function useModalFocus(open, dialogRef) {
+  useEffect(() => {
+    if (!open || !dialogRef.current) return undefined;
+
+    const dialog = dialogRef.current;
+    const previouslyFocused = document.activeElement;
+    const siblings = [...(dialog.parentElement?.children || [])].filter(
+      (element) => element !== dialog,
+    );
+    const inertState = siblings.map((element) => [
+      element,
+      element.hasAttribute("inert"),
+    ]);
+    siblings.forEach((element) => {
+      element.setAttribute("inert", "");
+    });
+
+    const focusableSelector =
+      'button:not([disabled]), a[href], video[controls], [tabindex]:not([tabindex="-1"])';
+    const focusable = [...dialog.querySelectorAll(focusableSelector)];
+    (focusable[0] || dialog).focus();
+
+    const trapFocus = (event) => {
+      if (event.key !== "Tab") return;
+      const candidates = [...dialog.querySelectorAll(focusableSelector)].filter(
+        (element) => !element.hasAttribute("disabled"),
+      );
+      if (candidates.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = candidates[0];
+      const last = candidates[candidates.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    dialog.addEventListener("keydown", trapFocus);
+    return () => {
+      dialog.removeEventListener("keydown", trapFocus);
+      inertState.forEach(([element, wasInert]) => {
+        if (!wasInert) element.removeAttribute("inert");
+      });
+      if (
+        previouslyFocused instanceof HTMLElement &&
+        document.contains(previouslyFocused)
+      ) {
+        previouslyFocused.focus();
+      }
+    };
+  }, [dialogRef, open]);
+}
+
+function MediaThumbnail({
+  active,
+  failed,
+  media,
+  onClick,
+  photoIndex,
+  property,
+  token,
+}) {
+  const label = `View property photo ${photoIndex + 1}`;
   return (
     <button
       type="button"
@@ -63,14 +127,6 @@ function MediaThumbnail({ active, failed, media, onClick, property, token }) {
     >
       {failed ? (
         <span className={styles.thumbnailFallback}>Unavailable</span>
-      ) : media.kind === "TOUR" ? (
-        <span className={styles.tourThumb}>
-          <Globe2 aria-hidden="true" /> 360° view
-        </span>
-      ) : media.mimeType.startsWith("video/") ? (
-        <span className={styles.videoThumb}>
-          <Play aria-hidden="true" /> Video
-        </span>
       ) : (
         <Image
           alt=""
@@ -86,27 +142,41 @@ function MediaThumbnail({ active, failed, media, onClick, property, token }) {
 }
 
 export default function PropertyShowcase({ property, token }) {
-  const [activeMediaId, setActiveMediaId] = useState(property.media[0]?.id);
-  const [failedMedia, setFailedMedia] = useState(() => new Set());
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [copyStatus, setCopyStatus] = useState("");
   const imageMedia = property.media.filter((media) =>
     media.mimeType.startsWith("image/"),
   );
+  const videoMedia = property.media.filter((media) =>
+    media.mimeType.startsWith("video/"),
+  );
+  const tourMedia = property.media.filter(
+    (media) => media.kind === "TOUR" && media.embedUrl,
+  );
+  const [activeMediaId, setActiveMediaId] = useState(imageMedia[0]?.id);
+  const [failedMedia, setFailedMedia] = useState(() => new Set());
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [videoPickerOpen, setVideoPickerOpen] = useState(false);
+  const [videoModalMedia, setVideoModalMedia] = useState(null);
+  const [copyStatus, setCopyStatus] = useState("");
+  const photoDialogRef = useRef(null);
+  const videoPickerDialogRef = useRef(null);
+  const videoDialogRef = useRef(null);
   const activeIndex = Math.max(
     0,
-    property.media.findIndex((media) => media.id === activeMediaId),
+    imageMedia.findIndex((media) => media.id === activeMediaId),
   );
-  const activeMedia = property.media[activeIndex];
+  const activeMedia = imageMedia[activeIndex];
+  useModalFocus(lightboxOpen, photoDialogRef);
+  useModalFocus(videoPickerOpen, videoPickerDialogRef);
+  useModalFocus(Boolean(videoModalMedia), videoDialogRef);
 
   const selectRelative = useCallback(
     (offset) => {
-      if (property.media.length === 0) return;
+      if (imageMedia.length === 0) return;
       const next =
-        (activeIndex + offset + property.media.length) % property.media.length;
-      setActiveMediaId(property.media[next].id);
+        (activeIndex + offset + imageMedia.length) % imageMedia.length;
+      setActiveMediaId(imageMedia[next].id);
     },
-    [activeIndex, property.media],
+    [activeIndex, imageMedia],
   );
 
   const markFailed = (mediaId) => {
@@ -117,15 +187,27 @@ export default function PropertyShowcase({ property, token }) {
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         setLightboxOpen(false);
-      } else if (!lightboxOpen && event.key === "ArrowLeft") {
+        setVideoPickerOpen(false);
+        setVideoModalMedia(null);
+      } else if (
+        !lightboxOpen &&
+        !videoPickerOpen &&
+        !videoModalMedia &&
+        event.key === "ArrowLeft"
+      ) {
         selectRelative(-1);
-      } else if (!lightboxOpen && event.key === "ArrowRight") {
+      } else if (
+        !lightboxOpen &&
+        !videoPickerOpen &&
+        !videoModalMedia &&
+        event.key === "ArrowRight"
+      ) {
         selectRelative(1);
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [lightboxOpen, selectRelative]);
+  }, [lightboxOpen, selectRelative, videoModalMedia, videoPickerOpen]);
 
   const copyPageLink = async () => {
     try {
@@ -158,53 +240,29 @@ export default function PropertyShowcase({ property, token }) {
         <div className={styles.mediaColumn}>
           <div className={`sp-hero ${styles.spHero}`}>
             {activeMedia && !failedMedia.has(activeMedia.id) ? (
-              activeMedia.kind === "TOUR" && activeMedia.embedUrl ? (
-                <iframe
+              <button
+                type="button"
+                className={styles.heroPhotoButton}
+                aria-label="Open all property photos"
+                onClick={() => setLightboxOpen(true)}
+              >
+                <Image
                   key={activeMedia.id}
-                  src={activeMedia.embedUrl}
-                  title={`${property.title} — 360° tour`}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  onError={() => markFailed(activeMedia.id)}
-                />
-              ) : activeMedia.mimeType.startsWith("video/") ? (
-                // biome-ignore lint/a11y/useMediaCaption: The delivery model does not persist a separate captions asset.
-                <video
-                  key={activeMedia.id}
-                  aria-label={`${property.title} — video ${activeIndex + 1}`}
-                  controls
-                  playsInline
-                  preload="metadata"
+                  alt={`${property.title} — view ${activeIndex + 1}`}
+                  fill
+                  priority
+                  sizes="(max-width: 600px) 100vw, 60vw"
+                  unoptimized
                   onError={() => markFailed(activeMedia.id)}
                   src={mediaUrl(token, property.id, activeMedia.id)}
                 />
-              ) : (
-                <button
-                  type="button"
-                  className={styles.heroPhotoButton}
-                  aria-label="Open all property photos"
-                  onClick={() => setLightboxOpen(true)}
-                >
-                  <Image
-                    key={activeMedia.id}
-                    alt={`${property.title} — view ${activeIndex + 1}`}
-                    fill
-                    priority
-                    sizes="(max-width: 600px) 100vw, 60vw"
-                    unoptimized
-                    onError={() => markFailed(activeMedia.id)}
-                    src={mediaUrl(token, property.id, activeMedia.id)}
-                  />
-                </button>
-              )
+              </button>
             ) : (
               <output className={styles.mediaFallback}>
                 This media could not be displayed.
               </output>
             )}
-            {property.media.length > 1 ? (
+            {imageMedia.length > 1 ? (
               <>
                 <button
                   type="button"
@@ -225,65 +283,83 @@ export default function PropertyShowcase({ property, token }) {
               </>
             ) : null}
             <span className={`h-count ${styles.heroCount}`}>
-              {property.media.length ? activeIndex + 1 : 0} /{" "}
-              {property.media.length}
+              {imageMedia.length ? activeIndex + 1 : 0} / {imageMedia.length}
             </span>
           </div>
 
-          {property.media.length > 0 ? (
+          {imageMedia.length > 0 ? (
             <div className={`sp-thumbs ${styles.thumbnails}`}>
-              {property.media.slice(0, 4).map((media) => (
+              {(imageMedia.length > 4
+                ? imageMedia.slice(0, 3)
+                : imageMedia
+              ).map((media, photoIndex) => (
                 <MediaThumbnail
                   active={media.id === activeMedia?.id}
                   failed={failedMedia.has(media.id)}
                   key={media.id}
                   media={media}
                   onClick={() => setActiveMediaId(media.id)}
+                  photoIndex={photoIndex}
                   property={property}
                   token={token}
                 />
               ))}
-              {imageMedia.length > 0 && property.media.length > 4 ? (
+              {imageMedia.length > 4 ? (
                 <button
                   type="button"
                   className={`thumb ${styles.thumbnail} ${styles.moreMedia}`}
                   onClick={() => setLightboxOpen(true)}
                 >
-                  <Images aria-hidden="true" /> All photos
+                  <Images aria-hidden="true" /> + {imageMedia.length - 3} More
+                  Photos
                 </button>
               ) : null}
             </div>
           ) : null}
 
-          {property.media.some((media) => media.kind !== "IMAGE") ? (
+          {videoMedia.length > 0 || tourMedia.length > 0 ? (
             <section
               className={styles.mediaActions}
               aria-label="Property media"
             >
-              {property.media
-                .filter((media) => media.kind !== "IMAGE")
-                .map((media) => (
-                  <button
-                    type="button"
-                    className={styles.mediaAction}
-                    key={media.id}
-                    onClick={() => setActiveMediaId(media.id)}
-                  >
-                    {media.kind === "TOUR" ? (
-                      <Globe2 aria-hidden="true" />
-                    ) : (
-                      <Play aria-hidden="true" />
-                    )}
-                    <span>
-                      <b>
-                        {media.kind === "TOUR"
-                          ? "360° virtual tour"
-                          : "Video walkthrough"}
-                      </b>
-                      <small>{media.label}</small>
-                    </span>
-                  </button>
-                ))}
+              {videoMedia.length > 0 ? (
+                <button
+                  type="button"
+                  className={styles.mediaAction}
+                  onClick={() => {
+                    if (videoMedia.length === 1) {
+                      setVideoModalMedia(videoMedia[0]);
+                    } else {
+                      setVideoPickerOpen(true);
+                    }
+                  }}
+                >
+                  <Play aria-hidden="true" />
+                  <span>
+                    <b>Video walkthrough</b>
+                    <small>
+                      {videoMedia.length === 1
+                        ? videoMedia[0].label
+                        : `${videoMedia.length} videos`}
+                    </small>
+                  </span>
+                </button>
+              ) : null}
+              {tourMedia.map((media) => (
+                <a
+                  className={styles.mediaAction}
+                  href={media.embedUrl}
+                  key={media.id}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  <Globe2 aria-hidden="true" />
+                  <span>
+                    <b>360° virtual tour</b>
+                    <small>{media.label}</small>
+                  </span>
+                </a>
+              ))}
             </section>
           ) : null}
         </div>
@@ -386,7 +462,9 @@ export default function PropertyShowcase({ property, token }) {
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setLightboxOpen(false);
           }}
+          ref={photoDialogRef}
           role="dialog"
+          tabIndex={-1}
         >
           <div className={styles.lightboxContent}>
             <div className={styles.lightboxHeader}>
@@ -416,6 +494,94 @@ export default function PropertyShowcase({ property, token }) {
                   />
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {videoPickerOpen ? (
+        <div
+          aria-label="Choose a video walkthrough"
+          aria-modal="true"
+          className={styles.lightbox}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setVideoPickerOpen(false);
+          }}
+          ref={videoPickerDialogRef}
+          role="dialog"
+          tabIndex={-1}
+        >
+          <div
+            className={`${styles.lightboxContent} ${styles.videoPickerContent}`}
+          >
+            <div className={styles.lightboxHeader}>
+              <strong>Choose a video walkthrough</strong>
+              <button
+                type="button"
+                className={styles.closeLightbox}
+                onClick={() => setVideoPickerOpen(false)}
+              >
+                <X aria-hidden="true" /> Close
+              </button>
+            </div>
+            <div className={styles.videoPickerList}>
+              {videoMedia.map((media, index) => (
+                <button
+                  type="button"
+                  className={styles.mediaAction}
+                  key={media.id}
+                  onClick={() => {
+                    setVideoPickerOpen(false);
+                    setVideoModalMedia(media);
+                  }}
+                >
+                  <Play aria-hidden="true" />
+                  <span>
+                    <b>{media.label || `Video ${index + 1}`}</b>
+                    <small>Open walkthrough</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {videoModalMedia ? (
+        <div
+          aria-label="Video walkthrough"
+          aria-modal="true"
+          className={styles.lightbox}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setVideoModalMedia(null);
+          }}
+          ref={videoDialogRef}
+          role="dialog"
+          tabIndex={-1}
+        >
+          <div
+            className={`${styles.lightboxContent} ${styles.videoModalContent}`}
+          >
+            <div className={styles.lightboxHeader}>
+              <strong>Video walkthrough</strong>
+              <button
+                type="button"
+                className={styles.closeLightbox}
+                onClick={() => setVideoModalMedia(null)}
+              >
+                <X aria-hidden="true" /> Close
+              </button>
+            </div>
+            <div className={styles.videoModalPlayer}>
+              {/* biome-ignore lint/a11y/useMediaCaption: The delivery model does not persist a separate captions asset. */}
+              <video
+                aria-label={`${property.title} — video walkthrough`}
+                controls
+                playsInline
+                preload="metadata"
+                onError={() => markFailed(videoModalMedia.id)}
+                src={mediaUrl(token, property.id, videoModalMedia.id)}
+              />
             </div>
           </div>
         </div>

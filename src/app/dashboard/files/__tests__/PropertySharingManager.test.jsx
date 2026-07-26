@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import PropertySharingManager from "../PropertySharingManager";
 
 const mockCreateMaster = jest.fn();
+const mockCreateSingle = jest.fn();
 const mockDeleteContact = jest.fn();
 const mockGetDashboard = jest.fn();
 const mockSaveContact = jest.fn();
@@ -12,6 +13,7 @@ const mockUpdateMaster = jest.fn();
 
 jest.mock("@/lib/actions/propertySharing", () => ({
   createMasterPropertyShareAction: (...args) => mockCreateMaster(...args),
+  createSinglePropertyShareAction: (...args) => mockCreateSingle(...args),
   deletePropertyContactAction: (...args) => mockDeleteContact(...args),
   getPropertySharingDashboardAction: (...args) => mockGetDashboard(...args),
   savePropertyContactAction: (...args) => mockSaveContact(...args),
@@ -102,6 +104,10 @@ describe("PropertySharingManager", () => {
         publicUrl: "https://example.test/share/redacted-master-token",
       },
     });
+    mockCreateSingle.mockResolvedValue({
+      success: true,
+      data: { publicUrl: "https://example.test/share/redacted-single-token" },
+    });
     mockSetEnabled.mockResolvedValue({ success: true, data: {} });
     mockSaveContact.mockResolvedValue({ success: true, data: {} });
     mockSaveMedia.mockResolvedValue({ success: true, data: {} });
@@ -112,13 +118,13 @@ describe("PropertySharingManager", () => {
     });
   });
 
-  it("keeps Shared Properties and Master Links management above the file list without a Ready section", () => {
+  it("shows ready properties before the full-width shared-property cards", () => {
     render(<PropertySharingManager initialData={data()} />);
 
-    expect(screen.queryByText("READY TO SHARE")).not.toBeInTheDocument();
+    expect(screen.getByText("READY TO SHARE")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Create Share Link" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Create Share Link" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("SHARED PROPERTIES")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Master Links (0)" }),
@@ -127,7 +133,11 @@ describe("PropertySharingManager", () => {
       screen.getByRole("button", { name: "Select Multiple" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/link views/u)).toHaveLength(2);
+    expect(screen.getAllByText(/2 photos · 1 video/u)).toHaveLength(3);
     expect(screen.getAllByLabelText(/Preview Corner home/u)).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /View Page/u })).toHaveLength(
+      2,
+    );
     expect(
       screen.queryByRole("button", { name: /rotate|revoke/u }),
     ).not.toBeInTheDocument();

@@ -188,9 +188,9 @@ describe("public property showcase page", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("360° + Video")).not.toBeInTheDocument();
     expect(container.querySelector(".h-badge")).toBeNull();
-    expect(screen.getByRole("button", { name: "View 360° tour" })).toHaveClass(
-      "thumb",
-    );
+    expect(
+      screen.getByRole("link", { name: /360° virtual tour/u }),
+    ).toHaveAttribute("target", "_blank");
     expect(container.querySelector(".sp-actions")).toBeNull();
     expect(container.querySelector("form")).toBeNull();
     expect(container.querySelector("[download]")).toBeNull();
@@ -230,7 +230,7 @@ describe("public property showcase page", () => {
     expect(writeText).toHaveBeenCalledWith(window.location.href);
   });
 
-  it("switches supported media inline without exposing a download action", async () => {
+  it("opens the video walkthrough in a modal and keeps the 360 tour in a new tab", async () => {
     resolvePublicPropertyShareLanding.mockResolvedValue({
       id: 4,
       kind: "SINGLE_PROPERTY",
@@ -243,19 +243,38 @@ describe("public property showcase page", () => {
       }),
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "View property media 2" }),
-    );
+    const videoTrigger = screen.getByRole("button", {
+      name: /Video walkthrough/u,
+    });
+    videoTrigger.focus();
+    fireEvent.click(videoTrigger);
 
-    expect(container.querySelector("video[controls]")).not.toBeNull();
+    const videoDialog = screen.getByRole("dialog", {
+      name: "Video walkthrough",
+    });
+    expect(videoDialog).toBeInTheDocument();
+    expect(videoDialog.querySelector("button")).toHaveFocus();
+    expect(
+      [...videoDialog.parentElement.children]
+        .filter((element) => element !== videoDialog)
+        .every((element) => element.hasAttribute("inert")),
+    ).toBe(true);
     expect(container.querySelector("video")).toHaveAttribute(
       "src",
       `/api/public/property-shares/${token}/properties/30/media/302`,
     );
+    expect(screen.getByRole("link", { name: /360° virtual tour/u })).toEqual(
+      expect.objectContaining({
+        href: "https://example.com/virtual-tour",
+        target: "_blank",
+      }),
+    );
     expect(container.querySelector("a[download]")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(videoTrigger).toHaveFocus();
   });
 
-  it("embeds a 360 link from the media strip without a thumbnail image", async () => {
+  it("keeps video and 360 actions out of the photo thumbnail strip", async () => {
     resolvePublicPropertyShareLanding.mockResolvedValue({
       id: 4,
       kind: "SINGLE_PROPERTY",
@@ -269,16 +288,129 @@ describe("public property showcase page", () => {
       }),
     );
 
-    const tourTile = screen.getByRole("button", { name: "View 360° tour" });
-    expect(tourTile).toHaveClass("thumb");
-    expect(tourTile.querySelector("img")).toBeNull();
-    fireEvent.click(tourTile);
-
-    expect(screen.getByTitle("Marina corner home — 360° tour")).toHaveAttribute(
-      "src",
-      "https://example.com/virtual-tour",
+    expect(
+      screen.getByRole("button", { name: "View property photo 1" }),
+    ).toHaveClass("thumb");
+    expect(screen.queryByRole("button", { name: "View 360° tour" })).toBeNull();
+    expect(container.querySelector(".sp-thumbs")).not.toHaveTextContent("360°");
+    expect(container.querySelector(".sp-thumbs")).not.toHaveTextContent(
+      "Video",
     );
     expect(container.querySelector(".sp-actions")).toBeNull();
+  });
+
+  it("renders the reference four-tile photo strip with a final more-photos tile", async () => {
+    const listing = property(30, "Marina corner home");
+    listing.media = [
+      ...Array.from({ length: 6 }, (_, index) => ({
+        id: 310 + index,
+        kind: "IMAGE",
+        mimeType: "image/jpeg",
+        label: `Photo ${index + 1}`,
+      })),
+      ...listing.media.filter((media) => !media.mimeType.startsWith("image/")),
+    ];
+    resolvePublicPropertyShareLanding.mockResolvedValue({
+      id: 4,
+      kind: "SINGLE_PROPERTY",
+      properties: [listing],
+    });
+
+    render(
+      await SharedPropertyPage({
+        params: Promise.resolve({ token }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "View property photo 1" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "View property photo 2" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "View property photo 3" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /3 More Photos/u }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "View property photo 4" }),
+    ).toBeNull();
+  });
+
+  it("renders exactly four photos as direct thumbnail choices", async () => {
+    const listing = property(30, "Marina corner home");
+    listing.media = Array.from({ length: 4 }, (_, index) => ({
+      id: 310 + index,
+      kind: "IMAGE",
+      mimeType: "image/jpeg",
+      label: `Photo ${index + 1}`,
+    }));
+    resolvePublicPropertyShareLanding.mockResolvedValue({
+      id: 4,
+      kind: "SINGLE_PROPERTY",
+      properties: [listing],
+    });
+
+    render(
+      await SharedPropertyPage({
+        params: Promise.resolve({ token }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "View property photo 4" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /More Photos/u })).toBeNull();
+  });
+
+  it("uses one walkthrough action and picks a protected video before opening its modal", async () => {
+    const listing = property(30, "Marina corner home");
+    listing.media = [
+      ...listing.media,
+      {
+        id: 303,
+        kind: "VIDEO",
+        mimeType: "video/mp4",
+        label: "Drone tour",
+      },
+    ];
+    resolvePublicPropertyShareLanding.mockResolvedValue({
+      id: 4,
+      kind: "SINGLE_PROPERTY",
+      properties: [listing],
+    });
+
+    const { container } = render(
+      await SharedPropertyPage({
+        params: Promise.resolve({ token }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(
+      screen.getAllByRole("button", { name: /Video walkthrough/u }),
+    ).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /Video walkthrough/u }));
+
+    expect(
+      screen.getByRole("dialog", { name: "Choose a video walkthrough" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Drone tour/u }));
+
+    expect(
+      screen.queryByRole("dialog", { name: "Choose a video walkthrough" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "Video walkthrough" }),
+    ).toBeInTheDocument();
+    expect(container.querySelector("video")).toHaveAttribute(
+      "src",
+      `/api/public/property-shares/${token}/properties/30/media/303`,
+    );
   });
 
   it("replaces failed hero and thumbnail images with unavailable states", async () => {
