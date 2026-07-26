@@ -66,7 +66,7 @@
 - The tab says Properties but links to `/dashboard/files`.
 - Eligible unshared FileList create action, compact listing form, Shared
   Properties, Master Links, direct check-control selection, select-multiple
-  action bar, total views, stable copy, enable/disable, explicit media refresh,
+  action bar, total views, stable copy, enable/disable, automatic media synchronization,
   and the actual Phone/Desktop public-page preview are covered by focused
   component tests. The in-review FileList create action is additionally
   captured at desktop and 390px widths.
@@ -80,7 +80,7 @@
 - Master collection contains only selected cards and opens the full selected
   showcase under the same token with a spaced back path. The collection root is
   edge-to-edge with no outer card treatment or repeated contact card.
-- Existing `fileId`, authenticated download/copy-link, revisions, replacements,
+- Existing authenticated download/copy-link, revisions, replacements,
   review deadlines, completion, and other dashboard product areas retain
   focused compatibility coverage.
 

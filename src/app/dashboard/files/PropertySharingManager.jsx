@@ -1,12 +1,23 @@
 "use client";
 
-import { Check, Copy, Loader2, X } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Eye,
+  EyeOff,
+  GripVertical,
+  Loader2,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   createMasterPropertyShareAction,
+  deletePropertyContactAction,
   getPropertySharingDashboardAction,
-  refreshPropertyShareMediaAction,
+  savePropertyContactAction,
+  savePropertyMediaPreferencesAction,
   savePropertyShareListingAction,
   setPropertyShareEnabledAction,
   updateMasterPropertyShareAction,
@@ -81,20 +92,36 @@ export function BuyerPreview({ share, onClose }) {
   );
 }
 
-export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
+export function ListingForm({
+  property,
+  savedContacts = [],
+  mode,
+  busy,
+  onClose,
+  onSubmit,
+  onSaveContact,
+  onDeleteContact,
+}) {
   const existing = property.listing;
   const [form, setForm] = useState({
     listingTitle: existing?.listingTitle || property.bookingTitle || "",
     priceAed: existing?.priceAed || "",
     listingType: existing?.listingType || "FOR_SALE",
+    propertyType: existing?.propertyType || "APARTMENT",
     bathrooms: existing?.bathrooms ?? "",
+    maidRoom: existing?.maidRoom || false,
     sizeSqft: existing?.sizeSqft ?? "",
+    builtUpAreaSqft: existing?.builtUpAreaSqft ?? "",
+    plotAreaSqft: existing?.plotAreaSqft ?? "",
     furnishing: existing?.furnishing || "FURNISHED",
     description: existing?.description || "",
     highlights: existing?.highlights || [],
     contactName: existing?.contactName || "",
     contactPhone: existing?.contactPhone || "",
   });
+  const [media, setMedia] = useState(() =>
+    (property.media || []).map((item, position) => ({ ...item, position })),
+  );
   const [highlight, setHighlight] = useState("");
 
   const update = (field, value) =>
@@ -115,6 +142,61 @@ export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
     setHighlight("");
   };
 
+  const updatePropertyType = (propertyType) => {
+    setForm((current) => ({
+      ...current,
+      propertyType,
+      ...(propertyType === "COMMERCIAL"
+        ? { bathrooms: "", maidRoom: false }
+        : {}),
+    }));
+  };
+
+  const moveMedia = (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= media.length) return;
+    setMedia((current) => {
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next.map((item, position) => ({ ...item, position }));
+    });
+  };
+
+  const toggleMedia = (deliveryFileId) => {
+    setMedia((current) => {
+      const visibleCount = current.filter((item) => item.visible).length;
+      return current.map((item) => {
+        if (item.deliveryFileId !== deliveryFileId) return item;
+        if (item.visible && visibleCount <= 1) return item;
+        const visible = !item.visible;
+        return {
+          ...item,
+          visible,
+          isCover: visible ? item.isCover : false,
+        };
+      });
+    });
+  };
+
+  const setCover = (deliveryFileId) =>
+    setMedia((current) =>
+      current.map((item) => ({
+        ...item,
+        visible: item.deliveryFileId === deliveryFileId ? true : item.visible,
+        isCover:
+          item.kind === "IMAGE" && item.deliveryFileId === deliveryFileId,
+      })),
+    );
+  const applicableArea =
+    Number(String(form.plotAreaSqft).replaceAll(",", "")) ||
+    Number(String(form.builtUpAreaSqft).replaceAll(",", "")) ||
+    Number(String(form.sizeSqft).replaceAll(",", "")) ||
+    0;
+  const pricePerSqft =
+    applicableArea > 0 && Number(String(form.priceAed).replaceAll(",", "")) > 0
+      ? Number(String(form.priceAed).replaceAll(",", "")) / applicableArea
+      : null;
+
   return (
     <div className={`overlay ${styles.overlay}`} role="presentation">
       <form
@@ -126,7 +208,7 @@ export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
         }
         onSubmit={(event) => {
           event.preventDefault();
-          onSubmit(form);
+          onSubmit({ listing: form, media });
         }}
       >
         <button
@@ -177,6 +259,19 @@ export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
             />
           </label>
           <label>
+            <span>PROPERTY TYPE *</span>
+            <select
+              value={form.propertyType}
+              onChange={(event) => updatePropertyType(event.target.value)}
+            >
+              <option value="APARTMENT">Apartment</option>
+              <option value="PENTHOUSE">Penthouse</option>
+              <option value="VILLA">Villa</option>
+              <option value="TOWNHOUSE">Townhouse</option>
+              <option value="COMMERCIAL">Commercial</option>
+            </select>
+          </label>
+          <label>
             <span>LISTING TYPE *</span>
             <select
               value={form.listingType}
@@ -191,14 +286,21 @@ export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
             <span>BATHROOMS</span>
             <select
               value={form.bathrooms}
+              disabled={form.propertyType === "COMMERCIAL"}
               onChange={(event) => update("bathrooms", event.target.value)}
             >
               <option value="">Select</option>
               <option value="1">1</option>
+              <option value="1.5">1.5</option>
               <option value="2">2</option>
+              <option value="2.5">2.5</option>
               <option value="3">3</option>
+              <option value="3.5">3.5</option>
               <option value="4">4</option>
-              <option value="5">5+</option>
+              <option value="4.5">4.5</option>
+              <option value="5">5</option>
+              <option value="5.5">5.5</option>
+              <option value="6">6+</option>
             </select>
           </label>
           <label>
@@ -209,6 +311,42 @@ export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
               onChange={(event) => update("sizeSqft", event.target.value)}
             />
           </label>
+          <label>
+            <span>BUILT-UP AREA (SQFT)</span>
+            <input
+              inputMode="numeric"
+              value={form.builtUpAreaSqft}
+              onChange={(event) =>
+                update("builtUpAreaSqft", event.target.value)
+              }
+            />
+          </label>
+          <label>
+            <span>PLOT AREA (SQFT)</span>
+            <input
+              inputMode="numeric"
+              value={form.plotAreaSqft}
+              onChange={(event) => update("plotAreaSqft", event.target.value)}
+            />
+          </label>
+          <label className={styles.checkboxField}>
+            <input
+              type="checkbox"
+              checked={form.maidRoom}
+              disabled={form.propertyType === "COMMERCIAL"}
+              onChange={(event) => update("maidRoom", event.target.checked)}
+            />
+            <span>MAID&apos;S ROOM</span>
+          </label>
+          {pricePerSqft ? (
+            <p className={styles.derivedPrice}>
+              Derived price: AED{" "}
+              {new Intl.NumberFormat("en-AE", {
+                maximumFractionDigits: 2,
+              }).format(pricePerSqft)}{" "}
+              / ft²
+            </p>
+          ) : null}
           <fieldset
             className={`${styles.fullField} ${styles.segmentField}`}
             aria-label="FURNISHING *"
@@ -247,6 +385,36 @@ export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
               onChange={(event) => update("description", event.target.value)}
             />
           </label>
+          {savedContacts.length > 0 ? (
+            <div className={styles.fullField}>
+              <span className={styles.fieldLabel}>SAVED CONTACTS</span>
+              <div className={styles.contactPills}>
+                {savedContacts.map((contact) => (
+                  <span key={contact.id}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          contactName: contact.name,
+                          contactPhone: contact.phone,
+                        }))
+                      }
+                    >
+                      {contact.name}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Delete saved contact ${contact.name}`}
+                      onClick={() => onDeleteContact?.(contact.id)}
+                    >
+                      <Trash2 />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <label>
             <span>CONTACT NAME *</span>
             <input
@@ -269,6 +437,21 @@ export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
               onChange={(event) => update("contactPhone", event.target.value)}
             />
           </label>
+          <div className={styles.fullField}>
+            <button
+              type="button"
+              className={styles.saveContactButton}
+              disabled={!form.contactName.trim() || !form.contactPhone.trim()}
+              onClick={() =>
+                onSaveContact?.({
+                  name: form.contactName,
+                  phone: form.contactPhone,
+                })
+              }
+            >
+              + Save this contact for other properties
+            </button>
+          </div>
           <div className={styles.fullField}>
             <span className={styles.fieldLabel}>
               KEY HIGHLIGHTS &amp; AMENITIES
@@ -307,6 +490,63 @@ export function ListingForm({ property, mode, busy, onClose, onSubmit }) {
               ))}
             </div>
           </div>
+          {media.length > 0 ? (
+            <div className={styles.fullField}>
+              <span className={styles.fieldLabel}>
+                MEDIA ORDER, VISIBILITY &amp; COVER
+              </span>
+              <p className={styles.mediaHelp}>
+                New safe media is added visibly at the end. Replacements keep
+                this logical-file order.
+              </p>
+              <div className={styles.mediaPreferenceList}>
+                {media.map((item, index) => (
+                  <div
+                    key={item.deliveryFileId}
+                    className={item.visible ? "" : styles.hiddenMedia}
+                  >
+                    <GripVertical />
+                    <span>
+                      <b>{item.label}</b>
+                      <small>{item.kind.toLowerCase()}</small>
+                    </span>
+                    {item.kind === "IMAGE" ? (
+                      <button
+                        type="button"
+                        aria-pressed={item.isCover}
+                        onClick={() => setCover(item.deliveryFileId)}
+                      >
+                        {item.isCover ? "Cover" : "Set cover"}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      aria-label={`${item.visible ? "Hide" : "Show"} ${item.label}`}
+                      onClick={() => toggleMedia(item.deliveryFileId)}
+                    >
+                      {item.visible ? <Eye /> : <EyeOff />}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move ${item.label} earlier`}
+                      disabled={index === 0}
+                      onClick={() => moveMedia(index, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Move ${item.label} later`}
+                      disabled={index === media.length - 1}
+                      onClick={() => moveMedia(index, 1)}
+                    >
+                      ↓
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <button type="submit" className={styles.submitButton} disabled={busy}>
@@ -377,11 +617,27 @@ export default function PropertySharingManager({ initialData }) {
     }
   };
 
-  const saveListing = async (form) => {
+  const saveListing = async ({ listing, media }) => {
     const property = editing.property;
-    const result = await run(`listing:${property.id}`, () =>
-      savePropertyShareListingAction(property.id, form),
-    );
+    const result = await run(`listing:${property.id}`, async () => {
+      const savedListing = await savePropertyShareListingAction(
+        property.id,
+        listing,
+      );
+      if (!savedListing.success) return savedListing;
+      if (media.length > 0) {
+        const savedMedia = await savePropertyMediaPreferencesAction(
+          property.id,
+          media.map(({ deliveryFileId, visible, isCover }) => ({
+            deliveryFileId,
+            visible,
+            isCover,
+          })),
+        );
+        if (!savedMedia.success) return savedMedia;
+      }
+      return savedListing;
+    });
     if (!result) return;
     setEditing(null);
     toast.success("Listing updated.");
@@ -396,13 +652,18 @@ export default function PropertySharingManager({ initialData }) {
     }
   };
 
-  const refreshMedia = async (share) => {
-    const result = await run(`${share.id}:refresh`, () =>
-      refreshPropertyShareMediaAction(share.id),
+  const saveContact = async (contact) => {
+    const result = await run("contact:save", () =>
+      savePropertyContactAction(contact),
     );
-    if (result) {
-      toast.success("Shared media refreshed.");
-    }
+    if (result) toast.success("Contact saved for reuse.");
+  };
+
+  const deleteContact = async (contactId) => {
+    const result = await run(`contact:${contactId}:delete`, () =>
+      deletePropertyContactAction(contactId),
+    );
+    if (result) toast.success("Saved contact deleted.");
   };
 
   const toggleSelected = (bookingId) => {
@@ -534,16 +795,6 @@ export default function PropertySharingManager({ initialData }) {
                 </button>
                 <button
                   type="button"
-                  disabled={loadingKey === `${masterShare.id}:refresh`}
-                  aria-busy={loadingKey === `${masterShare.id}:refresh`}
-                  onClick={() => refreshMedia(masterShare)}
-                >
-                  {loadingKey === `${masterShare.id}:refresh`
-                    ? "Refreshing..."
-                    : "Refresh Media"}
-                </button>
-                <button
-                  type="button"
                   onClick={() => setPreviewShare(masterShare)}
                 >
                   Preview
@@ -628,19 +879,6 @@ export default function PropertySharingManager({ initialData }) {
                         </button>
                         <button
                           type="button"
-                          disabled={loadingKey === `${share.id}:refresh`}
-                          aria-busy={loadingKey === `${share.id}:refresh`}
-                          onClick={(event) => {
-                            stopPropagation(event);
-                            refreshMedia(share);
-                          }}
-                        >
-                          {loadingKey === `${share.id}:refresh`
-                            ? "Refreshing..."
-                            : "Refresh Media"}
-                        </button>
-                        <button
-                          type="button"
                           onClick={(event) => {
                             stopPropagation(event);
                             const eligible = data.eligibleProperties.find(
@@ -692,10 +930,13 @@ export default function PropertySharingManager({ initialData }) {
       {editing ? (
         <ListingForm
           property={editing.property}
+          savedContacts={data.savedContacts || []}
           mode={editing.mode}
           busy={loadingKey === `listing:${editing.property.id}`}
           onClose={() => setEditing(null)}
           onSubmit={saveListing}
+          onSaveContact={saveContact}
+          onDeleteContact={deleteContact}
         />
       ) : null}
       {previewShare ? (

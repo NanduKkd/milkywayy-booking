@@ -22,6 +22,8 @@ import Promotion from "./promotion.js";
 import PromotionAssignment from "./promotionassignment.js";
 import PromotionAuditEvent from "./promotionauditevent.js";
 import PromotionRedemption from "./promotionredemption.js";
+import PropertyMediaPreference from "./propertymediapreference.js";
+import PropertySavedContact from "./propertysavedcontact.js";
 import PropertyShareLink from "./propertysharelink.js";
 import PropertyShareListing from "./propertysharelisting.js";
 import PropertyShareMedia from "./propertysharemedia.js";
@@ -54,6 +56,8 @@ const models = {
   PropertyShareMedia,
   PropertyShareProperty,
   PropertyShareListing,
+  PropertyMediaPreference,
+  PropertySavedContact,
   OAuthClient,
   OAuthAuthorizationCode,
   OAuthAccessToken,
@@ -88,6 +92,8 @@ export {
   PropertyShareMedia,
   PropertyShareProperty,
   PropertyShareListing,
+  PropertyMediaPreference,
+  PropertySavedContact,
   OAuthClient,
   OAuthAuthorizationCode,
   OAuthAccessToken,

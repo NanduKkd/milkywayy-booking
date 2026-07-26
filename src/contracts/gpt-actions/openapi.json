@@ -1049,7 +1049,7 @@
           },
           "websiteUrl": {
             "type": "string",
-            "pattern": "^/dashboard/files\\?fileId=\\d+$"
+            "pattern": "^/dashboard/files$"
           }
         }
       },

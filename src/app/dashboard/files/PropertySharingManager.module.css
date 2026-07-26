@@ -669,6 +669,148 @@
   text-align: center;
 }
 
+.checkboxField {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  align-self: end;
+}
+
+.checkboxField input {
+  width: 18px;
+  height: 18px;
+}
+
+.derivedPrice {
+  align-self: end;
+  padding: 12px 14px;
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 10px;
+  background: rgba(74, 222, 128, 0.06);
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.contactPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.contactPills > span {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--share-border-2);
+  border-radius: 999px;
+}
+
+.contactPills button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  background: var(--share-card);
+  color: var(--share-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.contactPills button:last-child {
+  padding: 0 10px;
+  border-left: 1px solid var(--share-border-2);
+  color: var(--share-dim);
+}
+
+.contactPills svg {
+  width: 13px;
+}
+
+.saveContactButton {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px dashed var(--share-border-2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--share-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.saveContactButton:disabled {
+  opacity: 0.45;
+}
+
+.mediaHelp {
+  margin: 6px 0 10px;
+  color: var(--share-dim);
+  font-size: 11px;
+}
+
+.mediaPreferenceList {
+  display: grid;
+  gap: 7px;
+}
+
+.mediaPreferenceList > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) repeat(4, auto);
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid var(--share-border);
+  border-radius: 11px;
+  background: #111113;
+}
+
+.mediaPreferenceList > div > svg {
+  width: 15px;
+  color: var(--share-dim);
+}
+
+.mediaPreferenceList span {
+  display: grid;
+  min-width: 0;
+}
+
+.mediaPreferenceList b {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mediaPreferenceList small {
+  color: var(--share-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.mediaPreferenceList button {
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid var(--share-border-2);
+  border-radius: 8px;
+  background: var(--share-card);
+  color: var(--share-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mediaPreferenceList button[aria-pressed="true"] {
+  border-color: rgba(74, 222, 128, 0.35);
+  color: #4ade80;
+}
+
+.mediaPreferenceList button svg {
+  width: 14px;
+}
+
+.mediaPreferenceList .hiddenMedia {
+  opacity: 0.5;
+}
+
 .preview {
   width: 100%;
   max-width: 1040px;
@@ -824,6 +966,14 @@
   }
 
   .actionBar > button:last-child {
+    display: none;
+  }
+
+  .mediaPreferenceList > div {
+    grid-template-columns: auto minmax(0, 1fr) repeat(2, auto);
+  }
+
+  .mediaPreferenceList > div button:nth-last-child(-n + 2) {
     display: none;
   }
 }

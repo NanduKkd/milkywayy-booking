@@ -103,7 +103,7 @@ After each passing run, `SECURITY-VERIFICATION-REPORT.md` is regenerated with th
 | API-09 | `DONE` | Other-customer and nonexistent IDs are compared. | Indistinguishable safe error shape. |
 | API-10 | `DONE` | Deleted, disabled, or role-changed customer owns a live token. | Disabled-customer tokens expire normally within 15 minutes, deleted/unresolvable customers fail authorization, and role changes never create staff access. |
 | API-11 | `DONE` | Delivery-file metadata is listed. | Only the authenticated customer's visible files and authenticated dashboard links are returned; no binary, S3 key, direct storage URL, or signed URL is exposed. |
-| API-12 | `DONE` | A dashboard file link contains an invalid or other-customer `fileId`. | The normal files page renders without an existence signal; no other-customer card is targeted. |
+| API-12 | `DONE` | A dashboard URL contains any `fileId` query value. | The normal generic files page renders without resolving, highlighting, opening, or emitting an existence signal for that value. |
 
 ### Rate limits, payloads, and resilience
 
@@ -138,7 +138,7 @@ After each passing run, `SECURITY-VERIFICATION-REPORT.md` is regenerated with th
 | MAN-04 | `DONE` | Reconnect with unchanged scopes and validate the chosen repeat-consent behavior. | Live production verification on 2026-06-30 exercised unchanged-scope reconnect and confirmed the repeat-consent rendering path. |
 | MAN-05 | `DONE` | Reconnect with increased scopes and verify fresh consent. | First-release v1 exposes only `customer:read`, so there is no broader-scope reconnect path to exercise yet. This scenario is closed as not applicable for v1 and should be reopened only when an additional scope is introduced. |
 | MAN-06 | `DONE` | Disconnect from the customer dashboard and verify API access stops. | Live production verification on 2026-06-30 exercised dashboard revocation and confirmed both resource authorization and subsequent refresh stopped working. |
-| MAN-07 | `DONE` | Open a returned `/dashboard/files?fileId=...` link while signed in and signed out. | The project owner confirmed on 2026-06-30 that signed-in and signed-out deep links both behaved correctly, and invalid or other-customer `fileId` values produced the intended safe error behavior. |
+| MAN-07 | `DONE` | Open the returned `/dashboard/files` URL while signed in and signed out. | Authentication gates the page normally and no file-targeting query contract is present. |
 
 ## Custom GPT end-to-end verification
 

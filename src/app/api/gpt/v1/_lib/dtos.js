@@ -386,10 +386,7 @@ export const gptDeliveryFileDtoSchema = z.object({
   uploadedAt: isoDateTimeSchema.nullable(),
   websiteUrl: z
     .string()
-    .regex(
-      /^\/dashboard\/files\?fileId=\d+$/u,
-      "Must link to the dashboard files page.",
-    ),
+    .regex(/^\/dashboard\/files$/u, "Must link to the dashboard files page."),
 });
 
 export const gptDeliveryFileListResponseSchema = z.object({
@@ -660,7 +657,7 @@ export function serializeDeliveryFileDto(file) {
     status: normalizedFile.status,
     type: normalizedFile.type,
     uploadedAt: serializeDateTime(currentVersion.uploadedAt),
-    websiteUrl: `/dashboard/files?fileId=${encodeURIComponent(Number(normalizedFile.id))}`,
+    websiteUrl: "/dashboard/files",
   });
 }
 

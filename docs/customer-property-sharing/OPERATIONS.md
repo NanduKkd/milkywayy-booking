@@ -29,7 +29,7 @@ failure counts, network addresses, or user-agent values.
    Open Graph JPEG preview dimensions/content type/byte ceiling and malformed
    or oversized preview-source rejection,
    phone/WhatsApp actions, stable copy-after-reload, disable/re-enable,
-   explicit media refresh, stale-version rejection, unselected rejection, and
+   automatic media synchronization, stale-version rejection, unselected rejection, and
    total counts.
 6. Confirm every request-log layer redacts bearer-bearing routes.
 
@@ -46,9 +46,10 @@ storage/link safety, and supported media contract before serving anything.
   dashboard reload.
 - **Disable/re-enable:** takes effect on the next public resolution and keeps
   the same URL and total link views.
-- **Refresh Media:** transactionally replaces exact snapshot membership with
-  all currently safe current under-review or accepted media for each selected
-  property. Use it after uploads or replacements become reviewable.
+- **Automatic media reconciliation:** upload, replacement, review,
+  publication, and deletion transitions transactionally merge safe current
+  versions into affected single/master memberships. New logical files append,
+  replacements retain preferences, and disallowed media is removed.
 - **Update master:** replaces the explicit ordered property selection.
 
 ## Monitoring

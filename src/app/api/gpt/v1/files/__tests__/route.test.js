@@ -162,7 +162,7 @@ describe("GPT API delivery files list route", () => {
           status: "UNDER_REVIEW",
           type: "Photography",
           uploadedAt: "2026-06-29T09:00:00.000Z",
-          websiteUrl: "/dashboard/files?fileId=18",
+          websiteUrl: "/dashboard/files",
         },
       ],
       pagination: {

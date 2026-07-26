@@ -2,16 +2,20 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import PropertySharingManager from "../PropertySharingManager";
 
 const mockCreateMaster = jest.fn();
+const mockDeleteContact = jest.fn();
 const mockGetDashboard = jest.fn();
-const mockRefreshMedia = jest.fn();
+const mockSaveContact = jest.fn();
 const mockSaveListing = jest.fn();
+const mockSaveMedia = jest.fn();
 const mockSetEnabled = jest.fn();
 const mockUpdateMaster = jest.fn();
 
 jest.mock("@/lib/actions/propertySharing", () => ({
   createMasterPropertyShareAction: (...args) => mockCreateMaster(...args),
+  deletePropertyContactAction: (...args) => mockDeleteContact(...args),
   getPropertySharingDashboardAction: (...args) => mockGetDashboard(...args),
-  refreshPropertyShareMediaAction: (...args) => mockRefreshMedia(...args),
+  savePropertyContactAction: (...args) => mockSaveContact(...args),
+  savePropertyMediaPreferencesAction: (...args) => mockSaveMedia(...args),
   savePropertyShareListingAction: (...args) => mockSaveListing(...args),
   setPropertyShareEnabledAction: (...args) => mockSetEnabled(...args),
   updateMasterPropertyShareAction: (...args) => mockUpdateMaster(...args),
@@ -99,7 +103,9 @@ describe("PropertySharingManager", () => {
       },
     });
     mockSetEnabled.mockResolvedValue({ success: true, data: {} });
-    mockRefreshMedia.mockResolvedValue({ success: true, data: {} });
+    mockSaveContact.mockResolvedValue({ success: true, data: {} });
+    mockSaveMedia.mockResolvedValue({ success: true, data: {} });
+    mockDeleteContact.mockResolvedValue({ success: true, data: {} });
     mockUpdateMaster.mockResolvedValue({ success: true, data: {} });
     Object.assign(navigator, {
       clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
@@ -126,31 +132,19 @@ describe("PropertySharingManager", () => {
       screen.queryByRole("button", { name: /rotate|revoke/u }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: "Refresh Media" }),
-    ).toHaveLength(2);
+      screen.queryByRole("button", { name: "Refresh Media" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/Recent contacts/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/agent/u)).not.toBeInTheDocument();
   });
 
-  it("explicitly refreshes exact media snapshots from a shared property card", async () => {
-    let resolveRefresh;
-    mockRefreshMedia.mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveRefresh = resolve;
-      }),
-    );
+  it("has no manual media refresh dependency on property cards", () => {
     render(<PropertySharingManager initialData={data()} />);
 
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Refresh Media" })[0],
-    );
-
     expect(
-      screen.getByRole("button", { name: "Refreshing..." }),
-    ).toBeDisabled();
-    resolveRefresh({ success: true, data: {} });
-    await waitFor(() => expect(mockRefreshMedia).toHaveBeenCalledWith(4));
-    await waitFor(() => expect(mockGetDashboard).toHaveBeenCalled());
+      screen.queryByRole("button", { name: /refresh media/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
   });
 
   it("reconciles refreshed server data after a share is created from the file list", async () => {
@@ -228,8 +222,8 @@ describe("PropertySharingManager", () => {
       ),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Refresh Media" }));
-    await waitFor(() => expect(mockRefreshMedia).toHaveBeenCalledWith(9));
-    expect(mockGetDashboard).toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: /refresh media/i }),
+    ).not.toBeInTheDocument();
   });
 });

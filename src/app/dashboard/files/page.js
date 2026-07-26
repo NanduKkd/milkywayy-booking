@@ -10,46 +10,8 @@ import { getPropertySharingDashboard } from "@/lib/services/propertySharing";
 import FileList from "./FileList";
 import PropertySharingManager from "./PropertySharingManager";
 
-function parseRequestedFileId(rawValue) {
-  const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
-
-  if (value === undefined || value === null) {
-    return {
-      requestedFileId: null,
-      requestedFileIdWasProvided: false,
-    };
-  }
-
-  const normalized = String(value).trim();
-
-  if (!/^\d+$/u.test(normalized)) {
-    return {
-      requestedFileId: null,
-      requestedFileIdWasProvided: true,
-    };
-  }
-
-  const requestedFileId = Number(normalized);
-
-  if (!Number.isSafeInteger(requestedFileId) || requestedFileId <= 0) {
-    return {
-      requestedFileId: null,
-      requestedFileIdWasProvided: true,
-    };
-  }
-
-  return {
-    requestedFileId,
-    requestedFileIdWasProvided: true,
-  };
-}
-
-export default async function FilesPage({ searchParams }) {
+export default async function FilesPage() {
   const session = await auth();
-  const resolvedSearchParams = await searchParams;
-  const { requestedFileId, requestedFileIdWasProvided } = parseRequestedFileId(
-    resolvedSearchParams?.fileId,
-  );
 
   if (!session) {
     return null;
@@ -91,11 +53,6 @@ export default async function FilesPage({ searchParams }) {
           (group) => group.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
         ),
     );
-  const requestedFileAvailable = requestedFileId
-    ? bookingsWithFiles.some((booking) =>
-        booking.deliveryFiles.some((file) => file.id === requestedFileId),
-      )
-    : false;
 
   return (
     <div>
@@ -109,9 +66,6 @@ export default async function FilesPage({ searchParams }) {
         </h2>
         <FileList
           bookings={bookingsWithFiles}
-          highlightedFileId={requestedFileAvailable ? requestedFileId : null}
-          requestedFileAvailable={requestedFileAvailable}
-          requestedFileIdWasProvided={requestedFileIdWasProvided}
           propertySharing={propertySharing}
         />
       </div>

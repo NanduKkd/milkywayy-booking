@@ -34,6 +34,8 @@ The unreleased migration `20260722090000-create-property-sharing.js` creates:
 | `property_share_links` | Owner, kind, optional single booking, unique 43-character opaque public ID, enabled state, and total link views. |
 | `property_share_properties` | Explicit ordered booking membership for a link. |
 | `property_share_media` | Ordered exact delivery-file+version membership for each selected property. |
+| `property_media_preferences` | Owner+booking+logical-file order, visibility, and cover preferences shared by every link. |
+| `property_saved_contacts` | Owner-scoped normalized reusable contacts; listing contact fields remain copied snapshots. |
 
 Unique indexes enforce one single link per owner/booking and one master per
 owner. A unique owner+booking listing index prevents duplicate configuration.
@@ -51,11 +53,13 @@ booking is confirmed, non-cancelled, and has at least one safe current media
 version under review or accepted. Listing fields remain editable and update
 active public presentation.
 
-Single/master creation and explicit media refresh transactionally replace each
-selected property's snapshot rows with every currently eligible safe
-file+version across service types. Later uploads and replacements do not change
-existing membership. Updating a master selection refreshes selected properties
-as part of the same explicit owner action.
+Single/master creation and delivery mutations transactionally reconcile each
+selected property's exact snapshot rows with every currently eligible safe
+file/version. New logical files append visibly. Replacements retain the logical
+file's order, visibility, and cover choice. Changes-requested, private,
+deleted, stale, superseded, unsafe, and unsupported media is removed or rejected
+by public revalidation. Reconciliation is idempotent for both single and master
+memberships.
 
 Creation generates 32 random bytes encoded as a 43-character base64url public
 identifier. PostgreSQL persists that stable identifier so the owner can copy

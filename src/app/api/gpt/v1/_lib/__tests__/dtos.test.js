@@ -6,6 +6,7 @@ const {
   buildInvoicesListResponse,
   buildSequelizeCursorPagination,
   GptApiDtoValidationError,
+  gptDeliveryFileDtoSchema,
   parseBookingsListQuery,
   parseFilesListQuery,
   parseInvoicesListQuery,
@@ -253,8 +254,37 @@ describe("GPT API DTO and pagination helpers", () => {
       status: "UNDER_REVIEW",
       type: "Photography",
       uploadedAt: "2026-06-29T09:00:00.000Z",
-      websiteUrl: "/dashboard/files?fileId=18",
+      websiteUrl: "/dashboard/files",
     });
+  });
+
+  it("accepts only the generic dashboard files URL for delivery metadata", () => {
+    const file = {
+      bookingCode: "MWB-1008",
+      fileId: 18,
+      fileName: "front-elevation.jpg",
+      label: "Exterior photo set",
+      mimeType: "image/jpeg",
+      reviewDeadlineAt: null,
+      revisionCount: 0,
+      sizeBytes: 1024,
+      status: "UNDER_REVIEW",
+      type: "Photography",
+      uploadedAt: null,
+    };
+
+    expect(
+      gptDeliveryFileDtoSchema.safeParse({
+        ...file,
+        websiteUrl: "/dashboard/files",
+      }).success,
+    ).toBe(true);
+    expect(
+      gptDeliveryFileDtoSchema.safeParse({
+        ...file,
+        websiteUrl: "/dashboard/files?fileId=18",
+      }).success,
+    ).toBe(false);
   });
 
   it("builds invoice and file list envelopes with validated pagination", () => {

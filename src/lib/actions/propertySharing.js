@@ -6,8 +6,10 @@ import { auth } from "@/lib/helpers/auth";
 import {
   createMasterPropertyShare,
   createSinglePropertyShare,
+  deletePropertyContact,
   getPropertySharingDashboard,
-  refreshPropertyShareMedia,
+  savePropertyContact,
+  savePropertyMediaPreferences,
   savePropertyShareListing,
   setPropertyShareEnabled,
   updateMasterPropertyShare,
@@ -55,6 +57,19 @@ export const setPropertyShareEnabledAction = actionWrapper((shareId, enabled) =>
   ),
 );
 
-export const refreshPropertyShareMediaAction = actionWrapper((shareId) =>
-  withOwner((ownerUserId) => refreshPropertyShareMedia(ownerUserId, shareId)),
+export const savePropertyMediaPreferencesAction = actionWrapper(
+  (bookingId, preferences) =>
+    withOwner((ownerUserId) =>
+      savePropertyMediaPreferences(ownerUserId, bookingId, preferences),
+    ),
+);
+
+export const savePropertyContactAction = actionWrapper((contact, contactId) =>
+  withOwner((ownerUserId) =>
+    savePropertyContact(ownerUserId, contact, contactId),
+  ),
+);
+
+export const deletePropertyContactAction = actionWrapper((contactId) =>
+  withOwner((ownerUserId) => deletePropertyContact(ownerUserId, contactId)),
 );

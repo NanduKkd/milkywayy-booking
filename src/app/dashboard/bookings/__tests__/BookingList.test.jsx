@@ -85,7 +85,7 @@ describe("BookingList", () => {
     expect(screen.getByRole("button", { name: /^cancel$/i })).toBeDisabled();
   });
 
-  it("links booking-level delivery summaries to the Files screen", () => {
+  it("opens the shared authenticated delivery modal from booking summaries", () => {
     render(
       <BookingList
         bookings={[
@@ -118,15 +118,14 @@ describe("BookingList", () => {
     expect(
       screen.getByText(/1 file is awaiting replacement/i),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /review files/i }));
-    expect(mockPush).toHaveBeenCalledWith("/dashboard/files");
-    expect(screen.getByText("Under Review")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /download files/i }));
     expect(
-      screen.queryByRole("button", { name: /request revision/i }),
+      screen.getByRole("heading", { name: /download files/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Replacement pending")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /request review/i }),
     ).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByText("101, Tower A, Marina"));
-    expect(screen.getAllByText("Under Review")).toHaveLength(2);
   });
 
   it("lists deduplicated exact visible categories while omitting hidden and replacement-only files", () => {

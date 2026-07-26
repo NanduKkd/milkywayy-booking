@@ -1,15 +1,19 @@
 import { auth } from "@/lib/helpers/auth";
 import {
   createSinglePropertyShare,
+  deletePropertyContact,
   getPropertySharingDashboard,
-  refreshPropertyShareMedia,
+  savePropertyContact,
+  savePropertyMediaPreferences,
   savePropertyShareListing,
   setPropertyShareEnabled,
 } from "@/lib/services/propertySharing";
 import {
   createSinglePropertyShareAction,
+  deletePropertyContactAction,
   getPropertySharingDashboardAction,
-  refreshPropertyShareMediaAction,
+  savePropertyContactAction,
+  savePropertyMediaPreferencesAction,
   savePropertyShareListingAction,
   setPropertyShareEnabledAction,
 } from "../propertySharing";
@@ -18,8 +22,10 @@ jest.mock("@/lib/helpers/auth", () => ({ auth: jest.fn() }));
 jest.mock("@/lib/services/propertySharing", () => ({
   createMasterPropertyShare: jest.fn(),
   createSinglePropertyShare: jest.fn(),
+  deletePropertyContact: jest.fn(),
   getPropertySharingDashboard: jest.fn(),
-  refreshPropertyShareMedia: jest.fn(),
+  savePropertyContact: jest.fn(),
+  savePropertyMediaPreferences: jest.fn(),
   savePropertyShareListing: jest.fn(),
   setPropertyShareEnabled: jest.fn(),
   updateMasterPropertyShare: jest.fn(),
@@ -57,13 +63,30 @@ describe("property sharing server actions", () => {
     expect(setPropertyShareEnabled).toHaveBeenCalledWith(7, 4, false);
   });
 
-  it("refreshes snapshots only through the authenticated owner boundary", async () => {
-    refreshPropertyShareMedia.mockResolvedValue({ shareId: 4 });
+  it("saves media preferences and reusable contacts through the owner boundary", async () => {
+    const preferences = [{ deliveryFileId: 10, visible: true, isCover: true }];
+    const contact = { name: "Synthetic Owner", phone: "+971500000000" };
+    savePropertyMediaPreferences.mockResolvedValue({ bookingId: 20 });
+    savePropertyContact.mockResolvedValue({ id: 3 });
+    deletePropertyContact.mockResolvedValue({ contactId: 3 });
 
-    const result = await refreshPropertyShareMediaAction(4);
+    await expect(
+      savePropertyMediaPreferencesAction(20, preferences),
+    ).resolves.toEqual(expect.objectContaining({ success: true }));
+    await expect(savePropertyContactAction(contact)).resolves.toEqual(
+      expect.objectContaining({ success: true }),
+    );
+    await expect(deletePropertyContactAction(3)).resolves.toEqual(
+      expect.objectContaining({ success: true }),
+    );
 
-    expect(result.success).toBe(true);
-    expect(refreshPropertyShareMedia).toHaveBeenCalledWith(7, 4);
+    expect(savePropertyMediaPreferences).toHaveBeenCalledWith(
+      7,
+      20,
+      preferences,
+    );
+    expect(savePropertyContact).toHaveBeenCalledWith(7, contact, undefined);
+    expect(deletePropertyContact).toHaveBeenCalledWith(7, 3);
   });
 
   it("passes owner-authored listing configuration through the authenticated boundary", async () => {

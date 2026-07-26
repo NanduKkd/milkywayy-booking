@@ -48,24 +48,19 @@ every new upload.
 
 ## Customer review groups
 
-The customer Files dashboard now groups current delivery files by booking and
-their exact persisted type. Each group—including the legacy `Videography`
-group—is one review decision with one status, Dubai deadline, revision number,
-and revision request. Every customer-visible member row renders directly for
-one-file services. Multi-file services omit their individual member rows and
-show only the category summary, replacement state, revision action, and group
-ZIP action. A one-file member row is separated from its category summary by a
-divider, presents the filename as normal body text without a repeated category
-subtitle, and retains its individual action. Opening an owned `fileId` deep
-link for a one-file service highlights its member; a link into a multi-file
-service highlights and scrolls to the category without revealing an individual
-row.
+Bookings and Properties open the same authenticated delivery/review modal,
+backed by the exact persisted-type service projection. Each group—including
+legacy `Videography`—is one review decision with one status, Dubai deadline,
+revision number, and revision request. One-file services retain their
+individual download or copy-link action. Multi-file services expose only the
+group ZIP action and never individual member actions. The generic
+`/dashboard/files` route ignores `fileId` query targeting and provides no
+existence, scrolling, highlighting, or modal-state signal for it.
 
-The customer Bookings dashboard states which sorted, deduplicated exact
-persisted categories have files ready for review. Legacy `Videography` remains
-a distinct category; private, deleted, and changes-requested members do not
-appear as ready categories, while existing replacement and team-progress
-messages remain separate.
+The customer Bookings dashboard projects reference-facing ready, partial, and
+replacement labels from existing booking/service state; it adds no persisted
+workflow state. Legacy `Videography` remains distinct, while private, deleted,
+and changes-requested members do not appear as ready categories.
 
 A customer revision request identifies only the booking and service type. The
 server authorizes that owner-scoped group, locks the booking and its current

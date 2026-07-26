@@ -45,23 +45,17 @@ describe("dashboard files page", () => {
     });
   });
 
-  it("returns null when the visitor is not authenticated so the dashboard gate can preserve the target path", async () => {
+  it("returns null when the visitor is not authenticated", async () => {
     mockAuth.mockResolvedValue(null);
 
-    await expect(
-      FilesPage({
-        searchParams: Promise.resolve({
-          fileId: "18",
-        }),
-      }),
-    ).resolves.toBeNull();
+    await expect(FilesPage()).resolves.toBeNull();
 
     expect(mockGetBookings).not.toHaveBeenCalled();
     expect(mockGetPropertySharingDashboard).not.toHaveBeenCalled();
     expect(mockFileList).not.toHaveBeenCalled();
   });
 
-  it("passes the requested owned file through to FileList and filters hidden replacements", async () => {
+  it("passes the standard files projection to FileList and filters hidden replacements", async () => {
     mockAuth.mockResolvedValue({
       id: 42,
     });
@@ -96,13 +90,7 @@ describe("dashboard files page", () => {
       ],
     });
 
-    render(
-      await FilesPage({
-        searchParams: Promise.resolve({
-          fileId: "18",
-        }),
-      }),
-    );
+    render(await FilesPage());
 
     expect(mockGetBookings).toHaveBeenCalledWith(42);
     expect(mockGetPropertySharingDashboard).toHaveBeenCalledWith(42);
@@ -121,14 +109,11 @@ describe("dashboard files page", () => {
           pendingReplacementCount: 1,
         }),
       ],
-      highlightedFileId: 18,
       propertySharing: { eligibleProperties: [], shares: [] },
-      requestedFileAvailable: true,
-      requestedFileIdWasProvided: true,
     });
   });
 
-  it("marks invalid or inaccessible fileId values as unavailable without disclosing existence", async () => {
+  it("does not consume a dashboard fileId query value", async () => {
     mockAuth.mockResolvedValue({
       id: 42,
     });
@@ -154,10 +139,7 @@ describe("dashboard files page", () => {
 
     expect(mockFileList.mock.calls[0][0]).toEqual({
       bookings: [],
-      highlightedFileId: null,
       propertySharing: { eligibleProperties: [], shares: [] },
-      requestedFileAvailable: false,
-      requestedFileIdWasProvided: true,
     });
   });
 });

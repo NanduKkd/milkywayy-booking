@@ -45,6 +45,9 @@ jest.mock("@/lib/db/models/bookingfilerevision", () => ({
   count: jest.fn(),
   update: jest.fn(),
 }));
+jest.mock("@/lib/services/propertySharing", () => ({
+  synchronizePropertyShareMediaForBooking: jest.fn(),
+}));
 
 const createBooking = (overrides = {}) => {
   const booking = {

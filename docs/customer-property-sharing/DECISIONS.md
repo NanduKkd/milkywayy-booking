@@ -3,8 +3,8 @@
 ## PROP-D001 — Keep the Files route and authenticated delivery contract
 
 - Status: `ACCEPTED`
-- Decision: `/dashboard/files` remains canonical, including `fileId` behavior.
-  The dashboard tab and management surface say Properties, and the complete
+- Decision: `/dashboard/files` remains canonical without targeted `fileId`
+  query behavior. The dashboard tab and management surface say Properties, and the complete
   authenticated `FileList` remains on the page below the sharing controls.
 - Consequence: Existing bookmarks, downloads, copy-link delivery, revisions,
   replacements, review deadlines, completion, and workflow links stay intact.
@@ -26,15 +26,16 @@
 - Consequence: A visitor cannot widen a master collection by changing a query
   parameter.
 
-## PROP-D004 — Pin exact safe reviewable media
+## PROP-D004 — Synchronize exact safe reviewable media
 
 - Status: `ACCEPTED`
-- Decision: New and explicitly refreshed links pin every supported current
+- Decision: Active links automatically pin every supported current
   under-review or accepted delivery-file/version pair for each selected
-  booking.
-- Consequence: Later uploads and replacements require **Refresh Media**.
-  Deleted, stale, superseded, changes-requested, unsafe, and unselected files
-  fail closed, and internal review state is not shown publicly.
+  booking. Property-level logical-file preferences control order, visibility,
+  and cover choice across all links.
+- Consequence: New media appends visibly and replacement versions inherit
+  preferences. Deleted, stale, superseded, changes-requested, unsafe, hidden,
+  and unselected files fail closed. There is no manual Refresh Media action.
 
 ## PROP-D005 — Use stable opaque public identifiers
 
@@ -83,9 +84,8 @@
   page in a Phone/Desktop preview.
 - Consequence: Extra explanatory headers, rotation/revocation controls,
   substitute preview markup, agent assignment, and team controls are outside
-  the product contract, except for the required **Refresh Media** snapshot
-  action. The authenticated delivery-file list remains available below the
-  reference-style property-sharing manager.
+  the product contract. The authenticated delivery-file list remains available
+  below the reference-style property-sharing manager.
 
 ## PROP-D010 — Keep collection chrome edge-to-edge and property-specific
 
@@ -96,3 +96,22 @@
 - Consequence: A master landing does not repeat a collection-level contact card.
   The selected-property back path retains clear inset spacing above the full
   showcase.
+
+## PROP-D011 — Keep listing facts bounded and booking-aware
+
+- Status: `ACCEPTED`
+- Decision: Persist property type, fractional bathrooms, maid's room, built-up
+  area, and plot area. Bedrooms remain booking-derived and price per ft² is
+  derived. Commercial listings clear bathrooms and maid's room server-side and
+  omit all residential room chips publicly.
+- Consequence: Client input cannot overwrite booking bedrooms or introduce
+  duplicate workflow facts.
+
+## PROP-D012 — Copy reusable contacts and persist logical media preferences
+
+- Status: `ACCEPTED`
+- Decision: Saved contacts are owner-scoped and normalized by phone; selection
+  copies values into the listing. Media preferences are stored at
+  owner+booking+logical-file scope rather than per public link.
+- Consequence: Editing or deleting a preset never silently changes listing
+  contact snapshots, and single/master links share media presentation choices.

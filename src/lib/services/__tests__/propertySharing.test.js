@@ -2,6 +2,8 @@
 
 import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
+import PropertyMediaPreference from "@/lib/db/models/propertymediapreference";
+import PropertySavedContact from "@/lib/db/models/propertysavedcontact";
 import PropertyShareLink from "@/lib/db/models/propertysharelink";
 import PropertyShareListing from "@/lib/db/models/propertysharelisting";
 import PropertyShareMedia from "@/lib/db/models/propertysharemedia";
@@ -14,13 +16,15 @@ import {
   getPropertySharingDashboard,
   PropertyShareConflictError,
   PropertyShareNotFoundError,
-  refreshPropertyShareMedia,
   resolvePublicPropertyShareLanding,
   resolvePublicPropertyShareMedia,
   resolvePublicPropertyShareMetadata,
   resolvePublicPropertySharePreview,
+  savePropertyContact,
+  savePropertyMediaPreferences,
   savePropertyShareListing,
   setPropertyShareEnabled,
+  synchronizePropertyShareMediaForBooking,
 } from "../propertySharing";
 import { createPropertyShareId } from "../propertySharingSecurity";
 
@@ -33,7 +37,10 @@ jest.mock("@/lib/db/db", () => ({
     query: jest.fn(),
   },
 }));
-jest.mock("@/lib/db/models/booking", () => ({ findAll: jest.fn() }));
+jest.mock("@/lib/db/models/booking", () => ({
+  findAll: jest.fn(),
+  findByPk: jest.fn(),
+}));
 jest.mock("@/lib/db/models/bookingdeliveryfile", () => ({}));
 jest.mock("@/lib/db/models/bookingdeliveryfileversion", () => ({}));
 jest.mock("@/lib/db/models/propertysharelink", () => ({
@@ -43,6 +50,17 @@ jest.mock("@/lib/db/models/propertysharelink", () => ({
 }));
 jest.mock("@/lib/db/models/propertysharelisting", () => ({
   create: jest.fn(),
+  findAll: jest.fn(),
+  findOne: jest.fn(),
+}));
+jest.mock("@/lib/db/models/propertymediapreference", () => ({
+  create: jest.fn(),
+  findAll: jest.fn(),
+  update: jest.fn(),
+}));
+jest.mock("@/lib/db/models/propertysavedcontact", () => ({
+  create: jest.fn(),
+  destroy: jest.fn(),
   findAll: jest.fn(),
   findOne: jest.fn(),
 }));
@@ -216,6 +234,9 @@ describe("property sharing service", () => {
     User.findByPk.mockResolvedValue({ id: 7 });
     PropertyShareListing.findAll.mockResolvedValue([configuredListing()]);
     PropertyShareProperty.findAll.mockResolvedValue([]);
+    PropertyMediaPreference.findAll.mockResolvedValue([]);
+    PropertyMediaPreference.create.mockImplementation(async (values) => values);
+    PropertySavedContact.findAll.mockResolvedValue([]);
   });
 
   it("creates or updates one owner-scoped listing after eligibility validation", async () => {
@@ -685,44 +706,6 @@ describe("property sharing service", () => {
     ).resolves.toBeNull();
   });
 
-  it("does not silently add a later upload until explicit media refresh", async () => {
-    const booking = eligibleBooking();
-    const property = {
-      id: 30,
-      bookingId: 20,
-      position: 0,
-    };
-    const share = publicShare(createPropertyShareId());
-    PropertyShareLink.findOne.mockResolvedValue(share);
-    PropertyShareProperty.findAll.mockResolvedValue([property]);
-    Booking.findAll.mockResolvedValue([
-      {
-        ...booking,
-        deliveryFiles: [booking.deliveryFiles[0], videoDeliveryFile()],
-      },
-    ]);
-
-    await refreshPropertyShareMedia(7, 4);
-
-    expect(PropertyShareMedia.destroy).toHaveBeenCalledWith({
-      where: { sharePropertyId: 30 },
-      transaction,
-    });
-    expect(PropertyShareMedia.bulkCreate).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          deliveryFileId: 10,
-          deliveryFileVersionId: 100,
-        }),
-        expect.objectContaining({
-          deliveryFileId: 12,
-          deliveryFileVersionId: 102,
-        }),
-      ],
-      { transaction },
-    );
-  });
-
   it("disables and re-enables the same stable public identifier", async () => {
     const publicId = createPropertyShareId();
     const share = publicShare(publicId, { totalViews: 42 });
@@ -759,5 +742,250 @@ describe("property sharing service", () => {
       `https://example.test/share/${publicId}`,
     );
     expect(dashboard.shares[0]).not.toHaveProperty("analytics");
+  });
+
+  it("serializes persisted media preferences in owner-selected order with visibility and a cover", async () => {
+    const secondPhoto = {
+      ...eligibleBooking().deliveryFiles[0],
+      id: 13,
+      currentVersionId: 103,
+      label: "Twilight exterior",
+      currentVersion: {
+        id: 103,
+        deliveryFileId: 13,
+        originalFilename: "twilight.jpg",
+        mimeType: "image/jpeg",
+      },
+    };
+    const booking = eligibleBooking({
+      deliveryFiles: [
+        eligibleBooking().deliveryFiles[0],
+        videoDeliveryFile(),
+        secondPhoto,
+      ],
+      propertyMediaPreferences: [
+        { deliveryFileId: 10, position: 2, visible: false, isCover: false },
+        { deliveryFileId: 12, position: 1, visible: true, isCover: false },
+        { deliveryFileId: 13, position: 0, visible: true, isCover: true },
+      ],
+    });
+    Booking.findAll.mockResolvedValue([booking]);
+    PropertyShareLink.findAll.mockResolvedValue([]);
+
+    const dashboard = await getPropertySharingDashboard(7);
+
+    expect(dashboard.eligibleProperties[0].media).toEqual([
+      expect.objectContaining({
+        deliveryFileId: 13,
+        position: 0,
+        visible: true,
+        isCover: true,
+      }),
+      expect.objectContaining({
+        deliveryFileId: 12,
+        position: 1,
+        visible: true,
+        isCover: false,
+      }),
+      expect.objectContaining({
+        deliveryFileId: 10,
+        position: 2,
+        visible: false,
+        isCover: false,
+      }),
+    ]);
+  });
+
+  it("normalizes saved contacts and scopes duplicate lookup to their owner", async () => {
+    PropertySavedContact.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    PropertySavedContact.create.mockResolvedValue({
+      id: 41,
+      name: "Aisha Khan",
+      normalizedPhone: "+971501234567",
+    });
+
+    await expect(
+      savePropertyContact(7, {
+        name: "  Aisha   Khan ",
+        phone: "+971 50 123 4567",
+      }),
+    ).resolves.toEqual({
+      id: 41,
+      name: "Aisha Khan",
+      phone: "+971501234567",
+    });
+    expect(PropertySavedContact.findOne).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { ownerUserId: 7, normalizedPhone: "+971501234567" },
+        transaction,
+        lock: "UPDATE",
+      }),
+    );
+    expect(PropertySavedContact.create).toHaveBeenCalledWith(
+      {
+        ownerUserId: 7,
+        name: "Aisha Khan",
+        normalizedPhone: "+971501234567",
+      },
+      { transaction },
+    );
+  });
+
+  it("rejects a saved contact phone already held by the same owner", async () => {
+    PropertySavedContact.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 44 });
+
+    await expect(
+      savePropertyContact(7, {
+        name: "Aisha Khan",
+        phone: "+971501234567",
+      }),
+    ).rejects.toBeInstanceOf(PropertyShareConflictError);
+    expect(PropertySavedContact.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects hidden photo covers before persisting media preferences", async () => {
+    const booking = eligibleBooking({
+      deliveryFiles: [eligibleBooking().deliveryFiles[0], videoDeliveryFile()],
+    });
+    Booking.findAll.mockResolvedValue([booking]);
+
+    await expect(
+      savePropertyMediaPreferences(7, 20, [
+        { deliveryFileId: 10, visible: false, isCover: true },
+        { deliveryFileId: 12, visible: true, isCover: false },
+      ]),
+    ).rejects.toMatchObject({
+      code: "PROPERTY_SHARE_CONFLICT",
+      message: "Choose one visible photo as the cover",
+    });
+    expect(PropertyMediaPreference.update).not.toHaveBeenCalled();
+  });
+
+  it("persists reordered media and synchronizes every existing share snapshot", async () => {
+    const booking = eligibleBooking({
+      deliveryFiles: [eligibleBooking().deliveryFiles[0], videoDeliveryFile()],
+    });
+    const preferences = [
+      {
+        deliveryFileId: 10,
+        position: 0,
+        visible: true,
+        isCover: false,
+        update: jest.fn(async function update(values) {
+          Object.assign(this, values);
+        }),
+      },
+      {
+        deliveryFileId: 12,
+        position: 1,
+        visible: true,
+        isCover: false,
+        update: jest.fn(async function update(values) {
+          Object.assign(this, values);
+        }),
+      },
+    ];
+    Booking.findAll.mockResolvedValue([booking]);
+    Booking.findByPk.mockResolvedValue(booking);
+    PropertyMediaPreference.findAll.mockResolvedValue(preferences);
+    PropertyShareProperty.findAll.mockResolvedValue([
+      { id: 30, bookingId: 20 },
+    ]);
+
+    await expect(
+      savePropertyMediaPreferences(7, 20, [
+        { deliveryFileId: 12, visible: true, isCover: false },
+        { deliveryFileId: 10, visible: true, isCover: true },
+      ]),
+    ).resolves.toEqual({ bookingId: 20 });
+
+    expect(preferences[0].update).toHaveBeenCalledWith(
+      { deliveryFileId: 10, position: 1, visible: true, isCover: true },
+      { transaction },
+    );
+    expect(preferences[1].update).toHaveBeenCalledWith(
+      { deliveryFileId: 12, position: 0, visible: true, isCover: false },
+      { transaction },
+    );
+    expect(PropertyShareMedia.bulkCreate).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          sharePropertyId: 30,
+          deliveryFileId: 10,
+          position: 0,
+        }),
+        expect.objectContaining({
+          sharePropertyId: 30,
+          deliveryFileId: 12,
+          position: 1,
+        }),
+      ],
+      { transaction },
+    );
+  });
+
+  it("adds newly eligible media while synchronizing every share for a booking", async () => {
+    const booking = eligibleBooking({
+      deliveryFiles: [eligibleBooking().deliveryFiles[0], videoDeliveryFile()],
+    });
+    Booking.findByPk.mockResolvedValue(booking);
+    PropertyShareProperty.findAll.mockResolvedValue([
+      { id: 30, bookingId: 20 },
+      { id: 31, bookingId: 20 },
+    ]);
+
+    await expect(synchronizePropertyShareMediaForBooking(20)).resolves.toEqual({
+      synchronizedShareCount: 2,
+    });
+
+    expect(PropertyMediaPreference.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerUserId: 7,
+        bookingId: 20,
+        deliveryFileId: 10,
+        position: 0,
+      }),
+      { transaction },
+    );
+    expect(PropertyShareMedia.bulkCreate).toHaveBeenCalledTimes(2);
+    expect(PropertyShareMedia.bulkCreate).toHaveBeenLastCalledWith(
+      [
+        expect.objectContaining({ deliveryFileId: 10, position: 0 }),
+        expect.objectContaining({ deliveryFileId: 12, position: 1 }),
+      ],
+      { transaction },
+    );
+  });
+
+  it("replaces snapshots by removing media that is no longer safe to share", async () => {
+    const unsafeBooking = eligibleBooking({
+      deliveryFiles: [
+        {
+          ...eligibleBooking().deliveryFiles[0],
+          currentVersion: {
+            ...eligibleBooking().deliveryFiles[0].currentVersion,
+            mimeType: "text/html",
+            originalFilename: "unsafe.html",
+          },
+        },
+      ],
+    });
+    Booking.findByPk.mockResolvedValue(unsafeBooking);
+    PropertyShareProperty.findAll.mockResolvedValue([
+      { id: 30, bookingId: 20 },
+    ]);
+
+    await synchronizePropertyShareMediaForBooking(20);
+
+    expect(PropertyShareMedia.destroy).toHaveBeenCalledWith({
+      where: { sharePropertyId: 30 },
+      transaction,
+    });
+    expect(PropertyShareMedia.bulkCreate).not.toHaveBeenCalled();
   });
 });

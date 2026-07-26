@@ -34,14 +34,36 @@ const PropertyShareListing = sequelize.define(
       allowNull: false,
       field: "listing_type",
     },
+    propertyType: {
+      type: DataTypes.STRING(32),
+      allowNull: false,
+      defaultValue: "APARTMENT",
+      field: "property_type",
+    },
     bathrooms: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.DECIMAL(3, 1),
       allowNull: true,
+    },
+    maidRoom: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: "maid_room",
     },
     sizeSqft: {
       type: DataTypes.INTEGER,
       allowNull: true,
       field: "size_sqft",
+    },
+    builtUpAreaSqft: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "built_up_area_sqft",
+    },
+    plotAreaSqft: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: "plot_area_sqft",
     },
     furnishing: {
       type: DataTypes.STRING(32),

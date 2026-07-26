@@ -58,7 +58,10 @@ The first production release includes:
 - Opaque access tokens and rotating refresh tokens stored only as hashes.
 - Explicit customer consent and a dashboard disconnection control at `/dashboard/connections`, kept off the visible dashboard tabs until release-ready.
 - Read-only, customer-scoped REST endpoints protected by the combined `customer:read` scope.
-- Delivery-file metadata with authenticated `/dashboard/files?fileId=...` links that scroll to the selected file; no binary or direct storage delivery through GPT Actions.
+- Delivery-file metadata with a generic authenticated `/dashboard/files`
+  website URL. Numeric `fileId` remains API resource/filter metadata but does
+  not control dashboard targeting; GPT Actions return no binary or direct
+  storage delivery.
 - An OpenAPI action schema and Custom GPT configuration instructions.
 - PostgreSQL-backed rate limiting, 30-day database audit retention, structured security events, automated tests, and production monitoring.
 - Public GPT distribution, with the project owner responsible for privacy policy, domain verification, support contact, and publication review.

@@ -132,7 +132,7 @@ describe("GPT Action OpenAPI schema", () => {
       "^/dashboard/invoices\\?invoiceNumber=[A-Za-z0-9\\-_.~%]+$",
     );
     expect(schemas.DeliveryFile.properties.websiteUrl.pattern).toBe(
-      "^/dashboard/files\\?fileId=\\d+$",
+      "^/dashboard/files$",
     );
   });
 });

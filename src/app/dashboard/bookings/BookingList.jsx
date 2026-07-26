@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import BookingWorkflowTracker from "@/components/BookingWorkflowTracker";
+import ServiceDeliveryModal from "@/components/customer-delivery/ServiceDeliveryModal";
 import DateSlotPicker from "@/components/DateSlotPicker";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,10 +48,33 @@ const getAvailableDeliveryCategories = (booking) =>
     ),
   ].sort((left, right) => left.localeCompare(right));
 
+export const getBookingDeliverySummary = (booking) => {
+  const visibleCategories = getAvailableDeliveryCategories(booking);
+  const pendingReplacementCount = (booking?.deliveryFiles || []).filter(
+    (file) => !file?.deletedAt && file?.status === "CHANGES_REQUESTED",
+  ).length;
+
+  if (visibleCategories.length === 0 && pendingReplacementCount === 0) {
+    return null;
+  }
+
+  return {
+    visibleCategories,
+    pendingReplacementCount,
+    label:
+      visibleCategories.length > 0 && pendingReplacementCount > 0
+        ? "Partially delivered"
+        : visibleCategories.length > 0
+          ? "Files ready"
+          : "Replacement pending",
+  };
+};
+
 export default function BookingList({ bookings }) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [selectedDeliveryBooking, setSelectedDeliveryBooking] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(null);
@@ -253,47 +277,44 @@ export default function BookingList({ bookings }) {
   };
 
   const renderReviewActions = (booking) => {
-    if (getWorkflowStatus(booking) !== BOOKING_WORKFLOW_STATUS.FILES_UPLOADED) {
+    const deliverySummary = getBookingDeliverySummary(booking);
+    if (!deliverySummary) {
       return null;
     }
-    const files = (booking.deliveryFiles || []).filter(
-      (file) => !file.deletedAt && file.status !== "PRIVATE",
-    );
-    const availableCategories = getAvailableDeliveryCategories(booking);
-    const requestedCount = files.filter(
-      (file) => file.status === "CHANGES_REQUESTED",
-    ).length;
+    const { visibleCategories: availableCategories, pendingReplacementCount } =
+      deliverySummary;
 
     return (
-      <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
         <p className="text-sm font-medium text-zinc-200">
           {availableCategories.length > 0
             ? `Files ready for review: ${availableCategories.join(" · ")}`
             : "No files currently available"}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {requestedCount > 0
-            ? `${requestedCount} ${requestedCount === 1 ? "file is" : "files are"} awaiting replacement.`
+          {pendingReplacementCount > 0
+            ? `${pendingReplacementCount} ${pendingReplacementCount === 1 ? "file is" : "files are"} awaiting replacement.`
             : booking.deliveryFinishedAt
               ? "All files have been delivered."
               : "The team may still add more files."}
         </p>
         <Button
-          className="mt-3"
+          className="mt-3 rounded-full"
           size="sm"
           variant="outline"
           onClick={(event) => {
             event.stopPropagation();
-            router.push("/dashboard/files");
+            setSelectedDeliveryBooking(booking);
           }}
         >
-          Review Files
+          Download Files
         </Button>
       </div>
     );
   };
 
   const getStatusChip = (booking) => {
+    const deliverySummary = getBookingDeliverySummary(booking);
     if (booking.cancelledAt) {
       return (
         <span className="text-white text-sm font-medium  px-2 py-1 rounded">
@@ -310,12 +331,14 @@ export default function BookingList({ bookings }) {
         </span>
       );
     } else {
-      const workflowLabel = {
-        [BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED]: "Shoot Booked",
-        [BOOKING_WORKFLOW_STATUS.SHOOT_DONE]: "Shoot Done",
-        [BOOKING_WORKFLOW_STATUS.EDITING]: "Editing",
-        [BOOKING_WORKFLOW_STATUS.FILES_UPLOADED]: "Files In Review",
-      }[getWorkflowStatus(booking)];
+      const workflowLabel =
+        deliverySummary?.label ||
+        {
+          [BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED]: "Shoot Booked",
+          [BOOKING_WORKFLOW_STATUS.SHOOT_DONE]: "Shoot Done",
+          [BOOKING_WORKFLOW_STATUS.EDITING]: "Editing",
+          [BOOKING_WORKFLOW_STATUS.FILES_UPLOADED]: "Files In Review",
+        }[getWorkflowStatus(booking)];
       return (
         <span className="rounded bg-white/10 px-2 py-1 text-sm font-medium text-white">
           {workflowLabel || "Shoot Booked"}
@@ -417,7 +440,7 @@ export default function BookingList({ bookings }) {
           role="button"
           tabIndex={0}
           aria-label={`View booking ${formatBookingReference(booking)}`}
-          className={`group cursor-pointer rounded-2xl border border-border bg-card p-6 transition-colors hover:bg-card/90 ${getWorkflowStatus(booking) === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED ? "opacity-75" : ""}`}
+          className={`group cursor-pointer rounded-[22px] border border-white/10 bg-[#171719] p-5 shadow-[0_18px_45px_rgba(0,0,0,0.16)] transition-colors hover:bg-[#1b1b1e] md:p-6 ${getWorkflowStatus(booking) === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED ? "opacity-75" : ""}`}
           onClick={() => handleBookingClick(booking)}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -426,7 +449,7 @@ export default function BookingList({ bookings }) {
             }
           }}
         >
-          <div className="flex justify-between items-start mb-4">
+          <div className="flex justify-between items-start gap-4 mb-4">
             <div className="space-y-1">
               <h3 className="font-heading text-lg leading-tight font-bold text-foreground">
                 {[
@@ -437,22 +460,23 @@ export default function BookingList({ bookings }) {
                   .filter(Boolean)
                   .join(", ") || "Property Shoot"}
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-zinc-400">
                 {booking.shootDetails?.services?.join(" + ") ||
                   "Standard Shoot"}
               </p>
             </div>
             <div className="text-right">
-              <div className="leading-tight font-semibold text-foreground text-sm">
+              <div className="leading-tight font-semibold text-zinc-100 text-sm">
                 {formatDate(booking.date)}
               </div>
-              <div className="mt-1 text-sm text-muted-foreground">
+              <div className="mt-1 text-sm text-zinc-400">
                 {booking.cancelledAt
                   ? "Cancelled"
                   : booking.completedAt
                     ? "Completed"
                     : formatTime(booking)}
               </div>
+              <div className="mt-2">{getStatusChip(booking)}</div>
             </div>
           </div>
 
@@ -616,6 +640,14 @@ export default function BookingList({ bookings }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ServiceDeliveryModal
+        booking={selectedDeliveryBooking}
+        open={Boolean(selectedDeliveryBooking)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDeliveryBooking(null);
+        }}
+      />
 
       {/* Reschedule Dialog */}
       <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>

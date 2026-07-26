@@ -167,8 +167,11 @@ describe("public property showcase page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Marina corner home · Synthetic Tower, Test District",
+        name: "Marina corner home",
       }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Synthetic Tower, Test District"),
     ).toBeInTheDocument();
     expect(screen.getByText("AED 2,350,000")).toBeInTheDocument();
     expect(screen.getByText("Full marina view")).toBeInTheDocument();
@@ -195,6 +198,36 @@ describe("public property showcase page", () => {
     expect(container.innerHTML).not.toContain("/api/files/download");
     expect(container.innerHTML).not.toContain("storage");
     expect(container.innerHTML).not.toContain("receipt");
+  });
+
+  it("opens the photo lightbox and copies only the public page URL", async () => {
+    resolvePublicPropertyShareLanding.mockResolvedValue({
+      id: 4,
+      kind: "SINGLE_PROPERTY",
+      properties: [properties[0]],
+    });
+    const writeText = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    render(
+      await SharedPropertyPage({
+        params: Promise.resolve({ token }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open all property photos" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "All property photos" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
+    expect(await screen.findByText("Link copied")).toBeInTheDocument();
+    expect(writeText).toHaveBeenCalledWith(window.location.href);
   });
 
   it("switches supported media inline without exposing a download action", async () => {
@@ -307,6 +340,7 @@ describe("public property showcase page", () => {
       null,
     );
     expect(container.querySelector(".contact-card")).toBeNull();
+    expect(screen.queryByText("Synthetic Owner")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "WhatsApp" }),
     ).not.toBeInTheDocument();
@@ -333,7 +367,7 @@ describe("public property showcase page", () => {
     );
     expect(
       screen.getByRole("heading", {
-        name: "Beach home · Synthetic Tower, Test District",
+        name: "Beach home",
       }),
     ).toBeInTheDocument();
     expect(

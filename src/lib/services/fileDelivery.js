@@ -13,6 +13,7 @@ import {
   MAX_FILE_REVISION_NOTE_LENGTH,
   MAX_FILE_REVISIONS,
 } from "@/lib/helpers/bookingWorkflow";
+import { synchronizePropertyShareMediaForBooking } from "@/lib/services/propertySharing";
 
 export const DELIVERY_FILE_INCLUDE = [
   {
@@ -376,6 +377,7 @@ export const addUploadedDeliveryFiles = async ({
     }
     await booking.update(bookingUpdates, { transaction });
     const filesUrl = await syncLegacyFilesPayload(booking.id, transaction);
+    await synchronizePropertyShareMediaForBooking(booking.id, transaction);
 
     return {
       booking: {
@@ -468,6 +470,7 @@ export const requestDeliveryServiceRevisionState = async (
       { where: { id: { [Op.in]: files.map((file) => file.id) } }, transaction },
     );
     const filesUrl = await syncLegacyFilesPayload(booking.id, transaction);
+    await synchronizePropertyShareMediaForBooking(booking.id, transaction);
 
     return {
       bookingId: booking.id,
@@ -561,6 +564,7 @@ export const publishPrivateDeliveryFilesState = async (bookingId) =>
       { transaction },
     );
     const filesUrl = await syncLegacyFilesPayload(booking.id, transaction);
+    await synchronizePropertyShareMediaForBooking(booking.id, transaction);
     return {
       id: booking.id,
       workflowStatus: booking.workflowStatus,
@@ -599,6 +603,7 @@ export const deleteDeliveryFileState = async (fileId, bookingId) =>
     await deliveryFile.destroy({ transaction });
     await booking.update({ deliveryFinishedAt: null }, { transaction });
     const filesUrl = await syncLegacyFilesPayload(booking.id, transaction);
+    await synchronizePropertyShareMediaForBooking(booking.id, transaction);
     return { urls, filesUrl, bookingId: booking.id };
   });
 
@@ -645,6 +650,7 @@ export const deleteDeliveryCategoryState = async (bookingId, type) =>
     }
     await booking.update({ deliveryFinishedAt: null }, { transaction });
     const filesUrl = await syncLegacyFilesPayload(booking.id, transaction);
+    await synchronizePropertyShareMediaForBooking(booking.id, transaction);
     return {
       type: normalizedType,
       deletedFileIds: deliveryFiles.map((file) => file.id),
