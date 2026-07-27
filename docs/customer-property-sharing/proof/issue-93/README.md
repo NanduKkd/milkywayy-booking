@@ -48,6 +48,12 @@ real active single/master shares after applying the migration.
   `<560px` height), Ready cards switch from a 260px/content split to one column;
   shared cards retain their auto-fill 420px grid. Ready-card downloads open the
   shared authenticated download/review/completion modal directly.
+- Booking-card follow-up verification rebuilt all five workflow states on the
+  reference card shell. The completed state fills all five check nodes, partial
+  delivery remains visually on Editing without mutating persisted workflow,
+  and the exact strict breakpoint changes the tracker from horizontal to
+  vertical. Eligible booking cards open the listing form directly; Download
+  Files opens the shared delivery/review modal.
 
 No bearer identifiers, saved-contact values beyond disposable development
 fixtures, filenames, or storage URLs are recorded in this proof.
@@ -62,6 +68,10 @@ fixtures, filenames, or storage URLs are recorded in this proof.
 - Properties consolidation suite: 6 suites and 52 tests passed, covering the
   shared booking modal, Ready-card launch path, retained completion rules,
   removed duplicate section, dashboard layout, and Bookings compatibility.
+- Booking-card follow-up suite: 17 tests passed, covering all five tracker
+  states, completed-step treatment, partial-delivery display mapping, the exact
+  `900×560` boundary, both narrow predicates, scheduled action isolation,
+  direct listing-form launch, and the shared download/review modal.
 - Responsive browser checks passed at 1440×900, 899×900, 900×559, 900×560,
   and 390×844. The measured Ready grid changed from `260px + 1fr` to one
   column exactly at the reference predicate, and the 390px page had no

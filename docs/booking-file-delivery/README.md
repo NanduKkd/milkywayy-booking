@@ -57,10 +57,28 @@ group ZIP action and never individual member actions. The generic
 `/dashboard/files` route ignores `fileId` query targeting and provides no
 existence, scrolling, highlighting, or modal-state signal for it.
 
-The customer Bookings dashboard projects reference-facing ready, partial, and
-replacement labels from existing booking/service state; it adds no persisted
-workflow state. Legacy `Videography` remains distinct, while private, deleted,
-and changes-requested members do not appear as ready categories.
+The customer Bookings dashboard projects the five reference workflow steps:
+**Shoot Booked**, **Shoot Done**, **Editing**, **Files Uploaded**, and
+**Project Completed**. Completed steps use filled checks, the current step uses
+an outlined number, and pending steps remain dim. The tracker is horizontal at
+`900×560` and above; it switches to the reference vertical presentation when
+either the viewport is narrower than 900px or shorter than 560px.
+
+Reference-facing ready, partial, and replacement labels come from existing
+booking/service state; they add no persisted workflow state. A partially
+delivered project remains visually on **Editing** while more booked services
+are pending, even though publishing a safe file may already have advanced the
+server workflow to `FILES_UPLOADED`. Completed projects fill all five steps.
+Cancellation overrides stale workflow state. Legacy `Videography` remains
+distinct, while private, deleted, and changes-requested members do not appear
+as ready categories.
+
+Delivery-state cards expose **Download Files** directly into the reusable
+authenticated delivery/review modal. Eligible unshared projects open the real
+**Create Share Link** listing modal directly from Bookings; published projects
+show the active-link state and route **Edit Share Link** back to Properties.
+Scheduled Reschedule/Cancel controls do not leak into partial, uploaded, or
+completed delivery states.
 
 A customer revision request identifies only the booking and service type. The
 server authorizes that owner-scoped group, locks the booking and its current

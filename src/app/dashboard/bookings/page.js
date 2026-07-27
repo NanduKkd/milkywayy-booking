@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getBookings } from "@/lib/actions/bookings";
 import { auth } from "@/lib/helpers/auth";
+import { getPropertySharingDashboard } from "@/lib/services/propertySharing";
 import BookingList from "./BookingList";
 
 export default async function BookingsPage() {
@@ -10,19 +11,20 @@ export default async function BookingsPage() {
     redirect("/");
   }
 
-  const res = await getBookings(session.id);
+  const [res, propertySharing] = await Promise.all([
+    getBookings(session.id),
+    getPropertySharingDashboard(session.id),
+  ]);
   const bookings = res.success ? res.data : [];
-  const plainBookings = bookings
-    .map((b) => b.toJSON())
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime(),
-    );
+  const plainBookings = bookings.map((booking) => booking.toJSON());
 
   return (
     <div className="text-white">
       <div className="w-full">
-        <BookingList bookings={plainBookings} />
+        <BookingList
+          bookings={plainBookings}
+          propertySharing={propertySharing}
+        />
       </div>
     </div>
   );

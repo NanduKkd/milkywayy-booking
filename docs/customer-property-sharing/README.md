@@ -73,6 +73,12 @@ authenticated service modal, so download, copy-link delivery, revision,
 replacement, review-deadline, and completion behavior stays on one canonical
 surface.
 
+The Bookings cards use the same share eligibility snapshot as Properties.
+Eligible partial or delivered cards open the listing form directly for
+**Create Share Link**; already-published cards show the active-link state and
+an **Edit Share Link** action. This avoids a generic route handoff before the
+owner can configure the listing.
+
 Safe current under-review or accepted uploads synchronize into every affected
 single and master link automatically. New logical files append visibly;
 replacement versions inherit their logical-file preferences. Unsafe, private,
