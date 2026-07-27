@@ -55,6 +55,32 @@ export default function CreatePropertyShareDialog({
     }
   };
 
+  const saveDraft = async ({ listing, media }) => {
+    setBusy(true);
+    try {
+      const saved = await savePropertyShareListingAction(property.id, listing);
+      if (!saved.success) throw new Error(saved.message);
+      if (media.length > 0) {
+        const savedMedia = await savePropertyMediaPreferencesAction(
+          property.id,
+          media.map(({ deliveryFileId, visible, isCover }) => ({
+            deliveryFileId,
+            visible,
+            isCover,
+          })),
+        );
+        if (!savedMedia.success) throw new Error(savedMedia.message);
+      }
+      toast.success("Draft saved.");
+      onClose();
+      router.refresh();
+    } catch (error) {
+      toast.error(error.message || "Unable to save the property draft");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <ListingForm
       property={property}
@@ -63,6 +89,10 @@ export default function CreatePropertyShareDialog({
       busy={busy}
       onClose={onClose}
       onSubmit={saveListing}
+      onSaveDraft={saveDraft}
+      onPreview={() =>
+        toast.info("Generate the share link to preview the public page.")
+      }
       onSaveContact={async (contact) => {
         const result = await savePropertyContactAction(contact);
         if (result.success) toast.success("Contact saved for reuse.");

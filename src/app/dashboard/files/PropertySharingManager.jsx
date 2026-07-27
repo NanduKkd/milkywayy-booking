@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Check,
-  Copy,
-  Eye,
-  EyeOff,
-  GripVertical,
-  Loader2,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Check, Copy, Eye, EyeOff, Loader2, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -66,6 +57,30 @@ function completedLabel(value) {
     month: "short",
     year: "numeric",
   }).format(new Date(value))}`;
+}
+
+const DEFAULT_AMENITIES = [
+  "Sea view",
+  "Golf view",
+  "Balcony",
+  "Private pool",
+  "Shared pool",
+  "Covered parking",
+  "Chiller free",
+];
+const MAX_HIGHLIGHTS = 6;
+
+function normalizeMediaOrder(items) {
+  const firstVisibleImage = items.find(
+    (item) => item.kind === "IMAGE" && item.visible,
+  );
+  return items.map((item, position) => ({
+    ...item,
+    position,
+    isCover:
+      item.kind === "IMAGE" &&
+      firstVisibleImage?.deliveryFileId === item.deliveryFileId,
+  }));
 }
 
 export function BuyerPreview({ share, onClose }) {
@@ -126,6 +141,8 @@ export function ListingForm({
   busy,
   onClose,
   onSubmit,
+  onSaveDraft,
+  onPreview,
   onSaveContact,
   onDeleteContact,
 }) {
@@ -142,21 +159,43 @@ export function ListingForm({
     plotAreaSqft: existing?.plotAreaSqft ?? "",
     furnishing: existing?.furnishing || "FURNISHED",
     description: existing?.description || "",
-    highlights: existing?.highlights || [],
+    highlights: (existing?.highlights || []).slice(0, MAX_HIGHLIGHTS),
     contactName: existing?.contactName || "",
     contactPhone: existing?.contactPhone || "",
   });
   const [media, setMedia] = useState(() =>
-    (property.media || []).map((item, position) => ({ ...item, position })),
+    normalizeMediaOrder(
+      (property.media || []).map((item, position) => ({ ...item, position })),
+    ),
   );
   const [highlight, setHighlight] = useState("");
+  const [amenityOptions, setAmenityOptions] = useState(() => [
+    ...new Set([...DEFAULT_AMENITIES, ...(existing?.highlights || [])]),
+  ]);
+  const [draggedPhotoId, setDraggedPhotoId] = useState(null);
+  const photos = media.filter((item) => item.kind === "IMAGE");
+  const pageMedia = media.filter((item) => item.kind !== "IMAGE");
 
   const update = (field, value) =>
     setForm((current) => ({ ...current, [field]: value }));
 
+  const toggleHighlight = (value) => {
+    const selected = form.highlights.includes(value);
+    if (!selected && form.highlights.length >= MAX_HIGHLIGHTS) {
+      toast.error("Maximum 6 highlights per property");
+      return;
+    }
+    update(
+      "highlights",
+      selected
+        ? form.highlights.filter((item) => item !== value)
+        : [...form.highlights, value],
+    );
+  };
+
   const addHighlight = () => {
     const value = highlight.replace(/\s+/gu, " ").trim();
-    if (!value || form.highlights.length >= 12) return;
+    if (!value) return;
     if (
       form.highlights.some(
         (current) => current.toLowerCase() === value.toLowerCase(),
@@ -165,6 +204,15 @@ export function ListingForm({
       setHighlight("");
       return;
     }
+    if (form.highlights.length >= MAX_HIGHLIGHTS) {
+      toast.error("Maximum 6 highlights per property");
+      return;
+    }
+    setAmenityOptions((current) =>
+      current.some((item) => item.toLowerCase() === value.toLowerCase())
+        ? current
+        : [...current, value],
+    );
     update("highlights", [...form.highlights, value]);
     setHighlight("");
   };
@@ -179,41 +227,54 @@ export function ListingForm({
     }));
   };
 
-  const moveMedia = (index, direction) => {
-    const target = index + direction;
-    if (target < 0 || target >= media.length) return;
+  const reorderPhotos = (fromId, toId) => {
+    if (!fromId || fromId === toId) return;
     setMedia((current) => {
-      const next = [...current];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next.map((item, position) => ({ ...item, position }));
+      const currentPhotos = current.filter((item) => item.kind === "IMAGE");
+      const from = currentPhotos.findIndex(
+        (item) => item.deliveryFileId === fromId,
+      );
+      const to = currentPhotos.findIndex(
+        (item) => item.deliveryFileId === toId,
+      );
+      if (from < 0 || to < 0) return current;
+      const nextPhotos = [...currentPhotos];
+      const [moved] = nextPhotos.splice(from, 1);
+      nextPhotos.splice(to, 0, moved);
+      return normalizeMediaOrder([
+        ...nextPhotos,
+        ...current.filter((item) => item.kind !== "IMAGE"),
+      ]);
     });
+    setDraggedPhotoId(null);
   };
 
   const toggleMedia = (deliveryFileId) => {
     setMedia((current) => {
-      const visibleCount = current.filter((item) => item.visible).length;
-      return current.map((item) => {
-        if (item.deliveryFileId !== deliveryFileId) return item;
-        if (item.visible && visibleCount <= 1) return item;
-        const visible = !item.visible;
-        return {
-          ...item,
-          visible,
-          isCover: visible ? item.isCover : false,
-        };
-      });
+      const target = current.find(
+        (item) => item.deliveryFileId === deliveryFileId,
+      );
+      const visiblePhotoCount = current.filter(
+        (item) => item.kind === "IMAGE" && item.visible,
+      ).length;
+      if (
+        target?.kind === "IMAGE" &&
+        target.visible &&
+        visiblePhotoCount <= 1
+      ) {
+        toast.error("At least one photo must stay visible");
+        return current;
+      }
+      return normalizeMediaOrder(
+        current.map((item) =>
+          item.deliveryFileId === deliveryFileId
+            ? { ...item, visible: !item.visible }
+            : item,
+        ),
+      );
     });
   };
 
-  const setCover = (deliveryFileId) =>
-    setMedia((current) =>
-      current.map((item) => ({
-        ...item,
-        visible: item.deliveryFileId === deliveryFileId ? true : item.visible,
-        isCover:
-          item.kind === "IMAGE" && item.deliveryFileId === deliveryFileId,
-      })),
-    );
   const applicableArea =
     Number(String(form.plotAreaSqft).replaceAll(",", "")) ||
     Number(String(form.builtUpAreaSqft).replaceAll(",", "")) ||
@@ -223,6 +284,12 @@ export function ListingForm({
     applicableArea > 0 && Number(String(form.priceAed).replaceAll(",", "")) > 0
       ? Number(String(form.priceAed).replaceAll(",", "")) / applicableArea
       : null;
+  const isSimpleSize = ["APARTMENT", "PENTHOUSE"].includes(form.propertyType);
+  const isCommercial = form.propertyType === "COMMERCIAL";
+  const orderedAmenities = amenityOptions
+    .filter((item) => form.highlights.includes(item))
+    .concat(amenityOptions.filter((item) => !form.highlights.includes(item)));
+  const submitPayload = () => ({ listing: form, media });
 
   return (
     <div className={`overlay ${styles.overlay}`} role="presentation">
@@ -235,357 +302,447 @@ export function ListingForm({
         }
         onSubmit={(event) => {
           event.preventDefault();
-          onSubmit({ listing: form, media });
+          onSubmit(submitPayload());
         }}
       >
-        <button
-          type="button"
-          className={styles.closeButton}
-          onClick={onClose}
-          aria-label="Close listing form"
-        >
-          <X />
-        </button>
-        <h3>{mode === "create" ? "Create Share Link" : "Edit Listing"}</h3>
-        <p className={styles.modalSubtitle}>
-          {property.bookingTitle} · Complete the listing details once.
-          <br />
-          Next time it is one click.
-        </p>
-
-        <p className={styles.formSection}>FROM YOUR BOOKING</p>
-        <div className={styles.knownRow}>
-          <span>
-            <b>Location</b> {property.location}
-          </span>
-          {property.bedrooms !== null ? (
-            <span>
-              <b>Bedrooms</b> {property.bedrooms}
-            </span>
-          ) : null}
-        </div>
-
-        <p className={styles.formSection}>LISTING DETAILS</p>
-        <div className={`f-grid ${styles.formGrid}`}>
-          <label className={styles.fullField}>
-            <span>LISTING TITLE *</span>
-            <input
-              required
-              maxLength={160}
-              value={form.listingTitle}
-              onChange={(event) => update("listingTitle", event.target.value)}
-            />
-          </label>
-          <label>
-            <span>PRICE (AED) *</span>
-            <input
-              required
-              inputMode="decimal"
-              value={form.priceAed}
-              onChange={(event) => update("priceAed", event.target.value)}
-            />
-          </label>
-          <label>
-            <span>PROPERTY TYPE *</span>
-            <select
-              value={form.propertyType}
-              onChange={(event) => updatePropertyType(event.target.value)}
-            >
-              <option value="APARTMENT">Apartment</option>
-              <option value="PENTHOUSE">Penthouse</option>
-              <option value="VILLA">Villa</option>
-              <option value="TOWNHOUSE">Townhouse</option>
-              <option value="COMMERCIAL">Commercial</option>
-            </select>
-          </label>
-          <label>
-            <span>LISTING TYPE *</span>
-            <select
-              value={form.listingType}
-              onChange={(event) => update("listingType", event.target.value)}
-            >
-              <option value="FOR_SALE">For Sale</option>
-              <option value="FOR_RENT_YEARLY">For Rent (yearly)</option>
-              <option value="HOLIDAY_HOME">Holiday Home</option>
-            </select>
-          </label>
-          <label>
-            <span>BATHROOMS</span>
-            <select
-              value={form.bathrooms}
-              disabled={form.propertyType === "COMMERCIAL"}
-              onChange={(event) => update("bathrooms", event.target.value)}
-            >
-              <option value="">Select</option>
-              <option value="1">1</option>
-              <option value="1.5">1.5</option>
-              <option value="2">2</option>
-              <option value="2.5">2.5</option>
-              <option value="3">3</option>
-              <option value="3.5">3.5</option>
-              <option value="4">4</option>
-              <option value="4.5">4.5</option>
-              <option value="5">5</option>
-              <option value="5.5">5.5</option>
-              <option value="6">6+</option>
-            </select>
-          </label>
-          <label>
-            <span>SIZE (SQFT)</span>
-            <input
-              inputMode="numeric"
-              value={form.sizeSqft}
-              onChange={(event) => update("sizeSqft", event.target.value)}
-            />
-          </label>
-          <label>
-            <span>BUILT-UP AREA (SQFT)</span>
-            <input
-              inputMode="numeric"
-              value={form.builtUpAreaSqft}
-              onChange={(event) =>
-                update("builtUpAreaSqft", event.target.value)
-              }
-            />
-          </label>
-          <label>
-            <span>PLOT AREA (SQFT)</span>
-            <input
-              inputMode="numeric"
-              value={form.plotAreaSqft}
-              onChange={(event) => update("plotAreaSqft", event.target.value)}
-            />
-          </label>
-          <label className={styles.checkboxField}>
-            <input
-              type="checkbox"
-              checked={form.maidRoom}
-              disabled={form.propertyType === "COMMERCIAL"}
-              onChange={(event) => update("maidRoom", event.target.checked)}
-            />
-            <span>MAID&apos;S ROOM</span>
-          </label>
-          {pricePerSqft ? (
-            <p className={styles.derivedPrice}>
-              Derived price: AED{" "}
-              {new Intl.NumberFormat("en-AE", {
-                maximumFractionDigits: 2,
-              }).format(pricePerSqft)}{" "}
-              / ft²
-            </p>
-          ) : null}
-          <fieldset
-            className={`${styles.fullField} ${styles.segmentField}`}
-            aria-label="FURNISHING *"
+        <header className={styles.listingHeader}>
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={onClose}
+            aria-label="Close listing form"
           >
-            <legend className={styles.fieldLabel}>FURNISHING *</legend>
-            <div className={styles.segment}>
-              <button
-                type="button"
-                className={
-                  form.furnishing === "FURNISHED" ? styles.selectedSegment : ""
-                }
-                aria-pressed={form.furnishing === "FURNISHED"}
-                onClick={() => update("furnishing", "FURNISHED")}
-              >
-                Furnished
-              </button>
-              <button
-                type="button"
-                className={
-                  form.furnishing === "UNFURNISHED"
-                    ? styles.selectedSegment
-                    : ""
-                }
-                aria-pressed={form.furnishing === "UNFURNISHED"}
-                onClick={() => update("furnishing", "UNFURNISHED")}
-              >
-                Unfurnished
-              </button>
+            <X />
+          </button>
+          <h3>{mode === "create" ? "Create Share Link" : "Edit Share Link"}</h3>
+          <p className={styles.modalSubtitle}>
+            {property.bookingTitle} · details and media order are saved to this
+            property.
+          </p>
+        </header>
+
+        <div className={styles.listingBody}>
+          <section className={styles.listingDetailsPane}>
+            <p className={styles.formSection}>FROM YOUR BOOKING</p>
+            <div className={styles.knownRow}>
+              <span>
+                <b>Location</b> {property.location}
+              </span>
+              {property.bedrooms !== null ? (
+                <span>
+                  <b>Bedrooms</b> {property.bedrooms}
+                </span>
+              ) : null}
             </div>
-          </fieldset>
-          <label className={styles.fullField}>
-            <span>DESCRIPTION</span>
-            <textarea
-              maxLength={4000}
-              value={form.description}
-              onChange={(event) => update("description", event.target.value)}
-            />
-          </label>
-          {savedContacts.length > 0 ? (
-            <div className={styles.fullField}>
-              <span className={styles.fieldLabel}>SAVED CONTACTS</span>
-              <div className={styles.contactPills}>
-                {savedContacts.map((contact) => (
-                  <span key={contact.id}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm((current) => ({
-                          ...current,
-                          contactName: contact.name,
-                          contactPhone: contact.phone,
-                        }))
-                      }
-                    >
-                      {contact.name}
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Delete saved contact ${contact.name}`}
-                      onClick={() => onDeleteContact?.(contact.id)}
-                    >
-                      <Trash2 />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
-          <label>
-            <span>CONTACT NAME *</span>
-            <input
-              required
-              maxLength={100}
-              autoComplete="name"
-              value={form.contactName}
-              onChange={(event) => update("contactName", event.target.value)}
-            />
-          </label>
-          <label>
-            <span>CONTACT PHONE *</span>
-            <input
-              required
-              maxLength={40}
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              value={form.contactPhone}
-              onChange={(event) => update("contactPhone", event.target.value)}
-            />
-          </label>
-          <div className={styles.fullField}>
-            <button
-              type="button"
-              className={styles.saveContactButton}
-              disabled={!form.contactName.trim() || !form.contactPhone.trim()}
-              onClick={() =>
-                onSaveContact?.({
-                  name: form.contactName,
-                  phone: form.contactPhone,
-                })
-              }
-            >
-              + Save this contact for other properties
-            </button>
-          </div>
-          <div className={styles.fullField}>
-            <span className={styles.fieldLabel}>
-              KEY HIGHLIGHTS &amp; AMENITIES
-            </span>
-            <div className={styles.highlightInput}>
-              <input
-                value={highlight}
-                maxLength={80}
-                placeholder="e.g. Private balcony — press Add"
-                onChange={(event) => setHighlight(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addHighlight();
+
+            <p className={styles.formSection}>LISTING DETAILS</p>
+            <div className={`f-grid ${styles.formGrid}`}>
+              <label className={styles.fullField}>
+                <span>LISTING TITLE *</span>
+                <input
+                  required
+                  maxLength={160}
+                  value={form.listingTitle}
+                  onChange={(event) =>
+                    update("listingTitle", event.target.value)
                   }
-                }}
-              />
-              <button type="button" onClick={addHighlight}>
-                Add
-              </button>
-            </div>
-            <div className={styles.highlightChips}>
-              {form.highlights.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() =>
-                    update(
-                      "highlights",
-                      form.highlights.filter((value) => value !== item),
-                    )
+                />
+              </label>
+              <label>
+                <span>PROPERTY TYPE *</span>
+                <select
+                  value={form.propertyType}
+                  onChange={(event) => updatePropertyType(event.target.value)}
+                >
+                  <option value="APARTMENT">Apartment</option>
+                  <option value="PENTHOUSE">Penthouse</option>
+                  <option value="VILLA">Villa</option>
+                  <option value="TOWNHOUSE">Townhouse</option>
+                  <option value="COMMERCIAL">Commercial</option>
+                </select>
+              </label>
+              <label>
+                <span>PRICE (AED) *</span>
+                <input
+                  required
+                  inputMode="decimal"
+                  value={form.priceAed}
+                  onChange={(event) => update("priceAed", event.target.value)}
+                />
+              </label>
+              <div className={styles.derivedPrice}>
+                <span>PRICE PER FT²</span>
+                <b>
+                  {pricePerSqft
+                    ? `AED ${new Intl.NumberFormat("en-AE", {
+                        maximumFractionDigits: 2,
+                      }).format(pricePerSqft)}`
+                    : "—"}
+                </b>
+                <small>auto</small>
+              </div>
+              {isSimpleSize ? (
+                <label>
+                  <span>SIZE (FT²)</span>
+                  <input
+                    inputMode="numeric"
+                    value={form.sizeSqft}
+                    onChange={(event) => update("sizeSqft", event.target.value)}
+                  />
+                </label>
+              ) : (
+                <>
+                  <label>
+                    <span>BUILT-UP AREA (FT²)</span>
+                    <input
+                      inputMode="numeric"
+                      value={form.builtUpAreaSqft}
+                      onChange={(event) =>
+                        update("builtUpAreaSqft", event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>PLOT SIZE (FT²)</span>
+                    <input
+                      inputMode="numeric"
+                      value={form.plotAreaSqft}
+                      onChange={(event) =>
+                        update("plotAreaSqft", event.target.value)
+                      }
+                    />
+                  </label>
+                </>
+              )}
+              <label>
+                <span>LISTING TYPE *</span>
+                <select
+                  value={form.listingType}
+                  onChange={(event) =>
+                    update("listingType", event.target.value)
                   }
                 >
-                  {item} ×
-                </button>
-              ))}
-            </div>
-          </div>
-          {media.length > 0 ? (
-            <div className={styles.fullField}>
-              <span className={styles.fieldLabel}>
-                MEDIA ORDER, VISIBILITY &amp; COVER
-              </span>
-              <p className={styles.mediaHelp}>
-                New safe media is added visibly at the end. Replacements keep
-                this logical-file order.
-              </p>
-              <div className={styles.mediaPreferenceList}>
-                {media.map((item, index) => (
-                  <div
-                    key={item.deliveryFileId}
-                    className={item.visible ? "" : styles.hiddenMedia}
+                  <option value="FOR_SALE">For Sale</option>
+                  <option value="FOR_RENT_YEARLY">For Rent (yearly)</option>
+                  <option value="HOLIDAY_HOME">Holiday Home</option>
+                </select>
+              </label>
+              {!isCommercial ? (
+                <>
+                  <label>
+                    <span>BEDROOMS</span>
+                    <input
+                      readOnly
+                      value={property.bedrooms ?? "From booking"}
+                      aria-label="Bedrooms from booking"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className={`${styles.maidToggle} ${
+                      form.maidRoom ? styles.maidToggleActive : ""
+                    }`}
+                    aria-pressed={form.maidRoom}
+                    onClick={() => update("maidRoom", !form.maidRoom)}
                   >
-                    <GripVertical />
-                    <span>
-                      <b>{item.label}</b>
-                      <small>{item.kind.toLowerCase()}</small>
-                    </span>
-                    {item.kind === "IMAGE" ? (
+                    {form.maidRoom ? "✓ " : ""}Maid&apos;s room
+                  </button>
+                  <label>
+                    <span>BATHROOMS</span>
+                    <select
+                      value={form.bathrooms}
+                      onChange={(event) =>
+                        update("bathrooms", event.target.value)
+                      }
+                    >
+                      <option value="">Select</option>
+                      {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6].map(
+                        (value) => (
+                          <option key={value} value={value}>
+                            {value === 6 ? "6+" : value}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                    <small className={styles.fieldHelp}>
+                      Half bathrooms are supported.
+                    </small>
+                  </label>
+                </>
+              ) : null}
+              <fieldset
+                className={`${styles.fullField} ${styles.segmentField}`}
+                aria-label="FURNISHING *"
+              >
+                <legend className={styles.fieldLabel}>FURNISHING *</legend>
+                <div className={styles.segment}>
+                  {["FURNISHED", "UNFURNISHED"].map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={
+                        form.furnishing === value ? styles.selectedSegment : ""
+                      }
+                      aria-pressed={form.furnishing === value}
+                      onClick={() => update("furnishing", value)}
+                    >
+                      {value === "FURNISHED" ? "Furnished" : "Unfurnished"}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <label className={styles.fullField}>
+                <span>DESCRIPTION</span>
+                <textarea
+                  maxLength={4000}
+                  value={form.description}
+                  onChange={(event) =>
+                    update("description", event.target.value)
+                  }
+                />
+              </label>
+              <div className={styles.fullField}>
+                <span className={styles.fieldLabel}>
+                  AMENITIES &amp; HIGHLIGHTS · {form.highlights.length}/
+                  {MAX_HIGHLIGHTS}
+                </span>
+                <p className={styles.fieldHelp}>
+                  Tap to select — up to 6 show on the shared page. Add anything
+                  else below.
+                </p>
+                <div className={styles.highlightChips}>
+                  {orderedAmenities.map((item) => {
+                    const selected = form.highlights.includes(item);
+                    return (
                       <button
+                        key={item}
                         type="button"
-                        aria-pressed={item.isCover}
-                        onClick={() => setCover(item.deliveryFileId)}
+                        className={
+                          selected ? styles.selectedHighlight : undefined
+                        }
+                        aria-pressed={selected}
+                        onClick={() => toggleHighlight(item)}
                       >
-                        {item.isCover ? "Cover" : "Set cover"}
+                        {selected ? "✓ " : ""}
+                        {item}
                       </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      aria-label={`${item.visible ? "Hide" : "Show"} ${item.label}`}
-                      onClick={() => toggleMedia(item.deliveryFileId)}
-                    >
-                      {item.visible ? <Eye /> : <EyeOff />}
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Move ${item.label} earlier`}
-                      disabled={index === 0}
-                      onClick={() => moveMedia(index, -1)}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Move ${item.label} later`}
-                      disabled={index === media.length - 1}
-                      onClick={() => moveMedia(index, 1)}
-                    >
-                      ↓
-                    </button>
+                    );
+                  })}
+                </div>
+                <div className={styles.highlightInput}>
+                  <input
+                    value={highlight}
+                    maxLength={80}
+                    placeholder="Add your own — e.g. Vacant on transfer"
+                    onChange={(event) => setHighlight(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        addHighlight();
+                      }
+                    }}
+                  />
+                  <button type="button" onClick={addHighlight}>
+                    Add
+                  </button>
+                </div>
+              </div>
+              <div className={`${styles.fullField} ${styles.contactSection}`}>
+                <span className={styles.fieldLabel}>POINT OF CONTACT</span>
+                <p className={styles.fieldHelp}>
+                  This name and number appear on the public page.
+                </p>
+                {savedContacts.length > 0 ? (
+                  <div className={styles.contactPills}>
+                    {savedContacts.map((contact) => (
+                      <span key={contact.id}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((current) => ({
+                              ...current,
+                              contactName: contact.name,
+                              contactPhone: contact.phone,
+                            }))
+                          }
+                        >
+                          {contact.name}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Delete saved contact ${contact.name}`}
+                          onClick={() => onDeleteContact?.(contact.id)}
+                        >
+                          <Trash2 />
+                        </button>
+                      </span>
+                    ))}
                   </div>
-                ))}
+                ) : null}
+              </div>
+              <label>
+                <span>NAME *</span>
+                <input
+                  required
+                  maxLength={100}
+                  autoComplete="name"
+                  value={form.contactName}
+                  onChange={(event) =>
+                    update("contactName", event.target.value)
+                  }
+                />
+              </label>
+              <label>
+                <span>PHONE *</span>
+                <input
+                  required
+                  maxLength={40}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={form.contactPhone}
+                  onChange={(event) =>
+                    update("contactPhone", event.target.value)
+                  }
+                />
+              </label>
+              <div className={styles.fullField}>
+                <button
+                  type="button"
+                  className={styles.saveContactButton}
+                  disabled={
+                    !form.contactName.trim() || !form.contactPhone.trim()
+                  }
+                  onClick={() =>
+                    onSaveContact?.({
+                      name: form.contactName,
+                      phone: form.contactPhone,
+                    })
+                  }
+                >
+                  + Save this contact
+                </button>
               </div>
             </div>
-          ) : null}
-        </div>
+          </section>
 
-        <button type="submit" className={styles.submitButton} disabled={busy}>
-          {busy ? <Loader2 className="animate-spin" /> : null}
-          {mode === "create" ? "Generate & Copy Link" : "Save Changes"}
-        </button>
-        <button type="button" className={styles.cancelButton} onClick={onClose}>
-          Cancel
-        </button>
-        <p className={styles.formNote}>
-          * Required. Contact details appear on the public property page.
-        </p>
+          <section className={styles.mediaPane}>
+            <span className={styles.fieldLabel}>
+              PHOTO ORDER · {photos.length} PHOTOS
+            </span>
+            <p className={styles.mediaHelp}>
+              Drag a photo onto another to reorder. The grid scrolls
+              automatically. Use the eye to hide a photo. Photo 1 is the cover
+              and link preview.
+            </p>
+            <ul className={styles.photoOrderGrid}>
+              {photos.map((item, index) => (
+                <li
+                  key={item.deliveryFileId}
+                  className={`${styles.photoOrderItem} ${
+                    item.visible ? "" : styles.hiddenMedia
+                  } ${draggedPhotoId === item.deliveryFileId ? styles.draggingPhoto : ""}`}
+                  draggable
+                  onDragStart={() => setDraggedPhotoId(item.deliveryFileId)}
+                  onDragEnd={() => setDraggedPhotoId(null)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() =>
+                    reorderPhotos(draggedPhotoId, item.deliveryFileId)
+                  }
+                >
+                  <Image
+                    alt={item.label}
+                    fill
+                    sizes="140px"
+                    src={`/api/files/download?fileId=${encodeURIComponent(
+                      item.deliveryFileId,
+                    )}`}
+                    unoptimized
+                  />
+                  <span className={styles.photoNumber}>{index + 1}</span>
+                  {item.isCover ? (
+                    <span className={styles.coverBadge}>COVER</span>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-label={`${item.visible ? "Hide" : "Show"} ${item.label}`}
+                    onClick={() => toggleMedia(item.deliveryFileId)}
+                  >
+                    {item.visible ? <Eye /> : <EyeOff />}
+                  </button>
+                  {!item.visible ? (
+                    <span className={styles.hiddenBadge}>HIDDEN</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+
+            <span className={`${styles.fieldLabel} ${styles.pageMediaLabel}`}>
+              MEDIA ON THE PAGE
+            </span>
+            <div className={styles.pageMediaList}>
+              {pageMedia.map((item) => (
+                <div
+                  key={item.deliveryFileId}
+                  className={item.visible ? "" : styles.hiddenMedia}
+                >
+                  <span className={styles.mediaKindIcon}>
+                    {item.kind === "VIDEO" ? "▶" : "360"}
+                  </span>
+                  <span>
+                    <b>
+                      {item.kind === "VIDEO"
+                        ? "Video walkthrough"
+                        : "360° virtual tour"}
+                    </b>
+                    <small>
+                      {item.visible ? "Delivered · included" : "Hidden"}
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`${item.visible ? "Hide" : "Show"} ${item.label}`}
+                    onClick={() => toggleMedia(item.deliveryFileId)}
+                  >
+                    {item.visible ? <Eye /> : <EyeOff />}
+                  </button>
+                </div>
+              ))}
+              {pageMedia.length === 0 ? (
+                <div className={styles.pendingMedia}>
+                  <span className={styles.mediaKindIcon}>+</span>
+                  <span>
+                    <b>Video &amp; 360° media</b>
+                    <small>Pending delivery</small>
+                  </span>
+                </div>
+              ) : null}
+            </div>
+
+            <div className={styles.listingActions}>
+              <button type="submit" disabled={busy}>
+                {busy ? <Loader2 className="animate-spin" /> : null}
+                {mode === "create"
+                  ? "Generate & Copy Link"
+                  : "Update & Copy Link"}
+              </button>
+              <button
+                type="button"
+                disabled={!onPreview}
+                onClick={() => onPreview?.(submitPayload())}
+              >
+                Preview Page
+              </button>
+              <button
+                type="button"
+                disabled={busy || !onSaveDraft}
+                onClick={() => onSaveDraft?.(submitPayload())}
+              >
+                Save Draft
+              </button>
+            </div>
+          </section>
+        </div>
       </form>
     </div>
   );
@@ -682,8 +839,42 @@ export default function PropertySharingManager({ initialData, bookings = [] }) {
       return savedListing;
     });
     if (!result) return;
+    const share = editing.share;
     setEditing(null);
-    toast.success("Listing updated.");
+    if (share) {
+      try {
+        await navigator.clipboard.writeText(share.publicUrl);
+        toast.success("Share link updated and copied.");
+      } catch {
+        toast.success("Share link updated.");
+      }
+    } else {
+      toast.success("Listing updated.");
+    }
+  };
+
+  const saveDraft = async (property, payload, close) => {
+    const result = await run(`draft:${property.id}`, async () => {
+      const savedListing = await savePropertyShareListingAction(
+        property.id,
+        payload.listing,
+      );
+      if (!savedListing.success) return savedListing;
+      if (payload.media.length > 0) {
+        return savePropertyMediaPreferencesAction(
+          property.id,
+          payload.media.map(({ deliveryFileId, visible, isCover }) => ({
+            deliveryFileId,
+            visible,
+            isCover,
+          })),
+        );
+      }
+      return savedListing;
+    });
+    if (!result) return;
+    close();
+    toast.success("Draft saved.");
   };
 
   const createShare = async ({ listing, media }) => {
@@ -1059,7 +1250,11 @@ export default function PropertySharingManager({ initialData, bookings = [] }) {
                               (item) => item.id === property.bookingId,
                             );
                             if (eligible) {
-                              setEditing({ property: eligible, mode: "edit" });
+                              setEditing({
+                                property: eligible,
+                                mode: "edit",
+                                share,
+                              });
                             }
                           }}
                         >
@@ -1106,9 +1301,19 @@ export default function PropertySharingManager({ initialData, bookings = [] }) {
           property={editing.property}
           savedContacts={data.savedContacts || []}
           mode={editing.mode}
-          busy={loadingKey === `listing:${editing.property.id}`}
+          busy={
+            loadingKey === `listing:${editing.property.id}` ||
+            loadingKey === `draft:${editing.property.id}`
+          }
           onClose={() => setEditing(null)}
           onSubmit={saveListing}
+          onSaveDraft={(payload) =>
+            saveDraft(editing.property, payload, () => setEditing(null))
+          }
+          onPreview={() => {
+            setEditing(null);
+            setPreviewShare(editing.share);
+          }}
           onSaveContact={saveContact}
           onDeleteContact={deleteContact}
         />
@@ -1118,9 +1323,18 @@ export default function PropertySharingManager({ initialData, bookings = [] }) {
           property={creating}
           savedContacts={data.savedContacts || []}
           mode="create"
-          busy={loadingKey === `create:${creating.id}`}
+          busy={
+            loadingKey === `create:${creating.id}` ||
+            loadingKey === `draft:${creating.id}`
+          }
           onClose={() => setCreating(null)}
           onSubmit={createShare}
+          onSaveDraft={(payload) =>
+            saveDraft(creating, payload, () => setCreating(null))
+          }
+          onPreview={() =>
+            toast.info("Generate the share link to preview the public page.")
+          }
           onSaveContact={saveContact}
           onDeleteContact={deleteContact}
         />

@@ -13,7 +13,7 @@ jest.mock("@/lib/actions/propertySharing", () => ({
   savePropertyShareListingAction: (...args) => mockSaveListing(...args),
 }));
 jest.mock("sonner", () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
+  toast: { success: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
 
 const property = {
@@ -53,10 +53,10 @@ describe("CreatePropertyShareDialog", () => {
     fireEvent.change(screen.getByLabelText("PRICE (AED) *"), {
       target: { value: "2350000" },
     });
-    fireEvent.change(screen.getByLabelText("CONTACT NAME *"), {
+    fireEvent.change(screen.getByLabelText("NAME *"), {
       target: { value: "Synthetic Owner" },
     });
-    fireEvent.change(screen.getByLabelText("CONTACT PHONE *"), {
+    fireEvent.change(screen.getByLabelText("PHONE *"), {
       target: { value: "+971500000000" },
     });
     fireEvent.click(

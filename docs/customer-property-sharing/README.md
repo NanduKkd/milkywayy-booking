@@ -54,9 +54,17 @@ image.
 
 The management UI follows the supplied reference with a dedicated **Ready to
 Share** card before **Shared Properties**, plus **Master Links**,
-select-multiple/action-bar surfaces, a compact listing form, and card-click
-preview. Shared cards use a 3:2 cover, live-state control, exact photo/video/360
-summary, listing hierarchy, link views, and Copy/View/Edit actions. Eligible
+select-multiple/action-bar surfaces, and card-click preview. Create and edit
+share links use the same reference-shaped two-pane listing form on desktop and
+the same single-column form below the strict `900px` width or `560px` height
+breakpoint. The form provides seven default amenity choices, permits custom
+choices, and limits the public selection to six. Its 3:2 photo grid supports
+drag ordering and eye-based visibility; the first visible ordered photo is
+automatically the cover. Video and 360° inclusion is controlled separately,
+and owners can generate/update and copy, preview an existing page, or save a
+draft without publishing a new link. Shared cards use a 3:2 cover, live-state
+control, exact photo/video/360 summary, listing hierarchy, link views, and
+Copy/View/Edit actions. Eligible
 unshared completed or in-review projects also expose **Create Share Link** in
 the **Ready to Share** list; published properties are managed in **Shared
 Properties**. The Ready card's **Download Files** action opens the same

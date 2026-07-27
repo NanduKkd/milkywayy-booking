@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import PropertySharingManager from "../PropertySharingManager";
+import PropertySharingManager, { ListingForm } from "../PropertySharingManager";
 
 const mockCreateMaster = jest.fn();
 const mockCreateSingle = jest.fn();
@@ -10,6 +10,7 @@ const mockSaveListing = jest.fn();
 const mockSaveMedia = jest.fn();
 const mockSetEnabled = jest.fn();
 const mockUpdateMaster = jest.fn();
+const mockToastError = jest.fn();
 
 jest.mock("@/lib/actions/propertySharing", () => ({
   createMasterPropertyShareAction: (...args) => mockCreateMaster(...args),
@@ -23,7 +24,11 @@ jest.mock("@/lib/actions/propertySharing", () => ({
   updateMasterPropertyShareAction: (...args) => mockUpdateMaster(...args),
 }));
 jest.mock("sonner", () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
+  toast: {
+    success: jest.fn(),
+    error: (...args) => mockToastError(...args),
+    info: jest.fn(),
+  },
 }));
 jest.mock(
   "@/components/customer-delivery/ServiceDeliveryModal",
@@ -167,6 +172,130 @@ describe("PropertySharingManager", () => {
       screen.queryByRole("button", { name: /refresh media/i }),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
+  });
+
+  it("matches the reference create form amenities and enforces six selections", () => {
+    const property = eligibleProperty(22, { media: [] });
+    render(
+      <ListingForm
+        property={property}
+        mode="create"
+        busy={false}
+        onClose={jest.fn()}
+        onSubmit={jest.fn()}
+        onSaveDraft={jest.fn()}
+        onPreview={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Create Share Link")).toBeInTheDocument();
+    expect(
+      screen.getByText("AMENITIES & HIGHLIGHTS · 0/6"),
+    ).toBeInTheDocument();
+    for (const amenity of [
+      "Sea view",
+      "Golf view",
+      "Balcony",
+      "Private pool",
+      "Shared pool",
+      "Covered parking",
+      "Chiller free",
+    ]) {
+      expect(screen.getByRole("button", { name: amenity })).toBeInTheDocument();
+    }
+
+    for (const amenity of [
+      "Sea view",
+      "Golf view",
+      "Balcony",
+      "Private pool",
+      "Shared pool",
+      "Covered parking",
+    ]) {
+      fireEvent.click(screen.getByRole("button", { name: amenity }));
+    }
+    expect(
+      screen.getByText("AMENITIES & HIGHLIGHTS · 6/6"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Chiller free" }));
+    expect(mockToastError).toHaveBeenCalledWith(
+      "Maximum 6 highlights per property",
+    );
+    expect(
+      screen.getByRole("button", { name: "Chiller free" }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("renders photo ordering and submits reordered visibility preferences", () => {
+    const onSubmit = jest.fn();
+    const property = eligibleProperty(22, {
+      listing,
+      media: [
+        {
+          deliveryFileId: 101,
+          kind: "IMAGE",
+          label: "Lobby",
+          visible: true,
+          isCover: true,
+        },
+        {
+          deliveryFileId: 102,
+          kind: "IMAGE",
+          label: "Balcony",
+          visible: true,
+          isCover: false,
+        },
+        {
+          deliveryFileId: 103,
+          kind: "VIDEO",
+          label: "Walkthrough",
+          visible: true,
+          isCover: false,
+        },
+      ],
+    });
+    render(
+      <ListingForm
+        property={property}
+        mode="edit"
+        busy={false}
+        onClose={jest.fn()}
+        onSubmit={onSubmit}
+        onSaveDraft={jest.fn()}
+        onPreview={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Edit Share Link")).toBeInTheDocument();
+    expect(screen.getByText("PHOTO ORDER · 2 PHOTOS")).toBeInTheDocument();
+    expect(screen.getByText("Video walkthrough")).toBeInTheDocument();
+    expect(screen.getByText("COVER")).toBeInTheDocument();
+
+    const lobby = screen.getByAltText("Lobby").closest("li");
+    const balcony = screen.getByAltText("Balcony").closest("li");
+    fireEvent.dragStart(balcony);
+    fireEvent.dragOver(lobby);
+    fireEvent.drop(lobby);
+    fireEvent.click(screen.getByRole("button", { name: "Hide Lobby" }));
+    fireEvent.click(screen.getByRole("button", { name: "Update & Copy Link" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media: [
+          expect.objectContaining({
+            deliveryFileId: 102,
+            visible: true,
+            isCover: true,
+          }),
+          expect.objectContaining({
+            deliveryFileId: 101,
+            visible: false,
+            isCover: false,
+          }),
+          expect.objectContaining({ deliveryFileId: 103 }),
+        ],
+      }),
+    );
   });
 
   it("opens the authenticated download and review modal from a ready property", () => {

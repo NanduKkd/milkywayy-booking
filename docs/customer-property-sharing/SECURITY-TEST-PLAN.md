@@ -64,7 +64,10 @@
 ### Compatibility and UI
 
 - The tab says Properties but links to `/dashboard/files`.
-- Eligible unshared FileList create action, compact listing form, Shared
+- Eligible unshared FileList create action, responsive two-pane/single-column
+  listing form, seven default amenity choices with a six-selection limit,
+  custom amenities, drag photo ordering, automatic first-visible cover,
+  per-media visibility, draft saving, Shared
   Properties, Master Links, direct check-control selection, select-multiple
   action bar, total views, stable copy, enable/disable, automatic media synchronization,
   and the actual Phone/Desktop public-page preview are covered by focused

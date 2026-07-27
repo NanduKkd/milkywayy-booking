@@ -55,6 +55,12 @@ real active single/master shares after applying the migration.
   vertical. Eligible booking cards open the listing form directly; Download
   Files opens the shared delivery/review modal. Published booking cards retain
   **Edit Share Link** without rendering a separate active-link label.
+- The create and edit share-link forms now share the reference's full two-pane
+  desktop and strict-breakpoint single-column design. Focused interaction
+  coverage verifies all seven default amenity tags, the six-tag selection cap,
+  custom-tag support, 3:2 photo tiles, drag ordering, eye visibility, automatic
+  first-visible cover selection, video/360 inclusion rows, draft saving, and
+  generate/update-and-copy actions.
 
 No bearer identifiers, saved-contact values beyond disposable development
 fixtures, filenames, or storage URLs are recorded in this proof.
@@ -73,6 +79,9 @@ fixtures, filenames, or storage URLs are recorded in this proof.
   states, completed-step treatment, partial-delivery display mapping, the exact
   `900×560` boundary, both narrow predicates, scheduled action isolation,
   direct listing-form launch, and the shared download/review modal.
+- Listing-form focused suites: 2 suites and 9 tests passed, including create
+  submission, edit action labels, all default amenities, the six-item cap,
+  photo reordering, visibility, cover reassignment, and video inclusion.
 - Responsive browser checks passed at 1440×900, 899×900, 900×559, 900×560,
   and 390×844. The measured Ready grid changed from `260px + 1fr` to one
   column exactly at the reference predicate, and the 390px page had no
