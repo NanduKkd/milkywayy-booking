@@ -552,33 +552,6 @@ export function ListingForm({
                 <p className={styles.fieldHelp}>
                   This name and number appear on the public page.
                 </p>
-                {savedContacts.length > 0 ? (
-                  <div className={styles.contactPills}>
-                    {savedContacts.map((contact) => (
-                      <span key={contact.id}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setForm((current) => ({
-                              ...current,
-                              contactName: contact.name,
-                              contactPhone: contact.phone,
-                            }))
-                          }
-                        >
-                          {contact.name}
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Delete saved contact ${contact.name}`}
-                          onClick={() => onDeleteContact?.(contact.id)}
-                        >
-                          <Trash2 />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
               </div>
               <label>
                 <span>NAME *</span>
@@ -623,6 +596,50 @@ export function ListingForm({
                   + Save this contact
                 </button>
               </div>
+              {savedContacts.length > 0 ? (
+                <div
+                  className={`${styles.fullField} ${styles.savedContactSection}`}
+                >
+                  <span className={styles.fieldLabel}>SAVED CONTACTS</span>
+                  <div className={styles.contactPills}>
+                    {savedContacts.map((contact) => {
+                      const selected =
+                        form.contactName.trim() === contact.name.trim() &&
+                        form.contactPhone.trim() === contact.phone.trim();
+                      return (
+                        <span
+                          key={contact.id}
+                          className={
+                            selected ? styles.selectedContact : undefined
+                          }
+                        >
+                          <button
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() =>
+                              setForm((current) => ({
+                                ...current,
+                                contactName: contact.name,
+                                contactPhone: contact.phone,
+                              }))
+                            }
+                          >
+                            {selected ? "✓ " : ""}
+                            {contact.name}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Delete saved contact ${contact.name}`}
+                            onClick={() => onDeleteContact?.(contact.id)}
+                          >
+                            <Trash2 />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
 

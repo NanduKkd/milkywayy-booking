@@ -998,6 +998,15 @@
   border-radius: 999px;
 }
 
+.savedContactSection {
+  margin-top: 2px;
+}
+
+.contactPills > .selectedContact {
+  border-color: rgba(74, 222, 128, 0.48);
+  background: rgba(74, 222, 128, 0.1);
+}
+
 .contactPills button {
   min-height: 38px;
   padding: 0 12px;
@@ -1006,6 +1015,16 @@
   color: var(--share-text);
   font-size: 12px;
   font-weight: 700;
+}
+
+.contactPills .selectedContact button {
+  background: transparent;
+  color: #4ade80;
+}
+
+.contactPills .selectedContact button:last-child {
+  border-left-color: rgba(74, 222, 128, 0.25);
+  color: #4ade80;
 }
 
 .contactPills button:last-child {

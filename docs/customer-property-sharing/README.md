@@ -62,7 +62,9 @@ choices, and limits the public selection to six. Its 3:2 photo grid supports
 drag ordering and eye-based visibility; the first visible ordered photo is
 automatically the cover. Video and 360° inclusion is controlled separately,
 and owners can generate/update and copy, preview an existing page, or save a
-draft without publishing a new link. Shared cards use a 3:2 cover, live-state
+draft without publishing a new link. Saved contact presets appear below the
+save-contact action; the preset matching both the current name and phone is
+marked green, and selecting a preset fills both fields. Shared cards use a 3:2 cover, live-state
 control, exact photo/video/360 summary, listing hierarchy, link views, and
 Copy/View/Edit actions. Eligible
 unshared completed or in-review projects also expose **Create Share Link** in

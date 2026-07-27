@@ -298,6 +298,51 @@ describe("PropertySharingManager", () => {
     );
   });
 
+  it("shows saved contacts below the save action and highlights the selected contact", () => {
+    const property = eligibleProperty(22, { media: [] });
+    render(
+      <ListingForm
+        property={property}
+        savedContacts={[
+          { id: 1, name: "Arunima TK", phone: "+971500000001" },
+          { id: 2, name: "Nanda Krishnan", phone: "+971500000002" },
+        ]}
+        mode="create"
+        busy={false}
+        onClose={jest.fn()}
+        onSubmit={jest.fn()}
+        onSaveDraft={jest.fn()}
+        onPreview={jest.fn()}
+      />,
+    );
+
+    const saveContact = screen.getByRole("button", {
+      name: "+ Save this contact",
+    });
+    const savedContactsLabel = screen.getByText("SAVED CONTACTS");
+    expect(
+      saveContact.compareDocumentPosition(savedContactsLabel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const nanda = screen.getByRole("button", { name: "Nanda Krishnan" });
+    expect(nanda).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(nanda);
+
+    expect(
+      screen.getByRole("button", { name: "✓ Nanda Krishnan" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("NAME *")).toHaveValue("Nanda Krishnan");
+    expect(screen.getByLabelText("PHONE *")).toHaveValue("+971500000002");
+
+    fireEvent.change(screen.getByLabelText("PHONE *"), {
+      target: { value: "+971500000003" },
+    });
+    expect(
+      screen.getByRole("button", { name: "Nanda Krishnan" }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("opens the authenticated download and review modal from a ready property", () => {
     const booking = {
       id: 22,
