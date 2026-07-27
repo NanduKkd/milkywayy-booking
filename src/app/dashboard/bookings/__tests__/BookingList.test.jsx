@@ -238,6 +238,38 @@ describe("BookingList", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows Edit Share Link without a separate active-link label", () => {
+    render(
+      <BookingList
+        bookings={[
+          {
+            ...mockBookings[0],
+            status: "COMPLETED",
+            workflowStatus: "PROJECT_COMPLETED",
+            deliveryFiles: [
+              { id: 10, type: "Photography", status: "ACCEPTED" },
+            ],
+          },
+        ]}
+        propertySharing={{
+          eligibleProperties: [],
+          shares: [
+            {
+              kind: "SINGLE_PROPERTY",
+              properties: [{ bookingId: 1 }],
+            },
+          ],
+          savedContacts: [],
+        }}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /edit share link/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/share link active/i)).not.toBeInTheDocument();
+  });
+
   it("keeps Create Share Link as a direct, injectable booking action", () => {
     const onCreateShareLink = jest.fn();
     render(

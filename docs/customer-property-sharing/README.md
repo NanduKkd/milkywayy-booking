@@ -75,9 +75,9 @@ surface.
 
 The Bookings cards use the same share eligibility snapshot as Properties.
 Eligible partial or delivered cards open the listing form directly for
-**Create Share Link**; already-published cards show the active-link state and
-an **Edit Share Link** action. This avoids a generic route handoff before the
-owner can configure the listing.
+**Create Share Link**; already-published cards expose **Edit Share Link**
+without a separate active-link label. This avoids a generic route handoff
+before the owner can configure the listing.
 
 Safe current under-review or accepted uploads synchronize into every affected
 single and master link automatically. New logical files append visibly;

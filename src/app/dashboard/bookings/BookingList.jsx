@@ -805,11 +805,6 @@ export default function BookingList({
                     "Standard Shoot"}
                 </p>
               )}
-              {getShareState(booking).share ? (
-                <p className="mt-2.5 text-[10.5px] font-extrabold uppercase tracking-[0.12em] text-green-400">
-                  ● Share link active — manage in Properties
-                </p>
-              ) : null}
             </div>
             <div className="shrink-0 whitespace-nowrap text-right">
               <div className="text-[15px] font-bold text-zinc-100">

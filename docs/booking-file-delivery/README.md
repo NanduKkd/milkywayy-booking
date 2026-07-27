@@ -76,9 +76,9 @@ as ready categories.
 Delivery-state cards expose **Download Files** directly into the reusable
 authenticated delivery/review modal. Eligible unshared projects open the real
 **Create Share Link** listing modal directly from Bookings; published projects
-show the active-link state and route **Edit Share Link** back to Properties.
-Scheduled Reschedule/Cancel controls do not leak into partial, uploaded, or
-completed delivery states.
+expose **Edit Share Link** without a separate active-link label. Scheduled
+Reschedule/Cancel controls do not leak into partial, uploaded, or completed
+delivery states.
 
 A customer revision request identifies only the booking and service type. The
 server authorizes that owner-scoped group, locks the booking and its current

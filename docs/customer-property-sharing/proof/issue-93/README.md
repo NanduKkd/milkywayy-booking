@@ -53,7 +53,8 @@ real active single/master shares after applying the migration.
   delivery remains visually on Editing without mutating persisted workflow,
   and the exact strict breakpoint changes the tracker from horizontal to
   vertical. Eligible booking cards open the listing form directly; Download
-  Files opens the shared delivery/review modal.
+  Files opens the shared delivery/review modal. Published booking cards retain
+  **Edit Share Link** without rendering a separate active-link label.
 
 No bearer identifiers, saved-contact values beyond disposable development
 fixtures, filenames, or storage URLs are recorded in this proof.
@@ -68,7 +69,7 @@ fixtures, filenames, or storage URLs are recorded in this proof.
 - Properties consolidation suite: 6 suites and 52 tests passed, covering the
   shared booking modal, Ready-card launch path, retained completion rules,
   removed duplicate section, dashboard layout, and Bookings compatibility.
-- Booking-card follow-up suite: 17 tests passed, covering all five tracker
+- Booking-card follow-up suite: 18 tests passed, covering all five tracker
   states, completed-step treatment, partial-delivery display mapping, the exact
   `900×560` boundary, both narrow predicates, scheduled action isolation,
   direct listing-form launch, and the shared download/review modal.
