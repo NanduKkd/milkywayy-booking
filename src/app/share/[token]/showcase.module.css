@@ -693,7 +693,7 @@
   margin-top: auto;
 }
 
-@media (min-width: 901px) {
+@media (min-width: 900px) and (min-height: 560px) {
   .showcase {
     height: 100dvh;
     min-height: 0;
@@ -723,71 +723,14 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 899px), (max-height: 559px) {
   .showcaseGrid {
     grid-template-columns: 1fr;
+    padding-bottom: 110px;
   }
 
   .collectionGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 600px) {
-  .showcaseHeader {
-    min-height: 56px;
-    padding: 8px 16px;
-  }
-
-  .copyButton {
-    width: 40px;
-    min-height: 40px;
-    padding: 0;
-  }
-
-  .copyButton span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-  }
-
-  .showcaseGrid {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    padding: 0 0 92px;
-  }
-
-  .spHero {
-    height: auto;
-    border-right: 0;
-    border-left: 0;
-    border-radius: 0;
-  }
-
-  .galleryArrow {
-    width: 38px;
-    height: 38px;
-  }
-
-  .thumbnails {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    margin: 12px 16px 0;
-  }
-
-  .thumbnail {
-    aspect-ratio: 3 / 2;
-  }
-
-  .mediaActions {
-    margin: 14px 16px 0;
-  }
-
-  .spBody {
-    padding: 24px 20px 0;
   }
 
   .contactCard {
@@ -818,6 +761,64 @@
 
   .showcaseFooter {
     padding-bottom: 100px;
+  }
+}
+
+@media (max-width: 600px) {
+  .showcaseHeader {
+    min-height: 56px;
+    padding: 8px 16px;
+  }
+
+  .copyButton {
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+  }
+
+  .copyButton span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .showcaseGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 0 110px;
+  }
+
+  .spHero {
+    height: auto;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .galleryArrow {
+    width: 38px;
+    height: 38px;
+  }
+
+  .thumbnails {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 12px 16px 0;
+  }
+
+  .thumbnail {
+    aspect-ratio: 3 / 2;
+  }
+
+  .mediaActions {
+    margin: 14px 16px 0;
+  }
+
+  .spBody {
+    padding: 24px 20px 0;
   }
 
   .backLink {

@@ -237,7 +237,7 @@ export default function PropertyShowcase({ property, token }) {
       </header>
 
       <div className={`desk-grid ${styles.showcaseGrid}`}>
-        <div className={styles.mediaColumn}>
+        <div className={`media-column ${styles.mediaColumn}`}>
           <div className={`sp-hero ${styles.spHero}`}>
             {activeMedia && !failedMedia.has(activeMedia.id) ? (
               <button
@@ -362,6 +362,8 @@ export default function PropertyShowcase({ property, token }) {
               ))}
             </section>
           ) : null}
+
+          <ContactCard contact={property.contact} />
         </div>
 
         <div className={`sp-body ${styles.spBody}`}>
@@ -442,8 +444,6 @@ export default function PropertyShowcase({ property, token }) {
               </p>
             </section>
           ) : null}
-
-          <ContactCard contact={property.contact} />
         </div>
       </div>
       <footer className={`sp-footer ${styles.showcaseFooter}`}>

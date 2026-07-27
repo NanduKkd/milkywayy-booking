@@ -49,9 +49,11 @@ card border, radius, shadow, or page gutter; the media and listing split fill
 the viewport on desktop within a centered 1280px content maximum. The photo
 hero and every photo thumbnail use a stable 3:2 crop. Highlights render in no
 more than two columns. Videos use contain sizing inside their modal. The layout
-becomes an edge-to-edge single column on narrow screens. If an authorized media
-object is missing, both the hero and its thumbnail show an explicit unavailable
-state rather than a broken image.
+keeps the contact card below the left gallery on desktop and turns it into the
+fixed bottom contact bar on narrow or short viewports. It becomes an edge-to-edge
+single column on narrow screens. If an authorized media object is missing, both
+the hero and its thumbnail show an explicit unavailable state rather than a
+broken image.
 
 The management UI follows the supplied reference with a dedicated **Ready to
 Share** card before **Shared Properties**, plus **Master Links**,

@@ -184,6 +184,10 @@ describe("public property showcase page", () => {
       "https://wa.me/971500000000",
     );
     expect(
+      container.querySelector(".media-column > .contact-card"),
+    ).not.toBeNull();
+    expect(container.querySelector(".sp-body .contact-card")).toBeNull();
+    expect(
       screen.queryByRole("button", { name: "Video walkthrough" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("360° + Video")).not.toBeInTheDocument();
