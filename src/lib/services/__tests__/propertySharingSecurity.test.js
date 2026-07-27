@@ -7,8 +7,11 @@ function listing(overrides = {}) {
     listingTitle: "Corner home with marina view",
     priceAed: "2,350,000",
     listingType: "FOR_SALE",
-    bathrooms: "3",
+    bathrooms: "3.5",
+    maidRoom: true,
     sizeSqft: "1,244",
+    builtUpAreaSqft: "1,100",
+    plotAreaSqft: "1,800",
     furnishing: "FURNISHED",
     description: "Bright corner home.\nVacant on transfer.",
     highlights: ["Full marina view", "Upgraded kitchen"],
@@ -35,14 +38,39 @@ describe("property sharing security helpers", () => {
       listingTitle: "Corner home with marina view",
       priceAed: "2350000.00",
       listingType: "FOR_SALE",
-      bathrooms: 3,
+      propertyType: "APARTMENT",
+      bathrooms: "3.5",
+      maidRoom: true,
       sizeSqft: 1244,
+      builtUpAreaSqft: 1100,
+      plotAreaSqft: 1800,
       furnishing: "FURNISHED",
       description: "Bright corner home.\nVacant on transfer.",
       highlights: ["Full marina view", "Upgraded kitchen"],
       contactName: "Synthetic Owner",
       contactPhone: "+971500000000",
     });
+  });
+
+  it("accepts half bathrooms and clears residential-only fields for commercial listings", () => {
+    expect(
+      security.normalizePropertyShareListing(
+        listing({
+          propertyType: "commercial",
+          bathrooms: "4.5",
+          maidRoom: true,
+        }),
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        propertyType: "COMMERCIAL",
+        bathrooms: null,
+        maidRoom: false,
+      }),
+    );
+    expect(() =>
+      security.normalizePropertyShareListing(listing({ bathrooms: "3.25" })),
+    ).toThrow(security.PropertyShareInputError);
   });
 
   it.each([

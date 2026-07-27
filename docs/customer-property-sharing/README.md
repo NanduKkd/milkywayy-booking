@@ -2,18 +2,23 @@
 
 The customer dashboard exposes property-showcase management inside the existing
 `/dashboard/files` route. The visible tab and page language say **Properties**,
-while `fileId` deep links, authenticated downloads, copy-link delivery,
+while authenticated downloads, copy-link delivery,
 revisions, replacement states, review deadlines, completion controls, and the
-full existing `FileList` retain their authenticated contracts.
+canonical delivery service-group projection retain their authenticated
+contracts.
 
 An authenticated property owner or real-estate agent can configure one public
 listing per owned confirmed, non-cancelled booking as soon as it has a safe
 current media file under review or accepted. Booking completion is not
 required. Configuration includes listing title, AED price, listing type,
-bathrooms, square-foot size, furnishing, description, highlights/amenities,
-contact name, and contact phone. Contact fields are owner-authored listing
-content; buyers never submit contact data and the feature does not create an
-agent, team, assignment, or visitor-contact model.
+property type, fractional bathrooms, maid's room, square-foot size, built-up
+and plot area, furnishing, description, highlights/amenities, contact name, and
+contact phone. Bedrooms remain booking-derived. Commercial listings clear and
+omit bedroom, bathroom, and maid's-room facts. Price per ft² is derived from
+price and the applicable area. Owners may save normalized, owner-scoped contact
+presets; selecting one copies its values into the listing snapshot. Buyers
+never submit contact data and the feature does not create an agent, team,
+assignment, or visitor-contact model.
 
 The owner can publish:
 
@@ -24,46 +29,82 @@ The owner can publish:
 A public single link opens a responsive buyer-facing showcase immediately. A
 master link opens a curated collection; selecting a card opens the complete
 showcase under the same bearer. Showcases include the safe under-review and
-accepted photo/video/360 media pinned when the link was created or explicitly
-refreshed, listing metadata, description, highlights, telephone and WhatsApp
+accepted photo/video/360 media synchronized from the safe current delivery
+state, listing metadata, description, highlights, telephone and WhatsApp
 actions, and Milkywayy branding. They contain no internal review status, buyer
 form, delivery manifest, download button, revision control, or authenticated
 file route.
 
-Accepted 360 copy-link deliveries appear in the main media viewer as lazy
-iframes, using the same interactive presentation as the landing-page portfolio.
-They are selected from a text/icon media tile beside the photo and video items,
-without an image thumbnail. Video remains selectable in the media strip and has
-no separate Video Walkthrough button. The hero retains only its media-position
-count and does not show a media-type badge.
+The showcase gallery is photo-only: its 3:2 hero, previous/next controls,
+counter, and thumbnail strip never duplicate video or 360 deliveries. When
+there are more than four photos, the strip shows the first three plus a
+`+ N More Photos` tile that opens the photo gallery; four or fewer photos are
+shown directly. A separate **Video walkthrough** action opens the selected
+video in a modal (or first offers a picker when multiple videos are available).
+A separate **360° virtual tour** action opens the validated HTTPS tour in a new
+browser tab.
 
 The single-property showcase owns the full browser surface. It has no outer
 card border, radius, shadow, or page gutter; the media and listing split fill
-the viewport on desktop, the media hero stretches through the available
-viewport height above its thumbnail strip, and photos/videos use contain sizing
-without cropping. The layout becomes an edge-to-edge single column on narrow
-screens. If an authorized media object is missing, both the hero and its
-thumbnail show an explicit unavailable state rather than a broken image.
+the viewport on desktop within a centered 1280px content maximum. The photo
+hero and every photo thumbnail use a stable 3:2 crop. Highlights render in no
+more than two columns. The currently rendered above-the-fold hero loads eagerly,
+as does its matching selected thumbnail because both render the same cached
+media URL; every other gallery thumbnail remains lazy. Videos use contain sizing
+inside their modal. The layout keeps the contact card below the left gallery on
+desktop and turns it into the fixed bottom contact bar on narrow or short
+viewports. It becomes an edge-to-edge single column on narrow screens. If an
+authorized media object is missing, both the hero and its thumbnail show an
+explicit unavailable state rather than a broken image.
 
-The management UI follows the supplied reference with compact **Shared
-Properties**, **Master Links**, and select-multiple/action-bar surfaces, a
-compact listing form, and card-click preview. Eligible unshared completed or
-in-review projects expose **Create Share Link** in the authenticated `FileList`
-directly below the manager; published properties are managed above it. Owners
-can explicitly **Refresh Media** to replace a link's exact file+version
-snapshot after later uploads or replacements. Owners select two or more shared
+The management UI follows the supplied reference with a dedicated **Ready to
+Share** card before **Shared Properties**, plus **Master Links**,
+select-multiple/action-bar surfaces, and card-click preview. Create and edit
+share links use the same reference-shaped two-pane listing form on desktop and
+the same single-column form below the strict `900px` width or `560px` height
+breakpoint. The form provides seven default amenity choices, permits custom
+choices, and limits the public selection to six. Its 3:2 photo grid supports
+drag ordering and eye-based visibility; the first visible ordered photo is
+automatically the cover. Video and 360° inclusion is controlled separately,
+and owners can generate/update and copy, preview an existing page, or save a
+draft without publishing a new link. The maid-room control uses the reference
+round checkbox treatment, and the bathroom field keeps only its label and
+selector. Saved contact presets appear below the
+save-contact action; the preset matching both the current name and phone is
+marked green, and selecting a preset fills both fields. Shared cards use a 3:2 cover, live-state
+control, exact photo/video/360 summary, listing hierarchy, link views, and
+Copy/View/Edit actions. Eligible
+unshared completed or in-review projects also expose **Create Share Link** in
+the **Ready to Share** list; published properties are managed in **Shared
+Properties**. The Ready card's **Download Files** action opens the same
+authenticated download/review modal as Bookings, including revision and
+completion controls. Owners manage property-level media order, visibility, and
+cover choice. Owners select two or more shared
 property cards—including the visible check control—to create or update the
 master collection. Preview embeds the actual public buyer page and can be
 switched between Phone and Desktop widths.
 
-The existing authenticated `FileList` remains directly below the sharing
-manager with its download, revision, replacement, review, and completion
-behavior unchanged.
+Properties does not repeat a separate **Delivered files** list below the
+sharing manager. Bookings and **Ready to Share** both open the reusable
+authenticated service modal, so download, copy-link delivery, revision,
+replacement, review-deadline, and completion behavior stays on one canonical
+surface.
 
-After the owner creates a share from a Delivered files card, the refreshed
-server result is reconciled into both authenticated surfaces: the create action
-disappears and the new listing appears in **Shared Properties** immediately,
-without a manual browser refresh.
+The Bookings cards use the same share eligibility snapshot as Properties.
+Eligible partial or delivered cards open the listing form directly for
+**Create Share Link**; already-published cards expose **Edit Share Link**
+without a separate active-link label. This avoids a generic route handoff
+before the owner can configure the listing.
+
+Safe current under-review or accepted uploads synchronize into every affected
+single and master link automatically. New logical files append visibly;
+replacement versions inherit their logical-file preferences. Unsafe, private,
+changes-requested, deleted, superseded, stale, or unsupported media is removed
+or fails closed without owner action.
+
+After the owner creates a share from a **Ready to Share** card, the refreshed
+server result is reconciled immediately: the ready card disappears and the new
+listing appears in **Shared Properties** without a manual browser refresh.
 
 Each valid property showcase publishes listing-specific browser and Open Graph
 metadata. The page title and Open Graph title use
@@ -82,18 +123,19 @@ property's full showcase. The selected-property view keeps an inset,
 keyboard-focusable back-to-collection link above the showcase.
 
 Public pages resolve only the exact safe browser-viewable file+version
-memberships pinned for the selected booking. Every request re-checks that each
+memberships synchronized for the selected booking. Every request re-checks that each
 member is still current, under review or accepted, non-deleted,
-non-superseded, selected, and safe. Later uploads and replacements do not alter
-an existing link until **Refresh Media**. Photos and videos are streamed only
+non-superseded, selected, visible, and safe. Later uploads and replacements
+update active links transactionally while preserving logical-file preferences.
+Photos and videos are streamed only
 through link/property/file-scoped inline routes, and persisted private object
 URLs are never serialized. Validated HTTPS 360 tour links are intentionally
-exposed as iframe sources with a no-referrer policy; they never pass through
-the owned object route.
+exposed only as new-tab links with a no-referrer policy; they never pass
+through the owned object route.
 
 The public identifier is a stable, opaque 256-bit value. A link is deliberately
 public and reshareable. The owner can copy it after any reload, disable or
-re-enable it, and explicitly refresh its media snapshot; there is no rotate,
+re-enable it; there is no rotate,
 revoke, expiry, or one-time-copy lifecycle. The dashboard shows only a total
 link-view count. There is no raw view event or visitor-identity store.
 

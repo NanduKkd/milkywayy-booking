@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import BookingWorkflowTracker from "@/components/BookingWorkflowTracker";
+import ServiceDeliveryModal from "@/components/customer-delivery/ServiceDeliveryModal";
 import DateSlotPicker from "@/components/DateSlotPicker";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,9 +34,105 @@ import {
   formatBookingReference,
   formatInvoiceNumber,
 } from "@/lib/helpers/invoice-format";
+import CreatePropertyShareDialog from "../files/CreatePropertyShareDialog";
 
 const RESCHEDULE_CUTOFF_HOURS = 6;
 const PARTIAL_REFUND_CUTOFF_HOURS = 3;
+
+const CARD_WORKFLOW_STEPS = [
+  { status: BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED, label: "Shoot Booked" },
+  { status: BOOKING_WORKFLOW_STATUS.SHOOT_DONE, label: "Shoot Done" },
+  { status: BOOKING_WORKFLOW_STATUS.EDITING, label: "Editing" },
+  { status: BOOKING_WORKFLOW_STATUS.FILES_UPLOADED, label: "Files Uploaded" },
+  {
+    status: BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED,
+    label: "Project Completed",
+  },
+];
+
+const isNarrowDashboardViewport = () =>
+  typeof window !== "undefined" &&
+  (window.innerWidth < 900 || window.innerHeight < 560);
+
+function BookingCardWorkflow({ booking, narrow }) {
+  const currentStatus = getCardWorkflowStatus(booking);
+  const currentIndex =
+    currentStatus === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED
+      ? CARD_WORKFLOW_STEPS.length
+      : CARD_WORKFLOW_STEPS.findIndex((step) => step.status === currentStatus);
+
+  if (isCancelledBooking(booking)) {
+    return (
+      <div className="my-5 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
+        Booking Cancelled
+      </div>
+    );
+  }
+
+  return (
+    <fieldset
+      className={
+        narrow
+          ? "mb-1 mt-[22px] flex flex-col gap-[14px] border-0 p-0"
+          : "mb-1 mt-[26px] flex border-0 p-0"
+      }
+      aria-label="Booking progress"
+      data-current-status={currentStatus}
+      data-layout={narrow ? "vertical" : "horizontal"}
+    >
+      {CARD_WORKFLOW_STEPS.map((step, index) => {
+        const complete = index < currentIndex;
+        const active = index === currentIndex;
+        const finished = complete || active;
+
+        return (
+          <div
+            className={
+              narrow
+                ? "relative flex min-h-11 items-center gap-[13px]"
+                : "relative flex min-w-0 flex-1 flex-col items-center"
+            }
+            key={step.status}
+            data-step-state={
+              complete ? "completed" : active ? "active" : "pending"
+            }
+          >
+            {index < CARD_WORKFLOW_STEPS.length - 1 && (
+              <span
+                aria-hidden="true"
+                className={
+                  narrow
+                    ? `absolute bottom-[-12px] left-[13px] top-[34px] w-[1.5px] ${complete ? "bg-zinc-100" : "bg-[#2e2e33]"}`
+                    : `absolute left-[calc(50%+20px)] top-[13px] h-[1.5px] w-[calc(100%-40px)] ${complete ? "bg-zinc-100" : "bg-[#2e2e33]"}`
+                }
+              />
+            )}
+            <span
+              className={`z-10 flex h-[27px] w-[27px] shrink-0 items-center justify-center rounded-full border-[1.5px] text-xs font-extrabold ${
+                complete
+                  ? "border-zinc-100 bg-zinc-100 text-zinc-950"
+                  : active
+                    ? "border-zinc-100 bg-[#131315] text-zinc-100"
+                    : "border-[#2e2e33] bg-[#131315] text-[#6b6b73]"
+              }`}
+            >
+              {complete ? "✓" : index + 1}
+            </span>
+            <span
+              className={`leading-[1.3] ${
+                narrow
+                  ? "text-sm"
+                  : "mt-[9px] text-center text-[clamp(9.5px,1.5vw,12.5px)]"
+              } ${finished ? "font-semibold text-zinc-100" : "text-[#6b6b73]"}`}
+            >
+              {step.label}
+            </span>
+          </div>
+        );
+      })}
+    </fieldset>
+  );
+}
 
 const getAvailableDeliveryCategories = (booking) =>
   [
@@ -47,10 +144,76 @@ const getAvailableDeliveryCategories = (booking) =>
     ),
   ].sort((left, right) => left.localeCompare(right));
 
-export default function BookingList({ bookings }) {
+export const getBookingDeliverySummary = (booking) => {
+  const visibleCategories = getAvailableDeliveryCategories(booking);
+  const pendingReplacementCount = (booking?.deliveryFiles || []).filter(
+    (file) => !file?.deletedAt && file?.status === "CHANGES_REQUESTED",
+  ).length;
+
+  if (visibleCategories.length === 0 && pendingReplacementCount === 0) {
+    return null;
+  }
+
+  return {
+    visibleCategories,
+    pendingReplacementCount,
+    label:
+      visibleCategories.length > 0 && pendingReplacementCount > 0
+        ? "Partially delivered"
+        : visibleCategories.length > 0
+          ? "Files ready"
+          : "Replacement pending",
+  };
+};
+
+const isCancelledBooking = (booking) =>
+  Boolean(booking?.cancelledAt || booking?.status === "CANCELLED");
+
+const isCompletedBooking = (booking) =>
+  Boolean(
+    booking?.completedAt ||
+      booking?.status === "COMPLETED" ||
+      getWorkflowStatus(booking) === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED,
+  );
+
+const getCardWorkflowStatus = (booking) => {
+  if (isCompletedBooking(booking)) {
+    return BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED;
+  }
+
+  const deliverySummary = getBookingDeliverySummary(booking);
+  if (
+    deliverySummary?.visibleCategories.length > 0 &&
+    !booking?.deliveryFinishedAt
+  ) {
+    return BOOKING_WORKFLOW_STATUS.EDITING;
+  }
+
+  return getWorkflowStatus(booking);
+};
+
+const getPropertyTitle = (booking) => {
+  const unit = booking.propertyDetails?.unit;
+  const building = booking.propertyDetails?.building;
+  if (building && unit) return `${building} — ${unit}`;
+  return (
+    [building, unit, booking.propertyDetails?.community]
+      .filter(Boolean)
+      .join(", ") || "Property Shoot"
+  );
+};
+
+export default function BookingList({
+  bookings,
+  propertySharing = { eligibleProperties: [], shares: [], savedContacts: [] },
+  onCreateShareLink,
+}) {
   const router = useRouter();
+  const [narrowViewport, setNarrowViewport] = useState(false);
   const [loadingId, setLoadingId] = useState(null);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [selectedDeliveryBooking, setSelectedDeliveryBooking] = useState(null);
+  const [createShareProperty, setCreateShareProperty] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState(null);
@@ -72,6 +235,13 @@ export default function BookingList({ bookings }) {
           selectedTransaction.id,
         )
       : null;
+
+  useEffect(() => {
+    const updateViewport = () => setNarrowViewport(isNarrowDashboardViewport());
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, []);
 
   const getBookingDateTime = (booking) => {
     if (!booking?.date) return null;
@@ -252,70 +422,242 @@ export default function BookingList({ bookings }) {
     setIsOpen(true);
   };
 
-  const renderReviewActions = (booking) => {
-    if (getWorkflowStatus(booking) !== BOOKING_WORKFLOW_STATUS.FILES_UPLOADED) {
+  const getDeliveryHighlights = (booking) => {
+    const deliverySummary = getBookingDeliverySummary(booking);
+    if (!deliverySummary) return [];
+
+    const visibleFiles = (booking.deliveryFiles || []).filter(
+      isCustomerDeliveryFileVisible,
+    );
+    const grouped = visibleFiles.reduce((result, file) => {
+      const type = String(file.type || "").trim();
+      if (!type) return result;
+      result[type] = (result[type] || 0) + 1;
+      return result;
+    }, {});
+
+    return Object.entries(grouped).map(([type, count]) => {
+      const label =
+        type === "Photography"
+          ? `${count} ${count === 1 ? "photo" : "photos"}`
+          : type === "360 Virtual Tour"
+            ? "360° tour"
+            : type === "Short Form Video"
+              ? `${count} ${count === 1 ? "reel" : "reels"}`
+              : type === "Long Form Video" || type === "Videography"
+                ? `${count} ${count === 1 ? "video" : "videos"}`
+                : count > 1
+                  ? `${count} ${type.toLowerCase()} files`
+                  : type.toLowerCase();
+      return label;
+    });
+  };
+
+  const getPendingServiceHighlights = (booking) => {
+    if (booking.deliveryFinishedAt || isCompletedBooking(booking)) return [];
+    const visibleTypes = new Set(
+      (booking.deliveryFiles || [])
+        .filter(isCustomerDeliveryFileVisible)
+        .map((file) => file.type),
+    );
+    return getBookingServices(booking).flatMap((service) => {
+      if (service === "Photography" && !visibleTypes.has("Photography")) {
+        return ["photography in editing — 48–72h"];
+      }
+      if (service === "360° Tour" && !visibleTypes.has("360 Virtual Tour")) {
+        return ["360° tour in editing — 48–72h"];
+      }
+      if (
+        service === "Videography" &&
+        !["Videography", "Short Form Video", "Long Form Video"].some((type) =>
+          visibleTypes.has(type),
+        )
+      ) {
+        const selection = getBookingVideographySubService(booking);
+        return [
+          `${selection === "Short Form" ? "short-form reel" : "video"} in editing — 48–72h`,
+        ];
+      }
+      return [];
+    });
+  };
+
+  const getShareState = (booking) => {
+    const property = (propertySharing.eligibleProperties || []).find(
+      (candidate) => Number(candidate.id) === Number(booking.id),
+    );
+    const share = (propertySharing.shares || []).find(
+      (candidate) =>
+        candidate.kind === "SINGLE_PROPERTY" &&
+        candidate.properties?.some(
+          (sharedProperty) =>
+            Number(sharedProperty.bookingId) === Number(booking.id),
+        ),
+    );
+    return { property, share };
+  };
+
+  const getCardStatus = (booking) => {
+    const deliverySummary = getBookingDeliverySummary(booking);
+    if (isCancelledBooking(booking)) {
+      return { label: "● Cancelled", className: "text-red-400" };
+    }
+    if (isCompletedBooking(booking)) {
+      return { label: "● Completed", className: "text-green-400" };
+    }
+    if (deliverySummary) {
+      if (
+        deliverySummary.visibleCategories.length > 0 &&
+        booking.deliveryFinishedAt
+      ) {
+        return {
+          label: "● Files ready for review",
+          className: "text-[#f5c76a]",
+        };
+      }
+      return {
+        label:
+          deliverySummary.label === "Files ready"
+            ? "● Partially delivered"
+            : `● ${deliverySummary.label}`,
+        className: "text-[#f5c76a]",
+      };
+    }
+    const status = getCardWorkflowStatus(booking);
+    if (status === BOOKING_WORKFLOW_STATUS.SHOOT_DONE) {
+      return { label: "● Shoot done", className: "text-zinc-400" };
+    }
+    if (status === BOOKING_WORKFLOW_STATUS.EDITING) {
+      return { label: "● Editing", className: "text-zinc-400" };
+    }
+    if (status === BOOKING_WORKFLOW_STATUS.FILES_UPLOADED) {
+      return { label: "● Files uploaded", className: "text-zinc-400" };
+    }
+    return {
+      label: formatTime(booking),
+      className: "text-zinc-400 font-normal",
+    };
+  };
+
+  const renderReviewActions = (booking, { detail = false } = {}) => {
+    const deliverySummary = getBookingDeliverySummary(booking);
+    if (!deliverySummary) {
       return null;
     }
-    const files = (booking.deliveryFiles || []).filter(
-      (file) => !file.deletedAt && file.status !== "PRIVATE",
-    );
-    const availableCategories = getAvailableDeliveryCategories(booking);
-    const requestedCount = files.filter(
-      (file) => file.status === "CHANGES_REQUESTED",
-    ).length;
+    const { visibleCategories: availableCategories, pendingReplacementCount } =
+      deliverySummary;
+
+    if (detail) {
+      return (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-sm font-medium text-zinc-200">
+            {availableCategories.length > 0
+              ? `Files ready for review: ${availableCategories.join(" · ")}`
+              : "No files currently available"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {pendingReplacementCount > 0
+              ? `${pendingReplacementCount} ${pendingReplacementCount === 1 ? "file is" : "files are"} awaiting replacement.`
+              : booking.deliveryFinishedAt
+                ? "All files have been delivered."
+                : "The team may still add more files."}
+          </p>
+          <Button
+            className="mt-3 rounded-xl"
+            size="sm"
+            variant="outline"
+            onClick={(event) => {
+              event.stopPropagation();
+              setSelectedDeliveryBooking(booking);
+            }}
+          >
+            ↓ Download Files
+          </Button>
+        </div>
+      );
+    }
 
     return (
-      <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-        <p className="text-sm font-medium text-zinc-200">
-          {availableCategories.length > 0
-            ? `Files ready for review: ${availableCategories.join(" · ")}`
-            : "No files currently available"}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {requestedCount > 0
-            ? `${requestedCount} ${requestedCount === 1 ? "file is" : "files are"} awaiting replacement.`
-            : booking.deliveryFinishedAt
-              ? "All files have been delivered."
-              : "The team may still add more files."}
-        </p>
-        <Button
-          className="mt-3"
-          size="sm"
-          variant="outline"
+      <div
+        className={`${booking.deliveryFinishedAt ? "mt-5" : "mt-[18px]"} flex flex-wrap items-center gap-2.5`}
+      >
+        <div className="sr-only">
+          <span>
+            {availableCategories.length > 0
+              ? `Files ready for review: ${availableCategories.join(" · ")}`
+              : "No files currently available"}
+          </span>
+          <span>
+            {pendingReplacementCount > 0
+              ? `${pendingReplacementCount} ${pendingReplacementCount === 1 ? "file is" : "files are"} awaiting replacement.`
+              : booking.deliveryFinishedAt
+                ? "All files have been delivered."
+                : "The team may still add more files."}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="min-h-11 rounded-xl border border-[#2e2e33] bg-[#1a1a1d] px-[18px] text-[13px] font-bold text-zinc-100 transition-colors hover:border-[#45454d]"
           onClick={(event) => {
             event.stopPropagation();
-            router.push("/dashboard/files");
+            setSelectedDeliveryBooking(booking);
           }}
         >
-          Review Files
-        </Button>
+          ↓ Download Files
+        </button>
+        {onCreateShareLink ||
+        getShareState(booking).property ||
+        getShareState(booking).share ? (
+          <button
+            type="button"
+            className="min-h-11 rounded-xl border border-white bg-white px-[18px] text-[13px] font-bold text-zinc-950 transition-colors hover:bg-zinc-200"
+            onClick={(event) => {
+              event.stopPropagation();
+              if (onCreateShareLink) {
+                onCreateShareLink(booking);
+                return;
+              }
+              const { property, share } = getShareState(booking);
+              if (share) {
+                router.push("/dashboard/files");
+              } else if (property) {
+                setCreateShareProperty(property);
+              }
+            }}
+          >
+            🔗{" "}
+            {getShareState(booking).share
+              ? "Edit Share Link"
+              : "Create Share Link"}
+          </button>
+        ) : null}
       </div>
     );
   };
 
   const getStatusChip = (booking) => {
-    if (booking.cancelledAt) {
+    const deliverySummary = getBookingDeliverySummary(booking);
+    if (isCancelledBooking(booking)) {
       return (
         <span className="text-white text-sm font-medium  px-2 py-1 rounded">
           Cancelled
         </span>
       );
-    } else if (
-      booking.completedAt ||
-      getWorkflowStatus(booking) === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED
-    ) {
+    } else if (isCompletedBooking(booking)) {
       return (
         <span className="text-white text-sm font-medium  px-2 py-1 rounded">
           Completed
         </span>
       );
     } else {
-      const workflowLabel = {
-        [BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED]: "Shoot Booked",
-        [BOOKING_WORKFLOW_STATUS.SHOOT_DONE]: "Shoot Done",
-        [BOOKING_WORKFLOW_STATUS.EDITING]: "Editing",
-        [BOOKING_WORKFLOW_STATUS.FILES_UPLOADED]: "Files In Review",
-      }[getWorkflowStatus(booking)];
+      const workflowLabel =
+        deliverySummary?.label ||
+        {
+          [BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED]: "Shoot Booked",
+          [BOOKING_WORKFLOW_STATUS.SHOOT_DONE]: "Shoot Done",
+          [BOOKING_WORKFLOW_STATUS.EDITING]: "Editing",
+          [BOOKING_WORKFLOW_STATUS.FILES_UPLOADED]: "Files In Review",
+        }[getWorkflowStatus(booking)];
       return (
         <span className="rounded bg-white/10 px-2 py-1 text-sm font-medium text-white">
           {workflowLabel || "Shoot Booked"}
@@ -326,8 +668,12 @@ export default function BookingList({ bookings }) {
 
   const formatDate = (dateStr) => {
     try {
-      const date = new Date(dateStr);
-      return new Intl.DateTimeFormat("en-US", {
+      const [year, month, day] = String(dateStr).split("-").map(Number);
+      const date =
+        [year, month, day].every(Number.isFinite) &&
+        new Date(year, month - 1, day);
+      if (!date) return dateStr;
+      return new Intl.DateTimeFormat("en-GB", {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -338,7 +684,7 @@ export default function BookingList({ bookings }) {
   };
 
   const formatTime = (booking) => {
-    const displayStartTime = getBookingDisplayStartTime(booking);
+    const displayStartTime = getBookingStartTime(booking);
     if (displayStartTime) {
       const [h, m] = String(displayStartTime).split(":").map(Number);
       if (Number.isFinite(h) && Number.isFinite(m)) {
@@ -402,14 +748,19 @@ export default function BookingList({ bookings }) {
     );
   }
 
-  const sortedBookings = [...bookings].sort(
-    (a, b) =>
+  const sortedBookings = [...bookings].sort((a, b) => {
+    const dateOrder =
+      String(b.date || "").localeCompare(String(a.date || "")) ||
+      String(b.startTime || "").localeCompare(String(a.startTime || ""));
+    if (dateOrder) return dateOrder;
+    return (
       new Date(b.createdAt || 0).getTime() -
-      new Date(a.createdAt || 0).getTime(),
-  );
+      new Date(a.createdAt || 0).getTime()
+    );
+  });
 
   return (
-    <div className="space-y-4">
+    <div>
       {sortedBookings.map((booking) => (
         // biome-ignore lint/a11y/useSemanticElements: The card contains nested action buttons.
         <div
@@ -417,7 +768,7 @@ export default function BookingList({ bookings }) {
           role="button"
           tabIndex={0}
           aria-label={`View booking ${formatBookingReference(booking)}`}
-          className={`group cursor-pointer rounded-2xl border border-border bg-card p-6 transition-colors hover:bg-card/90 ${getWorkflowStatus(booking) === BOOKING_WORKFLOW_STATUS.PROJECT_COMPLETED ? "opacity-75" : ""}`}
+          className="mb-[18px] rounded-[18px] border border-[#232327] bg-[#131315] px-[clamp(20px,3vw,28px)] py-[clamp(20px,3vw,26px)]"
           onClick={() => handleBookingClick(booking)}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -426,49 +777,58 @@ export default function BookingList({ bookings }) {
             }
           }}
         >
-          <div className="flex justify-between items-start mb-4">
-            <div className="space-y-1">
-              <h3 className="font-heading text-lg leading-tight font-bold text-foreground">
-                {[
-                  booking.propertyDetails?.unit,
-                  booking.propertyDetails?.building,
-                  booking.propertyDetails?.community,
-                ]
-                  .filter(Boolean)
-                  .join(", ") || "Property Shoot"}
+          <div className="flex items-start justify-between gap-[14px]">
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-heading text-[clamp(16px,2.4vw,20px)] font-extrabold leading-[1.3] text-zinc-100">
+                {getPropertyTitle(booking)}
               </h3>
-              <p className="text-sm text-muted-foreground">
-                {booking.shootDetails?.services?.join(" + ") ||
-                  "Standard Shoot"}
-              </p>
+              {getDeliveryHighlights(booking).length > 0 ? (
+                <div className="mt-[7px] flex flex-wrap gap-x-[14px] gap-y-1 text-[12.5px] font-bold">
+                  <span className="text-green-400">
+                    ✓ {getDeliveryHighlights(booking).join(" + ")} delivered
+                  </span>
+                  {getPendingServiceHighlights(booking).map((highlight) => (
+                    <span className="text-[#f5c76a]" key={highlight}>
+                      ◐ {highlight}
+                    </span>
+                  ))}
+                  {getBookingDeliverySummary(booking)?.pendingReplacementCount >
+                    0 && (
+                    <span className="text-[#f5c76a]">
+                      ◐ Replacement pending
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-[5px] text-[13.5px] text-zinc-400">
+                  {booking.shootDetails?.services?.join(" + ") ||
+                    "Standard Shoot"}
+                </p>
+              )}
             </div>
-            <div className="text-right">
-              <div className="leading-tight font-semibold text-foreground text-sm">
+            <div className="shrink-0 whitespace-nowrap text-right">
+              <div className="text-[15px] font-bold text-zinc-100">
                 {formatDate(booking.date)}
               </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {booking.cancelledAt
-                  ? "Cancelled"
-                  : booking.completedAt
-                    ? "Completed"
-                    : formatTime(booking)}
+              <div
+                className={`mt-1 text-[13px] font-bold ${getCardStatus(booking).className}`}
+              >
+                {getCardStatus(booking).label}
               </div>
             </div>
           </div>
 
-          <BookingWorkflowTracker
-            booking={booking}
-            className="my-5"
-            verticalOnMobile
-            showRevisionState
-          />
+          <BookingCardWorkflow booking={booking} narrow={narrowViewport} />
 
           {renderReviewActions(booking)}
 
-          {!booking.cancelledAt &&
-            !booking.completedAt &&
+          {!isCancelledBooking(booking) &&
+            !isCompletedBooking(booking) &&
+            !getBookingDeliverySummary(booking) &&
+            getCardWorkflowStatus(booking) ===
+              BOOKING_WORKFLOW_STATUS.SHOOT_BOOKED &&
             !getActionPolicy(booking).isPast && (
-              <div className="flex gap-3 mt-2">
+              <div className="mt-5 flex flex-wrap gap-2.5">
                 {getActionPolicy(booking).canReschedule && (
                   <button
                     type="button"
@@ -477,7 +837,7 @@ export default function BookingList({ bookings }) {
                       handleReschedule(booking);
                     }}
                     disabled={isBookingDispatched(booking)}
-                    className="rounded-xl border border-border px-4 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    className="min-h-11 rounded-xl border border-[#2e2e33] bg-[#1a1a1d] px-[18px] text-[13px] font-bold text-zinc-100 transition-colors hover:border-[#45454d] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Reschedule
                   </button>
@@ -492,7 +852,7 @@ export default function BookingList({ bookings }) {
                   disabled={
                     loadingId === booking.id || isBookingDispatched(booking)
                   }
-                  className="rounded-xl border border-border px-4 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="min-h-11 rounded-xl border border-[#2e2e33] bg-[#1a1a1d] px-[18px] text-[13px] font-bold text-red-400 transition-colors hover:border-[#45454d] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loadingId === booking.id
                     ? "Cancelling..."
@@ -541,7 +901,7 @@ export default function BookingList({ bookings }) {
                 showRevisionState
               />
 
-              {renderReviewActions(selectedBooking)}
+              {renderReviewActions(selectedBooking, { detail: true })}
 
               <div className="rounded-lg border border-white/10 bg-zinc-900/50 p-4">
                 <h3 className="mb-3 font-semibold text-zinc-200">Services</h3>
@@ -616,6 +976,21 @@ export default function BookingList({ bookings }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ServiceDeliveryModal
+        booking={selectedDeliveryBooking}
+        open={Boolean(selectedDeliveryBooking)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDeliveryBooking(null);
+        }}
+      />
+      {createShareProperty ? (
+        <CreatePropertyShareDialog
+          property={createShareProperty}
+          savedContacts={propertySharing.savedContacts || []}
+          onClose={() => setCreateShareProperty(null)}
+        />
+      ) : null}
 
       {/* Reschedule Dialog */}
       <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>

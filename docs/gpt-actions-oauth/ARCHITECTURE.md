@@ -111,9 +111,14 @@ The accepted first-release read-only surface is:
 | `GET /api/gpt/v1/invoices` | `customer:read` | Return invoice metadata and safe website links. |
 | `GET /api/gpt/v1/files` | `customer:read` | Return customer-visible delivery-file metadata and authenticated website links. |
 
-Files and invoice PDFs are not transferred through an action. File DTOs may contain safe identifiers, customer-visible filenames, types, statuses, revision state, and a website URL such as `/dashboard/files?fileId={fileId}`. They must not contain S3 keys, direct storage URLs, unrestricted signed URLs, or binary content.
+Files and invoice PDFs are not transferred through an action. File DTOs may
+contain safe identifiers, customer-visible filenames, types, statuses, revision
+state, and the generic website URL `/dashboard/files`. Numeric `fileId` remains
+resource/filter metadata. DTOs must not contain S3 keys, direct storage URLs,
+unrestricted signed URLs, or binary content.
 
-When a customer opens a returned file URL, the authenticated dashboard preserves the `fileId` query parameter across login, scrolls the matching customer-owned file card into view, and visually identifies it. An invalid or other-customer `fileId` renders the normal files page without revealing whether that file exists.
+The authenticated dashboard does not resolve, scroll to, highlight, open, or
+emit existence feedback for a `fileId` query value.
 
 All mutation endpoints are deferred. If later introduced, they require separate write scopes, idempotency keys where applicable, stronger audit trails, and `x-openai-isConsequential: true` in the OpenAPI document.
 

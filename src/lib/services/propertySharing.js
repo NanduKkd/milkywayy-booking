@@ -4,6 +4,8 @@ import { sequelize } from "@/lib/db/db";
 import Booking from "@/lib/db/models/booking";
 import BookingDeliveryFile from "@/lib/db/models/bookingdeliveryfile";
 import BookingDeliveryFileVersion from "@/lib/db/models/bookingdeliveryfileversion";
+import PropertyMediaPreference from "@/lib/db/models/propertymediapreference";
+import PropertySavedContact from "@/lib/db/models/propertysavedcontact";
 import PropertyShareLink from "@/lib/db/models/propertysharelink";
 import PropertyShareListing from "@/lib/db/models/propertysharelisting";
 import PropertyShareMedia from "@/lib/db/models/propertysharemedia";
@@ -14,6 +16,7 @@ import {
   createPropertyShareId,
   isPropertyShareId,
   normalizePropertyShareListing,
+  normalizeSavedPropertyContact,
   propertyShareContactLinks,
 } from "@/lib/services/propertySharingSecurity";
 
@@ -51,6 +54,13 @@ const LISTING_TYPE_LABELS = Object.freeze({
 const FURNISHING_LABELS = Object.freeze({
   FURNISHED: "Furnished",
   UNFURNISHED: "Unfurnished",
+});
+const PROPERTY_TYPE_LABELS = Object.freeze({
+  APARTMENT: "Apartment",
+  PENTHOUSE: "Penthouse",
+  VILLA: "Villa",
+  TOWNHOUSE: "Townhouse",
+  COMMERCIAL: "Commercial",
 });
 const SHAREABLE_BOOKING_STATUSES = ["CONFIRMED", "COMPLETED"];
 const SHAREABLE_MEDIA_STATUSES = [
@@ -304,6 +314,11 @@ const ELIGIBLE_BOOKING_INCLUDE = [
     as: "propertyShareListing",
     required: false,
   },
+  {
+    model: PropertyMediaPreference,
+    as: "propertyMediaPreferences",
+    required: false,
+  },
 ];
 
 async function findEligibleBookings(
@@ -344,19 +359,42 @@ async function findEligibleBookings(
 function serializeListing(listingLike) {
   const listing = toPlain(listingLike);
   if (!listing) return null;
+  const applicableArea =
+    Number(listing.plotAreaSqft) ||
+    Number(listing.builtUpAreaSqft) ||
+    Number(listing.sizeSqft) ||
+    null;
+  const numericPrice = Number(listing.priceAed);
   return {
     listingTitle: listing.listingTitle,
     priceAed: String(listing.priceAed),
     listingType: listing.listingType,
     listingTypeLabel: LISTING_TYPE_LABELS[listing.listingType],
+    propertyType: listing.propertyType || "APARTMENT",
+    propertyTypeLabel:
+      PROPERTY_TYPE_LABELS[listing.propertyType || "APARTMENT"] || "Apartment",
     bathrooms:
       listing.bathrooms === null || listing.bathrooms === undefined
         ? null
         : Number(listing.bathrooms),
+    maidRoom: Boolean(listing.maidRoom),
     sizeSqft:
       listing.sizeSqft === null || listing.sizeSqft === undefined
         ? null
         : Number(listing.sizeSqft),
+    builtUpAreaSqft:
+      listing.builtUpAreaSqft === null || listing.builtUpAreaSqft === undefined
+        ? null
+        : Number(listing.builtUpAreaSqft),
+    plotAreaSqft:
+      listing.plotAreaSqft === null || listing.plotAreaSqft === undefined
+        ? null
+        : Number(listing.plotAreaSqft),
+    applicableAreaSqft: applicableArea,
+    pricePerSqft:
+      applicableArea && Number.isFinite(numericPrice)
+        ? Math.round((numericPrice / applicableArea) * 100) / 100
+        : null,
     furnishing: listing.furnishing,
     furnishingLabel: FURNISHING_LABELS[listing.furnishing],
     description: listing.description || "",
@@ -378,33 +416,67 @@ function serializeBookingFacts(bookingLike) {
 
 function summarizeMedia(bookingLike) {
   const media = eligibleDeliveryFiles(bookingLike);
+  const kinds = media.map(
+    (file) => getInlinePropertyMediaDetails(file, file.currentVersion)?.kind,
+  );
   return {
     mediaCount: media.length,
-    imageCount: media.filter(
-      (file) =>
-        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
-        "IMAGE",
-    ).length,
-    hasVideo: media.some(
-      (file) =>
-        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
-        "VIDEO",
-    ),
-    hasTour: media.some(
-      (file) =>
-        getInlinePropertyMediaDetails(file, file.currentVersion)?.kind ===
-        "TOUR",
-    ),
+    imageCount: kinds.filter((kind) => kind === "IMAGE").length,
+    videoCount: kinds.filter((kind) => kind === "VIDEO").length,
+    hasVideo: kinds.includes("VIDEO"),
+    hasTour: kinds.includes("TOUR"),
   };
 }
 
 function serializeEligibleProperty(bookingLike) {
   const booking = toPlain(bookingLike);
+  const preferences = new Map(
+    (booking.propertyMediaPreferences || []).map((preference) => [
+      Number(preference.deliveryFileId),
+      toPlain(preference),
+    ]),
+  );
+  const media = eligibleDeliveryFiles(booking)
+    .map((file, index) => {
+      const plainFile = toPlain(file);
+      const details = getInlinePropertyMediaDetails(
+        plainFile,
+        toPlain(plainFile.currentVersion),
+      );
+      const preference = preferences.get(Number(plainFile.id));
+      return {
+        deliveryFileId: Number(plainFile.id),
+        kind: details.kind,
+        label: String(plainFile.label || plainFile.type || "Property media"),
+        position: preference ? Number(preference.position) : index,
+        visible: preference ? Boolean(preference.visible) : true,
+        isCover: preference ? Boolean(preference.isCover) : false,
+      };
+    })
+    .sort(
+      (left, right) =>
+        left.position - right.position ||
+        left.deliveryFileId - right.deliveryFileId,
+    );
+  if (
+    media.some((item) => item.kind === "IMAGE") &&
+    !media.some((item) => item.kind === "IMAGE" && item.isCover)
+  ) {
+    const firstImage = media.find((item) => item.kind === "IMAGE");
+    firstImage.isCover = true;
+  }
+  const cover = media.find(
+    (item) => item.kind === "IMAGE" && item.visible && item.isCover,
+  );
   return {
     id: Number(booking.id),
     ...serializeBookingFacts(booking),
     ...summarizeMedia(booking),
+    coverUrl: cover
+      ? `/api/files/download?fileId=${encodeURIComponent(cover.deliveryFileId)}`
+      : null,
     listing: serializeListing(booking.propertyShareListing),
+    media,
   };
 }
 
@@ -513,13 +585,87 @@ async function replaceShareProperties(share, bookings, transaction) {
   return selected;
 }
 
+async function ensurePropertyMediaPreferences(
+  ownerUserId,
+  bookingLike,
+  transaction,
+) {
+  const booking = toPlain(bookingLike) || {};
+  const files = eligibleDeliveryFiles(booking);
+  const existing = await PropertyMediaPreference.findAll({
+    where: {
+      ownerUserId,
+      bookingId: booking.id,
+    },
+    transaction,
+    ...(transaction ? { lock: transaction.LOCK.UPDATE } : {}),
+    order: [
+      ["position", "ASC"],
+      ["id", "ASC"],
+    ],
+  });
+  const byFileId = new Map(
+    existing.map((preference) => [
+      Number(preference.deliveryFileId),
+      preference,
+    ]),
+  );
+  let nextPosition =
+    Math.max(-1, ...existing.map((item) => Number(item.position))) + 1;
+  for (const file of files) {
+    if (byFileId.has(Number(file.id))) continue;
+    const preference = await PropertyMediaPreference.create(
+      {
+        ownerUserId,
+        bookingId: booking.id,
+        deliveryFileId: file.id,
+        position: nextPosition,
+        visible: true,
+        isCover: false,
+      },
+      { transaction },
+    );
+    nextPosition += 1;
+    byFileId.set(Number(file.id), preference);
+  }
+
+  const eligible = files
+    .map((file) => ({
+      file,
+      preference: byFileId.get(Number(file.id)),
+      kind: getInlinePropertyMediaDetails(file, file.currentVersion)?.kind,
+    }))
+    .filter(({ preference }) => Boolean(preference));
+  const visible = eligible.filter(({ preference }) =>
+    Boolean(preference.visible),
+  );
+  const visibleImages = visible.filter(({ kind }) => kind === "IMAGE");
+  const persistedCover = visibleImages.find(({ preference }) =>
+    Boolean(preference.isCover),
+  );
+  const cover = persistedCover || visibleImages[0] || null;
+
+  return visible
+    .sort(
+      (left, right) =>
+        Number(right === cover) - Number(left === cover) ||
+        Number(left.preference.position) - Number(right.preference.position) ||
+        Number(left.file.id) - Number(right.file.id),
+    )
+    .map(({ file }) => file);
+}
+
 async function replacePropertyMediaSnapshot(property, booking, transaction) {
-  const media = eligibleDeliveryFiles(booking);
-  if (media.length === 0) throw new PropertyShareNotFoundError();
+  const media = await ensurePropertyMediaPreferences(
+    Number(booking.userId),
+    booking,
+    transaction,
+  );
   await PropertyShareMedia.destroy({
     where: { sharePropertyId: property.id },
     transaction,
   });
+  if (media.length === 0) return;
   await PropertyShareMedia.bulkCreate(
     media.map((file, position) => ({
       sharePropertyId: property.id,
@@ -529,6 +675,231 @@ async function replacePropertyMediaSnapshot(property, booking, transaction) {
     })),
     { transaction },
   );
+}
+
+export async function synchronizePropertyShareMediaForBooking(
+  bookingId,
+  transaction,
+) {
+  const normalizedBookingId = requirePositiveInteger(bookingId);
+  const synchronize = async (activeTransaction) => {
+    const booking = await Booking.findByPk(normalizedBookingId, {
+      include: [
+        {
+          model: BookingDeliveryFile,
+          as: "deliveryFiles",
+          required: false,
+          include: [
+            {
+              model: BookingDeliveryFileVersion,
+              as: "currentVersion",
+              required: false,
+            },
+          ],
+        },
+      ],
+      transaction: activeTransaction,
+      // Delivery files and their current versions are optional outer joins.
+      // PostgreSQL rejects an unscoped FOR UPDATE against nullable join sides.
+      lock: { level: activeTransaction.LOCK.UPDATE, of: Booking },
+    });
+    if (!booking) return { synchronizedShareCount: 0 };
+    const properties = await PropertyShareProperty.findAll({
+      where: { bookingId: normalizedBookingId },
+      transaction: activeTransaction,
+      lock: activeTransaction.LOCK.UPDATE,
+    });
+    for (const property of properties) {
+      await replacePropertyMediaSnapshot(property, booking, activeTransaction);
+    }
+    return { synchronizedShareCount: properties.length };
+  };
+  return transaction
+    ? synchronize(transaction)
+    : sequelize.transaction(synchronize);
+}
+
+export async function savePropertyMediaPreferences(
+  ownerUserId,
+  bookingId,
+  input,
+) {
+  const ownerId = requirePositiveInteger(ownerUserId);
+  const normalizedBookingId = requirePositiveInteger(bookingId);
+  if (!Array.isArray(input) || input.length === 0 || input.length > 200) {
+    throw new PropertyShareConflictError("Media preferences are invalid");
+  }
+  const normalized = input.map((item, position) => {
+    const deliveryFileId = requirePositiveInteger(
+      item?.deliveryFileId,
+      "Media preferences are invalid",
+    );
+    return {
+      deliveryFileId,
+      position,
+      visible: item?.visible !== false,
+      isCover: item?.isCover === true,
+    };
+  });
+  if (
+    new Set(normalized.map((item) => item.deliveryFileId)).size !==
+    normalized.length
+  ) {
+    throw new PropertyShareConflictError("Media preferences are invalid");
+  }
+
+  return sequelize.transaction(async (transaction) => {
+    await lockOwner(ownerId, transaction);
+    const [booking] = await findEligibleBookings(
+      ownerId,
+      [normalizedBookingId],
+      { transaction, lock: true },
+    );
+    const eligible = eligibleDeliveryFiles(booking);
+    const eligibleById = new Map(
+      eligible.map((file) => [Number(file.id), file]),
+    );
+    if (
+      normalized.length !== eligible.length ||
+      normalized.some((item) => !eligibleById.has(item.deliveryFileId))
+    ) {
+      throw new PropertyShareConflictError(
+        "Media changed. Reload the listing and try again",
+      );
+    }
+    if (!normalized.some((item) => item.visible)) {
+      throw new PropertyShareConflictError(
+        "At least one media item must remain visible",
+      );
+    }
+    const images = normalized.filter(
+      (item) =>
+        getInlinePropertyMediaDetails(
+          eligibleById.get(item.deliveryFileId),
+          eligibleById.get(item.deliveryFileId)?.currentVersion,
+        )?.kind === "IMAGE",
+    );
+    const visibleImages = images.filter((item) => item.visible);
+    const covers = normalized.filter((item) => item.isCover);
+    if (
+      (images.length > 0 && visibleImages.length === 0) ||
+      covers.length > 1 ||
+      (covers.length === 1 &&
+        (!covers[0].visible ||
+          !images.some(
+            (image) => image.deliveryFileId === covers[0].deliveryFileId,
+          )))
+    ) {
+      throw new PropertyShareConflictError(
+        "Choose one visible photo as the cover",
+      );
+    }
+    if (visibleImages.length > 0 && covers.length === 0) {
+      visibleImages[0].isCover = true;
+    }
+
+    await ensurePropertyMediaPreferences(ownerId, booking, transaction);
+    const records = await PropertyMediaPreference.findAll({
+      where: {
+        ownerUserId: ownerId,
+        bookingId: normalizedBookingId,
+        deliveryFileId: {
+          [Op.in]: normalized.map((item) => item.deliveryFileId),
+        },
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+    const byFileId = new Map(
+      records.map((record) => [Number(record.deliveryFileId), record]),
+    );
+    await PropertyMediaPreference.update(
+      { isCover: false, position: literal('"position" + 1000000') },
+      {
+        where: {
+          ownerUserId: ownerId,
+          bookingId: normalizedBookingId,
+        },
+        transaction,
+      },
+    );
+    for (const preference of normalized) {
+      const record = byFileId.get(preference.deliveryFileId);
+      await record.update(preference, { transaction });
+    }
+    await synchronizePropertyShareMediaForBooking(
+      normalizedBookingId,
+      transaction,
+    );
+    return { bookingId: normalizedBookingId };
+  });
+}
+
+export async function savePropertyContact(
+  ownerUserId,
+  input,
+  contactId = null,
+) {
+  const ownerId = requirePositiveInteger(ownerUserId);
+  const normalized = normalizeSavedPropertyContact(input);
+  return sequelize.transaction(async (transaction) => {
+    await lockOwner(ownerId, transaction);
+    const id =
+      contactId === null || contactId === undefined
+        ? null
+        : requirePositiveInteger(contactId);
+    let contact = id
+      ? await PropertySavedContact.findOne({
+          where: { id, ownerUserId: ownerId },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        })
+      : await PropertySavedContact.findOne({
+          where: {
+            ownerUserId: ownerId,
+            normalizedPhone: normalized.normalizedPhone,
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+    if (id && !contact) throw new PropertyShareNotFoundError();
+    const duplicate = await PropertySavedContact.findOne({
+      where: {
+        ownerUserId: ownerId,
+        normalizedPhone: normalized.normalizedPhone,
+        ...(contact ? { id: { [Op.ne]: contact.id } } : {}),
+      },
+      transaction,
+    });
+    if (duplicate) {
+      throw new PropertyShareConflictError(
+        "A saved contact already uses this phone number",
+      );
+    }
+    if (contact) await contact.update(normalized, { transaction });
+    else {
+      contact = await PropertySavedContact.create(
+        { ownerUserId: ownerId, ...normalized },
+        { transaction },
+      );
+    }
+    return {
+      id: Number(contact.id),
+      name: contact.name,
+      phone: contact.normalizedPhone,
+    };
+  });
+}
+
+export async function deletePropertyContact(ownerUserId, contactId) {
+  const deleted = await PropertySavedContact.destroy({
+    where: {
+      id: requirePositiveInteger(contactId),
+      ownerUserId: requirePositiveInteger(ownerUserId),
+    },
+  });
+  if (deleted !== 1) throw new PropertyShareNotFoundError();
+  return { contactId: Number(contactId) };
 }
 
 async function replaceShareMediaSnapshots(selectedProperties, transaction) {
@@ -664,43 +1035,22 @@ export async function updateMasterPropertyShare(
   });
 }
 
-export async function refreshPropertyShareMedia(ownerUserId, shareId) {
-  const ownerId = requirePositiveInteger(ownerUserId);
-  return sequelize.transaction(async (transaction) => {
-    await lockOwner(ownerId, transaction);
-    const share = await findOwnerShare(ownerId, shareId, transaction, true);
-    const properties = await PropertyShareProperty.findAll({
-      where: { shareLinkId: share.id },
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-      order: [["position", "ASC"]],
-    });
-    const bookingIds = properties.map((property) => Number(property.bookingId));
-    const minimum = share.kind === PROPERTY_SHARE_KIND.MASTER ? 2 : 1;
-    if (bookingIds.length < minimum) throw new PropertyShareNotFoundError();
-    const bookings = await findEligibleBookings(ownerId, bookingIds, {
-      transaction,
-      lock: true,
-    });
-    await requireConfiguredListings(ownerId, bookingIds, transaction, true);
-    const byBookingId = new Map(
-      bookings.map((booking) => [Number(booking.id), booking]),
-    );
-    const selectedProperties = properties.map((property) => ({
-      property,
-      booking: byBookingId.get(Number(property.bookingId)),
-    }));
-    if (selectedProperties.some(({ booking }) => !booking)) {
-      throw new PropertyShareNotFoundError();
-    }
-    await replaceShareMediaSnapshots(selectedProperties, transaction);
-    return { shareId: Number(share.id) };
-  });
-}
-
 export async function setPropertyShareEnabled(ownerUserId, shareId, enabled) {
   return sequelize.transaction(async (transaction) => {
     const share = await findOwnerShare(ownerUserId, shareId, transaction, true);
+    if (enabled) {
+      const properties = await PropertyShareProperty.findAll({
+        where: { shareLinkId: share.id },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      for (const property of properties) {
+        await synchronizePropertyShareMediaForBooking(
+          property.bookingId,
+          transaction,
+        );
+      }
+    }
     await share.update({ enabled: Boolean(enabled) }, { transaction });
     return { shareId: Number(share.id), enabled: Boolean(share.enabled) };
   });
@@ -719,14 +1069,28 @@ function serializeOwnerShare(shareLike) {
     properties: (share.properties || []).map((propertyLike) => {
       const property = toPlain(propertyLike);
       const booking = toPlain(property.booking) || {};
+      const media = [...(property.files || [])]
+        .sort(
+          (leftLike, rightLike) =>
+            Number(toPlain(leftLike).position || 0) -
+              Number(toPlain(rightLike).position || 0) ||
+            Number(toPlain(leftLike).id) - Number(toPlain(rightLike).id),
+        )
+        .map(serializePublicMedia);
+      const cover = media.find((item) => item.kind === "IMAGE");
       return {
         id: Number(property.id),
         bookingId: Number(property.bookingId),
         ...serializeBookingFacts(booking),
         listing: serializeListing(booking.propertyShareListing),
-        mediaCount: Array.isArray(property.files)
-          ? property.files.length
-          : eligibleDeliveryFiles(booking).length,
+        mediaCount: media.length,
+        imageCount: media.filter((item) => item.kind === "IMAGE").length,
+        videoCount: media.filter((item) => item.kind === "VIDEO").length,
+        hasVideo: media.some((item) => item.kind === "VIDEO"),
+        hasTour: media.some((item) => item.kind === "TOUR"),
+        coverUrl: cover
+          ? `/api/public/property-shares/${encodeURIComponent(share.publicId)}/properties/${encodeURIComponent(property.id)}/media/${encodeURIComponent(cover.id)}`
+          : null,
       };
     }),
   };
@@ -734,7 +1098,7 @@ function serializeOwnerShare(shareLike) {
 
 export async function getPropertySharingDashboard(ownerUserId) {
   const ownerId = requirePositiveInteger(ownerUserId);
-  const [eligibleBookings, shares] = await Promise.all([
+  const [eligibleBookings, shares, savedContacts] = await Promise.all([
     findEligibleBookings(ownerId),
     PropertyShareLink.findAll({
       where: { ownerUserId: ownerId },
@@ -748,7 +1112,26 @@ export async function getPropertySharingDashboard(ownerUserId) {
               model: PropertyShareMedia,
               as: "files",
               required: false,
-              attributes: ["id"],
+              attributes: [
+                "id",
+                "position",
+                "deliveryFileId",
+                "deliveryFileVersionId",
+              ],
+              include: [
+                {
+                  model: BookingDeliveryFile,
+                  as: "deliveryFile",
+                  required: true,
+                  attributes: ["id", "type", "label", "deliveryMode"],
+                },
+                {
+                  model: BookingDeliveryFileVersion,
+                  as: "deliveryFileVersion",
+                  required: true,
+                  attributes: ["id", "mimeType", "originalFilename", "url"],
+                },
+              ],
             },
             {
               model: Booking,
@@ -780,10 +1163,25 @@ export async function getPropertySharingDashboard(ownerUserId) {
         [{ model: PropertyShareProperty, as: "properties" }, "position", "ASC"],
       ],
     }),
+    PropertySavedContact.findAll({
+      where: { ownerUserId: ownerId },
+      order: [
+        ["name", "ASC"],
+        ["id", "ASC"],
+      ],
+    }),
   ]);
   return {
     eligibleProperties: eligibleBookings.map(serializeEligibleProperty),
     shares: shares.map(serializeOwnerShare),
+    savedContacts: savedContacts.map((contactLike) => {
+      const contact = toPlain(contactLike);
+      return {
+        id: Number(contact.id),
+        name: contact.name,
+        phone: contact.normalizedPhone,
+      };
+    }),
   };
 }
 
@@ -918,14 +1316,22 @@ function serializePublicProperty(propertyLike) {
   const booking = toPlain(property.booking) || {};
   const listing = serializeListing(booking.propertyShareListing);
   const contactLinks = propertyShareContactLinks(listing.contactPhone);
+  const commercial = listing.propertyType === "COMMERCIAL";
   return {
     id: Number(property.id),
     title: listing.listingTitle,
     displayPrice: formatPriceAed(listing.priceAed, listing.listingType),
     listingType: listing.listingType,
     listingTypeLabel: listing.listingTypeLabel,
-    bathrooms: listing.bathrooms,
+    propertyType: listing.propertyType,
+    propertyTypeLabel: listing.propertyTypeLabel,
+    bathrooms: commercial ? null : listing.bathrooms,
+    maidRoom: commercial ? false : listing.maidRoom,
     sizeSqft: listing.sizeSqft,
+    builtUpAreaSqft: listing.builtUpAreaSqft,
+    plotAreaSqft: listing.plotAreaSqft,
+    applicableAreaSqft: listing.applicableAreaSqft,
+    pricePerSqft: listing.pricePerSqft,
     furnishing: listing.furnishingLabel,
     description: listing.description,
     highlights: listing.highlights,
@@ -936,7 +1342,7 @@ function serializePublicProperty(propertyLike) {
       whatsappUrl: contactLinks.whatsapp,
     },
     location: bookingLocation(booking),
-    bedrooms: bookingBedrooms(booking),
+    bedrooms: commercial ? null : bookingBedrooms(booking),
     services: sharedPropertyServices(booking),
     media: (property.files || []).map(serializePublicMedia),
   };

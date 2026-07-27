@@ -7,6 +7,7 @@ const {
 } = require("../../testing/disposablePostgres");
 const migration = require("../20260722090000-create-property-sharing.js");
 const snapshotMigration = require("../20260724190000-create-property-share-media-snapshots.js");
+const showcaseMigration = require("../20260727090000-expand-property-showcase-listings.js");
 
 jest.setTimeout(30000);
 
@@ -139,6 +140,7 @@ describeWithPostgres(
           );
           await migration.up(setupQueryInterface, Sequelize);
           await snapshotMigration.up(setupQueryInterface, Sequelize);
+          await showcaseMigration.up(setupQueryInterface, Sequelize);
         },
       });
       sequelize = database.sequelize;
@@ -195,6 +197,7 @@ describeWithPostgres(
       try {
         if (database) {
           await sequelize.query("TRUNCATE property_share_links CASCADE");
+          await showcaseMigration.down(queryInterface, Sequelize);
           await snapshotMigration.down(queryInterface);
           await migration.down(queryInterface);
         }
@@ -205,7 +208,7 @@ describeWithPostgres(
 
     beforeEach(async () => {
       await sequelize.query(
-        "TRUNCATE property_share_links, property_share_listings RESTART IDENTITY CASCADE",
+        "TRUNCATE property_share_links, property_share_listings, property_saved_contacts, property_media_preferences RESTART IDENTITY CASCADE",
       );
     });
 
@@ -231,6 +234,57 @@ describeWithPostgres(
         },
       );
     }
+
+    it("enforces expanded listings and normalized contacts", async () => {
+      await sequelize.query(
+        `
+          INSERT INTO property_share_listings
+            (owner_user_id, booking_id, listing_title, price_aed, listing_type,
+             property_type, bathrooms, maid_room, size_sqft, built_up_area_sqft,
+             plot_area_sqft, furnishing, description, highlights, contact_name,
+             contact_phone, created_at, updated_at)
+          VALUES
+            (:ownerUserId, :bookingId, 'Synthetic apartment', 2350000,
+             'FOR_SALE', 'APARTMENT', 3.5, TRUE, 1244, 1244, NULL,
+             'FURNISHED', '', '[]', 'Synthetic Owner', '+971500000000',
+             CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `,
+        { replacements: { ownerUserId, bookingId } },
+      );
+      await expect(
+        sequelize.query(
+          `
+            UPDATE property_share_listings
+            SET property_type = 'COMMERCIAL', bathrooms = 2.5, maid_room = TRUE
+            WHERE booking_id = :bookingId
+          `,
+          { replacements: { bookingId } },
+        ),
+      ).rejects.toBeDefined();
+
+      await sequelize.query(
+        `
+          INSERT INTO property_saved_contacts
+            (owner_user_id, name, normalized_phone, created_at, updated_at)
+          VALUES
+            (:ownerUserId, 'Synthetic Owner', '+971500000000',
+             CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `,
+        { replacements: { ownerUserId } },
+      );
+      await expect(
+        sequelize.query(
+          `
+            INSERT INTO property_saved_contacts
+              (owner_user_id, name, normalized_phone, created_at, updated_at)
+            VALUES
+              (:ownerUserId, 'Duplicate', '+971500000000',
+               CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `,
+          { replacements: { ownerUserId } },
+        ),
+      ).rejects.toBeDefined();
+    });
 
     it("backfills only legacy media accepted by the runtime safety classifier", async () => {
       await snapshotMigration.down(queryInterface);

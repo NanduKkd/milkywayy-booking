@@ -10,12 +10,23 @@ export const PROPERTY_SHARE_FURNISHING = Object.freeze([
   "FURNISHED",
   "UNFURNISHED",
 ]);
+export const PROPERTY_SHARE_PROPERTY_TYPES = Object.freeze([
+  "APARTMENT",
+  "PENTHOUSE",
+  "VILLA",
+  "TOWNHOUSE",
+  "COMMERCIAL",
+]);
 export const PROPERTY_SHARE_LISTING_FIELDS = Object.freeze([
   "listingTitle",
   "priceAed",
   "listingType",
+  "propertyType",
   "bathrooms",
+  "maidRoom",
   "sizeSqft",
+  "builtUpAreaSqft",
+  "plotAreaSqft",
   "furnishing",
   "description",
   "highlights",
@@ -66,7 +77,7 @@ function cleanText(value, { field, min = 0, max, multiline = false }) {
   return normalized;
 }
 
-function normalizePhone(value) {
+export function normalizePropertyContactPhone(value) {
   const raw = String(value ?? "").trim();
   if (raw.length > 40) {
     throw new PropertyShareInputError("Enter a valid contact phone number.");
@@ -91,6 +102,28 @@ function normalizeOptionalInteger(value, { field, min, max }) {
     );
   }
   return parsed;
+}
+
+function normalizeOptionalHalf(value, { field, min, max }) {
+  if (value === "" || value === null || value === undefined) return null;
+  const normalized = String(value).replaceAll(",", "").trim();
+  if (!/^\d+(?:\.5)?$/u.test(normalized)) {
+    throw new PropertyShareInputError(
+      `${field} must be a whole or half number.`,
+    );
+  }
+  const parsed = Number(normalized);
+  if (
+    !Number.isFinite(parsed) ||
+    parsed < min ||
+    parsed > max ||
+    !Number.isInteger(parsed * 2)
+  ) {
+    throw new PropertyShareInputError(
+      `${field} must be between ${min} and ${max}.`,
+    );
+  }
+  return parsed.toFixed(1);
 }
 
 function normalizePrice(value) {
@@ -149,6 +182,12 @@ export function normalizePropertyShareListing(input) {
       "Unknown listing fields are not allowed.",
     );
   }
+  const propertyType = normalizeEnum(
+    input.propertyType ?? "APARTMENT",
+    PROPERTY_SHARE_PROPERTY_TYPES,
+    "property type",
+  );
+  const commercial = propertyType === "COMMERCIAL";
   return {
     listingTitle: cleanText(input.listingTitle, {
       field: "Listing title",
@@ -161,15 +200,29 @@ export function normalizePropertyShareListing(input) {
       PROPERTY_SHARE_LISTING_TYPES,
       "listing type",
     ),
-    bathrooms: normalizeOptionalInteger(input.bathrooms, {
-      field: "Bathrooms",
-      min: 0,
-      max: 20,
-    }),
+    propertyType,
+    bathrooms: commercial
+      ? null
+      : normalizeOptionalHalf(input.bathrooms, {
+          field: "Bathrooms",
+          min: 0,
+          max: 20,
+        }),
+    maidRoom: commercial ? false : Boolean(input.maidRoom),
     sizeSqft: normalizeOptionalInteger(input.sizeSqft, {
       field: "Size",
       min: 1,
       max: 1_000_000,
+    }),
+    builtUpAreaSqft: normalizeOptionalInteger(input.builtUpAreaSqft, {
+      field: "Built-up area",
+      min: 1,
+      max: 1_000_000,
+    }),
+    plotAreaSqft: normalizeOptionalInteger(input.plotAreaSqft, {
+      field: "Plot area",
+      min: 1,
+      max: 10_000_000,
     }),
     furnishing: normalizeEnum(
       input.furnishing,
@@ -188,14 +241,36 @@ export function normalizePropertyShareListing(input) {
       min: 2,
       max: 100,
     }),
-    contactPhone: normalizePhone(input.contactPhone),
+    contactPhone: normalizePropertyContactPhone(input.contactPhone),
   };
 }
 
 export function propertyShareContactLinks(phone) {
-  const normalized = normalizePhone(phone);
+  const normalized = normalizePropertyContactPhone(phone);
   return {
     telephone: `tel:${normalized}`,
     whatsapp: `https://wa.me/${normalized.replace(/^\+/u, "")}`,
+  };
+}
+
+export function normalizeSavedPropertyContact(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new PropertyShareInputError("Contact details are required.");
+  }
+  const unknown = Object.keys(input).filter(
+    (key) => !["name", "phone"].includes(key),
+  );
+  if (unknown.length > 0) {
+    throw new PropertyShareInputError(
+      "Unknown contact fields are not allowed.",
+    );
+  }
+  return {
+    name: cleanText(input.name, {
+      field: "Contact name",
+      min: 2,
+      max: 100,
+    }),
+    normalizedPhone: normalizePropertyContactPhone(input.phone),
   };
 }

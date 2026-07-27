@@ -293,6 +293,22 @@ models.PropertyShareListing.belongsTo(models.Booking, {
   foreignKey: "bookingId",
   as: "booking",
 });
+models.PropertyMediaPreference.belongsTo(models.User, {
+  foreignKey: "ownerUserId",
+  as: "owner",
+});
+models.PropertyMediaPreference.belongsTo(models.Booking, {
+  foreignKey: "bookingId",
+  as: "booking",
+});
+models.PropertyMediaPreference.belongsTo(models.BookingDeliveryFile, {
+  foreignKey: "deliveryFileId",
+  as: "deliveryFile",
+});
+models.PropertySavedContact.belongsTo(models.User, {
+  foreignKey: "ownerUserId",
+  as: "owner",
+});
 
 // User has many transactions, wallet transactions, and bookings
 models.User.hasMany(models.Transaction, {
@@ -388,6 +404,14 @@ models.User.hasMany(models.PropertyShareListing, {
   foreignKey: "ownerUserId",
   as: "propertyShareListings",
 });
+models.User.hasMany(models.PropertyMediaPreference, {
+  foreignKey: "ownerUserId",
+  as: "propertyMediaPreferences",
+});
+models.User.hasMany(models.PropertySavedContact, {
+  foreignKey: "ownerUserId",
+  as: "propertySavedContacts",
+});
 
 models.Booking.hasMany(models.PropertyShareProperty, {
   foreignKey: "bookingId",
@@ -400,6 +424,14 @@ models.Booking.hasOne(models.PropertyShareListing, {
 models.Booking.hasMany(models.PropertyShareLink, {
   foreignKey: "singleBookingId",
   as: "singlePropertyShareLinks",
+});
+models.Booking.hasMany(models.PropertyMediaPreference, {
+  foreignKey: "bookingId",
+  as: "propertyMediaPreferences",
+});
+models.BookingDeliveryFile.hasOne(models.PropertyMediaPreference, {
+  foreignKey: "deliveryFileId",
+  as: "propertyMediaPreference",
 });
 models.OAuthClient.hasMany(models.OAuthAuthorizationCode, {
   foreignKey: "clientId",

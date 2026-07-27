@@ -2,6 +2,8 @@
 
 import "../../relations";
 import Booking from "../booking";
+import PropertyMediaPreference from "../propertymediapreference";
+import PropertySavedContact from "../propertysavedcontact";
 import PropertyShareLink from "../propertysharelink";
 import PropertyShareListing from "../propertysharelisting";
 import PropertyShareMedia from "../propertysharemedia";
@@ -29,6 +31,35 @@ describe("property sharing models", () => {
     expect(PropertyShareListing.rawAttributes.contactPhone.field).toBe(
       "contact_phone",
     );
+    expect(PropertyShareListing.rawAttributes.propertyType.field).toBe(
+      "property_type",
+    );
+    expect(
+      PropertyShareListing.rawAttributes.bathrooms.type.options.precision,
+    ).toBe(3);
+    expect(
+      PropertyShareListing.rawAttributes.bathrooms.type.options.scale,
+    ).toBe(1);
+    expect(PropertyShareListing.rawAttributes.maidRoom.field).toBe("maid_room");
+    expect(PropertyShareListing.rawAttributes.builtUpAreaSqft.field).toBe(
+      "built_up_area_sqft",
+    );
+    expect(PropertyShareListing.rawAttributes.plotAreaSqft.field).toBe(
+      "plot_area_sqft",
+    );
+    expect(PropertyMediaPreference.tableName).toBe(
+      "property_media_preferences",
+    );
+    expect(PropertyMediaPreference.rawAttributes.deliveryFileId.field).toBe(
+      "delivery_file_id",
+    );
+    expect(PropertyMediaPreference.rawAttributes.isCover.field).toBe(
+      "is_cover",
+    );
+    expect(PropertySavedContact.tableName).toBe("property_saved_contacts");
+    expect(PropertySavedContact.rawAttributes.normalizedPhone.field).toBe(
+      "normalized_phone",
+    );
     expect(PropertyShareListing.rawAttributes.agentUserId).toBeUndefined();
     expect(PropertyShareListing.rawAttributes.visitorName).toBeUndefined();
   });
@@ -53,5 +84,18 @@ describe("property sharing models", () => {
     expect(Booking.associations.propertyShareListing.target).toBe(
       PropertyShareListing,
     );
+    expect(User.associations.propertyMediaPreferences.target).toBe(
+      PropertyMediaPreference,
+    );
+    expect(User.associations.propertySavedContacts.target).toBe(
+      PropertySavedContact,
+    );
+    expect(Booking.associations.propertyMediaPreferences.target).toBe(
+      PropertyMediaPreference,
+    );
+    expect(
+      PropertyMediaPreference.associations.deliveryFile.target,
+    ).toBeDefined();
+    expect(PropertySavedContact.associations.owner.target).toBe(User);
   });
 });

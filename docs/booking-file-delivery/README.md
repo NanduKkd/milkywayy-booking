@@ -48,24 +48,37 @@ every new upload.
 
 ## Customer review groups
 
-The customer Files dashboard now groups current delivery files by booking and
-their exact persisted type. Each group—including the legacy `Videography`
-group—is one review decision with one status, Dubai deadline, revision number,
-and revision request. Every customer-visible member row renders directly for
-one-file services. Multi-file services omit their individual member rows and
-show only the category summary, replacement state, revision action, and group
-ZIP action. A one-file member row is separated from its category summary by a
-divider, presents the filename as normal body text without a repeated category
-subtitle, and retains its individual action. Opening an owned `fileId` deep
-link for a one-file service highlights its member; a link into a multi-file
-service highlights and scrolls to the category without revealing an individual
-row.
+Bookings and Properties open the same authenticated delivery/review modal,
+backed by the exact persisted-type service projection. Each group—including
+legacy `Videography`—is one review decision with one status, Dubai deadline,
+revision number, and revision request. One-file services retain their
+individual download or copy-link action. Multi-file services expose only the
+group ZIP action and never individual member actions. The generic
+`/dashboard/files` route ignores `fileId` query targeting and provides no
+existence, scrolling, highlighting, or modal-state signal for it.
 
-The customer Bookings dashboard states which sorted, deduplicated exact
-persisted categories have files ready for review. Legacy `Videography` remains
-a distinct category; private, deleted, and changes-requested members do not
-appear as ready categories, while existing replacement and team-progress
-messages remain separate.
+The customer Bookings dashboard projects the five reference workflow steps:
+**Shoot Booked**, **Shoot Done**, **Editing**, **Files Uploaded**, and
+**Project Completed**. Completed steps use filled checks, the current step uses
+an outlined number, and pending steps remain dim. The tracker is horizontal at
+`900×560` and above; it switches to the reference vertical presentation when
+either the viewport is narrower than 900px or shorter than 560px.
+
+Reference-facing ready, partial, and replacement labels come from existing
+booking/service state; they add no persisted workflow state. A partially
+delivered project remains visually on **Editing** while more booked services
+are pending, even though publishing a safe file may already have advanced the
+server workflow to `FILES_UPLOADED`. Completed projects fill all five steps.
+Cancellation overrides stale workflow state. Legacy `Videography` remains
+distinct, while private, deleted, and changes-requested members do not appear
+as ready categories.
+
+Delivery-state cards expose **Download Files** directly into the reusable
+authenticated delivery/review modal. Eligible unshared projects open the real
+**Create Share Link** listing modal directly from Bookings; published projects
+expose **Edit Share Link** without a separate active-link label. Scheduled
+Reschedule/Cancel controls do not leak into partial, uploaded, or completed
+delivery states.
 
 A customer revision request identifies only the booking and service type. The
 server authorizes that owner-scoped group, locks the booking and its current

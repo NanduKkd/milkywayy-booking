@@ -134,6 +134,11 @@ function CollectionCard({ token, property }) {
           {property.location ? ` · ${property.location}` : ""}
         </div>
         <div className={`sp-chips ${styles.chips} ${styles.collectionChips}`}>
+          {property.propertyTypeLabel
+            ? <span className={`chip ${styles.chip}`}>
+                {property.propertyTypeLabel}
+              </span>
+            : null}
           {property.bedrooms !== null
             ? <span className={`chip ${styles.chip}`}>
                 {property.bedrooms} Bed
@@ -148,6 +153,9 @@ function CollectionCard({ token, property }) {
             ? <span className={`chip ${styles.chip}`}>
                 {property.sizeSqft.toLocaleString("en-AE")} sqft
               </span>
+            : null}
+          {property.maidRoom
+            ? <span className={`chip ${styles.chip}`}>Maid&apos;s room</span>
             : null}
         </div>
       </div>
@@ -181,7 +189,7 @@ export default async function SharedPropertyPage({ params, searchParams }) {
                 {landing.properties.length} homes picked for you
               </h1>
               <p className={`col-sub-m ${styles.collectionSubtitle}`}>
-                Curated by {landing.properties[0].contact.name}
+                Explore the selected properties in this collection.
               </p>
             </div>
             <div className={`col-grid-d ${styles.collectionGrid}`}>

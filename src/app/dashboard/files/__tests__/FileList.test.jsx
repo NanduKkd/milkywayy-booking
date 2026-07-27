@@ -1,32 +1,22 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import {
-  completeDeliveredBooking,
-  requestDeliveryServiceRevision,
-} from "@/lib/actions/bookings";
+import { completeDeliveredBooking } from "@/lib/actions/bookings";
 import FileList from "../FileList";
 
 const mockRefresh = jest.fn();
-const mockCreatePropertyShareDialog = jest.fn();
 
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({
-    refresh: mockRefresh,
-  }),
+  useRouter: () => ({ refresh: mockRefresh }),
 }));
-
 jest.mock("@/lib/actions/bookings", () => ({
   completeDeliveredBooking: jest.fn(),
   requestDeliveryServiceRevision: jest.fn(),
 }));
 jest.mock("../CreatePropertyShareDialog", () => ({
   __esModule: true,
-  default: (props) => {
-    mockCreatePropertyShareDialog(props);
-    return <div data-testid="create-property-share-dialog" />;
-  },
+  default: () => <div data-testid="create-property-share-dialog" />,
 }));
 
-const makeFile = (overrides = {}) => ({
+const file = (overrides = {}) => ({
   id: 10,
   type: "Photography",
   label: "Photography",
@@ -42,149 +32,63 @@ const makeFile = (overrides = {}) => ({
   ...overrides,
 });
 
-const makeBooking = (overrides = {}) => ({
+const booking = (overrides = {}) => ({
   id: 1,
   propertyDetails: { unit: "101", building: "Tower A", community: "Marina" },
   deliveryFinishedAt: null,
   completedAt: null,
-  deliveryFiles: [makeFile()],
+  deliveryFiles: [file()],
   ...overrides,
 });
 
-describe("customer FileList", () => {
+describe("customer Properties delivery list", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    requestDeliveryServiceRevision.mockResolvedValue({ success: true });
     completeDeliveredBooking.mockResolvedValue({ success: true });
-    Element.prototype.scrollIntoView = jest.fn();
-    Object.assign(navigator, {
-      clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
-    });
   });
 
-  it("hides multi-file service members while retaining category actions", () => {
+  it("opens the same reusable delivery modal used by Bookings", () => {
+    render(<FileList bookings={[booking()]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /download files/i }));
+
+    expect(
+      screen.getByRole("dialog", { name: /download files/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Photography: ready for review"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps multi-file services ZIP-only inside the shared modal", () => {
     render(
       <FileList
         bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile(),
-              makeFile({
-                id: 11,
-                revisionCount: 1,
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "kitchen.webp",
-                  url: "https://bucket.example/kitchen.webp",
-                },
-              }),
-            ],
+          booking({
+            deliveryFiles: [file(), file({ id: 11 })],
           }),
         ]}
       />,
     );
+    fireEvent.click(screen.getByRole("button", { name: /download files/i }));
 
+    expect(
+      screen.getByRole("link", { name: /download zip/i }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
-    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
-    expect(screen.queryByText("Revision 0/2")).not.toBeInTheDocument();
-    expect(screen.getByText("Revision 1/2")).toBeInTheDocument();
-    expect(screen.getAllByText(/review by/i)).toHaveLength(1);
-    expect(
-      screen.getByRole("button", { name: "Request Revision" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Download ZIP" }),
-    ).toBeInTheDocument();
-
-    expect(
-      screen.queryByText("Show Photography files"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /all files for photography/i }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByTestId("delivered-project-header-1")).not.toHaveClass(
-      "border-b",
-      "pb-4",
-    );
-    expect(screen.getByTestId("delivery-service-list-1")).toHaveClass("mt-3");
   });
 
-  it("hides multi-file members while rendering one-file groups directly", () => {
+  it("retains legacy exact-type labels as separate service projections", () => {
     render(
       <FileList
         bookings={[
-          makeBooking({
+          booking({
             deliveryFiles: [
-              makeFile(),
-              makeFile({
-                id: 11,
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "kitchen.webp",
-                  url: "https://bucket.example/kitchen.webp",
-                },
-              }),
-              makeFile({
-                id: 12,
-                type: "Long Form Video",
-                label: "Long Form Video",
-                currentVersion: {
-                  id: 102,
-                  originalFilename: "walkthrough.mp4",
-                  url: "https://bucket.example/walkthrough.mp4",
-                },
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-
-    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
-    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
-    expect(screen.getByText("walkthrough.mp4")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", {
-        name: /all files/i,
-      }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("renders canonical video labels distinctly and keeps legacy Videography readable", () => {
-    render(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile({
-                id: 10,
-                type: "Short Form Video",
-                label: "Short Form Video",
-                currentVersion: {
-                  id: 100,
-                  originalFilename: "short.mp4",
-                  url: "https://bucket.example/short.mp4",
-                },
-              }),
-              makeFile({
+              file({ type: "Videography", label: "Videography" }),
+              file({
                 id: 11,
                 type: "Long Form Video",
                 label: "Long Form Video",
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "long.mp4",
-                  url: "https://bucket.example/long.mp4",
-                },
-              }),
-              makeFile({
-                id: 12,
-                type: "Videography",
-                label: "Videography",
-                currentVersion: {
-                  id: 102,
-                  originalFilename: "legacy.mp4",
-                  url: "https://bucket.example/legacy.mp4",
-                },
               }),
             ],
           }),
@@ -193,462 +97,40 @@ describe("customer FileList", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Short Form Video" }),
+      screen.getByText(/Videography: ready for review/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Long Form Video" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "Videography" }),
+      screen.getByText(/Long Form Video: ready for review/i),
     ).toBeInTheDocument();
   });
 
-  it("uses a real download link for browser-native mobile downloads", () => {
-    render(<FileList bookings={[makeBooking()]} />);
-
-    const link = screen.getByRole("link", { name: /download/i });
-    expect(link).toHaveAttribute(
-      "href",
-      "/api/files/download?fileId=10&name=living-room.webp",
-    );
-    expect(link).toHaveAttribute("download", "living-room.webp");
-    expect(link).toHaveAttribute("target", "_blank");
-  });
-
-  it("shows accepted one-file groups directly without a disclosure control", () => {
-    const { container } = render(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile({
-                status: "ACCEPTED",
-                reviewDeadlineAt: null,
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-
-    expect(screen.getByText("Accepted")).toBeInTheDocument();
-    expect(screen.getByText("living-room.webp")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /all files for photography/i }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Download" })).toHaveAttribute(
-      "href",
-      "/api/files/download?fileId=10&name=living-room.webp",
-    );
-    const fileList = container.querySelector(
-      '[data-testid="delivery-service-group-1-Photography"] > div:last-child',
-    );
-    expect(fileList).toHaveClass("border-t", "border-white/10");
-    expect(screen.getByText("living-room.webp")).toHaveClass(
-      "text-sm",
-      "font-normal",
-    );
-    expect(screen.queryByText("Photography", { selector: "span" })).toBeNull();
-  });
-
-  it("offers one ZIP action only for multi-file service groups", () => {
-    const { rerender } = render(<FileList bookings={[makeBooking()]} />);
-    expect(screen.queryByRole("link", { name: "Download ZIP" })).toBeNull();
-
-    rerender(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile(),
-              makeFile({
-                id: 11,
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "kitchen.webp",
-                  url: "https://bucket.example/kitchen.webp",
-                },
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-    expect(screen.getByRole("link", { name: "Download ZIP" })).toHaveAttribute(
-      "href",
-      "/api/files/download-zip?bookingId=1&type=Photography",
-    );
-    expect(screen.getByRole("link", { name: "Download ZIP" })).toHaveAttribute(
-      "rel",
-      "noopener noreferrer",
-    );
-    expect(screen.queryByRole("link", { name: /^download$/i })).toBeNull();
-  });
-
-  it("does not offer a partial ZIP while any service member awaits replacement", () => {
+  it("retains completion and share creation actions", async () => {
     render(
       <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile(),
-              makeFile({
-                id: 11,
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "kitchen.webp",
-                  url: "https://bucket.example/kitchen.webp",
-                },
-              }),
-              makeFile({
-                id: 12,
-                status: "CHANGES_REQUESTED",
-                currentVersion: {
-                  id: 102,
-                  originalFilename: "old-balcony.webp",
-                  url: "https://bucket.example/old-balcony.webp",
-                },
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-
-    expect(screen.queryByText("living-room.webp")).not.toBeInTheDocument();
-    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
-    expect(screen.queryByText("old-balcony.webp")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Download ZIP" })).toBeNull();
-  });
-
-  it("omits individual direct and copy-link actions in a mixed ZIP group", () => {
-    render(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile(),
-              makeFile({
-                id: 11,
-                deliveryMode: "copy_link",
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "tour-link",
-                  url: "https://example.test/tour",
-                },
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-
-    expect(
-      screen.getByRole("link", { name: "Download ZIP" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: /^download$/i })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Copy Link" })).toBeNull();
-    expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
-  });
-
-  it("keeps the copy-link action for a one-file service group", async () => {
-    render(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile({
-                deliveryMode: "copy_link",
-                currentVersion: {
-                  id: 100,
-                  originalFilename: "tour-link",
-                  url: "https://example.test/tour",
-                },
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Copy Link" }));
-    await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
-        "https://example.test/tour",
-      );
-    });
-  });
-
-  it("submits one revision against the selected service group", async () => {
-    render(<FileList bookings={[makeBooking()]} />);
-
-    fireEvent.click(screen.getByRole("button", { name: /request revision/i }));
-    const submit = screen.getByRole("button", { name: /submit revision/i });
-    expect(submit).toBeDisabled();
-    fireEvent.change(screen.getByLabelText(/revision details/i), {
-      target: { value: "Brighten the kitchen" },
-    });
-    fireEvent.click(submit);
-
-    await waitFor(() => {
-      expect(requestDeliveryServiceRevision).toHaveBeenCalledWith(
-        1,
-        "Photography",
-        "Brighten the kitchen",
-      );
-    });
-  });
-
-  it("does not show the old file while a replacement is pending", () => {
-    render(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile({
-                currentVersion: {
-                  id: 100,
-                  originalFilename: "old-living-room.webp",
-                  url: "https://bucket.example/old-living-room.webp",
-                },
-                status: "CHANGES_REQUESTED",
-                revisionCount: 1,
-                reviewDeadlineAt: null,
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-
-    expect(screen.queryByText("old-living-room.webp")).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/replacement pending for this service/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /photography files/i }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("hides the remaining member when another file in its category awaits replacement", () => {
-    render(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile({
-                status: "CHANGES_REQUESTED",
-                currentVersion: {
-                  id: 100,
-                  originalFilename: "old-living-room.webp",
-                  url: "https://bucket.example/old-living-room.webp",
-                },
-              }),
-              makeFile({
-                id: 11,
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "kitchen.webp",
-                  url: "https://bucket.example/kitchen.webp",
-                },
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-
-    expect(screen.queryByText("old-living-room.webp")).not.toBeInTheDocument();
-    expect(screen.queryByText("kitchen.webp")).not.toBeInTheDocument();
-    expect(screen.getByText(/1 awaiting replacement/i)).toBeInTheDocument();
-  });
-
-  it("enables booking completion only after admin finalization", async () => {
-    const { rerender } = render(<FileList bookings={[makeBooking()]} />);
-    expect(
-      screen.getByRole("button", { name: /delivery in progress/i }),
-    ).toBeDisabled();
-
-    rerender(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFinishedAt: "2099-12-28T20:00:00.000Z",
-          }),
-        ]}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: /mark complete/i }));
-
-    await waitFor(() => {
-      expect(completeDeliveredBooking).toHaveBeenCalledWith(1);
-    });
-  });
-
-  it("places Create Share Link on an eligible unshared completed file card", () => {
-    const property = {
-      id: 1,
-      bookingTitle: "101, Tower A, Marina",
-    };
-    render(
-      <FileList
-        bookings={[
-          makeBooking({
-            completedAt: "2026-07-23T10:00:00.000Z",
-          }),
-        ]}
-        propertySharing={{
-          eligibleProperties: [property],
-          shares: [],
-        }}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Create Share Link" }));
-
-    expect(mockCreatePropertyShareDialog).toHaveBeenCalledWith(
-      expect.objectContaining({ property }),
-    );
-  });
-
-  it("places Create Share Link on an eligible booking while media is under review", () => {
-    const property = {
-      id: 1,
-      bookingTitle: "101, Tower A, Marina",
-    };
-    render(
-      <FileList
-        bookings={[makeBooking()]}
-        propertySharing={{
-          eligibleProperties: [property],
-          shares: [],
-        }}
-      />,
-    );
-
-    expect(
-      screen.getByRole("button", { name: "Create Share Link" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Delivery In Progress" }),
-    ).toBeDisabled();
-  });
-
-  it("leaves existing share management to Shared Properties cards", () => {
-    render(
-      <FileList
-        bookings={[
-          makeBooking({
-            completedAt: "2026-07-23T10:00:00.000Z",
-          }),
-        ]}
+        bookings={[booking({ deliveryFinishedAt: "2026-07-27T10:00:00Z" })]}
         propertySharing={{
           eligibleProperties: [{ id: 1 }],
-          shares: [
-            {
-              id: 9,
-              kind: "SINGLE_PROPERTY",
-              properties: [{ bookingId: 1 }],
-            },
-          ],
+          shares: [],
         }}
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /create share link/i }));
     expect(
-      screen.queryByRole("button", { name: "Create Share Link" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Manage Share Link" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("scrolls to and visually identifies a requested multi-file category", async () => {
-    render(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile(),
-              makeFile({
-                id: 11,
-                currentVersion: {
-                  id: 101,
-                  originalFilename: "kitchen.webp",
-                  url: "https://bucket.example/kitchen.webp",
-                },
-              }),
-            ],
-          }),
-        ]}
-        highlightedFileId={11}
-        requestedFileAvailable
-        requestedFileIdWasProvided
-      />,
-    );
-
-    await waitFor(() => {
-      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
-    });
-
-    expect(
-      screen.queryByRole("button", { name: /all files for photography/i }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Selected file")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Opened from a shared dashboard link."),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByTestId("delivery-file-card-11")).toBeNull();
-    expect(
-      screen.getByTestId("delivery-service-group-1-Photography"),
-    ).toHaveAttribute("data-highlighted", "true");
-  });
-
-  it("shows a generic notice for missing or inaccessible deep-linked files", () => {
-    render(
-      <FileList
-        bookings={[makeBooking()]}
-        highlightedFileId={null}
-        requestedFileAvailable={false}
-        requestedFileIdWasProvided
-      />,
-    );
-
-    expect(
-      screen.getByText(
-        "The selected file is unavailable in this dashboard. Browse your available files below.",
-      ),
+      screen.getByTestId("create-property-share-dialog"),
     ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /mark complete/i }));
+    await waitFor(() =>
+      expect(completeDeliveredBooking).toHaveBeenCalledWith(1),
+    );
+    expect(mockRefresh).toHaveBeenCalled();
   });
 
-  it("renders file metadata as plain text even when it contains markup-like content", () => {
-    const { container } = render(
-      <FileList
-        bookings={[
-          makeBooking({
-            deliveryFiles: [
-              makeFile({
-                label: 'Review <script>alert("x")</script>\nFinal',
-                currentVersion: {
-                  id: 100,
-                  originalFilename:
-                    'living-room-<img src=x onerror=alert("x")>.webp',
-                  url: "https://bucket.example/living-room.webp",
-                },
-              }),
-            ],
-          }),
-        ]}
-      />,
-    );
-    expect(
-      screen.getByText('living-room-<img src=x onerror=alert("x")>.webp'),
-    ).toBeInTheDocument();
-    const categoryLabels = screen.getAllByText(
-      /Review <script>alert\("x"\)<\/script>/,
-    );
-    expect(categoryLabels).toHaveLength(1);
-    expect(categoryLabels[0].tagName).toBe("H3");
-    expect(container.querySelector("script")).toBeNull();
+  it("does not expose targeted fileId existence or highlight state", () => {
+    const { container } = render(<FileList bookings={[booking()]} />);
+    expect(container.querySelector("[data-highlighted]")).toBeNull();
+    expect(screen.queryByText(/selected file/i)).toBeNull();
+    expect(screen.queryByText(/unavailable in this dashboard/i)).toBeNull();
   });
 });

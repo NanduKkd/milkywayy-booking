@@ -1,24 +1,42 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import PropertySharingManager from "../PropertySharingManager";
+import PropertySharingManager, { ListingForm } from "../PropertySharingManager";
 
 const mockCreateMaster = jest.fn();
+const mockCreateSingle = jest.fn();
+const mockDeleteContact = jest.fn();
 const mockGetDashboard = jest.fn();
-const mockRefreshMedia = jest.fn();
+const mockSaveContact = jest.fn();
 const mockSaveListing = jest.fn();
+const mockSaveMedia = jest.fn();
 const mockSetEnabled = jest.fn();
 const mockUpdateMaster = jest.fn();
+const mockToastError = jest.fn();
 
 jest.mock("@/lib/actions/propertySharing", () => ({
   createMasterPropertyShareAction: (...args) => mockCreateMaster(...args),
+  createSinglePropertyShareAction: (...args) => mockCreateSingle(...args),
+  deletePropertyContactAction: (...args) => mockDeleteContact(...args),
   getPropertySharingDashboardAction: (...args) => mockGetDashboard(...args),
-  refreshPropertyShareMediaAction: (...args) => mockRefreshMedia(...args),
+  savePropertyContactAction: (...args) => mockSaveContact(...args),
+  savePropertyMediaPreferencesAction: (...args) => mockSaveMedia(...args),
   savePropertyShareListingAction: (...args) => mockSaveListing(...args),
   setPropertyShareEnabledAction: (...args) => mockSetEnabled(...args),
   updateMasterPropertyShareAction: (...args) => mockUpdateMaster(...args),
 }));
 jest.mock("sonner", () => ({
-  toast: { success: jest.fn(), error: jest.fn() },
+  toast: {
+    success: jest.fn(),
+    error: (...args) => mockToastError(...args),
+    info: jest.fn(),
+  },
 }));
+jest.mock(
+  "@/components/customer-delivery/ServiceDeliveryModal",
+  () =>
+    function MockServiceDeliveryModal({ booking, open }) {
+      return open ? <div>Download files for booking {booking.id}</div> : null;
+    },
+);
 
 const listing = {
   listingTitle: "Corner home with full marina view",
@@ -46,6 +64,7 @@ function eligibleProperty(id, overrides = {}) {
     imageCount: 2,
     hasVideo: true,
     hasTour: false,
+    coverUrl: `/api/files/download?fileId=${id}`,
     listing: null,
     ...overrides,
   };
@@ -98,21 +117,27 @@ describe("PropertySharingManager", () => {
         publicUrl: "https://example.test/share/redacted-master-token",
       },
     });
+    mockCreateSingle.mockResolvedValue({
+      success: true,
+      data: { publicUrl: "https://example.test/share/redacted-single-token" },
+    });
     mockSetEnabled.mockResolvedValue({ success: true, data: {} });
-    mockRefreshMedia.mockResolvedValue({ success: true, data: {} });
+    mockSaveContact.mockResolvedValue({ success: true, data: {} });
+    mockSaveMedia.mockResolvedValue({ success: true, data: {} });
+    mockDeleteContact.mockResolvedValue({ success: true, data: {} });
     mockUpdateMaster.mockResolvedValue({ success: true, data: {} });
     Object.assign(navigator, {
       clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
     });
   });
 
-  it("keeps Shared Properties and Master Links management above the file list without a Ready section", () => {
+  it("shows ready properties before the full-width shared-property cards", () => {
     render(<PropertySharingManager initialData={data()} />);
 
-    expect(screen.queryByText("READY TO SHARE")).not.toBeInTheDocument();
+    expect(screen.getByText("READY TO SHARE")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Create Share Link" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Create Share Link" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("SHARED PROPERTIES")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Master Links (0)" }),
@@ -121,36 +146,247 @@ describe("PropertySharingManager", () => {
       screen.getByRole("button", { name: "Select Multiple" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/link views/u)).toHaveLength(2);
+    expect(screen.getAllByText(/2 photos · 1 video/u)).toHaveLength(2);
+    expect(screen.getByAltText("Sample Villa cover")).toHaveAttribute(
+      "src",
+      "/api/files/download?fileId=22",
+    );
     expect(screen.getAllByLabelText(/Preview Corner home/u)).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /View Page/u })).toHaveLength(
+      2,
+    );
     expect(
       screen.queryByRole("button", { name: /rotate|revoke/u }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: "Refresh Media" }),
-    ).toHaveLength(2);
+      screen.queryByRole("button", { name: "Refresh Media" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/Recent contacts/u)).not.toBeInTheDocument();
     expect(screen.queryByText(/agent/u)).not.toBeInTheDocument();
   });
 
-  it("explicitly refreshes exact media snapshots from a shared property card", async () => {
-    let resolveRefresh;
-    mockRefreshMedia.mockReturnValueOnce(
-      new Promise((resolve) => {
-        resolveRefresh = resolve;
-      }),
-    );
+  it("has no manual media refresh dependency on property cards", () => {
     render(<PropertySharingManager initialData={data()} />);
 
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Refresh Media" })[0],
+    expect(
+      screen.queryByRole("button", { name: /refresh media/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
+  });
+
+  it("matches the reference create form amenities and enforces six selections", () => {
+    const property = eligibleProperty(22, { media: [] });
+    render(
+      <ListingForm
+        property={property}
+        mode="create"
+        busy={false}
+        onClose={jest.fn()}
+        onSubmit={jest.fn()}
+        onSaveDraft={jest.fn()}
+        onPreview={jest.fn()}
+      />,
     );
 
+    expect(screen.getByText("Create Share Link")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Refreshing..." }),
-    ).toBeDisabled();
-    resolveRefresh({ success: true, data: {} });
-    await waitFor(() => expect(mockRefreshMedia).toHaveBeenCalledWith(4));
-    await waitFor(() => expect(mockGetDashboard).toHaveBeenCalled());
+      screen.getByText("AMENITIES & HIGHLIGHTS · 0/6"),
+    ).toBeInTheDocument();
+    for (const amenity of [
+      "Sea view",
+      "Golf view",
+      "Balcony",
+      "Private pool",
+      "Shared pool",
+      "Covered parking",
+      "Chiller free",
+    ]) {
+      expect(screen.getByRole("button", { name: amenity })).toBeInTheDocument();
+    }
+
+    for (const amenity of [
+      "Sea view",
+      "Golf view",
+      "Balcony",
+      "Private pool",
+      "Shared pool",
+      "Covered parking",
+    ]) {
+      fireEvent.click(screen.getByRole("button", { name: amenity }));
+    }
+    expect(
+      screen.getByText("AMENITIES & HIGHLIGHTS · 6/6"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Chiller free" }));
+    expect(mockToastError).toHaveBeenCalledWith(
+      "Maximum 6 highlights per property",
+    );
+    expect(
+      screen.getByRole("button", { name: "Chiller free" }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("renders photo ordering and submits reordered visibility preferences", () => {
+    const onSubmit = jest.fn();
+    const property = eligibleProperty(22, {
+      listing,
+      media: [
+        {
+          deliveryFileId: 101,
+          kind: "IMAGE",
+          label: "Lobby",
+          visible: true,
+          isCover: true,
+        },
+        {
+          deliveryFileId: 102,
+          kind: "IMAGE",
+          label: "Balcony",
+          visible: true,
+          isCover: false,
+        },
+        {
+          deliveryFileId: 103,
+          kind: "VIDEO",
+          label: "Walkthrough",
+          visible: true,
+          isCover: false,
+        },
+      ],
+    });
+    render(
+      <ListingForm
+        property={property}
+        mode="edit"
+        busy={false}
+        onClose={jest.fn()}
+        onSubmit={onSubmit}
+        onSaveDraft={jest.fn()}
+        onPreview={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Edit Share Link")).toBeInTheDocument();
+    expect(screen.getByText("PHOTO ORDER · 2 PHOTOS")).toBeInTheDocument();
+    expect(screen.getByText("Video walkthrough")).toBeInTheDocument();
+    expect(screen.getByText("COVER")).toBeInTheDocument();
+
+    const lobby = screen.getByAltText("Lobby").closest("li");
+    const balcony = screen.getByAltText("Balcony").closest("li");
+    fireEvent.dragStart(balcony);
+    fireEvent.dragOver(lobby);
+    fireEvent.drop(lobby);
+    fireEvent.click(screen.getByRole("button", { name: "Hide Lobby" }));
+    fireEvent.click(screen.getByRole("button", { name: "Update & Copy Link" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media: [
+          expect.objectContaining({
+            deliveryFileId: 102,
+            visible: true,
+            isCover: true,
+          }),
+          expect.objectContaining({
+            deliveryFileId: 101,
+            visible: false,
+            isCover: false,
+          }),
+          expect.objectContaining({ deliveryFileId: 103 }),
+        ],
+      }),
+    );
+  });
+
+  it("shows saved contacts below the save action and highlights the selected contact", () => {
+    const property = eligibleProperty(22, { media: [] });
+    render(
+      <ListingForm
+        property={property}
+        savedContacts={[
+          { id: 1, name: "Arunima TK", phone: "+971500000001" },
+          { id: 2, name: "Nanda Krishnan", phone: "+971500000002" },
+        ]}
+        mode="create"
+        busy={false}
+        onClose={jest.fn()}
+        onSubmit={jest.fn()}
+        onSaveDraft={jest.fn()}
+        onPreview={jest.fn()}
+      />,
+    );
+
+    const saveContact = screen.getByRole("button", {
+      name: "+ Save this contact",
+    });
+    const savedContactsLabel = screen.getByText("SAVED CONTACTS");
+    expect(
+      saveContact.compareDocumentPosition(savedContactsLabel) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    const nanda = screen.getByRole("button", { name: "Nanda Krishnan" });
+    expect(nanda).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(nanda);
+
+    expect(
+      screen.getByRole("button", { name: "✓ Nanda Krishnan" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("NAME *")).toHaveValue("Nanda Krishnan");
+    expect(screen.getByLabelText("PHONE *")).toHaveValue("+971500000002");
+
+    fireEvent.change(screen.getByLabelText("PHONE *"), {
+      target: { value: "+971500000003" },
+    });
+    expect(
+      screen.getByRole("button", { name: "Nanda Krishnan" }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("uses the reference maid-room checkbox treatment without bathroom helper copy", () => {
+    render(
+      <ListingForm
+        property={eligibleProperty(22, { media: [] })}
+        mode="create"
+        busy={false}
+        onClose={jest.fn()}
+        onSubmit={jest.fn()}
+        onSaveDraft={jest.fn()}
+        onPreview={jest.fn()}
+      />,
+    );
+
+    const maidRoom = screen.getByRole("button", { name: "Maid's room" });
+    expect(maidRoom).toHaveAttribute("aria-pressed", "false");
+    expect(maidRoom.querySelector('[aria-hidden="true"]')).toHaveTextContent(
+      "",
+    );
+    expect(screen.queryByText("Half bathrooms are supported.")).toBeNull();
+
+    fireEvent.click(maidRoom);
+
+    expect(maidRoom).toHaveAttribute("aria-pressed", "true");
+    expect(maidRoom.querySelector('[aria-hidden="true"]')).toHaveTextContent(
+      "✓",
+    );
+  });
+
+  it("opens the authenticated download and review modal from a ready property", () => {
+    const booking = {
+      id: 22,
+      propertyDetails: { community: "Palm District" },
+      deliveryFiles: [],
+      serviceGroups: [],
+    };
+    render(
+      <PropertySharingManager initialData={data()} bookings={[booking]} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "↓ Download Files" }));
+
+    expect(
+      screen.getByText("Download files for booking 22"),
+    ).toBeInTheDocument();
   });
 
   it("reconciles refreshed server data after a share is created from the file list", async () => {
@@ -228,8 +464,8 @@ describe("PropertySharingManager", () => {
       ),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Refresh Media" }));
-    await waitFor(() => expect(mockRefreshMedia).toHaveBeenCalledWith(9));
-    expect(mockGetDashboard).toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: /refresh media/i }),
+    ).not.toBeInTheDocument();
   });
 });

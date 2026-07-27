@@ -89,7 +89,11 @@ Last updated: 2026-07-01
   - `GET /api/gpt/v1/bookings/{bookingCode}`
   - `GET /api/gpt/v1/invoices`
   - `GET /api/gpt/v1/files`
-- Decision: The files endpoint returns metadata and an authenticated website URL of the form `/dashboard/files?fileId={fileId}`. It does not return binary content, S3 keys, direct storage URLs, or unrestricted signed URLs. The dashboard uses `fileId` to scroll to and visually identify the selected file.
+- Decision: The files endpoint returns metadata and the generic authenticated
+  website URL `/dashboard/files`. Numeric `fileId` remains API resource/filter
+  metadata but has no dashboard targeting behavior. The endpoint does not
+  return binary content, S3 keys, direct storage URLs, or unrestricted signed
+  URLs.
 - Reason: Customers want ChatGPT to identify delivered files and direct them to the existing authenticated file workflow without transferring files through GPT Actions.
 - Consequence: Delivery-file metadata and dashboard deep-link behavior are part of the first-release implementation and test scope.
 
