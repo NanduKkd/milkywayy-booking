@@ -1,12 +1,18 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { requestDeliveryServiceRevision } from "@/lib/actions/bookings";
+import {
+  completeDeliveredBooking,
+  requestDeliveryServiceRevision,
+} from "@/lib/actions/bookings";
 import ServiceDeliveryModal from "../ServiceDeliveryModal";
 
+const mockRefresh = jest.fn();
+
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: jest.fn() }),
+  useRouter: () => ({ refresh: mockRefresh }),
 }));
 
 jest.mock("@/lib/actions/bookings", () => ({
+  completeDeliveredBooking: jest.fn(),
   requestDeliveryServiceRevision: jest.fn(),
 }));
 
@@ -25,15 +31,19 @@ const makeFile = (overrides = {}) => ({
   ...overrides,
 });
 
-const makeBooking = (deliveryFiles = [makeFile()]) => ({
+const makeBooking = (deliveryFiles = [makeFile()], overrides = {}) => ({
   id: 42,
   propertyDetails: { unit: "101", building: "Tower A", community: "Marina" },
+  completedAt: null,
+  deliveryFinishedAt: null,
   deliveryFiles,
+  ...overrides,
 });
 
 describe("ServiceDeliveryModal", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    completeDeliveredBooking.mockResolvedValue({ success: true });
     requestDeliveryServiceRevision.mockResolvedValue({ success: true });
     Object.assign(navigator, {
       clipboard: { writeText: jest.fn().mockResolvedValue(undefined) },
@@ -128,5 +138,24 @@ describe("ServiceDeliveryModal", () => {
         "https://example.test/tour",
       );
     });
+  });
+
+  it("marks a fully delivered project complete from the shared modal", async () => {
+    render(
+      <ServiceDeliveryModal
+        booking={makeBooking([makeFile({ status: "ACCEPTED" })], {
+          deliveryFinishedAt: "2026-07-27T10:00:00.000Z",
+        })}
+        open
+        onOpenChange={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark Complete" }));
+
+    await waitFor(() =>
+      expect(completeDeliveredBooking).toHaveBeenCalledWith(42),
+    );
+    expect(mockRefresh).toHaveBeenCalled();
   });
 });

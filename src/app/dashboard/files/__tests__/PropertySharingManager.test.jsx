@@ -25,6 +25,13 @@ jest.mock("@/lib/actions/propertySharing", () => ({
 jest.mock("sonner", () => ({
   toast: { success: jest.fn(), error: jest.fn() },
 }));
+jest.mock(
+  "@/components/customer-delivery/ServiceDeliveryModal",
+  () =>
+    function MockServiceDeliveryModal({ booking, open }) {
+      return open ? <div>Download files for booking {booking.id}</div> : null;
+    },
+);
 
 const listing = {
   listingTitle: "Corner home with full marina view",
@@ -52,6 +59,7 @@ function eligibleProperty(id, overrides = {}) {
     imageCount: 2,
     hasVideo: true,
     hasTour: false,
+    coverUrl: `/api/files/download?fileId=${id}`,
     listing: null,
     ...overrides,
   };
@@ -133,7 +141,11 @@ describe("PropertySharingManager", () => {
       screen.getByRole("button", { name: "Select Multiple" }),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/link views/u)).toHaveLength(2);
-    expect(screen.getAllByText(/2 photos · 1 video/u)).toHaveLength(3);
+    expect(screen.getAllByText(/2 photos · 1 video/u)).toHaveLength(2);
+    expect(screen.getByAltText("Sample Villa cover")).toHaveAttribute(
+      "src",
+      "/api/files/download?fileId=22",
+    );
     expect(screen.getAllByLabelText(/Preview Corner home/u)).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: /View Page/u })).toHaveLength(
       2,
@@ -155,6 +167,24 @@ describe("PropertySharingManager", () => {
       screen.queryByRole("button", { name: /refresh media/i }),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(2);
+  });
+
+  it("opens the authenticated download and review modal from a ready property", () => {
+    const booking = {
+      id: 22,
+      propertyDetails: { community: "Palm District" },
+      deliveryFiles: [],
+      serviceGroups: [],
+    };
+    render(
+      <PropertySharingManager initialData={data()} bookings={[booking]} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "↓ Download Files" }));
+
+    expect(
+      screen.getByText("Download files for booking 22"),
+    ).toBeInTheDocument();
   });
 
   it("reconciles refreshed server data after a share is created from the file list", async () => {

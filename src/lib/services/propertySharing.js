@@ -465,10 +465,16 @@ function serializeEligibleProperty(bookingLike) {
     const firstImage = media.find((item) => item.kind === "IMAGE");
     firstImage.isCover = true;
   }
+  const cover = media.find(
+    (item) => item.kind === "IMAGE" && item.visible && item.isCover,
+  );
   return {
     id: Number(booking.id),
     ...serializeBookingFacts(booking),
     ...summarizeMedia(booking),
+    coverUrl: cover
+      ? `/api/files/download?fileId=${encodeURIComponent(cover.deliveryFileId)}`
+      : null,
     listing: serializeListing(booking.propertyShareListing),
     media,
   };

@@ -339,7 +339,12 @@ describe("property sharing service", () => {
 
     expect(dashboard.eligibleProperties).toHaveLength(1);
     expect(dashboard.eligibleProperties[0]).toEqual(
-      expect.objectContaining({ id: 20, mediaCount: 1, videoCount: 0 }),
+      expect.objectContaining({
+        id: 20,
+        mediaCount: 1,
+        videoCount: 0,
+        coverUrl: "/api/files/download?fileId=10",
+      }),
     );
   });
 

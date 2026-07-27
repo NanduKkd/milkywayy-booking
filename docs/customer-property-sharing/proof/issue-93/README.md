@@ -43,6 +43,11 @@ real active single/master shares after applying the migration.
   photo-only thumbnail strip, a 3:2 hero (measured at 1.503 in the embedded
   desktop preview), a video walkthrough modal, and a 360° action with
   `target="_blank"` and `rel="noreferrer"`.
+- The final Properties consolidation removed the duplicate **Delivered files**
+  section. At the reference's single narrow breakpoint (`<900px` width or
+  `<560px` height), Ready cards switch from a 260px/content split to one column;
+  shared cards retain their auto-fill 420px grid. Ready-card downloads open the
+  shared authenticated download/review/completion modal directly.
 
 No bearer identifiers, saved-contact values beyond disposable development
 fixtures, filenames, or storage URLs are recorded in this proof.
@@ -54,6 +59,13 @@ fixtures, filenames, or storage URLs are recorded in this proof.
 - Browser-comment regression suite: 4 suites and 52 tests passed, covering
   dashboard cards, delivered-file cards, serialized owner media summaries,
   photo overflow behavior, single/multiple video modals, and 360° links.
+- Properties consolidation suite: 6 suites and 52 tests passed, covering the
+  shared booking modal, Ready-card launch path, retained completion rules,
+  removed duplicate section, dashboard layout, and Bookings compatibility.
+- Responsive browser checks passed at 1440×900, 899×900, 900×559, 900×560,
+  and 390×844. The measured Ready grid changed from `260px + 1fr` to one
+  column exactly at the reference predicate, and the 390px page had no
+  horizontal overflow.
 - Disposable PostgreSQL property-sharing suite: 8 tests passed, including the
   new migration's real up/down round trip and database constraints.
 - `npm run build`: passed. Next.js emitted the pre-existing dynamic-server

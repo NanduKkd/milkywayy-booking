@@ -13,6 +13,7 @@ import {
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import ServiceDeliveryModal from "@/components/customer-delivery/ServiceDeliveryModal";
 import {
   createMasterPropertyShareAction,
   createSinglePropertyShareAction,
@@ -590,12 +591,13 @@ export function ListingForm({
   );
 }
 
-export default function PropertySharingManager({ initialData }) {
+export default function PropertySharingManager({ initialData, bookings = [] }) {
   const [data, setData] = useState(initialData);
   const [loadingKey, setLoadingKey] = useState("");
   const [editing, setEditing] = useState(null);
   const [creating, setCreating] = useState(null);
   const [previewShare, setPreviewShare] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [showMasterLinks, setShowMasterLinks] = useState(false);
   const [masterSelection, setMasterSelection] = useState(() =>
@@ -617,6 +619,10 @@ export default function PropertySharingManager({ initialData }) {
       (property) => !sharedBookingIds.has(property.id),
     );
   }, [data.eligibleProperties, singleShares]);
+  const bookingsById = useMemo(
+    () => new Map(bookings.map((booking) => [Number(booking.id), booking])),
+    [bookings],
+  );
 
   useEffect(() => {
     setData(initialData);
@@ -769,8 +775,8 @@ export default function PropertySharingManager({ initialData }) {
       aria-label="Property sharing management"
     >
       <p className={styles.tabHint}>
-        Delivered shoots become shareable property pages — click a card to see
-        exactly what viewers see.
+        Delivered shoots land here. Download the raw files, or publish one link
+        with every photo, video and the 360° tour.
       </p>
 
       {!showMasterLinks && readyProperties.length > 0 ? (
@@ -782,10 +788,10 @@ export default function PropertySharingManager({ initialData }) {
                 <div className={styles.readyHero} data-tone={index % 3}>
                   {property.coverUrl ? (
                     <Image
-                      alt=""
+                      alt={`${property.bookingTitle} cover`}
                       className={styles.sharedHeroImage}
                       fill
-                      sizes="(max-width: 640px) 100vw, 72vw"
+                      sizes="(max-width: 899px) 100vw, 260px"
                       src={property.coverUrl}
                       unoptimized
                     />
@@ -794,9 +800,6 @@ export default function PropertySharingManager({ initialData }) {
                       PHOTO READY
                     </div>
                   )}
-                  <span className={styles.mediaCount}>
-                    {mediaSummary(property)}
-                  </span>
                 </div>
                 <div className={styles.readyBody}>
                   <div>
@@ -824,7 +827,17 @@ export default function PropertySharingManager({ initialData }) {
                     >
                       <Copy /> Create Share Link
                     </button>
-                    <a href="#delivered-files">↓ Download Files</a>
+                    <button
+                      type="button"
+                      disabled={!bookingsById.has(Number(property.id))}
+                      onClick={() =>
+                        setSelectedBooking(
+                          bookingsById.get(Number(property.id)),
+                        )
+                      }
+                    >
+                      ↓ Download Files
+                    </button>
                   </div>
                 </div>
               </article>
@@ -956,7 +969,10 @@ export default function PropertySharingManager({ initialData }) {
                   aria-label={`${selectionMode ? (selected ? "Remove" : "Add") : "Preview"} ${property.listing?.listingTitle || property.bookingTitle}${selectionMode ? `${selected ? " from" : " to"} master collection` : ""}`}
                   onClick={openOrSelect}
                 />
-                <div className={styles.sharedHero} data-tone={index % 3}>
+                <div
+                  className={`${styles.sharedHero} ${share.enabled ? "" : styles.disabledHero}`}
+                  data-tone={index % 3}
+                >
                   {selectionMode ? (
                     <button
                       type="button"
@@ -981,21 +997,36 @@ export default function PropertySharingManager({ initialData }) {
                     </span>
                     {share.enabled ? "LIVE" : "DISABLED"}
                   </button>
-                  <div className={styles.photoPlaceholder} aria-hidden="true">
-                    PHOTO READY
-                  </div>
+                  {property.coverUrl ? (
+                    <Image
+                      alt={
+                        property.listing?.listingTitle || property.bookingTitle
+                      }
+                      className={styles.sharedHeroImage}
+                      fill
+                      sizes="(max-width: 899px) 100vw, 420px"
+                      src={property.coverUrl}
+                      unoptimized
+                    />
+                  ) : (
+                    <div className={styles.photoPlaceholder} aria-hidden="true">
+                      PHOTO READY
+                    </div>
+                  )}
                   <span className={styles.mediaCount}>
                     {mediaSummary(property)}
                   </span>
                 </div>
                 <div className={styles.sharedBody}>
-                  <p className={styles.listingType}>
-                    {property.listing?.listingTypeLabel || "For Sale"}
-                  </p>
-                  <b className={styles.listingPrice}>
-                    {formatPrice(property.listing)}
-                  </b>
-                  <h3>{property.listing?.listingTitle}</h3>
+                  <div className={styles.sharedInfo}>
+                    <p className={styles.listingType}>
+                      {property.listing?.listingTypeLabel || "For Sale"}
+                    </p>
+                    <b className={styles.listingPrice}>
+                      {formatPrice(property.listing)}
+                    </b>
+                    <h3>{property.listing?.listingTitle}</h3>
+                  </div>
                   <div className={styles.cardFooter}>
                     <span>◉ {share.linkViews} link views</span>
                     {!selectionMode ? (
@@ -1017,10 +1048,11 @@ export default function PropertySharingManager({ initialData }) {
                             setPreviewShare(share);
                           }}
                         >
-                          <Eye /> View Page
+                          View Page
                         </button>
                         <button
                           type="button"
+                          aria-label="Edit"
                           onClick={(event) => {
                             stopPropagation(event);
                             const eligible = data.eligibleProperties.find(
@@ -1031,7 +1063,7 @@ export default function PropertySharingManager({ initialData }) {
                             }
                           }}
                         >
-                          Edit
+                          ✎ Edit
                         </button>
                       </div>
                     ) : null}
@@ -1099,6 +1131,13 @@ export default function PropertySharingManager({ initialData }) {
           onClose={() => setPreviewShare(null)}
         />
       ) : null}
+      <ServiceDeliveryModal
+        booking={selectedBooking}
+        open={Boolean(selectedBooking)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedBooking(null);
+        }}
+      />
     </section>
   );
 }

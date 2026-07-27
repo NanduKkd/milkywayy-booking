@@ -7,7 +7,6 @@ import {
 } from "@/lib/helpers/bookingWorkflow";
 import { projectDeliveryServiceGroups } from "@/lib/services/deliveryServiceGroups";
 import { getPropertySharingDashboard } from "@/lib/services/propertySharing";
-import FileList from "./FileList";
 import PropertySharingManager from "./PropertySharingManager";
 
 export default async function FilesPage() {
@@ -56,19 +55,10 @@ export default async function FilesPage() {
 
   return (
     <div>
-      <div className="max-w-6xl mx-auto">
-        <PropertySharingManager initialData={propertySharing} />
-        <h2
-          id="delivered-files"
-          className="mb-4 scroll-mt-24 text-xl font-semibold text-white"
-        >
-          Delivered files
-        </h2>
-        <FileList
-          bookings={bookingsWithFiles}
-          propertySharing={propertySharing}
-        />
-      </div>
+      <PropertySharingManager
+        initialData={propertySharing}
+        bookings={bookingsWithFiles}
+      />
     </div>
   );
 }

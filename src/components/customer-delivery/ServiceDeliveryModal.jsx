@@ -1,6 +1,12 @@
 "use client";
 
-import { Copy, Download, FileArchive, RefreshCcw } from "lucide-react";
+import {
+  CheckCircle2,
+  Copy,
+  Download,
+  FileArchive,
+  RefreshCcw,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -14,7 +20,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { requestDeliveryServiceRevision } from "@/lib/actions/bookings";
+import {
+  completeDeliveredBooking,
+  requestDeliveryServiceRevision,
+} from "@/lib/actions/bookings";
 import {
   DELIVERY_FILE_STATUS,
   MAX_FILE_REVISIONS,
@@ -75,6 +84,29 @@ const groupCanRequestRevision = (group) =>
   (!group.reviewDeadlineAt ||
     new Date(group.reviewDeadlineAt).getTime() > Date.now());
 
+export const canCompleteDeliveredBooking = (booking) => {
+  const files = booking?.deliveryFiles || [];
+  const pendingReplacementCount =
+    booking?.pendingReplacementCount ??
+    files.filter(
+      (file) =>
+        !file?.deletedAt &&
+        file?.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+    ).length;
+  return (
+    Boolean(booking?.deliveryFinishedAt) &&
+    !booking?.completedAt &&
+    Number(pendingReplacementCount) === 0 &&
+    files.length > 0 &&
+    files.every((file) =>
+      [
+        DELIVERY_FILE_STATUS.UNDER_REVIEW,
+        DELIVERY_FILE_STATUS.ACCEPTED,
+      ].includes(file.status),
+    )
+  );
+};
+
 /**
  * Authenticated delivery UI for a single booking. The input deliberately uses
  * the existing service-group projection: consumers never create a client-side
@@ -85,6 +117,7 @@ export default function ServiceDeliveryModal({ booking, open, onOpenChange }) {
   const [revisionGroup, setRevisionGroup] = useState(null);
   const [revisionNote, setRevisionNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [copyingId, setCopyingId] = useState(null);
 
   const groups = useMemo(() => {
@@ -93,6 +126,13 @@ export default function ServiceDeliveryModal({ booking, open, onOpenChange }) {
       : projectDeliveryServiceGroups(booking?.deliveryFiles || []);
     return source.map((group) => ({ ...group, bookingId: booking?.id }));
   }, [booking]);
+  const pendingReplacementCount =
+    booking?.pendingReplacementCount ??
+    (booking?.deliveryFiles || []).filter(
+      (file) =>
+        !file?.deletedAt &&
+        file?.status === DELIVERY_FILE_STATUS.CHANGES_REQUESTED,
+    ).length;
 
   const close = () => {
     setRevisionGroup(null);
@@ -100,6 +140,21 @@ export default function ServiceDeliveryModal({ booking, open, onOpenChange }) {
     onOpenChange?.(false);
   };
   const selectedGroup = revisionGroup;
+  const completeBooking = async () => {
+    if (!canCompleteDeliveredBooking(booking)) return;
+    setIsCompleting(true);
+    try {
+      const result = await completeDeliveredBooking(booking.id);
+      if (!result.success) throw new Error(result.message);
+      toast.success("Project marked as completed.");
+      close();
+      router.refresh();
+    } catch (error) {
+      toast.error(error.message || "Unable to complete project");
+    } finally {
+      setIsCompleting(false);
+    }
+  };
   const copyLink = async (file) => {
     if (!file?.currentVersion?.url) return;
     try {
@@ -307,6 +362,27 @@ export default function ServiceDeliveryModal({ booking, open, onOpenChange }) {
         </div>
 
         <DialogFooter className="border-t border-white/10 px-5 py-4 sm:px-6">
+          {booking?.completedAt ? (
+            <span className="mr-auto inline-flex items-center gap-2 text-sm text-emerald-300">
+              <CheckCircle2 className="h-4 w-4" />
+              Project completed
+            </span>
+          ) : (
+            <Button
+              type="button"
+              className="mr-auto rounded-full"
+              disabled={!canCompleteDeliveredBooking(booking) || isCompleting}
+              onClick={completeBooking}
+            >
+              {isCompleting
+                ? "Completing..."
+                : booking?.deliveryFinishedAt
+                  ? Number(pendingReplacementCount) > 0
+                    ? "Changes Pending"
+                    : "Mark Complete"
+                  : "Delivery In Progress"}
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"

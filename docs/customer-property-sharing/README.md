@@ -4,7 +4,8 @@ The customer dashboard exposes property-showcase management inside the existing
 `/dashboard/files` route. The visible tab and page language say **Properties**,
 while authenticated downloads, copy-link delivery,
 revisions, replacement states, review deadlines, completion controls, and the
-full existing `FileList` retain their authenticated contracts.
+canonical delivery service-group projection retain their authenticated
+contracts.
 
 An authenticated property owner or real-estate agent can configure one public
 listing per owned confirmed, non-cancelled booking as soon as it has a safe
@@ -57,16 +58,20 @@ select-multiple/action-bar surfaces, a compact listing form, and card-click
 preview. Shared cards use a 3:2 cover, live-state control, exact photo/video/360
 summary, listing hierarchy, link views, and Copy/View/Edit actions. Eligible
 unshared completed or in-review projects also expose **Create Share Link** in
-the authenticated `FileList` directly below the manager; published properties
-are managed above it. Owners manage property-level media order, visibility,
-and cover choice. Owners select two or more shared
+the **Ready to Share** list; published properties are managed in **Shared
+Properties**. The Ready card's **Download Files** action opens the same
+authenticated download/review modal as Bookings, including revision and
+completion controls. Owners manage property-level media order, visibility, and
+cover choice. Owners select two or more shared
 property cards—including the visible check control—to create or update the
 master collection. Preview embeds the actual public buyer page and can be
 switched between Phone and Desktop widths.
 
-The existing authenticated `FileList` remains directly below the sharing
-manager with its download, revision, replacement, review, and completion
-behavior unchanged.
+Properties does not repeat a separate **Delivered files** list below the
+sharing manager. Bookings and **Ready to Share** both open the reusable
+authenticated service modal, so download, copy-link delivery, revision,
+replacement, review-deadline, and completion behavior stays on one canonical
+surface.
 
 Safe current under-review or accepted uploads synchronize into every affected
 single and master link automatically. New logical files append visibly;
@@ -74,10 +79,9 @@ replacement versions inherit their logical-file preferences. Unsafe, private,
 changes-requested, deleted, superseded, stale, or unsupported media is removed
 or fails closed without owner action.
 
-After the owner creates a share from a Delivered files card, the refreshed
-server result is reconciled into both authenticated surfaces: the create action
-disappears and the new listing appears in **Shared Properties** immediately,
-without a manual browser refresh.
+After the owner creates a share from a **Ready to Share** card, the refreshed
+server result is reconciled immediately: the ready card disappears and the new
+listing appears in **Shared Properties** without a manual browser refresh.
 
 Each valid property showcase publishes listing-specific browser and Open Graph
 metadata. The page title and Open Graph title use

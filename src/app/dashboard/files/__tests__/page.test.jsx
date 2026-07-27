@@ -3,7 +3,6 @@ import FilesPage from "../page";
 
 const mockAuth = jest.fn();
 const mockGetBookings = jest.fn();
-const mockFileList = jest.fn();
 const mockGetPropertySharingDashboard = jest.fn();
 const mockPropertySharingManager = jest.fn();
 
@@ -18,14 +17,6 @@ jest.mock("@/lib/actions/bookings", () => ({
 jest.mock("@/lib/services/propertySharing", () => ({
   getPropertySharingDashboard: (...args) =>
     mockGetPropertySharingDashboard(...args),
-}));
-
-jest.mock("../FileList", () => ({
-  __esModule: true,
-  default: (props) => {
-    mockFileList(props);
-    return <div data-testid="files-page-list" />;
-  },
 }));
 
 jest.mock("../PropertySharingManager", () => ({
@@ -52,10 +43,9 @@ describe("dashboard files page", () => {
 
     expect(mockGetBookings).not.toHaveBeenCalled();
     expect(mockGetPropertySharingDashboard).not.toHaveBeenCalled();
-    expect(mockFileList).not.toHaveBeenCalled();
   });
 
-  it("passes the standard files projection to FileList and filters hidden replacements", async () => {
+  it("passes the canonical files projection to the Properties manager and filters hidden replacements", async () => {
     mockAuth.mockResolvedValue({
       id: 42,
     });
@@ -96,8 +86,6 @@ describe("dashboard files page", () => {
     expect(mockGetPropertySharingDashboard).toHaveBeenCalledWith(42);
     expect(mockPropertySharingManager).toHaveBeenCalledWith({
       initialData: { eligibleProperties: [], shares: [] },
-    });
-    expect(mockFileList.mock.calls[0][0]).toEqual({
       bookings: [
         expect.objectContaining({
           deliveryFiles: [
@@ -109,7 +97,6 @@ describe("dashboard files page", () => {
           pendingReplacementCount: 1,
         }),
       ],
-      propertySharing: { eligibleProperties: [], shares: [] },
     });
   });
 
@@ -137,9 +124,9 @@ describe("dashboard files page", () => {
       }),
     );
 
-    expect(mockFileList.mock.calls[0][0]).toEqual({
+    expect(mockPropertySharingManager).toHaveBeenCalledWith({
+      initialData: { eligibleProperties: [], shares: [] },
       bookings: [],
-      propertySharing: { eligibleProperties: [], shares: [] },
     });
   });
 });
