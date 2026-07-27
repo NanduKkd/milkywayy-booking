@@ -28,6 +28,9 @@
   copy-links across service types.
 - Wrong-booking, unsafe, deleted, stale, superseded, changes-requested, and
   unselected media fail closed.
+- PostgreSQL synchronization locks only the owned booking row while reading
+  optional delivery-file/version joins, avoiding invalid `FOR UPDATE` locks on
+  nullable outer-join relations.
 
 ### Token, public page, and inline media boundary
 

@@ -699,7 +699,9 @@ export async function synchronizePropertyShareMediaForBooking(
         },
       ],
       transaction: activeTransaction,
-      lock: activeTransaction.LOCK.UPDATE,
+      // Delivery files and their current versions are optional outer joins.
+      // PostgreSQL rejects an unscoped FOR UPDATE against nullable join sides.
+      lock: { level: activeTransaction.LOCK.UPDATE, of: Booking },
     });
     if (!booking) return { synchronizedShareCount: 0 };
     const properties = await PropertyShareProperty.findAll({

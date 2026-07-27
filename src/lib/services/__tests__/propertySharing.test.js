@@ -984,6 +984,13 @@ describe("property sharing service", () => {
       synchronizedShareCount: 2,
     });
 
+    expect(Booking.findByPk).toHaveBeenCalledWith(
+      20,
+      expect.objectContaining({
+        transaction,
+        lock: { level: "UPDATE", of: Booking },
+      }),
+    );
     expect(PropertyMediaPreference.create).toHaveBeenCalledWith(
       expect.objectContaining({
         ownerUserId: 7,
