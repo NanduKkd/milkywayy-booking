@@ -175,6 +175,15 @@ describe("public property showcase page", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("AED 2,350,000")).toBeInTheDocument();
     expect(screen.getByText("Full marina view")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: "Marina corner home — view 1",
+      }),
+    ).toHaveAttribute("loading", "eager");
+    expect(container.querySelector(".thumb img")).toHaveAttribute(
+      "loading",
+      "eager",
+    );
     expect(screen.getByRole("link", { name: "+971500000000" })).toHaveAttribute(
       "href",
       "tel:+971500000000",
@@ -320,7 +329,7 @@ describe("public property showcase page", () => {
       properties: [listing],
     });
 
-    render(
+    const { container } = render(
       await SharedPropertyPage({
         params: Promise.resolve({ token }),
         searchParams: Promise.resolve({}),
@@ -339,6 +348,19 @@ describe("public property showcase page", () => {
     expect(
       screen.getByRole("button", { name: /3 More Photos/u }),
     ).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: "View property photo 1" })
+        .querySelector("img"),
+    ).toHaveAttribute("loading", "eager");
+    expect(
+      screen
+        .getByRole("button", { name: "View property photo 2" })
+        .querySelector("img"),
+    ).toHaveAttribute("loading", "lazy");
+    expect(
+      container.querySelectorAll('.thumb img[loading="lazy"]'),
+    ).toHaveLength(2);
     expect(
       screen.queryByRole("button", { name: "View property photo 4" }),
     ).toBeNull();

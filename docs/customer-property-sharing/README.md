@@ -48,12 +48,14 @@ The single-property showcase owns the full browser surface. It has no outer
 card border, radius, shadow, or page gutter; the media and listing split fill
 the viewport on desktop within a centered 1280px content maximum. The photo
 hero and every photo thumbnail use a stable 3:2 crop. Highlights render in no
-more than two columns. Videos use contain sizing inside their modal. The layout
-keeps the contact card below the left gallery on desktop and turns it into the
-fixed bottom contact bar on narrow or short viewports. It becomes an edge-to-edge
-single column on narrow screens. If an authorized media object is missing, both
-the hero and its thumbnail show an explicit unavailable state rather than a
-broken image.
+more than two columns. The currently rendered above-the-fold hero loads eagerly,
+as does its matching selected thumbnail because both render the same cached
+media URL; every other gallery thumbnail remains lazy. Videos use contain sizing
+inside their modal. The layout keeps the contact card below the left gallery on
+desktop and turns it into the fixed bottom contact bar on narrow or short
+viewports. It becomes an edge-to-edge single column on narrow screens. If an
+authorized media object is missing, both the hero and its thumbnail show an
+explicit unavailable state rather than a broken image.
 
 The management UI follows the supplied reference with a dedicated **Ready to
 Share** card before **Shared Properties**, plus **Master Links**,

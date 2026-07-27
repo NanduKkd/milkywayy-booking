@@ -131,7 +131,7 @@ function MediaThumbnail({
         <Image
           alt=""
           fill
-          loading="lazy"
+          loading={active ? "eager" : "lazy"}
           sizes="(max-width: 600px) 25vw, 140px"
           unoptimized
           src={mediaUrl(token, property.id, media.id)}
@@ -250,7 +250,7 @@ export default function PropertyShowcase({ property, token }) {
                   key={activeMedia.id}
                   alt={`${property.title} — view ${activeIndex + 1}`}
                   fill
-                  priority
+                  loading="eager"
                   sizes="(max-width: 600px) 100vw, 60vw"
                   unoptimized
                   onError={() => markFailed(activeMedia.id)}
