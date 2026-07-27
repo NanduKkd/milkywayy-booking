@@ -46,11 +46,12 @@ browser tab.
 
 The single-property showcase owns the full browser surface. It has no outer
 card border, radius, shadow, or page gutter; the media and listing split fill
-the viewport on desktop, and the photo hero uses a stable 3:2 crop. Videos use
-contain sizing inside their modal. The layout becomes an edge-to-edge single
-column on narrow screens. If an authorized media object is missing, both the
-hero and its thumbnail show an explicit unavailable state rather than a broken
-image.
+the viewport on desktop within a centered 1280px content maximum. The photo
+hero and every photo thumbnail use a stable 3:2 crop. Highlights render in no
+more than two columns. Videos use contain sizing inside their modal. The layout
+becomes an edge-to-edge single column on narrow screens. If an authorized media
+object is missing, both the hero and its thumbnail show an explicit unavailable
+state rather than a broken image.
 
 The management UI follows the supplied reference with a dedicated **Ready to
 Share** card before **Shared Properties**, plus **Master Links**,
@@ -62,7 +63,9 @@ choices, and limits the public selection to six. Its 3:2 photo grid supports
 drag ordering and eye-based visibility; the first visible ordered photo is
 automatically the cover. Video and 360° inclusion is controlled separately,
 and owners can generate/update and copy, preview an existing page, or save a
-draft without publishing a new link. Saved contact presets appear below the
+draft without publishing a new link. The maid-room control uses the reference
+round checkbox treatment, and the bathroom field keeps only its label and
+selector. Saved contact presets appear below the
 save-contact action; the preset matching both the current name and phone is
 marked green, and selecting a preset fills both fields. Shared cards use a 3:2 cover, live-state
 control, exact photo/video/360 summary, listing hierarchy, link views, and

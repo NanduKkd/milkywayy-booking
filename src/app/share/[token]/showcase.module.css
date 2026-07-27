@@ -62,11 +62,14 @@
 }
 
 .showcaseGrid {
+  width: 100%;
+  max-width: 1280px;
   flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
   gap: clamp(18px, 2.4vw, 34px);
-  padding: clamp(14px, 2.2vh, 26px) clamp(18px, 3vw, 32px);
+  margin: 0 auto;
+  padding: clamp(14px, 2.2vh, 26px) clamp(14px, 3vw, 32px);
 }
 
 .mediaColumn {
@@ -171,7 +174,7 @@
 
 .thumbnail {
   position: relative;
-  height: 74px;
+  aspect-ratio: 3 / 2;
   overflow: hidden;
   border: 1px solid #2e2e33;
   border-radius: 10px;
@@ -385,7 +388,7 @@
 
 .highlights ul {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px 16px;
   list-style: none;
   margin: 0 0 20px;
@@ -776,7 +779,7 @@
   }
 
   .thumbnail {
-    height: 66px;
+    aspect-ratio: 3 / 2;
   }
 
   .mediaActions {

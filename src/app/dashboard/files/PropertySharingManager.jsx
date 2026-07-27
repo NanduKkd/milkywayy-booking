@@ -445,7 +445,10 @@ export function ListingForm({
                     aria-pressed={form.maidRoom}
                     onClick={() => update("maidRoom", !form.maidRoom)}
                   >
-                    {form.maidRoom ? "✓ " : ""}Maid&apos;s room
+                    <span className={styles.maidIndicator} aria-hidden="true">
+                      {form.maidRoom ? "✓" : ""}
+                    </span>
+                    <span>Maid&apos;s room</span>
                   </button>
                   <label>
                     <span>BATHROOMS</span>
@@ -464,9 +467,6 @@ export function ListingForm({
                         ),
                       )}
                     </select>
-                    <small className={styles.fieldHelp}>
-                      Half bathrooms are supported.
-                    </small>
                   </label>
                 </>
               ) : null}

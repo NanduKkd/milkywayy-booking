@@ -343,6 +343,34 @@ describe("PropertySharingManager", () => {
     ).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("uses the reference maid-room checkbox treatment without bathroom helper copy", () => {
+    render(
+      <ListingForm
+        property={eligibleProperty(22, { media: [] })}
+        mode="create"
+        busy={false}
+        onClose={jest.fn()}
+        onSubmit={jest.fn()}
+        onSaveDraft={jest.fn()}
+        onPreview={jest.fn()}
+      />,
+    );
+
+    const maidRoom = screen.getByRole("button", { name: "Maid's room" });
+    expect(maidRoom).toHaveAttribute("aria-pressed", "false");
+    expect(maidRoom.querySelector('[aria-hidden="true"]')).toHaveTextContent(
+      "",
+    );
+    expect(screen.queryByText("Half bathrooms are supported.")).toBeNull();
+
+    fireEvent.click(maidRoom);
+
+    expect(maidRoom).toHaveAttribute("aria-pressed", "true");
+    expect(maidRoom.querySelector('[aria-hidden="true"]')).toHaveTextContent(
+      "✓",
+    );
+  });
+
   it("opens the authenticated download and review modal from a ready property", () => {
     const booking = {
       id: 22,
