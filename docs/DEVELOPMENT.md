@@ -77,6 +77,21 @@ live configuration.
 
 - `STRIPE_SECRET_KEY`: server-side Stripe API access.
 - `STRIPE_WEBHOOK_SECRET`: verifies Stripe webhook signatures.
+- The Stripe webhook reads the raw request body and the `stripe-signature`
+  header directly from the incoming request before dispatching an event.
+  Missing or invalid signatures return HTTP 400; verified handler failures
+  return HTTP 500 so Stripe can retry them.
+
+Run the focused webhook regression suite with:
+
+```bash
+npx jest --runInBand src/app/api/webhooks/stripe/__tests__/route.test.js
+```
+
+After deployment, an unsigned POST to `/api/webhooks/stripe` must return HTTP
+400 rather than HTTP 500. A harmless correctly signed event must return HTTP
+200. Keep live endpoint values, signing secrets, event payloads, and exact
+operator commands in the ignored private production runbook.
 
 ### File storage and delivery
 

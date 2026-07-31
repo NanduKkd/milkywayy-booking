@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { sendBookingConfirmation } from "@/lib/actions/notifications";
 import Booking from "@/lib/db/models/booking";
 import Transaction from "@/lib/db/models/transaction";
@@ -13,10 +12,6 @@ jest.mock("next/server", () => ({
       status: init?.status || 200,
     })),
   },
-}));
-
-jest.mock("next/headers", () => ({
-  headers: jest.fn(),
 }));
 
 jest.mock("stripe", () => {
@@ -58,11 +53,15 @@ jest.mock("@/lib/services/promotionCheckout", () => ({
 }));
 
 describe("Stripe webhook route", () => {
+  const buildRequest = (signature = "sig_123") => ({
+    headers: {
+      get: jest.fn(() => signature),
+    },
+    text: jest.fn().mockResolvedValue("payload"),
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
-    headers.mockReturnValue({
-      get: jest.fn(() => "sig_123"),
-    });
     applyPromotionForCheckoutTransaction.mockResolvedValue(null);
     Booking.update.mockResolvedValue([1]);
     Booking.findAll.mockResolvedValue([]);
@@ -96,12 +95,17 @@ describe("Stripe webhook route", () => {
     });
     Transaction.findByPk.mockResolvedValue(transaction);
 
-    const response = await POST({
-      text: jest.fn().mockResolvedValue("payload"),
-    });
+    const request = buildRequest();
+    const response = await POST(request);
     const payload = await response.json();
 
     expect(payload).toEqual({ received: true });
+    expect(request.headers.get).toHaveBeenCalledWith("stripe-signature");
+    expect(Stripe.mockConstructEvent).toHaveBeenCalledWith(
+      "payload",
+      "sig_123",
+      process.env.STRIPE_WEBHOOK_SECRET,
+    );
     expect(transaction.update).toHaveBeenCalledWith({
       status: "success",
       stripePaymentIntentId: "pi_123",
@@ -145,9 +149,7 @@ describe("Stripe webhook route", () => {
     });
     Transaction.findByPk.mockResolvedValue(transaction);
 
-    const response = await POST({
-      text: jest.fn().mockResolvedValue("payload"),
-    });
+    const response = await POST(buildRequest());
     const payload = await response.json();
 
     expect(payload).toEqual({ received: true });
@@ -164,5 +166,48 @@ describe("Stripe webhook route", () => {
       { where: { transactionId: 55 } },
     );
     expect(sendBookingConfirmation).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["missing", null],
+    ["invalid", "sig_invalid"],
+  ])("returns 400 for a %s webhook signature", async (_label, signature) => {
+    const Stripe = require("stripe");
+    Stripe.mockConstructEvent.mockImplementation(() => {
+      throw new Error("No signatures found matching the expected signature");
+    });
+
+    const response = await POST(buildRequest(signature));
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload).toEqual({
+      error: "No signatures found matching the expected signature",
+    });
+  });
+
+  it("returns 500 when a verified event handler fails", async () => {
+    const Stripe = require("stripe");
+    Stripe.mockConstructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      id: "evt_handler_failure",
+      data: {
+        object: {
+          id: "cs_handler_failure",
+          payment_status: "paid",
+          payment_intent: "pi_handler_failure",
+          metadata: {
+            transactionId: "55",
+          },
+        },
+      },
+    });
+    Transaction.findByPk.mockRejectedValue(new Error("Synthetic DB failure"));
+
+    const response = await POST(buildRequest());
+    const payload = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(payload).toEqual({ error: "Webhook handler failed" });
   });
 });
