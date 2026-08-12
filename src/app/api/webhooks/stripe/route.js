@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { sendBookingConfirmation } from "@/lib/actions/notifications";
@@ -13,7 +12,7 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req) {
   const body = await req.text();
-  const signature = headers().get("stripe-signature");
+  const signature = req.headers.get("stripe-signature");
 
   let event;
 
