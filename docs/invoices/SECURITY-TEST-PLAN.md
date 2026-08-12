@@ -10,6 +10,11 @@ to a database Super Admin, and the unchanged authorized list/regeneration
 flows. Proxy or admin-page navigation checks are not treated as API
 authorization.
 
+The shared invoice-download handler reloads the actor from the database as
+well. An active database customer remains scoped to their own transaction,
+while a database `SUPERADMIN` retains the existing cross-customer admin
+download. Cookie role claims cannot widen that query.
+
 ## Automated content gate
 
 `src/lib/helpers/__tests__/invoice.test.js` exercises the pure HTML boundary

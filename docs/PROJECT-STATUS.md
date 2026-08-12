@@ -80,10 +80,10 @@ on 2026-08-12:
   credentials; legacy integration suites still need migration to the guarded
   disposable-database helper.
 - `npm run lint`: `292` errors and `59` warnings across `633` files.
-- The issue #98 authorization/UI compatibility gate passed `164` tests across
-  `28` focused suites. A production build completed successfully, and the fresh
+- The issue #98 authorization/UI compatibility gate passed `186` tests across
+  `30` focused suites. A production build completed successfully, and the fresh
   build manifest proved that the session helper exposes zero Server Actions
-  while all guarded UI actions and admin API routes remain built. The proof is
+  while all guarded UI actions and API routes remain built. The proof is
   reusable through `npm run verify:authorization-boundaries` after a build.
 - The production build still skips type validation through the existing Next.js
   configuration and logs the known non-fatal `/admin/promotions` dynamic-render

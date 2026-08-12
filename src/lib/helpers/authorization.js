@@ -52,6 +52,21 @@ export async function requireCustomerActor() {
   };
 }
 
+export async function requireInvoiceDownloadActor() {
+  const user = await getDatabaseActor();
+  const isActiveCustomer =
+    user?.role === USER_ROLES.CUSTOMER && !user.disabledAt;
+
+  if (!user || (!isActiveCustomer && user.role !== USER_ROLES.SUPERADMIN)) {
+    throw new AuthorizationError("Forbidden", 403);
+  }
+
+  return {
+    id: Number(user.id),
+    role: user.role,
+  };
+}
+
 export function getAuthorizationErrorStatus(error) {
   return error instanceof AuthorizationError ? error.status : null;
 }

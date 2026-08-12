@@ -79,9 +79,10 @@ endpoints live under [`src/app/api/admin/`](../src/app/api/admin/).
 
 The current compatibility authorization layer requires a database-backed
 `SUPERADMIN` actor for staff creation and customer disablement, pricing and
-discount mutations, invoice administration, and review/portfolio management.
-This hardening does not implement the deferred Admin/Accounts permission matrix
-described under `docs/admin-access-control/`.
+discount mutations, invoice administration, and review/portfolio management,
+including the shared administrator upload boundary. This hardening does not
+implement the deferred Admin/Accounts permission matrix described under
+`docs/admin-access-control/`.
 
 ### Delivery workflow
 

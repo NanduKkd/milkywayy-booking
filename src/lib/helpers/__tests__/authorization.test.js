@@ -18,6 +18,7 @@ import {
   AuthorizationError,
   getAuthorizationErrorStatus,
   requireCustomerActor,
+  requireInvoiceDownloadActor,
   requireSuperadminActor,
 } from "../authorization";
 
@@ -101,6 +102,36 @@ describe("database-backed authorization", () => {
       expect.objectContaining({
         message: "Unauthorized",
         status: 401,
+      }),
+    );
+  });
+
+  it("uses the database customer role to scope invoice downloads despite a forged session role", async () => {
+    mockAuth.mockResolvedValue({ id: "51", role: "SUPERADMIN" });
+    mockFindByPk.mockResolvedValue({
+      id: "51",
+      role: "CUSTOMER",
+      disabledAt: null,
+    });
+
+    await expect(requireInvoiceDownloadActor()).resolves.toEqual({
+      id: 51,
+      role: "CUSTOMER",
+    });
+  });
+
+  it("rejects a non-customer, non-Super Admin database actor for invoice downloads", async () => {
+    mockAuth.mockResolvedValue({ id: "61", role: "SUPERADMIN" });
+    mockFindByPk.mockResolvedValue({
+      id: "61",
+      role: "SHOOT",
+      disabledAt: null,
+    });
+
+    await expect(requireInvoiceDownloadActor()).rejects.toEqual(
+      expect.objectContaining({
+        message: "Forbidden",
+        status: 403,
       }),
     );
   });

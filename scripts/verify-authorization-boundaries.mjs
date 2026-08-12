@@ -69,6 +69,8 @@ const requiredGuardedRoutes = [
   "/api/admin/reviews/route",
   "/api/admin/reviews/[id]/route",
   "/api/admin/reviews/reorder/route",
+  "/api/admin/upload/route",
+  "/api/invoices/download/route",
 ];
 const missingRoutes = requiredGuardedRoutes.filter(
   (route) => !Object.hasOwn(appPathsManifest, route),
@@ -79,5 +81,5 @@ if (missingRoutes.length > 0) {
 }
 
 console.log(
-  `Authorization boundary verification passed: 0 session-helper actions, ${requiredGuardedActions.length} guarded UI actions, and ${requiredGuardedRoutes.length} guarded admin API routes.`,
+  `Authorization boundary verification passed: 0 session-helper actions, ${requiredGuardedActions.length} guarded UI actions, and ${requiredGuardedRoutes.length} guarded API routes.`,
 );
