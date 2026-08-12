@@ -6,6 +6,7 @@ import {
   cancelBookingBySessionId,
   createBookings,
   createTransactionAndPaymentIntent,
+  getBookings,
 } from "../bookings";
 
 // Unmock the module under test because it is globally mocked in jest.setup.js
@@ -18,6 +19,7 @@ import { sequelize } from "@/lib/db/db";
 import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import { auth } from "@/lib/helpers/auth";
+import { requireCustomerActor } from "@/lib/helpers/authorization";
 import { getPricingConfig } from "@/lib/helpers/pricing";
 import {
   finalizePaidPromotionCheckoutTransaction,
@@ -112,6 +114,10 @@ jest.mock("@/lib/helpers/auth", () => ({
   auth: jest.fn(),
 }));
 
+jest.mock("@/lib/helpers/authorization", () => ({
+  requireCustomerActor: jest.fn(),
+}));
+
 jest.mock("@/lib/helpers/pricing", () => ({
   getPricingConfig: jest.fn(),
 }));
@@ -183,6 +189,10 @@ describe("Booking Actions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     auth.mockResolvedValue({ id: mockUserId });
+    requireCustomerActor.mockResolvedValue({
+      id: mockUserId,
+      role: "CUSTOMER",
+    });
     getPricingConfig.mockResolvedValue(mockPricingConfig);
     getDiscounts.mockResolvedValue({ success: true, data: [] });
     User.findByPk.mockResolvedValue({
@@ -208,6 +218,43 @@ describe("Booking Actions", () => {
     Booking.findAll.mockResolvedValue([]);
     Booking.count.mockResolvedValue(0);
     CalendarEvent.findAll.mockResolvedValue([]);
+  });
+
+  describe("getBookings", () => {
+    it("queries only the authenticated database customer", async () => {
+      const bookings = [{ id: 1, toJSON: jest.fn() }];
+      requireCustomerActor.mockResolvedValue({ id: 17, role: "CUSTOMER" });
+      Booking.findAll.mockResolvedValue(bookings);
+
+      const result = await getBookings(999);
+
+      expect(result).toEqual({
+        success: true,
+        message: null,
+        data: bookings,
+      });
+      expect(Booking.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 17,
+            status: { [Op.ne]: "DRAFT" },
+          },
+        }),
+      );
+    });
+
+    it("rejects an unauthorized booking read before querying bookings", async () => {
+      const consoleSpy = jest.spyOn(console, "error").mockImplementation();
+      requireCustomerActor.mockRejectedValue(new Error("Unauthorized"));
+
+      await expect(getBookings(999)).resolves.toEqual({
+        success: false,
+        message: "Unauthorized",
+        data: null,
+      });
+      expect(Booking.findAll).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
   });
 
   describe("createBookings", () => {

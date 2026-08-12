@@ -1,6 +1,6 @@
 # Admin customer management architecture
 
-- Last updated: 2026-07-12
+- Last updated: 2026-08-12
 
 ## Boundary
 
@@ -44,12 +44,17 @@ future work if the broader account-control scope is resumed.
 Disablement prevents new OTP issuance and rejects OTP verification if the
 customer is disabled after issuance. Historical bookings, payments, invoices,
 files, wallet entries, and audit records remain intact. Existing-session and
-OAuth-token invalidation remain outside this completed slice.
+OAuth-token invalidation remain outside this completed slice. As a bounded
+defense, customer booking-list reads reload the current database customer and
+reject a disabled account; this does not claim complete invalidation across all
+dashboard, API, or OAuth paths.
 
 ## Mutation boundary
 
 Create/deactivate/reactivate operations run through permission-checked
-services. Users does not expose customer editing or role changes.
+services. Current lifecycle mutations require a database-backed `SUPERADMIN`
+actor rather than trusting the role stored in a session cookie. Users does not
+expose customer editing or role changes.
 
 Disablement requires explicit confirmation. Enabling is a separate action and
 does not silently restore revoked OAuth grants.

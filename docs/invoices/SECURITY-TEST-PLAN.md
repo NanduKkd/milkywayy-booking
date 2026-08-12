@@ -1,5 +1,15 @@
 # Invoice security and content test plan
 
+## Administrator authorization gate
+
+The invoice-list and last-invoice-regeneration handlers require a current
+database-backed `SUPERADMIN` actor before querying transactions, resolving
+customer details, generating PDFs, or returning object URLs. Focused route
+tests cover anonymous denial, denial when the signed session does not resolve
+to a database Super Admin, and the unchanged authorized list/regeneration
+flows. Proxy or admin-page navigation checks are not treated as API
+authorization.
+
 ## Automated content gate
 
 `src/lib/helpers/__tests__/invoice.test.js` exercises the pure HTML boundary

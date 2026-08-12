@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import Review from "@/lib/db/models/review";
+import { requireSuperadminActor } from "@/lib/helpers/authorization";
+import { authorizationErrorResponse } from "@/lib/helpers/routeAuthorization";
 
 export async function PUT(request, { params }) {
   try {
+    await requireSuperadminActor();
+
     const { id } = await params;
     const body = await request.json();
 
@@ -27,6 +31,12 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(review);
   } catch (error) {
+    const authorizationResponse = authorizationErrorResponse(error);
+
+    if (authorizationResponse) {
+      return authorizationResponse;
+    }
+
     console.error("Error updating review:", error);
     return NextResponse.json(
       { error: "Failed to update review" },
@@ -37,6 +47,8 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(_request, { params }) {
   try {
+    await requireSuperadminActor();
+
     const { id } = await params;
     const review = await Review.findByPk(id);
 
@@ -48,6 +60,12 @@ export async function DELETE(_request, { params }) {
 
     return NextResponse.json({ message: "Review deleted successfully" });
   } catch (error) {
+    const authorizationResponse = authorizationErrorResponse(error);
+
+    if (authorizationResponse) {
+      return authorizationResponse;
+    }
+
     console.error("Error deleting review:", error);
     return NextResponse.json(
       { error: "Failed to delete review" },

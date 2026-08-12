@@ -1,6 +1,6 @@
 # Admin access control and Settings delivery plan
 
-- Last updated: 2026-07-01
+- Last updated: 2026-08-12
 - Planning status at GitHub migration: `DEFERRED`
 - Implementation status at GitHub migration: `DEFERRED`
 - Current planning issue: [#21](https://github.com/NanduKkd/milkywayy-booking/issues/21)
@@ -17,6 +17,15 @@ Staff accounts move out of Users and are managed only in Settings.
 This feature is on hold and has been deferred to a later release.
 No implementation work should start against this folder until the feature is
 reactivated and the task tracker is updated.
+
+The current application nevertheless has a compatibility security boundary for
+the sensitive operations hardened in issue #98. Those operations reconstruct
+the actor's role from the database for every request; a session-cookie role
+claim alone is not sufficient for them. This targeted hardening covers current
+staff/customer access mutations, commercial configuration writes, invoice
+administration, and review/portfolio management. It does not add the future
+`ADMIN`/`ACCOUNTS` roles, Settings UI, invitations, or editable permission
+matrix defined here.
 
 ## Document index
 

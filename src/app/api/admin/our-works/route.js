@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import OurWork from "@/lib/db/models/ourwork";
+import { requireSuperadminActor } from "@/lib/helpers/authorization";
+import { authorizationErrorResponse } from "@/lib/helpers/routeAuthorization";
 
 export async function POST(request) {
   try {
+    await requireSuperadminActor();
+
     const body = await request.json();
-    const { title, subtitle, type, mediaContent, thumbnail, order, isVisible } = body;
+    const { title, subtitle, type, mediaContent, thumbnail, order, isVisible } =
+      body;
 
     if (!title || !type || !mediaContent) {
       return NextResponse.json(
@@ -42,6 +47,12 @@ export async function POST(request) {
 
     return NextResponse.json(work, { status: 201 });
   } catch (error) {
+    const authorizationResponse = authorizationErrorResponse(error);
+
+    if (authorizationResponse) {
+      return authorizationResponse;
+    }
+
     console.error("Error creating our work entry:", error);
     return NextResponse.json(
       { error: "Failed to create our work entry" },

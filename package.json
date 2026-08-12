@@ -15,6 +15,7 @@
     "verify:oauth-topology": "node scripts/verify-oauth-topology.mjs",
     "verify:oauth-quality": "node scripts/verify-oauth-quality.mjs",
     "verify:oauth-security": "node scripts/verify-oauth-security.mjs",
+    "verify:authorization-boundaries": "node scripts/verify-authorization-boundaries.mjs",
     "worker:auto-complete": "node scripts/booking-auto-complete-worker.mjs",
     "worker:oauth-cleanup": "node scripts/oauth-cleanup-worker.mjs",
     "lint": "biome check",

@@ -1,3 +1,5 @@
+const mockRequireSuperadminActor = jest.fn();
+
 import { sequelize } from "../../../../../../lib/db/db";
 import OurWork from "../../../../../../lib/db/models/ourwork";
 import { PATCH } from "../route";
@@ -24,9 +26,32 @@ jest.mock("../../../../../../lib/db/db", () => ({
   },
 }));
 
+jest.mock("@/lib/helpers/authorization", () => ({
+  requireSuperadminActor: (...args) => mockRequireSuperadminActor(...args),
+  getAuthorizationErrorStatus: (error) => error.authorizationStatus ?? null,
+}));
+
 describe("Admin OurWorks Reorder API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRequireSuperadminActor.mockResolvedValue({
+      id: 1,
+      role: "SUPERADMIN",
+    });
+  });
+
+  it("rejects anonymous reordering before request or transaction work", async () => {
+    const request = { json: jest.fn() };
+    mockRequireSuperadminActor.mockRejectedValue(
+      Object.assign(new Error("Unauthorized"), { authorizationStatus: 401 }),
+    );
+
+    const response = await PATCH(request);
+
+    expect(response.status).toBe(401);
+    expect(request.json).not.toHaveBeenCalled();
+    expect(sequelize.transaction).not.toHaveBeenCalled();
+    expect(OurWork.update).not.toHaveBeenCalled();
   });
 
   it("updates the order of multiple items", async () => {
