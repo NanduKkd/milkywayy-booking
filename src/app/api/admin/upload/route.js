@@ -3,9 +3,9 @@ import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import mime from "mime-types";
 import { NextResponse } from "next/server";
 import sharp from "sharp";
-import { OUR_WORK_TYPES, USER_ROLES } from "@/lib/config/app.config";
+import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import Booking from "@/lib/db/models/booking";
-import { auth } from "@/lib/helpers/auth";
+import { requireSuperadminActor } from "@/lib/helpers/authorization";
 import {
   BOOKING_WORKFLOW_STATUS,
   DELIVERY_FILE_TYPE,
@@ -14,6 +14,7 @@ import {
   isNewDeliveryFileType,
   isVideoDeliveryFileType,
 } from "@/lib/helpers/bookingWorkflow";
+import { authorizationErrorResponse } from "@/lib/helpers/routeAuthorization";
 import { addUploadedDeliveryFiles } from "@/lib/services/fileDelivery";
 import {
   buildCanonicalObjectUrl,
@@ -161,13 +162,7 @@ async function uploadFileToS3({ file, folder, deliverableType, bucketName }) {
 
 export async function POST(request) {
   try {
-    const session = await auth();
-    if (!session?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (session.role !== USER_ROLES.SUPERADMIN) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    await requireSuperadminActor();
 
     const formData = await request.formData();
     const files = formData
@@ -387,6 +382,12 @@ export async function POST(request) {
       optimized,
     });
   } catch (error) {
+    const authorizationResponse = authorizationErrorResponse(error);
+
+    if (authorizationResponse) {
+      return authorizationResponse;
+    }
+
     console.error("Error uploading file:", error);
     const message = error?.message || "Upload failed";
     const status =

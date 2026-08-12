@@ -1,3 +1,5 @@
+const mockRequireSuperadminActor = jest.fn();
+
 import OurWork from "../../../../../../lib/db/models/ourwork";
 import { DELETE, PUT } from "../route";
 
@@ -16,9 +18,40 @@ jest.mock("../../../../../../lib/db/models/ourwork", () => ({
   findByPk: jest.fn(),
 }));
 
+jest.mock("@/lib/helpers/authorization", () => ({
+  requireSuperadminActor: (...args) => mockRequireSuperadminActor(...args),
+  getAuthorizationErrorStatus: (error) => error.authorizationStatus ?? null,
+}));
+
 describe("Admin OurWorks ID API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRequireSuperadminActor.mockResolvedValue({
+      id: 1,
+      role: "SUPERADMIN",
+    });
+  });
+
+  it.each([
+    [
+      "update",
+      (request) => PUT(request, { params: Promise.resolve({ id: "1" }) }),
+    ],
+    [
+      "delete",
+      (request) => DELETE(request, { params: Promise.resolve({ id: "1" }) }),
+    ],
+  ])("rejects anonymous %s access before model work", async (_, route) => {
+    const request = { json: jest.fn() };
+    mockRequireSuperadminActor.mockRejectedValue(
+      Object.assign(new Error("Unauthorized"), { authorizationStatus: 401 }),
+    );
+
+    const response = await route(request);
+
+    expect(response.status).toBe(401);
+    expect(request.json).not.toHaveBeenCalled();
+    expect(OurWork.findByPk).not.toHaveBeenCalled();
   });
 
   describe("PUT", () => {

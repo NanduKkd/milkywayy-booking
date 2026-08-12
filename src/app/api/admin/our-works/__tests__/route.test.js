@@ -1,3 +1,5 @@
+const mockRequireSuperadminActor = jest.fn();
+
 import OurWork from "../../../../../lib/db/models/ourwork";
 import { POST } from "../route";
 
@@ -16,9 +18,34 @@ jest.mock("../../../../../lib/db/models/ourwork", () => ({
   create: jest.fn(),
 }));
 
+jest.mock("@/lib/helpers/authorization", () => ({
+  requireSuperadminActor: (...args) => mockRequireSuperadminActor(...args),
+  getAuthorizationErrorStatus: (error) => error.authorizationStatus ?? null,
+}));
+
 describe("Admin OurWorks API Route - POST", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRequireSuperadminActor.mockResolvedValue({
+      id: 1,
+      role: "SUPERADMIN",
+    });
+  });
+
+  it.each([
+    ["Unauthorized", 401],
+    ["Forbidden", 403],
+  ])("returns %s before reading the request body", async (message, status) => {
+    const request = { json: jest.fn() };
+    mockRequireSuperadminActor.mockRejectedValue(
+      Object.assign(new Error(message), { authorizationStatus: status }),
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(status);
+    expect(request.json).not.toHaveBeenCalled();
+    expect(OurWork.create).not.toHaveBeenCalled();
   });
 
   it("creates a new work entry on success", async () => {

@@ -1,6 +1,6 @@
 # Project Overview
 
-- Last updated: 2026-07-23
+- Last updated: 2026-08-12
 
 ## What the application does
 
@@ -45,6 +45,9 @@ Start with [the public app](../src/app/page.js),
 
 - Customers authenticate by phone OTP and receive a signed HTTP-only session
   cookie.
+- Session cookie reads and writes live in a server-only helper, not a remotely
+  callable Server Action. Only the verified administrator-password, customer
+  OTP, booking-handoff OTP, and logout flows may write through that helper.
 - The dashboard exposes bookings, Properties, invoices, and connected
   applications. Properties remains at the compatible `/dashboard/files` route,
   retains authenticated delivery-file behavior and `fileId` deep links, and
@@ -56,8 +59,12 @@ Start with [the public app](../src/app/page.js),
   visitor identifiers. Owners can disable and re-enable a link; the URL stays
   unchanged. See [customer property showcases](./customer-property-sharing/README.md).
 - Route-level access and role redirects are enforced by
-  [`src/proxy.js`](../src/proxy.js), with additional ownership checks in server
-  actions and route handlers.
+  [`src/proxy.js`](../src/proxy.js) as a coarse navigation boundary. Sensitive
+  server actions and route handlers authorize again at the operation boundary.
+  The hardened Super Admin operations listed below reload the actor's role from
+  PostgreSQL rather than trusting a role claim from the session cookie.
+  Customer booking lists similarly derive ownership from the active database
+  customer instead of a caller-provided customer ID.
 
 Start with [customer authentication](../src/lib/services/customerAuth.js),
 [session helpers](../src/lib/helpers/auth.js), and
@@ -69,6 +76,13 @@ The admin portal supports booking operations, deliverable uploads, users,
 pricing, coupons, discounts, invoices, time slots, reviews, and portfolio
 content. Pages live under [`src/app/admin/`](../src/app/admin/); JSON and upload
 endpoints live under [`src/app/api/admin/`](../src/app/api/admin/).
+
+The current compatibility authorization layer requires a database-backed
+`SUPERADMIN` actor for staff creation and customer disablement, pricing and
+discount mutations, invoice administration, and review/portfolio management,
+including the shared administrator upload boundary. This hardening does not
+implement the deferred Admin/Accounts permission matrix described under
+`docs/admin-access-control/`.
 
 ### Delivery workflow
 

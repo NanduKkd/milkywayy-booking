@@ -1,6 +1,6 @@
 # Development Guide
 
-- Last updated: 2026-07-01
+- Last updated: 2026-08-12
 
 ## Prerequisites
 
@@ -178,6 +178,7 @@ configuration.
 | `npm run lint` | Run Biome checks without rewriting files. |
 | `npm run format` | Rewrite supported files with Biome formatting. |
 | `npm run verify:whatsapp-inbound-config` | Check the Twilio inbound auto-reply environment values before attaching the live webhook. |
+| `npm run verify:authorization-boundaries` | After `npm run build`, prove session helpers are not Server Actions and guarded admin operations remain in the production build. |
 | `npx sequelize-cli db:migrate` | Apply pending database migrations. |
 
 OAuth provisioning, verification, and cleanup commands are listed in

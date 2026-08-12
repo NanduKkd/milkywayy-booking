@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import OurWork from "@/lib/db/models/ourwork";
+import { requireSuperadminActor } from "@/lib/helpers/authorization";
+import { authorizationErrorResponse } from "@/lib/helpers/routeAuthorization";
 
 const findWorkByIdSafe = async (id) => {
   try {
@@ -28,9 +30,12 @@ const findWorkByIdSafe = async (id) => {
 
 export async function PUT(request, { params }) {
   try {
+    await requireSuperadminActor();
+
     const { id } = await params;
     const body = await request.json();
-    const { title, subtitle, type, mediaContent, thumbnail, order, isVisible } = body;
+    const { title, subtitle, type, mediaContent, thumbnail, order, isVisible } =
+      body;
 
     const work = await findWorkByIdSafe(id);
 
@@ -45,7 +50,7 @@ export async function PUT(request, { params }) {
         type: type !== undefined ? type : work.type,
         mediaContent:
           mediaContent !== undefined ? mediaContent : work.mediaContent,
-        thumbnail: thumbnail !== undefined ? (thumbnail || null) : work.thumbnail,
+        thumbnail: thumbnail !== undefined ? thumbnail || null : work.thumbnail,
         order: order !== undefined ? order : work.order,
         isVisible: isVisible !== undefined ? isVisible : work.isVisible,
       });
@@ -68,6 +73,12 @@ export async function PUT(request, { params }) {
 
     return NextResponse.json(work);
   } catch (error) {
+    const authorizationResponse = authorizationErrorResponse(error);
+
+    if (authorizationResponse) {
+      return authorizationResponse;
+    }
+
     console.error("Error updating our work entry:", error);
     return NextResponse.json(
       { error: "Failed to update our work entry" },
@@ -78,6 +89,8 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(_request, { params }) {
   try {
+    await requireSuperadminActor();
+
     const { id } = await params;
     const work = await findWorkByIdSafe(id);
 
@@ -89,6 +102,12 @@ export async function DELETE(_request, { params }) {
 
     return NextResponse.json({ message: "Entry deleted successfully" });
   } catch (error) {
+    const authorizationResponse = authorizationErrorResponse(error);
+
+    if (authorizationResponse) {
+      return authorizationResponse;
+    }
+
     console.error("Error deleting our work entry:", error);
     return NextResponse.json(
       { error: "Failed to delete our work entry" },

@@ -19,6 +19,7 @@ import Transaction from "@/lib/db/models/transaction";
 import User from "@/lib/db/models/user";
 import WalletTransaction from "@/lib/db/models/wallettransaction";
 import { auth } from "@/lib/helpers/auth";
+import { requireCustomerActor } from "@/lib/helpers/authorization";
 import {
   calculateBookingDuration,
   getBookingArrivalWindowFromDetails,
@@ -630,11 +631,13 @@ const checkAvailability = async (
     transaction,
   });
 
-const getBookingsHandler = async (userId) => {
+const getBookingsHandler = async (_userId) => {
+  const actorUser = await requireCustomerActor();
+
   try {
     const bookings = await Booking.findAll({
       where: {
-        userId,
+        userId: actorUser.id,
         status: { [Op.ne]: "DRAFT" },
       },
       include: [

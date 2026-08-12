@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { actionWrapper } from "@/lib/actions/utils";
 import DynamicConfig from "@/lib/db/models/dynamicconfig";
+import { requireSuperadminActor } from "@/lib/helpers/authorization";
 
 const CONFIG_KEY = "discounts";
 
@@ -20,6 +21,8 @@ const getDiscountsHandler = async () => {
 export const getDiscounts = actionWrapper(getDiscountsHandler);
 
 const saveDiscountsHandler = async (discounts) => {
+  await requireSuperadminActor();
+
   // Basic validation
   if (!Array.isArray(discounts)) {
     throw new Error("Invalid format");

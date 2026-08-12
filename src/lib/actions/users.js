@@ -5,9 +5,11 @@ import { revalidatePath } from "next/cache";
 import { actionWrapper } from "@/lib/actions/utils";
 import { USER_ROLES } from "@/lib/config/app.config";
 import models from "@/lib/db/models";
-import { getSessionUser } from "@/lib/helpers/auth";
+import { requireSuperadminActor } from "@/lib/helpers/authorization";
 
 const createUserHandler = async (userData) => {
+  await requireSuperadminActor();
+
   const { fullName, email, phone, role, password } = userData;
 
   // Check if user already exists
@@ -47,11 +49,7 @@ const createUserHandler = async (userData) => {
 export const createUser = actionWrapper(createUserHandler);
 
 const setCustomerDisabledHandler = async ({ userId, disabled }) => {
-  const session = await getSessionUser();
-
-  if (!session || session.role !== USER_ROLES.SUPERADMIN) {
-    throw new Error("You are not authorized to manage customer access");
-  }
+  await requireSuperadminActor();
 
   const customer = await models.User.findByPk(userId);
 

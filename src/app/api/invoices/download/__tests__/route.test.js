@@ -1,5 +1,5 @@
 import Transaction from "@/lib/db/models/transaction";
-import { auth } from "@/lib/helpers/auth";
+import { requireInvoiceDownloadActor } from "@/lib/helpers/authorization";
 import {
   createInvoiceDownloadUrl,
   parseOwnedInvoiceObjectUrl,
@@ -7,7 +7,10 @@ import {
 import { GET } from "../route";
 
 jest.mock("@/lib/db/models/transaction", () => ({ findOne: jest.fn() }));
-jest.mock("@/lib/helpers/auth", () => ({ auth: jest.fn() }));
+jest.mock("@/lib/helpers/authorization", () => ({
+  requireInvoiceDownloadActor: jest.fn(),
+  getAuthorizationErrorStatus: (error) => error.authorizationStatus ?? null,
+}));
 jest.mock("@/lib/storage/s3", () => ({
   createInvoiceDownloadUrl: jest.fn(),
   parseOwnedInvoiceObjectUrl: jest.fn(),
@@ -28,7 +31,10 @@ jest.mock("next/server", () => ({
 describe("invoice download route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    auth.mockResolvedValue({ id: 34, role: "CUSTOMER" });
+    requireInvoiceDownloadActor.mockResolvedValue({
+      id: 34,
+      role: "CUSTOMER",
+    });
     Transaction.findOne.mockResolvedValue({
       id: 55,
       userId: 34,
@@ -46,11 +52,26 @@ describe("invoice download route", () => {
   });
 
   it("requires authentication", async () => {
-    auth.mockResolvedValue(null);
+    requireInvoiceDownloadActor.mockRejectedValue(
+      Object.assign(new Error("Unauthorized"), { authorizationStatus: 401 }),
+    );
     const response = await GET({
       url: "http://localhost/api/invoices/download?transactionId=55",
     });
     expect(response.status).toBe(401);
+    expect(Transaction.findOne).not.toHaveBeenCalled();
+  });
+
+  it("rejects a database actor without invoice access before querying transactions", async () => {
+    requireInvoiceDownloadActor.mockRejectedValue(
+      Object.assign(new Error("Forbidden"), { authorizationStatus: 403 }),
+    );
+
+    const response = await GET({
+      url: "http://localhost/api/invoices/download?transactionId=55",
+    });
+
+    expect(response.status).toBe(403);
     expect(Transaction.findOne).not.toHaveBeenCalled();
   });
 
@@ -79,7 +100,10 @@ describe("invoice download route", () => {
   });
 
   it("allows an admin to download by transaction id", async () => {
-    auth.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
+    requireInvoiceDownloadActor.mockResolvedValue({
+      id: 1,
+      role: "SUPERADMIN",
+    });
 
     const response = await GET({
       url: "http://localhost/api/invoices/download?transactionId=55",

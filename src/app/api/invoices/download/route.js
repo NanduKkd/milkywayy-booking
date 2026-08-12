@@ -1,17 +1,27 @@
 import { NextResponse } from "next/server";
 import { USER_ROLES } from "@/lib/config/app.config";
 import Transaction from "@/lib/db/models/transaction";
-import { auth } from "@/lib/helpers/auth";
+import { requireInvoiceDownloadActor } from "@/lib/helpers/authorization";
 import { formatInvoiceNumber } from "@/lib/helpers/invoice-format";
+import { authorizationErrorResponse } from "@/lib/helpers/routeAuthorization";
 import {
   createInvoiceDownloadUrl,
   parseOwnedInvoiceObjectUrl,
 } from "@/lib/storage/s3";
 
 export async function GET(request) {
-  const session = await auth();
-  if (!session?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let actorUser;
+
+  try {
+    actorUser = await requireInvoiceDownloadActor();
+  } catch (error) {
+    const authorizationResponse = authorizationErrorResponse(error);
+
+    if (authorizationResponse) {
+      return authorizationResponse;
+    }
+
+    throw error;
   }
 
   const { searchParams } = new URL(request.url);
@@ -24,7 +34,7 @@ export async function GET(request) {
   }
 
   const where = { id: transactionId };
-  if (session.role !== USER_ROLES.SUPERADMIN) where.userId = session.id;
+  if (actorUser.role !== USER_ROLES.SUPERADMIN) where.userId = actorUser.id;
   const transaction = await Transaction.findOne({ where });
   if (!transaction?.invoiceUrl) {
     return NextResponse.json({ error: "Invoice not found" }, { status: 404 });

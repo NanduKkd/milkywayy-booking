@@ -1,6 +1,6 @@
 # Project Status
 
-- Last updated: 2026-07-23
+- Last updated: 2026-08-12
 - Status: `ACTIVE`
 - Release posture: core product workflows are implemented, but repo-wide quality checks are not fully green
 
@@ -11,6 +11,21 @@ Milkywayy is an active Next.js application with working customer booking flows, 
 The root `README.md` indexes maintained repository documentation. GitHub Issues
 and Project 1 now govern planned work and live workflow status; the former
 Notion workspace is retained only as a migration archive.
+
+## Current authorization boundary
+
+- Session cookie helpers are server-only utilities and are not exported as
+  remotely callable Server Actions. Verified login/OTP actions and the verified
+  booking-handoff route retain the existing cookie and redirect behavior.
+- Current staff creation/customer lifecycle, pricing/discount mutation,
+  invoice administration, and review/portfolio operations require a
+  database-backed `SUPERADMIN` actor at the server operation boundary.
+- Customer booking-list reads derive ownership from the current active database
+  customer. A caller-provided customer ID cannot broaden the query.
+- This compatibility hardening does not implement the deferred Admin/Accounts
+  role and permission matrix. Production rollout must replace every old
+  application instance and rotate the website session secret so pre-rollout
+  sessions are invalidated.
 
 ## Implemented product areas
 
@@ -56,22 +71,23 @@ Notion workspace is retained only as a migration archive.
 
 ## Current repository health
 
-Most recent full-suite evidence recorded during issue #68 verification on
-2026-07-22:
+Most recent repository-wide baseline captured before issue #98 implementation
+on 2026-08-12:
 
-- `npm run test:jest:full -- --silent`: `193` test suites passed, `1` was
-  skipped behind its explicit disposable-PostgreSQL opt-in, and `11` failed.
-  `1,135` tests passed, `3` were skipped, and `42` failed.
-- A tracked-file Biome check reported the same pre-existing `293` errors and
-  `59` warnings.
-- The corrected issue #68 property-sharing verification on 2026-07-23 passed
-  `60` tests across `11` focused suites, with the guarded PostgreSQL suite
-  skipped in that ordinary command. The reserved disposable-PostgreSQL run
-  separately passed `4` tests covering schema constraints and 40 concurrent
-  view increments. All changed JavaScript and JSX passed focused Biome checks;
-  the reference-matched CSS retained only `8` non-blocking
-  descending-specificity warnings. Its compatibility gate passed `95` tests
-  across `18` existing dashboard, delivery, storage, and booking suites.
+- `npm run test:jest:full -- --silent`: `200` test suites passed, `1` was
+  skipped, and `13` failed. `1,253` tests passed, `8` were skipped, and `46`
+  failed. Do not run this command with privileged or production PostgreSQL
+  credentials; legacy integration suites still need migration to the guarded
+  disposable-database helper.
+- `npm run lint`: `292` errors and `59` warnings across `633` files.
+- The issue #98 authorization/UI compatibility gate passed `186` tests across
+  `30` focused suites. A production build completed successfully, and the fresh
+  build manifest proved that the session helper exposes zero Server Actions
+  while all guarded UI actions and API routes remain built. The proof is
+  reusable through `npm run verify:authorization-boundaries` after a build.
+- The production build still skips type validation through the existing Next.js
+  configuration and logs the known non-fatal `/admin/promotions` dynamic-render
+  warning.
 
 Interpretation:
 
@@ -89,6 +105,8 @@ Interpretation:
 - Booking mobile-autoscroll expectations do not match current behavior.
 - Disposable PostgreSQL suites fail closed when the required test-admin opt-in
   is absent from the ordinary repository-wide command.
+- Some legacy PostgreSQL integration suites create/drop databases from `DB_*`
+  configuration and must not run with privileged production credentials.
 - OAuth environment/configuration, token, and redirect expectations do not match
   the current implementation or test setup.
 - Local browser/PDF and disposable PostgreSQL suites fail when their required

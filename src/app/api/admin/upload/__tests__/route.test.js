@@ -1,6 +1,6 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import Booking from "@/lib/db/models/booking";
-import { auth } from "@/lib/helpers/auth";
+import { requireSuperadminActor } from "@/lib/helpers/authorization";
 import { addUploadedDeliveryFiles } from "@/lib/services/fileDelivery";
 import {
   headBookingObject,
@@ -22,8 +22,9 @@ jest.mock("sharp", () => {
 jest.mock("@/lib/db/models/booking", () => ({
   findByPk: jest.fn(),
 }));
-jest.mock("@/lib/helpers/auth", () => ({
-  auth: jest.fn(),
+jest.mock("@/lib/helpers/authorization", () => ({
+  requireSuperadminActor: jest.fn(),
+  getAuthorizationErrorStatus: (error) => error.authorizationStatus ?? null,
 }));
 jest.mock("@/lib/services/fileDelivery", () => ({
   addUploadedDeliveryFiles: jest.fn(),
@@ -63,7 +64,7 @@ const createRequest = (values) => ({
 describe("Admin Upload API Route", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    auth.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
+    requireSuperadminActor.mockResolvedValue({ id: 1, role: "SUPERADMIN" });
     parseOwnedBookingObjectUrl.mockReturnValue({
       bucket: "milkywayy",
       key: "bookings/42/final-video.mp4",
@@ -72,6 +73,19 @@ describe("Admin Upload API Route", () => {
       ContentLength: 1024,
       ContentType: "video/mp4",
     });
+  });
+
+  it("rejects anonymous uploads before reading multipart data", async () => {
+    const request = { formData: jest.fn() };
+    requireSuperadminActor.mockRejectedValue(
+      Object.assign(new Error("Unauthorized"), { authorizationStatus: 401 }),
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(401);
+    expect(request.formData).not.toHaveBeenCalled();
+    expect(PutObjectCommand).not.toHaveBeenCalled();
   });
 
   it("uploads a portfolio image for an admin", async () => {
@@ -318,7 +332,9 @@ describe("Admin Upload API Route", () => {
   });
 
   it("rejects non-admin users before uploading", async () => {
-    auth.mockResolvedValue({ id: 2, role: "CUSTOMER" });
+    requireSuperadminActor.mockRejectedValue(
+      Object.assign(new Error("Forbidden"), { authorizationStatus: 403 }),
+    );
 
     const response = await POST(
       createRequest({
