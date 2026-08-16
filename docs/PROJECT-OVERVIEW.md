@@ -103,8 +103,8 @@ defined by the booking delivery models and migrations under
 Invoice HTML is built through a pure customer-visible rendering boundary before
 Puppeteer produces and storage receives the PDF. The invoice architecture and
 content-security test contract are documented in [the invoice guide](./invoices/README.md).
-Pull requests also run a synthetic, temporary-file Chromium PDF smoke test and
-focused invoice coverage gate; neither uses production data or storage.
+Pushes to `main` also run a synthetic, temporary-file Chromium PDF smoke test
+and focused invoice coverage gate; neither uses production data or storage.
 
 ### Invoice safety
 

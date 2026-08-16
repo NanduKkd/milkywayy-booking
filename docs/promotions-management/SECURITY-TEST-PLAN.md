@@ -223,10 +223,9 @@ The accepted minimum for `src/lib/actions/promotions.js` is 90% statements and
 80% branches. The issue #31 implementation recorded 100% statements and 100%
 branches for both boundary files across 26 focused tests.
 
-All seven assurance children are merged and `DONE`. PRM-313 enforces their
+All seven historical assurance children were completed. PRM-313 enforces their
 focused CI coverage without implying that the repository-wide Jest baseline is
-green; the parent feature's final workflow state remains authoritative in
-GitHub Project 1.
+green. Current unfinished work is authoritative only in `docs/PENDING-TASKS.md`.
 
 ## Promotions UI failure and recovery gate
 
@@ -264,10 +263,10 @@ The required `PromotionManager` branch coverage is at least 80%. The initial
 PRM-312 implementation recorded 85.61% branches across 19 component tests;
 the paired page suite adds three page-boundary tests.
 
-## PRM-313 GitHub CI quality gates
+## PRM-313 CI quality gates
 
 [`.github/workflows/promotion-quality-gates.yml`](../../.github/workflows/promotion-quality-gates.yml)
-runs on every pull request to `main` and can also be started manually. It uses
+runs on every push to `main` and can also be started manually. It uses
 `npm ci`, Node 24, dependency caching keyed by `package-lock.json`, bounded
 job/process timeouts, and only safe synthetic configuration. It never caches a
 database, environment file, or secret.
