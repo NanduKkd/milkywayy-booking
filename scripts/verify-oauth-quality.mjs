@@ -141,6 +141,7 @@ async function main() {
   try {
     runCommand("Focused Jest review", jestBin, [
       "--runInBand",
+      "--testPathIgnorePatterns=/node_modules/",
       "--runTestsByPath",
       ...jestSuites,
       "--json",

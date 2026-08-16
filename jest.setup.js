@@ -4,6 +4,12 @@ import { TextDecoder, TextEncoder } from "node:util";
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// Keep the ordinary Jest baseline independent from developer-specific OAuth
+// values loaded by next/jest. Individual config tests set their own values.
+delete process.env.OAUTH_BASE_URL;
+delete process.env.OAUTH_ALLOWED_SCOPES;
+delete process.env.OAUTH_CALLBACK_URIS;
+
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
   observe() {}

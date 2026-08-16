@@ -1,10 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -105,7 +99,7 @@ function PropertyCardHarness() {
   );
 }
 
-describe("PropertyCard mobile autoscroll", () => {
+describe("PropertyCard mobile autoscroll boundaries", () => {
   const originalMatchMedia = window.matchMedia;
   const originalRequestAnimationFrame = window.requestAnimationFrame;
   const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
@@ -135,7 +129,7 @@ describe("PropertyCard mobile autoscroll", () => {
     HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
   });
 
-  it("scrolls to the next mobile field after property type, size, and service selections", async () => {
+  it("keeps type and size autoscroll while leaving service autoscroll disabled", async () => {
     render(<PropertyCardHarness />);
 
     fireEvent.click(screen.getAllByText("Apartment")[0]);
@@ -154,30 +148,26 @@ describe("PropertyCard mobile autoscroll", () => {
 
     fireEvent.click(screen.getByText("Photography"));
 
-    await waitFor(() => {
-      expect(scrolledSections).toHaveLength(3);
-    });
-    expect(scrolledSections[2]?.textContent).toContain("LOCATION");
+    expect(scrolledSections).toHaveLength(2);
   });
 
-  it("scrolls from videography service selection to mobile video format, then to location", async () => {
+  it("does not autoscroll for videography service or format selections", async () => {
     render(<PropertyCardHarness />);
 
     fireEvent.click(screen.getAllByText("Apartment")[0]);
     fireEvent.click(await screen.findByText("Studio"));
+
+    await waitFor(() => {
+      expect(scrolledSections).toHaveLength(2);
+    });
+
     fireEvent.click(await screen.findByText("Videography"));
 
-    await waitFor(() => {
-      expect(scrolledSections).toHaveLength(3);
-    });
-    expect(scrolledSections[2]?.textContent).toContain("Video Format");
+    expect(scrolledSections).toHaveLength(2);
 
-    fireEvent.click(within(scrolledSections[2]).getAllByText("Long Form")[0]);
+    fireEvent.click(screen.getAllByText("Long Form")[0]);
 
-    await waitFor(() => {
-      expect(scrolledSections).toHaveLength(4);
-    });
-    expect(scrolledSections[3]?.textContent).toContain("LOCATION");
+    expect(scrolledSections).toHaveLength(2);
   });
 
   it("does not autoscroll on desktop viewports", async () => {

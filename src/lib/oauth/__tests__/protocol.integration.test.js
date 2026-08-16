@@ -8,6 +8,7 @@ const createUserMigration = require("../../db/migrations/20251129095448-create-u
 const addCustomerAccountFieldsMigration = require("../../db/migrations/20260316000000-add-customer-account-fields.js");
 const addCustomerAuthOtpControlsMigration = require("../../db/migrations/20260629000000-add-customer-auth-otp-controls.js");
 const createOAuthPersistenceMigration = require("../../db/migrations/20260629010000-create-oauth-persistence.js");
+const addUserDisabledAtMigration = require("../../db/migrations/20260712000000-add-user-disabled-at.js");
 
 const DEFAULT_REDIRECT_URI = "https://chatgpt.com/aip/oauth/callback-test";
 const TEST_SCOPES = ["customer:read"];
@@ -16,6 +17,7 @@ const MIGRATIONS = [
   addCustomerAccountFieldsMigration,
   addCustomerAuthOtpControlsMigration,
   createOAuthPersistenceMigration,
+  addUserDisabledAtMigration,
 ];
 
 jest.setTimeout(30000);

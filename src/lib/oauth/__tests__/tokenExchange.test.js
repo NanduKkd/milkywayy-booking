@@ -472,6 +472,7 @@ describe("oauth token exchange", () => {
           id: 7,
         },
         correlationId: "corr-7",
+        now: new Date("2026-06-29T12:00:00.000Z"),
         parameters: new URLSearchParams({
           grant_type: "refresh_token",
           refresh_token: "old-refresh-token",

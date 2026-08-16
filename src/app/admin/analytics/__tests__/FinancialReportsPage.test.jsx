@@ -401,7 +401,13 @@ function setupFetch({
 
 describe("FinancialReportsPage", () => {
   beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-07-15T08:00:00.000Z"));
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("renders live KPI, report, and expense tracker data", async () => {

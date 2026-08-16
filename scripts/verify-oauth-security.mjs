@@ -28,6 +28,7 @@ async function runGroup({ caseIds, name, tests }) {
     jestBin,
     [
       "--runInBand",
+      "--testPathIgnorePatterns=/node_modules/",
       "--runTestsByPath",
       ...tests,
       "--json",
