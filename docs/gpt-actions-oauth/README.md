@@ -23,7 +23,9 @@ This is OAuth 2.0 API authorization. It is not an OpenID Connect implementation:
 - [OPERATIONS.md](./OPERATIONS.md): production secret preparation, client provisioning, rotation, and emergency disablement steps.
 - [`src/contracts/gpt-actions/openapi.json`](../../src/contracts/gpt-actions/openapi.json): validated executable GPT Action OpenAPI contract for the approved read-only resource API.
 
-If documents disagree about shipped behavior, verify the implementation and correct the durable docs. GitHub Project 1 controls current workflow status.
+If documents disagree about shipped behavior, verify the implementation and
+correct the durable docs. Current unfinished work and blockers are recorded in
+`docs/PENDING-TASKS.md`.
 
 ## Status model
 
@@ -40,7 +42,7 @@ Use exactly one of these values for implementation tasks:
 
 Update rules:
 
-1. Update the GitHub Issue and pull request evidence with the implementation.
+1. Tie evidence to the exact implementation and update affected durable docs.
 2. Mark a task `DONE` only after its acceptance criteria and relevant tests pass.
 3. Add newly discovered scope as a new task ID; do not silently expand an existing task.
 4. Record architecture or security changes in `DECISIONS.md` before implementing them.
@@ -95,7 +97,7 @@ Allow 2-3 calendar weeks for implementation, review, deployment, and ChatGPT int
 
 The release is complete only when:
 
-- Every release-blocking GitHub Issue is `Done`.
+- No release-blocking GPT Actions task remains in `docs/PENDING-TASKS.md`.
 - Every release gate in `SECURITY-TEST-PLAN.md` passes.
 - A customer can connect from ChatGPT, list only their own records, refresh an expired access token, and disconnect access from the direct `/dashboard/connections` page.
 - Expired, replayed, revoked, wrong-client, wrong-redirect, and insufficient-scope requests fail safely.

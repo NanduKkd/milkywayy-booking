@@ -97,12 +97,13 @@ campaign traffic accumulation, and Google reporting latency.
 - Dashboard totals reconcile to GA4 for the same dimensions and reporting period.
 - Sampled paid bookings reconcile to authoritative transaction records within the documented limitations of consent, blockers, and attribution.
 - Privacy, consent, security, automated test, manual validation, rollout, monitoring, and rollback gates are complete.
-- Every release-blocking GitHub Issue is `Done` with evidence.
+- No release-blocking analytics task remains in `docs/PENDING-TASKS.md`.
 
 ## Delivery update rules
 
-1. GitHub Issues and Project 1 are authoritative for current implementation status.
-2. Update the GitHub Issue/PR evidence and affected durable docs in the same change as implementation.
-3. Do not start a decision-dependent task until its decision is `ACCEPTED`.
-4. Add newly discovered work as a separate bounded GitHub Issue.
+1. `docs/PENDING-TASKS.md` is authoritative for unfinished implementation status.
+2. Tie evidence to the exact implementation and update affected durable docs in the same change.
+3. Record unresolved decisions and their consequences in the relevant durable
+   documentation.
+4. Record newly discovered unfinished work in `docs/PENDING-TASKS.md`.
 5. Update the `Last updated` date when scope, decisions, or status materially changes.

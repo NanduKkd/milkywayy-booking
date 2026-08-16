@@ -89,7 +89,7 @@ For sampled reporting periods:
 2. Confirm each purchase's service items match the booking record.
 3. Separate expected loss caused by consent or blocking from implementation defects.
 4. Review Google Ads conversions by conversion action to prevent duplicate primary conversions.
-5. Record unexplained discrepancies and remediation evidence on the linked GitHub Issue or pull request.
+5. Record unexplained discrepancies and remediation evidence in the authoritative local task and its verification report.
 
 GA4/Ads revenue is a measurement view, not the accounting ledger.
 

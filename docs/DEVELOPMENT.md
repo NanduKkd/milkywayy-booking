@@ -207,19 +207,17 @@ See the [project overview](./PROJECT-OVERVIEW.md) for a fuller code map.
 
 ## Documentation maintenance
 
-Repository-local documentation rules are defined in [`AGENTS.md`](../AGENTS.md)
-and the [feature delivery playbook](./FEATURE-DELIVERY-PLAYBOOK.md). They are
-part of the delivery process for multi-file, release-relevant, or feature-sized
-work.
+Repository-local guidance is defined in [`AGENTS.md`](../AGENTS.md), and the
+[change verification guide](./CHANGE-VERIFICATION.md) describes testing,
+evidence, and safety expectations.
 
-- Plan features and bounded tasks in GitHub Issues and use Project 1 as the
-  authoritative workflow state and priority queue.
+- Record unfinished work and blockers in `docs/PENDING-TASKS.md`.
 - Keep durable shipped behavior under `docs/<feature-slug>/` instead of
   scattering implementation knowledge through issue comments.
 - Treat existing `TASKS.md` files as historical delivery ledgers, not live
   implementation trackers.
-- Update issue/PR evidence and materially affected durable docs in the same
-  change as the code.
+- Tie verification evidence to the exact change and update materially
+  affected durable docs in the same change as the code.
 - Record architecture or product decisions before implementing a changed
   direction.
 - Update `docs/PROJECT-STATUS.md` when repository health or release posture
@@ -229,5 +227,5 @@ work.
   ignored `docs/private/PRODUCTION-DEPLOYMENT.md` runbook.
 
 The full feature document set is intentionally optional for small, isolated
-fixes. Follow the playbook when the work spans multiple files, milestones,
-production risk, or cross-functional decisions.
+fixes. Use the relevant maintained documentation when a change affects stable
+behavior, architecture, operations, security, or accepted decisions.

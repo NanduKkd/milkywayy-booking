@@ -12,15 +12,14 @@ Twilio/WhatsApp communication, and a read-only GPT Actions integration.
 - [Project status](./docs/PROJECT-STATUS.md): current repository health and release posture.
 - [Booking file delivery](./docs/booking-file-delivery/README.md): canonical delivery classifications, upload validation, and legacy replacement compatibility.
 - [Customer property showcases](./docs/customer-property-sharing/README.md): stable public links, reference-matched management UI, inline showcase, and operations contract.
-- [Feature delivery playbook](./docs/FEATURE-DELIVERY-PLAYBOOK.md): GitHub Issue, Project, pull-request, and durable-documentation workflow.
-- [GitHub Project 1](https://github.com/users/NanduKkd/projects/1): authoritative live workflow status.
-- [GitHub Issues](https://github.com/NanduKkd/milkywayy-booking/issues): feature plans, tasks, bugs, blockers, and requested proof.
+- [Pending tasks](./docs/PENDING-TASKS.md): unfinished work, decisions, and blockers.
+- [Change verification guide](./docs/CHANGE-VERIFICATION.md): testing, evidence, review, and safety guidance.
 - [Agent instructions](./AGENTS.md): repository-local rules for coding agents.
 
-GitHub Issues hold planned intent and task contracts, GitHub Project 1 holds
-live workflow state, and reviewed repository files hold durable implemented
-truth. Existing feature `TASKS.md` files are historical delivery ledgers, and
-the previous Notion workspace is a migration archive only.
+Repository files are authoritative for implemented truth.
+`docs/PENDING-TASKS.md` records unfinished work and blockers. Existing feature
+`TASKS.md` files, GitHub workflow records, and the previous Notion workspace are
+historical archives only.
 
 Exact production configuration remains only in ignored local `docs/private/`
 runbooks and must not be copied into GitHub or tracked files.

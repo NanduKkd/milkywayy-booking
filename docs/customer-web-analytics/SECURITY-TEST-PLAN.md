@@ -137,9 +137,9 @@ required customer-data policy review is complete.
 - Dashboard acceptance review.
 - Rollback validation note.
 
-Evidence belongs on the linked GitHub Issue or pull request as tasks progress. Exact production
-identifiers and sensitive operational evidence belong only in the approved private
-operations document.
+Safe evidence belongs in the task handoff or a durable verification report tied
+to the exact implementation. Exact production identifiers and sensitive
+operational evidence belong only in the approved private operations document.
 
 ## Known limitations to validate and communicate
 

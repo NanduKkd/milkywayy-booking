@@ -1,6 +1,6 @@
 # Project Status
 
-- Last updated: 2026-08-12
+- Last updated: 2026-08-16
 - Status: `ACTIVE`
 - Release posture: core product workflows are implemented, but repo-wide quality checks are not fully green
 
@@ -8,9 +8,9 @@
 
 Milkywayy is an active Next.js application with working customer booking flows, dashboard access, secure completed-property sharing, admin operations, delivery-file workflow, wallet/invoice features, promotions, finance reporting, scheduling calendar workflows, and a completed first-release GPT Actions OAuth integration.
 
-The root `README.md` indexes maintained repository documentation. GitHub Issues
-and Project 1 now govern planned work and live workflow status; the former
-Notion workspace is retained only as a migration archive.
+The root `README.md` indexes maintained repository documentation.
+`docs/PENDING-TASKS.md` records unfinished work and blockers. GitHub workflow
+records and the former Notion workspace are archives only.
 
 ## Current authorization boundary
 
@@ -71,15 +71,17 @@ Notion workspace is retained only as a migration archive.
 
 ## Current repository health
 
-Most recent repository-wide baseline captured before issue #98 implementation
-on 2026-08-12:
+Most recent repository-wide baseline captured on 2026-08-16:
 
-- `npm run test:jest:full -- --silent`: `200` test suites passed, `1` was
-  skipped, and `13` failed. `1,253` tests passed, `8` were skipped, and `46`
-  failed. Do not run this command with privileged or production PostgreSQL
-  credentials; legacy integration suites still need migration to the guarded
-  disposable-database helper.
-- `npm run lint`: `292` errors and `59` warnings across `633` files.
+- `npm run test:jest:full -- --silent`: `215` test suites and `1,323` tests
+  passed with no failures or skips. The ordinary baseline excludes suites that
+  require explicit PostgreSQL administration or a locally installed Chromium
+  binary; those remain available through the dedicated `test:*:postgres`, OAuth
+  verification, and `test:invoices:pdf` commands. Do not run PostgreSQL commands
+  with privileged or production credentials.
+- The separately executed OAuth PostgreSQL protocol fixture passed `7` tests
+  after its migration list was brought up to date.
+- `npm run lint`: passed on 2026-08-16 across `643` files with no diagnostics.
 - The issue #98 authorization/UI compatibility gate passed `186` tests across
   `30` focused suites. A production build completed successfully, and the fresh
   build manifest proved that the session helper exposes zero Server Actions
@@ -93,29 +95,28 @@ Interpretation:
 
 - The repository is not in a fully green CI-style state.
 - The runtime and feature coverage are still substantial, especially around OAuth, GPT APIs, admin flows, and booking/delivery workflows.
-- Current quality debt includes repo-wide formatting/import hygiene, booking
-  mobile-autoscroll expectations, disposable PostgreSQL suites that require
-  explicit test-admin opt-in, and OAuth configuration/token/redirect
-  expectation failures.
+- Remaining quality limitations are outside the ordinary Jest baseline: guarded
+  PostgreSQL suites still require explicit test-admin configuration, the PDF
+  smoke test requires local Chromium, and the production build skips type
+  validation through existing Next.js configuration.
 
-## Known failing checks
+## Prerequisite-dependent checks
 
-### Failing tests
+### External test prerequisites
 
-- Booking mobile-autoscroll expectations do not match current behavior.
-- Disposable PostgreSQL suites fail closed when the required test-admin opt-in
-  is absent from the ordinary repository-wide command.
+- Booking mobile-autoscroll expectations now match the intentionally retained
+  type/size transitions and disabled service/video-format transitions.
+- Disposable PostgreSQL suites remain fail-closed unless the required test-admin
+  opt-in is supplied to their dedicated commands.
 - Some legacy PostgreSQL integration suites create/drop databases from `DB_*`
   configuration and must not run with privileged production credentials.
-- OAuth environment/configuration, token, and redirect expectations do not match
-  the current implementation or test setup.
-- Local browser/PDF and disposable PostgreSQL suites fail when their required
-  runtime processes are unavailable.
+- The invoice PDF smoke test requires a locally installed Chromium binary and is
+  available through `npm run test:invoices:pdf`.
 
-### Lint / formatting backlog
+### Lint / formatting status
 
-- Biome failures are widespread and mostly span formatting, import ordering, unused imports, and test-file hygiene.
-- The lint backlog is broad enough that it should be treated as a dedicated cleanup effort, not incidental drive-by work.
+- The configured Biome check is clean. `adminPrototype.jsx` is intentionally
+  excluded because it is a static design reference rather than executable code.
 
 ## Documentation status
 
@@ -123,17 +124,17 @@ Interpretation:
 - `docs/PROJECT-OVERVIEW.md` describes the product surfaces, architecture, integrations, domain model, and code map.
 - `docs/DEVELOPMENT.md` documents local setup, configuration groups, common commands, and documentation maintenance.
 - `docs/gpt-actions-oauth/` remains the detailed durable documentation set for that feature; its `TASKS.md` is a historical first-release ledger.
-- `docs/FEATURE-DELIVERY-PLAYBOOK.md` defines the GitHub-first planning and delivery process, while `AGENTS.md` records repo-local agent rules.
-- GitHub Issues and Project 1 are authoritative for current scope, tasks, blockers, priority, and status.
+- `docs/CHANGE-VERIFICATION.md` defines local testing, evidence, review, and safety guidance, while `AGENTS.md` records repository-local agent rules.
+- `docs/PENDING-TASKS.md` records unfinished scope and blockers.
 - Exact production deployment details remain intentionally local-only in `docs/private/PRODUCTION-DEPLOYMENT.md`.
 
 ## Recommended next documentation work
 
 1. Keep `docs/PROJECT-STATUS.md` updated whenever repository health or release posture materially changes.
 2. Update the project overview and development guide when architecture, integrations, setup, or commands materially change.
-3. Promote accepted implementation knowledge from GitHub Issues into the relevant feature docs in the same pull request as the code.
+3. Promote accepted implementation knowledge into the relevant feature docs in the same change as the code.
 
 ## Recommended engineering follow-up
 
-1. Fix the currently recorded booking and OAuth test failures and restore a passing Jest baseline.
-2. Decide whether to attack the Biome backlog incrementally by area or in one dedicated cleanup branch.
+The unresolved Jest-baseline and Biome-cleanup decisions are tracked only in
+`docs/PENDING-TASKS.md`.

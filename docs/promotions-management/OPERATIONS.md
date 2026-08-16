@@ -94,7 +94,7 @@ the pending payment rather than silently applying a stale benefit.
 
 ## CI quality-gate recovery
 
-- Pull requests run the promotion coverage gate and the disposable PostgreSQL
+- Pushes to `main` run the promotion coverage gate and the disposable PostgreSQL
   migration/integration gate from
   [the committed workflow](../../.github/workflows/promotion-quality-gates.yml).
   Reproduce a failing gate with the commands and synthetic-variable inventory

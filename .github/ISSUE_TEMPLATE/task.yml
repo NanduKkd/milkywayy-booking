@@ -1,5 +1,5 @@
 name: Implementation task
-description: Define one bounded, dependency-aware unit of implementation work.
+description: Describe a bounded implementation change and its verification.
 title: "[Task]: "
 labels:
   - "type:task"
@@ -44,14 +44,14 @@ body:
     id: dependencies
     attributes:
       label: Dependencies and blockers
-      description: Link prerequisite issues and state any required access or decisions. Write None when clear.
+      description: State any required access, external dependency, or unresolved blocker. Write None when clear.
     validations:
       required: true
   - type: textarea
     id: verification
     attributes:
       label: Verification
-      description: List focused commands and manual checks the implementer should run.
+      description: List focused commands and manual checks that demonstrate the result.
     validations:
       required: true
   - type: textarea

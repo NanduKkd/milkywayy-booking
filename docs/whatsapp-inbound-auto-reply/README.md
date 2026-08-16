@@ -3,7 +3,7 @@
 - Last updated: 2026-07-01
 - Planning status at GitHub migration: `DONE`
 - Implementation status at GitHub migration: `BLOCKED`
-- Current rollout issue: [#17](https://github.com/NanduKkd/milkywayy-booking/issues/17)
+- Current rollout task: `MW-WA-001` in [`docs/PENDING-TASKS.md`](../PENDING-TASKS.md)
 - Target: Automatically direct inbound WhatsApp senders to the public contact phone number.
 
 ## Purpose
@@ -70,5 +70,5 @@ This copy is approved for implementation. It deliberately avoids claiming that m
 - Invalid or unsigned requests cannot trigger a WhatsApp response.
 - Valid inbound WhatsApp messages receive the approved response.
 - Focused tests and lint checks pass.
-- Production configuration remains private; safe manual validation evidence belongs on the linked GitHub Issue or pull request.
+- Production configuration remains private; safe manual validation evidence belongs in the task handoff or a durable verification report.
 - Rollback instructions are usable and do not require a code revert as the first response.

@@ -1,13 +1,9 @@
-name: Feature plan
-description: Plan a new feature or a material update before publishing implementation tasks.
+name: Feature
+description: Describe a new feature or material product update.
 title: "[Feature]: "
 labels:
   - "type:feature"
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Keep this feature in **Draft** while scope or decisions remain open. Planning agents must not mark it Ready.
   - type: textarea
     id: problem
     attributes:

@@ -75,7 +75,7 @@ temporary and is never an Actions artifact.
 - Do not use a shared, production, or customer-data database for concurrency
   proof.
 - Record the exact test command, pass count, PostgreSQL version, cleanup result,
-  and concurrent result in the pull request.
+  and concurrent result in the task verification evidence.
 - Treat an unresolved allocation error as a failed generation path; do not
   synthesize a duplicate or malformed invoice number.
 - The combined plain-object URL-plus-number regression must continue to reload

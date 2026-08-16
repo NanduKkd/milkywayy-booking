@@ -3,7 +3,7 @@
 - Last updated: 2026-07-12
 - Purpose: historical status index for issues discovered during manual audits
 
-> GitHub Issues and Project 1 are authoritative for current issues and workflow status. This file is retained as an audit snapshot.
+> This directory is retained as a historical audit snapshot. Current unfinished work and blockers are recorded in `docs/PENDING-TASKS.md`.
 
 ## Status model
 
@@ -17,7 +17,7 @@ Issue status uses the project delivery values:
 - `DEFERRED`: explicitly removed from the current release.
 
 The rows below preserve their migration-time resolution evidence. Create and
-maintain all new defects in GitHub Issues rather than extending this register.
+maintain all new unfinished work in `docs/PENDING-TASKS.md` rather than extending this register.
 
 ## Current issues
 
