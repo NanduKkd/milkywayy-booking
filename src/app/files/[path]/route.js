@@ -1,10 +1,10 @@
-import fs from "fs";
-import { stat } from "fs/promises";
+import fs from "node:fs";
+import { stat } from "node:fs/promises";
+import path from "node:path";
 import mime from "mime-types";
 import { NextResponse } from "next/server";
-import path from "path";
 
-export const GET = async (req, ctx) => {
+export const GET = async (_req, ctx) => {
   const { path: fileName } = await ctx.params;
 
   const filePath = path.join(process.env.FILE_UPLOAD_PATH, fileName);

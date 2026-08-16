@@ -352,20 +352,19 @@ describe("buildFinancialReportWorkbook", () => {
 
     expect(
       overviewRows.find((row) => row.label === "Report range start")?.value,
-    )
-      .toBeInstanceOf(Date);
+    ).toBeInstanceOf(Date);
     expect(
       overviewRows
         .find((row) => row.label === "Report range start")
         ?.value.toISOString()
         .slice(0, 10),
     ).toBe(report.filters.rangeStartBusinessDate);
-    expect(
-      overviewRows.find((row) => row.label === "Net revenue")?.value,
-    ).toBe(report.kpis.netRevenue);
-    expect(
-      overviewRows.find((row) => row.label === "Net profit")?.value,
-    ).toBe(report.kpis.netProfit);
+    expect(overviewRows.find((row) => row.label === "Net revenue")?.value).toBe(
+      report.kpis.netRevenue,
+    );
+    expect(overviewRows.find((row) => row.label === "Net profit")?.value).toBe(
+      report.kpis.netProfit,
+    );
     expect(
       reportDataRows.find(
         (row) => row.section === "profitAndLoss" && row.rowKey === "margin",

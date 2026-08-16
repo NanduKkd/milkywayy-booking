@@ -1,6 +1,6 @@
-import { render, screen, waitFor, fireEvent } from "../../../test-utils";
-import OurWorkPreview from "../OurWorkPreview";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
+import { fireEvent, render, screen, waitFor } from "../../../test-utils";
+import OurWorkPreview from "../OurWorkPreview";
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -17,11 +17,36 @@ describe("OurWorkPreview", () => {
   });
 
   const mockData = [
-    { id: 1, title: "Photo 1", type: OUR_WORK_TYPES.IMAGE, mediaContent: "url1" },
-    { id: 2, title: "360 1", type: OUR_WORK_TYPES.THREE_SIXTY, mediaContent: "url2" },
-    { id: 3, title: "Video 1", type: OUR_WORK_TYPES.VIDEO, mediaContent: "url3" },
-    { id: 5, title: "Short 1", type: OUR_WORK_TYPES.SHORT_VIDEO, mediaContent: "url5" },
-    { id: 4, title: "Photo 2", type: OUR_WORK_TYPES.IMAGE, mediaContent: "url4" },
+    {
+      id: 1,
+      title: "Photo 1",
+      type: OUR_WORK_TYPES.IMAGE,
+      mediaContent: "url1",
+    },
+    {
+      id: 2,
+      title: "360 1",
+      type: OUR_WORK_TYPES.THREE_SIXTY,
+      mediaContent: "url2",
+    },
+    {
+      id: 3,
+      title: "Video 1",
+      type: OUR_WORK_TYPES.VIDEO,
+      mediaContent: "url3",
+    },
+    {
+      id: 5,
+      title: "Short 1",
+      type: OUR_WORK_TYPES.SHORT_VIDEO,
+      mediaContent: "url5",
+    },
+    {
+      id: 4,
+      title: "Photo 2",
+      type: OUR_WORK_TYPES.IMAGE,
+      mediaContent: "url4",
+    },
   ];
 
   it("renders fetched items correctly filtered by photography by default", async () => {
@@ -33,7 +58,7 @@ describe("OurWorkPreview", () => {
     render(<OurWorkPreview />);
 
     // Check loading state (optional as it might be too fast)
-    
+
     await waitFor(() => {
       expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0);
       expect(screen.getAllByText("Photo 2").length).toBeGreaterThan(0);
@@ -49,7 +74,9 @@ describe("OurWorkPreview", () => {
 
     render(<OurWorkPreview />);
 
-    await waitFor(() => expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0),
+    );
 
     const tab360 = screen.getByText("360°");
     fireEvent.click(tab360);
@@ -69,7 +96,9 @@ describe("OurWorkPreview", () => {
     const { container } = render(<OurWorkPreview />);
 
     await waitFor(() => {
-      expect(container.querySelectorAll("div.bg-gradient-to-br").length).toBe(6);
+      expect(container.querySelectorAll("div.bg-gradient-to-br").length).toBe(
+        6,
+      );
     });
   });
 
@@ -81,7 +110,9 @@ describe("OurWorkPreview", () => {
 
     render(<OurWorkPreview />);
 
-    await waitFor(() => expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText("Photo 1").length).toBeGreaterThan(0),
+    );
 
     fireEvent.click(screen.getByTestId("work-preview-card-1"));
 
@@ -92,7 +123,9 @@ describe("OurWorkPreview", () => {
     fireEvent.click(screen.getAllByText("Close")[0]);
 
     await waitFor(() => {
-      expect(screen.queryByTestId("work-preview-dialog")).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId("work-preview-dialog"),
+      ).not.toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByText("Long-form"));

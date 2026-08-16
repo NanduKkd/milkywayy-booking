@@ -1,8 +1,8 @@
 "use client";
 
 import { Percent, Plus, Power, Tag, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -163,7 +163,10 @@ export default function CouponManager({ initialCoupons }) {
                         </div>
                       </TableCell>
                       <TableCell className="max-w-[260px] text-gray-300">
-                        <span className="block truncate" title={item.uiText || ""}>
+                        <span
+                          className="block truncate"
+                          title={item.uiText || ""}
+                        >
                           {item.uiText || "-"}
                         </span>
                       </TableCell>
@@ -212,8 +215,12 @@ export default function CouponManager({ initialCoupons }) {
                                     ? "text-yellow-500 hover:text-yellow-400 hover:bg-yellow-500/10"
                                     : "text-green-500 hover:text-green-400 hover:bg-green-500/10"
                                 }
-                                onClick={() => handleToggle(item.id, item.isActive)}
-                                title={item.isActive ? "Deactivate" : "Activate"}
+                                onClick={() =>
+                                  handleToggle(item.id, item.isActive)
+                                }
+                                title={
+                                  item.isActive ? "Deactivate" : "Activate"
+                                }
                               >
                                 <Power size={18} />
                               </Button>

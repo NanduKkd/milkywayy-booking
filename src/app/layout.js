@@ -42,9 +42,7 @@ export default async function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body
-        className={`${spaceGrotesk.variable} antialiased`}
-      >
+      <body className={`${spaceGrotesk.variable} antialiased`}>
         {/* <div>Failed!!</div> */}
         <Providers user={user}>{children}</Providers>
       </body>

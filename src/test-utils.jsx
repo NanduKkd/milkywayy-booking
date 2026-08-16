@@ -1,7 +1,6 @@
-import React from 'react'
-import { render } from '@testing-library/react'
-import { AuthProvider } from '@/lib/contexts/auth'
-import { Toaster } from '@/components/ui/sonner'
+import { render } from "@testing-library/react";
+import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/lib/contexts/auth";
 
 const AllTheProviders = ({ children, initialUser }) => {
   return (
@@ -9,23 +8,23 @@ const AllTheProviders = ({ children, initialUser }) => {
       {children}
       <Toaster />
     </AuthProvider>
-  )
-}
+  );
+};
 
 const customRender = (ui, options) => {
-  const { authProviderProps, ...renderOptions } = options || {}
-  
+  const { authProviderProps, ...renderOptions } = options || {};
+
   const Wrapper = ({ children }) => (
     <AllTheProviders initialUser={authProviderProps?.initialUser}>
       {children}
     </AllTheProviders>
-  )
+  );
 
-  return render(ui, { wrapper: Wrapper, ...renderOptions })
-}
+  return render(ui, { wrapper: Wrapper, ...renderOptions });
+};
 
 // re-export everything
-export * from '@testing-library/react'
+export * from "@testing-library/react";
 
 // override render method
-export { customRender as render }
+export { customRender as render };

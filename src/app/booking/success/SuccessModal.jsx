@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { CheckCircle } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 
 export default function SuccessModal() {
   return (
@@ -23,7 +23,9 @@ export default function SuccessModal() {
         </DialogHeader>
         <div className="space-y-3 text-sm text-muted-foreground">
           <p>Your booking has been confirmed.</p>
-          <p>We’ve sent a confirmation message with the arrival window details.</p>
+          <p>
+            We’ve sent a confirmation message with the arrival window details.
+          </p>
         </div>
         <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-end">
           <Button asChild variant="secondary">

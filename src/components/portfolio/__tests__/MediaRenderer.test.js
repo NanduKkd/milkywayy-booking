@@ -1,13 +1,20 @@
+// biome-ignore-all lint/performance/noImgElement: This test intentionally replaces next/image with a native element.
+import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import { render, screen } from "../../../test-utils";
 import MediaRenderer from "../MediaRenderer";
-import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 
 // Mock next/image
 jest.mock("next/image", () => ({
   __esModule: true,
   default: (props) => {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img {...props} fill={props.fill ? "true" : undefined} />;
+    return (
+      <img
+        {...props}
+        alt={props.alt || ""}
+        fill={props.fill ? "true" : undefined}
+      />
+    );
   },
 }));
 
@@ -33,10 +40,7 @@ describe("MediaRenderer", () => {
   it("renders only the first image when carousel is disabled", () => {
     const props = {
       type: OUR_WORK_TYPES.IMAGE,
-      url: [
-        "https://example.com/first.jpg",
-        "https://example.com/second.jpg",
-      ],
+      url: ["https://example.com/first.jpg", "https://example.com/second.jpg"],
       title: "Test Image Gallery",
       enableImageCarousel: false,
     };

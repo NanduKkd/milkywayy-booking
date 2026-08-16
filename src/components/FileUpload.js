@@ -12,13 +12,13 @@ export default function FileUpload({
   buttonText = "Choose Image",
   changeButtonText = "Change",
 }) {
+  const fileInputRef = React.useRef(null);
+
   return (
     <Controller
       name={name}
       control={control}
       render={({ field: { onChange, value }, fieldState }) => {
-        const fileInputRef = React.useRef(null);
-
         const handleFileChange = (e) => {
           const file = e.target.files[0];
           if (file) {
@@ -32,11 +32,15 @@ export default function FileUpload({
 
         return (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor={`${name}-file-input`}
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               {label}
             </label>
             <input
               ref={fileInputRef}
+              id={`${name}-file-input`}
               type="file"
               accept={accept}
               onChange={handleFileChange}
@@ -53,6 +57,7 @@ export default function FileUpload({
                 </Button>
               : <div className="flex items-center space-x-3">
                   {accept.includes("image") && (
+                    // biome-ignore lint/performance/noImgElement: Local blob previews should not use the Next.js image optimizer.
                     <img
                       src={
                         value instanceof File

@@ -16,8 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-// import { savePricings } from '@/lib/actions/dynamicConfig';
-import { makeCustomFormData } from "@/lib/helpers/customFormData";
 
 const propertyTypeSchema = z.object({
   propertyType: z.string().min(1, "Property type is required"),
@@ -238,7 +236,7 @@ export default function PricingsPage({ existingsPromise }) {
     removeSection(index);
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (_data) => {
     try {
       // await savePricings(data);
       // console.log(makeCustomFormData(data), 'dhdfjhdjfh');

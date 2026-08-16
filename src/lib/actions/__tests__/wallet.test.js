@@ -59,7 +59,9 @@ describe("getInvoices", () => {
 
   it("rechecks successful invoices even when a URL already exists", async () => {
     auth.mockResolvedValue({ id: 7 });
-    ensureTransactionInvoiceUrl.mockImplementation(async (target) => target.invoiceUrl);
+    ensureTransactionInvoiceUrl.mockImplementation(
+      async (target) => target.invoiceUrl,
+    );
 
     const transaction = {
       id: 4,

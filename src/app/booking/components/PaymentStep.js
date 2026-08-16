@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { michroma } from "@/fonts";
 import { cn } from "@/lib/utils";
 
 export function PaymentStep({
@@ -30,16 +29,18 @@ export function PaymentStep({
         Back to Details
       </Button>
 
-      <h2
-        className={`text-2xl font-bold text-foreground mb-6 font-heading`}
-      >
+      <h2 className={`text-2xl font-bold text-foreground mb-6 font-heading`}>
         Payment Verification
       </h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-4">
           {properties.map((property, index) => (
-            <Card key={index} className="bg-card/50 border-border">
+            <Card
+              // biome-ignore lint/suspicious/noArrayIndexKey: Checkout properties retain their form-array position for this read-only summary.
+              key={index}
+              className="bg-card/50 border-border"
+            >
               <CardHeader className="flex flex-row justify-between items-start pb-2 space-y-0">
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">
@@ -66,7 +67,8 @@ export function PaymentStep({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Date & Time</span>
                   <span>
-                    {property.preferredDate} | {property.startTime || property.timeSlot}
+                    {property.preferredDate} |{" "}
+                    {property.startTime || property.timeSlot}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -104,9 +106,9 @@ export function PaymentStep({
 
                 {appliedAutoDiscounts
                   .filter((d) => d.type !== "wallet")
-                  .map((d, i) => (
+                  .map((d) => (
                     <div
-                      key={i}
+                      key={`${d.type}-${d.name}-${d.value}`}
                       className="flex justify-between items-center text-sm"
                     >
                       <span className="text-green-500">

@@ -5,7 +5,7 @@ const LongForm = ({ items }) => {
     <div className="flex flex-wrap justify-center gap-4 mb-12">
       {items.map((item, index) => (
         <div
-          key={`long-${index}`}
+          key={item.id || item.url || item.title}
           className="group relative h-[360px] w-[328px] bg-card rounded-xl overflow-hidden cursor-pointer fade-in"
           style={{ animationDelay: `${index * 0.05}s` }}
         >

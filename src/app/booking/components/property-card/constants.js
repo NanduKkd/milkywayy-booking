@@ -1,11 +1,4 @@
-import {
-  Building,
-  Building2,
-  Camera,
-  Globe,
-  Home,
-  Video,
-} from "lucide-react";
+import { Building, Building2, Camera, Globe, Home, Video } from "lucide-react";
 
 export const TIER_PACKAGE_DETAILS = {
   Basic: {

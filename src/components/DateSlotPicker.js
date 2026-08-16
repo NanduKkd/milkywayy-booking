@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { getAvailabilityForRange } from "@/lib/actions/bookings";
+import { PUBLIC_CONTACT } from "@/lib/config/publicContact";
 import {
   getBookingBlockedPeriods,
   getBookingLoadBreakdown,
@@ -25,12 +26,32 @@ import {
   getDynamicTwilightSlotLabel,
 } from "@/lib/helpers/bookingUtils";
 import { cn } from "@/lib/utils";
-import { PUBLIC_CONTACT } from "@/lib/config/publicContact";
 
 const TIME_SLOTS = [
-  { value: "09:00", period: "morning", label: "Morning", startTime: "09:00", endTime: "12:00", arrivalTimes: "09:00 - 09:30" },
-  { value: "13:00", period: "afternoon", label: "Afternoon", startTime: "13:00", endTime: "16:00", arrivalTimes: "13:00 - 13:30" },
-  { value: "17:00", period: "evening", label: "Evening", startTime: "17:00", endTime: "20:00", arrivalTimes: "17:00 - 17:30" },
+  {
+    value: "09:00",
+    period: "morning",
+    label: "Morning",
+    startTime: "09:00",
+    endTime: "12:00",
+    arrivalTimes: "09:00 - 09:30",
+  },
+  {
+    value: "13:00",
+    period: "afternoon",
+    label: "Afternoon",
+    startTime: "13:00",
+    endTime: "16:00",
+    arrivalTimes: "13:00 - 13:30",
+  },
+  {
+    value: "17:00",
+    period: "evening",
+    label: "Evening",
+    startTime: "17:00",
+    endTime: "20:00",
+    arrivalTimes: "17:00 - 17:30",
+  },
 ];
 
 const LEGACY_BLOCK_TO_HOURLY = {
@@ -75,7 +96,10 @@ export default function DateSlotPicker({
   const [loading, setLoading] = useState(false);
 
   const isMobileViewport = () => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
       return false;
     }
 
@@ -166,7 +190,12 @@ export default function DateSlotPicker({
   };
 
   const bookingLoad = useMemo(() => {
-    if (!propertyType || !propertySize || !Array.isArray(services) || services.length === 0) {
+    if (
+      !propertyType ||
+      !propertySize ||
+      !Array.isArray(services) ||
+      services.length === 0
+    ) {
       return null;
     }
 
@@ -243,19 +272,27 @@ export default function DateSlotPicker({
       const expanded = new Set();
       rawSlots.forEach((raw) => {
         if (LEGACY_BLOCK_TO_HOURLY[raw]) {
-          LEGACY_BLOCK_TO_HOURLY[raw].forEach((h) => expanded.add(h));
+          LEGACY_BLOCK_TO_HOURLY[raw].forEach((h) => {
+            expanded.add(h);
+          });
           return;
         }
         if (raw === 1 || raw === "1") {
-          LEGACY_BLOCK_TO_HOURLY.morning.forEach((h) => expanded.add(h));
+          LEGACY_BLOCK_TO_HOURLY.morning.forEach((h) => {
+            expanded.add(h);
+          });
           return;
         }
         if (raw === 2 || raw === "2") {
-          LEGACY_BLOCK_TO_HOURLY.afternoon.forEach((h) => expanded.add(h));
+          LEGACY_BLOCK_TO_HOURLY.afternoon.forEach((h) => {
+            expanded.add(h);
+          });
           return;
         }
         if (raw === 3 || raw === "3") {
-          LEGACY_BLOCK_TO_HOURLY.evening.forEach((h) => expanded.add(h));
+          LEGACY_BLOCK_TO_HOURLY.evening.forEach((h) => {
+            expanded.add(h);
+          });
           return;
         }
         expanded.add(String(raw));
@@ -336,13 +373,20 @@ export default function DateSlotPicker({
 
   return (
     <>
-      <div onClick={() => setIsOpen(true)} className="cursor-pointer">
+      <div className="cursor-pointer">
         <div className="relative">
           <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
           <Input
             value={formatDisplayValue()}
             placeholder="Select Date & Time"
             readOnly
+            onClick={() => setIsOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setIsOpen(true);
+              }
+            }}
             className={cn(
               "pl-9 cursor-pointer bg-[#272727] border-zinc-700 text-foreground placeholder:text-muted-foreground focus-visible:ring-offset-0 focus-visible:ring-1 focus-visible:ring-white",
               error && "border-red-500 focus-visible:ring-red-500",
@@ -415,6 +459,7 @@ export default function DateSlotPicker({
                   const disabled = isDateDisabled(day);
                   return (
                     <button
+                      // biome-ignore lint/suspicious/noArrayIndexKey: Calendar blanks and dates are identified by their stable grid position.
                       key={index}
                       onClick={() => !disabled && handleDateClick(day)}
                       disabled={disabled}
@@ -446,7 +491,7 @@ export default function DateSlotPicker({
               </h3>
 
               {!date
-                  ? <div className="flex-1 flex items-center justify-center text-gray-500 text-xs md:text-sm italic min-h-[80px] md:min-h-[100px]">
+                ? <div className="flex-1 flex items-center justify-center text-gray-500 text-xs md:text-sm italic min-h-[80px] md:min-h-[100px]">
                     Select a date to view slots
                   </div>
                 : <div className="space-y-3">
@@ -461,21 +506,32 @@ export default function DateSlotPicker({
                         return (
                           <button
                             key={timeSlot.value}
-                            onClick={() => isAvailable && handleSlotSelect(timeSlot.value)}
+                            onClick={() =>
+                              isAvailable && handleSlotSelect(timeSlot.value)
+                            }
                             disabled={!isAvailable}
-                          type="button"
-                          className={cn(
+                            type="button"
+                            className={cn(
                               "px-3 py-2.5 rounded-xl border text-xs font-medium transition-all flex justify-between items-center w-full",
                               isSelectedSlot
                                 ? "bg-white text-black border-white"
                                 : "bg-secondary/40 text-secondary-foreground border border-white/8",
-                             !isAvailable &&
+                              !isAvailable &&
                                 "cursor-not-allowed bg-muted text-muted-foreground opacity-50",
                             )}
                           >
                             <div className="flex flex-col items-start">
-                              <span className="font-medium">{timeSlot.label}</span>
-                              <span className={cn("text-2xs mt-1", !isSelectedSlot ? "text-foreground/60" : "text-background/60")}>
+                              <span className="font-medium">
+                                {timeSlot.label}
+                              </span>
+                              <span
+                                className={cn(
+                                  "text-2xs mt-1",
+                                  !isSelectedSlot
+                                    ? "text-foreground/60"
+                                    : "text-background/60",
+                                )}
+                              >
                                 Arrival {getArrivalTimes(timeSlot)}
                               </span>
                             </div>
@@ -485,9 +541,22 @@ export default function DateSlotPicker({
                           </button>
                         );
                       })}
-                      <div className="text-xs text-foreground/50 mt-4">Booking confirmation & arrival notifications are sent via WhatsApp.</div>
-                      <div className="text-xs text-foreground/30 mt-2">Need a different arrival time?</div>
-                      <div className="text-xs text-foreground/30 -mt-1"><a href={PUBLIC_CONTACT.telLink} className="underline hover:text-accent transition-colors">WhatsApp us</a> - we&apos;ll adjust if available.</div>
+                      <div className="text-xs text-foreground/50 mt-4">
+                        Booking confirmation & arrival notifications are sent
+                        via WhatsApp.
+                      </div>
+                      <div className="text-xs text-foreground/30 mt-2">
+                        Need a different arrival time?
+                      </div>
+                      <div className="text-xs text-foreground/30 -mt-1">
+                        <a
+                          href={PUBLIC_CONTACT.telLink}
+                          className="underline hover:text-accent transition-colors"
+                        >
+                          WhatsApp us
+                        </a>{" "}
+                        - we&apos;ll adjust if available.
+                      </div>
                     </div>
                   </div>}
             </div>

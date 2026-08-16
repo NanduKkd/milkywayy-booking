@@ -1,8 +1,8 @@
 import {
-  getBookingBlockedPeriods,
   calculateBookingDuration,
   getAvailableSlots,
   getBookingArrivalWindowFromDetails,
+  getBookingBlockedPeriods,
   getBookingLoadBreakdown,
   getDynamicEveningArrivalWindow,
   getDynamicTwilightSlotLabel,

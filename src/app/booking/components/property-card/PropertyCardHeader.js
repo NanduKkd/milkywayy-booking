@@ -8,6 +8,7 @@ export function PropertyCardHeader({
   titleParts,
 }) {
   return (
+    // biome-ignore lint/a11y/useSemanticElements: The disclosure header contains block layout content and provides complete button keyboard semantics.
     <div
       role="button"
       tabIndex={0}
@@ -43,11 +44,9 @@ export function PropertyCardHeader({
             AED {price.toLocaleString()}
           </span>
         )}
-        {isOpen ? (
-          <ChevronUp size={20} className="text-muted-foreground" />
-        ) : (
-          <ChevronDown size={20} className="text-muted-foreground" />
-        )}
+        {isOpen
+          ? <ChevronUp size={20} className="text-muted-foreground" />
+          : <ChevronDown size={20} className="text-muted-foreground" />}
       </div>
     </div>
   );

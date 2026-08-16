@@ -51,7 +51,7 @@ const InputOTPSlot = React.forwardRef(
 InputOTPSlot.displayName = "InputOTPSlot";
 
 const InputOTPSeparator = React.forwardRef(({ ...props }, ref) => (
-  <div ref={ref} role="separator" {...props}>
+  <div ref={ref} aria-hidden="true" {...props}>
     <Dot />
   </div>
 ));

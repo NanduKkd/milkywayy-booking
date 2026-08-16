@@ -1,13 +1,14 @@
-import { Button } from "@/components/ui/button";
-import { Camera, Video, Globe } from "lucide-react";
+import { Camera, Globe, Video } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 const ServicesSection = () => {
   const services = [
     {
       icon: Camera,
       title: "Photography",
-      description: "Professional HDR photos that make listings shine and sell faster",
+      description:
+        "Professional HDR photos that make listings shine and sell faster",
       price: "From AED 350",
       delivery: "Photos delivered within 24h",
     },
@@ -43,7 +44,7 @@ const ServicesSection = () => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.map((service, index) => (
             <div
-              key={index}
+              key={service.title}
               className="group premium-card rounded-2xl p-6 hover-lift fade-in"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
@@ -51,15 +52,21 @@ const ServicesSection = () => {
                 <service.icon className="w-6 h-6 text-muted-foreground group-hover:text-foreground transition-colors" />
               </div>
               <h3 className="text-lg font-semibold mb-2">{service.title}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{service.description}</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                {service.description}
+              </p>
               <div className="space-y-1 mb-4">
-                <p className="text-sm font-medium text-foreground">{service.price}</p>
-                <p className="text-xs text-muted-foreground">{service.delivery}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {service.price}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {service.delivery}
+                </p>
               </div>
               <Link href="/booking">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="w-full border-border text-muted-foreground hover:border-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
                   Book This
@@ -74,4 +81,3 @@ const ServicesSection = () => {
 };
 
 export default ServicesSection;
-

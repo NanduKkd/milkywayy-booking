@@ -8,7 +8,9 @@ describe("OurWork Model JSON logic", () => {
       mediaContent: ["url1", "url2"],
     });
     expect(typeof work.getDataValue("mediaContent")).toBe("string");
-    expect(work.getDataValue("mediaContent")).toBe(JSON.stringify(["url1", "url2"]));
+    expect(work.getDataValue("mediaContent")).toBe(
+      JSON.stringify(["url1", "url2"]),
+    );
   });
 
   it("should parse JSON mediaContent when getting", () => {

@@ -35,7 +35,7 @@ const saveDiscountsHandler = async (discounts) => {
     minAmount: parseFloat(d.minAmount) || 0,
     percentage: parseFloat(d.percentage) || 0,
     maxDiscount: parseFloat(d.maxDiscount) || 0,
-    expiryDays: parseInt(d.expiryDays) || 0, // 0 means no expiry
+    expiryDays: parseInt(d.expiryDays, 10) || 0, // 0 means no expiry
     isActive: d.isActive ?? true,
   }));
 

@@ -59,7 +59,9 @@ describe("NewNavbar", () => {
 
     expect(screen.getByText("Hello")).toBeInTheDocument();
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Dashboard" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Dashboard" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Logout" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Book Now" }),

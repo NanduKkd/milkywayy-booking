@@ -5,7 +5,7 @@ const ShortForm = ({ items }) => {
     <div className="flex flex-wrap justify-center gap-4 mb-12">
       {items.map((item, index) => (
         <div
-          key={`short-${index}`}
+          key={item.id || item.url || item.title}
           className="group relative aspect-[9/15] w-[328px] bg-card rounded-xl overflow-hidden cursor-pointer fade-in"
           style={{ animationDelay: `${index * 0.05}s` }}
         >

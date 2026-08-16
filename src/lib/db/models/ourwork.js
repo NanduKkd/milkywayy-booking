@@ -32,7 +32,7 @@ const OurWork = sequelize.define(
         if (!rawValue) return null;
         try {
           return JSON.parse(rawValue);
-        } catch (e) {
+        } catch (_e) {
           return rawValue;
         }
       },

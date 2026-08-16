@@ -2,7 +2,7 @@
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export default function ImageCarousel({ images, title, className = "" }) {
@@ -13,19 +13,25 @@ export default function ImageCarousel({ images, title, className = "" }) {
   // Minimum swipe distance in pixels
   const minSwipeDistance = 50;
 
-  const goToNext = useCallback((e) => {
-    if (e) e.stopPropagation();
-    setCurrentIndex((prevIndex) => 
-      prevIndex === images.length - 1 ? 0 : prevIndex + 1
-    );
-  }, [images.length]);
+  const goToNext = useCallback(
+    (e) => {
+      if (e) e.stopPropagation();
+      setCurrentIndex((prevIndex) =>
+        prevIndex === images.length - 1 ? 0 : prevIndex + 1,
+      );
+    },
+    [images.length],
+  );
 
-  const goToPrev = useCallback((e) => {
-    if (e) e.stopPropagation();
-    setCurrentIndex((prevIndex) => 
-      prevIndex === 0 ? images.length - 1 : prevIndex - 1
-    );
-  }, [images.length]);
+  const goToPrev = useCallback(
+    (e) => {
+      if (e) e.stopPropagation();
+      setCurrentIndex((prevIndex) =>
+        prevIndex === 0 ? images.length - 1 : prevIndex - 1,
+      );
+    },
+    [images.length],
+  );
 
   const goToSlide = (index, e) => {
     if (e) e.stopPropagation();
@@ -57,19 +63,19 @@ export default function ImageCarousel({ images, title, className = "" }) {
   if (!images || images.length === 0) return null;
 
   return (
-    <div 
+    <div
       className={cn("relative w-full h-full group overflow-hidden", className)}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
       {/* Slides */}
-      <div 
+      <div
         className="flex w-full h-full transition-transform duration-500 ease-out"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {images.map((url, index) => (
-          <div key={`${url}-${index}`} className="relative flex-shrink-0 w-full md:h-full">
+          <div key={url} className="relative flex-shrink-0 w-full md:h-full">
             <Image
               src={url}
               alt={`${title} - image ${index + 1}`}
@@ -106,16 +112,16 @@ export default function ImageCarousel({ images, title, className = "" }) {
       {/* Indicators */}
       {images.length > 1 && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-          {images.map((_, index) => (
+          {images.map((url, index) => (
             <button
-              key={`indicator-${index}`}
+              key={url}
               type="button"
               onClick={(e) => goToSlide(index, e)}
               className={cn(
                 "h-1.5 rounded-full transition-all",
-                index === currentIndex 
-                  ? "w-6 bg-white" 
-                  : "w-1.5 bg-white/50 hover:bg-white/80"
+                index === currentIndex
+                  ? "w-6 bg-white"
+                  : "w-1.5 bg-white/50 hover:bg-white/80",
               )}
               aria-label={`Go to slide ${index + 1}`}
             />

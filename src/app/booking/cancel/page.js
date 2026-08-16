@@ -4,8 +4,8 @@ import { XCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/contexts/auth";
 import { cancelBookingBySessionId } from "@/lib/actions/bookings";
+import { useAuth } from "@/lib/contexts/auth";
 
 export default function BookingCancelPage() {
   const searchParams = useSearchParams();
@@ -47,11 +47,23 @@ export default function BookingCancelPage() {
         {/* Debug Information */}
         {process.env.NODE_ENV === "development" && (
           <div className="text-xs text-gray-500 text-left space-y-1">
-            <p><strong>Debug Info:</strong></p>
+            <p>
+              <strong>Debug Info:</strong>
+            </p>
             <p>Session ID: {sessionId}</p>
             <p>Authenticated: {authState.isAuthenticated ? "Yes" : "No"}</p>
-            <p>User: {authState.user?.fullName || authState.user?.phone || "None"}</p>
-            <p>Cancel Result: {cancelResult ? (cancelResult.success ? "Success" : "Failed") : "Pending"}</p>
+            <p>
+              User:{" "}
+              {authState.user?.fullName || authState.user?.phone || "None"}
+            </p>
+            <p>
+              Cancel Result:{" "}
+              {cancelResult
+                ? cancelResult.success
+                  ? "Success"
+                  : "Failed"
+                : "Pending"}
+            </p>
           </div>
         )}
 

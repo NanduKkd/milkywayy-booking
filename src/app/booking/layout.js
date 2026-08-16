@@ -1,5 +1,5 @@
-import NewNavbar from "@/components/NewNavbar";
 import Footer from "@/components/Footer";
+import NewNavbar from "@/components/NewNavbar";
 
 export default function BookingLayout({ children }) {
   return (

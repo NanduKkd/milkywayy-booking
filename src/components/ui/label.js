@@ -2,6 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Label = React.forwardRef(({ className, ...props }, ref) => (
+  // biome-ignore lint/a11y/noLabelWithoutControl: This reusable primitive receives its association through caller-provided props or nested controls.
   <label
     ref={ref}
     className={cn(

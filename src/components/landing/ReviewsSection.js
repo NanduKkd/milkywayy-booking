@@ -1,13 +1,8 @@
 "use client";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
-  Star,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Star } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const GoogleMark = ({ className = "" }) => (
@@ -78,13 +73,13 @@ const ReviewsSection = () => {
     [reviews],
   );
 
-  const updateScrollState = () => {
+  const updateScrollState = useCallback(() => {
     if (!scrollRef.current) return;
 
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
     setCanScrollLeft(scrollLeft > 10);
     setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
-  };
+  }, []);
 
   useEffect(() => {
     updateScrollState();
@@ -93,7 +88,7 @@ const ReviewsSection = () => {
     return () => {
       window.removeEventListener("resize", updateScrollState);
     };
-  }, [visibleReviews.length]);
+  }, [updateScrollState]);
 
   const scroll = (direction) => {
     if (!scrollRef.current) return;
@@ -132,84 +127,82 @@ const ReviewsSection = () => {
           </p>
         </div>
 
-        {visibleReviews.length > 0 ? (
-          <div className="relative mb-12 fade-in">
-            {canScrollLeft && (
-              <button
-                type="button"
-                aria-label="Scroll reviews left"
-                onClick={() => scroll("left")}
-                className="absolute -left-4 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-all duration-200 hover:scale-105 hover:bg-secondary active:scale-95 md:flex"
-              >
-                <ChevronLeft className="h-5 w-5 text-foreground" />
-              </button>
-            )}
-
-            {canScrollRight && (
-              <button
-                type="button"
-                aria-label="Scroll reviews right"
-                onClick={() => scroll("right")}
-                className="absolute -right-4 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-all duration-200 hover:scale-105 hover:bg-secondary active:scale-95 md:flex"
-              >
-                <ChevronRight className="h-5 w-5 text-foreground" />
-              </button>
-            )}
-
-            <div
-              ref={scrollRef}
-              onScroll={updateScrollState}
-              className="scrollbar-hide -mx-2 flex snap-x snap-mandatory gap-4 overflow-x-auto px-2 pb-4"
-            >
-              {visibleReviews.map((review, index) => (
-                <article
-                  key={review.id || `review_${index}`}
-                  className="fade-in min-w-[300px] max-w-[320px] flex-shrink-0 snap-start rounded-2xl border border-border bg-card p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-muted-foreground/20"
-                  style={{ animationDelay: `${index * 0.06}s` }}
+        {visibleReviews.length > 0
+          ? <div className="relative mb-12 fade-in">
+              {canScrollLeft && (
+                <button
+                  type="button"
+                  aria-label="Scroll reviews left"
+                  onClick={() => scroll("left")}
+                  className="absolute -left-4 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-all duration-200 hover:scale-105 hover:bg-secondary active:scale-95 md:flex"
                 >
-                  <div className="mb-4">
-                    <GoogleMark className="h-5 w-5 opacity-60" />
-                  </div>
+                  <ChevronLeft className="h-5 w-5 text-foreground" />
+                </button>
+              )}
 
-                  <p className="mb-4 min-h-[5.75rem] text-sm leading-relaxed text-foreground/90 line-clamp-4 break-words [overflow-wrap:anywhere]">
-                    &quot;{review.quote}&quot;
-                  </p>
+              {canScrollRight && (
+                <button
+                  type="button"
+                  aria-label="Scroll reviews right"
+                  onClick={() => scroll("right")}
+                  className="absolute -right-4 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-card shadow-lg transition-all duration-200 hover:scale-105 hover:bg-secondary active:scale-95 md:flex"
+                >
+                  <ChevronRight className="h-5 w-5 text-foreground" />
+                </button>
+              )}
 
-                  <div className="mb-4 flex items-center gap-0.5">
-                    {renderStars(
-                      review.rating,
-                      `review_${review.id || index}`,
-                      "h-3.5 w-3.5",
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-xs font-semibold uppercase text-muted-foreground">
-                      {(review.name || "U")
-                        .split(" ")
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .map((part) => part[0])
-                        .join("")}
+              <div
+                ref={scrollRef}
+                onScroll={updateScrollState}
+                className="scrollbar-hide -mx-2 flex snap-x snap-mandatory gap-4 overflow-x-auto px-2 pb-4"
+              >
+                {visibleReviews.map((review, index) => (
+                  <article
+                    key={review.id || `review_${index}`}
+                    className="fade-in min-w-[300px] max-w-[320px] flex-shrink-0 snap-start rounded-2xl border border-border bg-card p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-muted-foreground/20"
+                    style={{ animationDelay: `${index * 0.06}s` }}
+                  >
+                    <div className="mb-4">
+                      <GoogleMark className="h-5 w-5 opacity-60" />
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {review.name}
-                      </p>
-                      <p className="break-all text-xs text-muted-foreground">
-                        {buildRoleLine(review)}
-                      </p>
+
+                    <p className="mb-4 min-h-[5.75rem] text-sm leading-relaxed text-foreground/90 line-clamp-4 break-words [overflow-wrap:anywhere]">
+                      &quot;{review.quote}&quot;
+                    </p>
+
+                    <div className="mb-4 flex items-center gap-0.5">
+                      {renderStars(
+                        review.rating,
+                        `review_${review.id || index}`,
+                        "h-3.5 w-3.5",
+                      )}
                     </div>
-                  </div>
-                </article>
-              ))}
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-xs font-semibold uppercase text-muted-foreground">
+                        {(review.name || "U")
+                          .split(" ")
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((part) => part[0])
+                          .join("")}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {review.name}
+                        </p>
+                        <p className="break-all text-xs text-muted-foreground">
+                          {buildRoleLine(review)}
+                        </p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="mb-12 text-center text-muted-foreground">
-            No reviews available yet.
-          </div>
-        )}
+          : <div className="mb-12 text-center text-muted-foreground">
+              No reviews available yet.
+            </div>}
 
         <div className="mt-8 text-center">
           <a
@@ -224,10 +217,7 @@ const ReviewsSection = () => {
 
         <div className="mt-6 text-center">
           <Link href="/booking">
-            <Button
-              variant="outline"
-              className="rounded-xl border-border px-8"
-            >
+            <Button variant="outline" className="rounded-xl border-border px-8">
               Book your first shoot
             </Button>
           </Link>

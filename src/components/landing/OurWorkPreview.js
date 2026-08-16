@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { OUR_WORK_TYPES } from "@/lib/config/app.config";
 import { isTouchDevice } from "@/lib/helpers/ui";
 import WorkPreviewCard from "../portfolio/WorkPreviewCard";
@@ -153,7 +151,7 @@ const OurWorkPreview = () => {
                 ))}
               </div>}
 
-    {/*
+        {/*
         <div className="text-center">
           <Link href="/portfolio">
             <Button

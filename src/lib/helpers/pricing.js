@@ -126,21 +126,23 @@ export const normalizePricingConfig = (config) => {
     };
   });
 
-  Object.entries(PRICING_CONFIG).forEach(([propertyType, defaultTypeConfig]) => {
-    if (!normalizedConfig[propertyType]) {
-      normalizedConfig[propertyType] = defaultTypeConfig;
-      return;
-    }
+  Object.entries(PRICING_CONFIG).forEach(
+    ([propertyType, defaultTypeConfig]) => {
+      if (!normalizedConfig[propertyType]) {
+        normalizedConfig[propertyType] = defaultTypeConfig;
+        return;
+      }
 
-    normalizedConfig[propertyType] = {
-      ...defaultTypeConfig,
-      ...normalizedConfig[propertyType],
-      sizes: mergeMissingDefaultSizes(
-        propertyType,
-        normalizedConfig[propertyType]?.sizes,
-      ),
-    };
-  });
+      normalizedConfig[propertyType] = {
+        ...defaultTypeConfig,
+        ...normalizedConfig[propertyType],
+        sizes: mergeMissingDefaultSizes(
+          propertyType,
+          normalizedConfig[propertyType]?.sizes,
+        ),
+      };
+    },
+  );
 
   return normalizedConfig;
 };
@@ -148,7 +150,7 @@ export const normalizePricingConfig = (config) => {
 export async function getPricingConfig() {
   try {
     const config = await DynamicConfig.findOne({ where: { key: "pricing" } });
-    if (config && config.value) {
+    if (config?.value) {
       return normalizePricingConfig(config.value);
     }
     return PRICING_CONFIG;

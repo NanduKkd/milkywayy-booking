@@ -24,7 +24,7 @@ export default function SignIn() {
     try {
       // TODO: Implement custom sign in logic
       console.log("Sign in data:", data);
-    } catch (error) {
+    } catch (_error) {
       setError("An error occurred");
     } finally {
       setLoading(false);

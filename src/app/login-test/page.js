@@ -33,7 +33,9 @@ export default function LoginTestPage() {
         <div className="space-y-4">
           <div className="p-4 bg-muted rounded-lg">
             <h3 className="font-semibold mb-2">Current Auth Status:</h3>
-            <p>Authenticated: {authState.isAuthenticated ? "✅ Yes" : "❌ No"}</p>
+            <p>
+              Authenticated: {authState.isAuthenticated ? "✅ Yes" : "❌ No"}
+            </p>
             {authState.user && (
               <div className="mt-2 text-sm">
                 <p>Name: {authState.user.fullName || "Not set"}</p>
@@ -45,7 +47,7 @@ export default function LoginTestPage() {
           </div>
 
           <div className="space-y-2">
-            <Button 
+            <Button
               onClick={() => setIsLoginModalOpen(true)}
               className="w-full"
             >
@@ -53,7 +55,7 @@ export default function LoginTestPage() {
             </Button>
 
             {authState.isAuthenticated && (
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => login()}
                 className="w-full"
@@ -64,7 +66,9 @@ export default function LoginTestPage() {
           </div>
 
           <div className="text-xs text-muted-foreground space-y-1">
-            <p><strong>New Login Flow:</strong></p>
+            <p>
+              <strong>New Login Flow:</strong>
+            </p>
             <p>1. Enter phone number (mandatory)</p>
             <p>2. Verify OTP (6 digits)</p>
             <p>3. New users: Enter full name (mandatory) + email (optional)</p>

@@ -18,7 +18,7 @@ const compiler = (data, files = []) => {
     }
     return out;
   } else if (data instanceof File) {
-    out = "%%" + files.length + "%%";
+    out = `%%${files.length}%%`;
     files.push(data);
     return out;
   } else if (data && typeof data === "object") {

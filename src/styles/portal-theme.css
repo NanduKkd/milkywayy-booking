@@ -44,14 +44,31 @@
     --silver: 0 0% 75%;
 
     /* Gradients */
-    --gradient-cosmic: linear-gradient(135deg, hsl(0 0% 7%) 0%, hsl(0 0% 10%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 10%) 0%, hsl(0 0% 8%) 100%);
-    --gradient-glow: radial-gradient(circle at center, hsl(0 0% 100% / 0.03) 0%, transparent 70%);
-    --gradient-cta: linear-gradient(135deg, hsl(0 0% 20%) 0%, hsl(0 0% 15%) 100%);
+    --gradient-cosmic: linear-gradient(
+      135deg,
+      hsl(0 0% 7%) 0%,
+      hsl(0 0% 10%) 100%
+    );
+    --gradient-card: linear-gradient(
+      145deg,
+      hsl(0 0% 10%) 0%,
+      hsl(0 0% 8%) 100%
+    );
+    --gradient-glow: radial-gradient(
+      circle at center,
+      hsl(0 0% 100% / 0.03) 0%,
+      transparent 70%
+    );
+    --gradient-cta: linear-gradient(
+      135deg,
+      hsl(0 0% 20%) 0%,
+      hsl(0 0% 15%) 100%
+    );
 
     /* Shadows */
     --shadow-card: 0 1px 3px hsl(0 0% 0% / 0.4), 0 4px 20px hsl(0 0% 0% / 0.25);
-    --shadow-card-hover: 0 8px 40px hsl(0 0% 0% / 0.5), 0 0 0 1px hsl(0 0% 100% / 0.06);
+    --shadow-card-hover:
+      0 8px 40px hsl(0 0% 0% / 0.5), 0 0 0 1px hsl(0 0% 100% / 0.06);
     --shadow-soft: 0 2px 10px hsl(0 0% 0% / 0.3);
 
     /* Transitions */
@@ -81,13 +98,18 @@
 
   body {
     @apply bg-background text-foreground overflow-x-hidden;
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: 'Inter', sans-serif;
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Inter", sans-serif;
     font-weight: 600;
     letter-spacing: -0.02em;
   }
@@ -126,7 +148,9 @@
   .premium-card-selected {
     background: hsl(0 0% 14%);
     border: 1px solid hsl(0 0% 100% / 0.2);
-    box-shadow: var(--shadow-card), inset 0 1px 0 hsl(0 0% 100% / 0.06);
+    box-shadow:
+      var(--shadow-card),
+      inset 0 1px 0 hsl(0 0% 100% / 0.06);
   }
 
   /* Glow effects — now silver-subtle instead of blue */
@@ -135,7 +159,7 @@
   }
 
   .glow-border::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: -1px;
     border-radius: inherit;
@@ -157,7 +181,9 @@
 
   .input-glow:focus {
     border-color: hsl(0 0% 40%);
-    box-shadow: 0 0 0 3px hsl(0 0% 100% / 0.04), 0 0 15px hsl(0 0% 100% / 0.02);
+    box-shadow:
+      0 0 0 3px hsl(0 0% 100% / 0.04),
+      0 0 15px hsl(0 0% 100% / 0.02);
   }
 
   /* Button styles — neutral graphite gradient */
@@ -208,40 +234,74 @@
     height: 100%;
     pointer-events: none;
     z-index: 0;
-    background-image: 
+    background-image:
       radial-gradient(1px 1px at 10% 20%, hsl(0 0% 100% / 0.5), transparent),
       radial-gradient(1px 1px at 25% 45%, hsl(0 0% 100% / 0.3), transparent),
       radial-gradient(0.5px 0.5px at 40% 15%, hsl(0 0% 100% / 0.4), transparent),
       radial-gradient(1px 1px at 55% 70%, hsl(0 0% 100% / 0.25), transparent),
-      radial-gradient(0.5px 0.5px at 70% 35%, hsl(0 0% 100% / 0.35), transparent),
+      radial-gradient(
+        0.5px 0.5px at 70% 35%,
+        hsl(0 0% 100% / 0.35),
+        transparent
+      ),
       radial-gradient(1px 1px at 85% 55%, hsl(0 0% 100% / 0.2), transparent),
       radial-gradient(0.5px 0.5px at 15% 75%, hsl(0 0% 100% / 0.3), transparent),
       radial-gradient(1px 1px at 90% 10%, hsl(0 0% 100% / 0.4), transparent),
       radial-gradient(0.5px 0.5px at 60% 90%, hsl(0 0% 100% / 0.2), transparent),
       radial-gradient(1px 1px at 35% 60%, hsl(0 0% 100% / 0.15), transparent),
-      radial-gradient(0.5px 0.5px at 80% 80%, hsl(0 0% 100% / 0.25), transparent),
+      radial-gradient(
+        0.5px 0.5px at 80% 80%,
+        hsl(0 0% 100% / 0.25),
+        transparent
+      ),
       radial-gradient(1px 1px at 5% 50%, hsl(0 0% 100% / 0.3), transparent),
       radial-gradient(0.5px 0.5px at 50% 30%, hsl(0 0% 100% / 0.2), transparent),
       radial-gradient(1px 1px at 95% 40%, hsl(0 0% 100% / 0.35), transparent);
-    background-size: 
-      250% 250%, 200% 200%, 180% 180%, 220% 220%, 
-      190% 190%, 210% 210%, 230% 230%, 170% 170%,
-      240% 240%, 200% 200%, 180% 180%, 220% 220%,
-      190% 190%, 210% 210%;
+    background-size:
+      250% 250%,
+      200% 200%,
+      180% 180%,
+      220% 220%,
+      190% 190%,
+      210% 210%,
+      230% 230%,
+      170% 170%,
+      240% 240%,
+      200% 200%,
+      180% 180%,
+      220% 220%,
+      190% 190%,
+      210% 210%;
     opacity: 0.18;
-    animation: starfield-drift 30s ease-in-out infinite, twinkle 8s ease-in-out infinite;
+    animation:
+      starfield-drift 30s ease-in-out infinite,
+      twinkle 8s ease-in-out infinite;
   }
 
   @keyframes starfield-drift {
-    0%, 100% { background-position: 0% 0%; }
-    25% { background-position: 1% 0.5%; }
-    50% { background-position: 0.5% 1%; }
-    75% { background-position: -0.5% 0.5%; }
+    0%,
+    100% {
+      background-position: 0% 0%;
+    }
+    25% {
+      background-position: 1% 0.5%;
+    }
+    50% {
+      background-position: 0.5% 1%;
+    }
+    75% {
+      background-position: -0.5% 0.5%;
+    }
   }
 
   @keyframes twinkle {
-    0%, 100% { opacity: 0.14; }
-    50% { opacity: 0.22; }
+    0%,
+    100% {
+      opacity: 0.14;
+    }
+    50% {
+      opacity: 0.22;
+    }
   }
 
   /* Fade in */
@@ -287,7 +347,8 @@
   }
 
   @keyframes glow-pulse {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow: 0 0 15px hsl(0 0% 100% / 0.04);
     }
     50% {
@@ -310,8 +371,12 @@
   }
 
   @keyframes rotate-planet {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* Price update animation */
@@ -320,14 +385,25 @@
   }
 
   @keyframes price-flash {
-    0% { opacity: 0.5; transform: scale(0.95); }
-    50% { opacity: 1; transform: scale(1.02); }
-    100% { opacity: 1; transform: scale(1); }
+    0% {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.02);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   /* Card hover — stable lift, no tilt */
   .card-hover-lift {
-    transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+    transition:
+      transform 0.18s ease-out,
+      box-shadow 0.18s ease-out;
   }
 
   .card-hover-lift:hover {
@@ -337,14 +413,23 @@
 
   /* Shimmer loading */
   .shimmer {
-    background: linear-gradient(90deg, hsl(0 0% 10%) 0%, hsl(0 0% 14%) 50%, hsl(0 0% 10%) 100%);
+    background: linear-gradient(
+      90deg,
+      hsl(0 0% 10%) 0%,
+      hsl(0 0% 14%) 50%,
+      hsl(0 0% 10%) 100%
+    );
     background-size: 200% 100%;
     animation: shimmer 1.5s ease-in-out infinite;
   }
 
   @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
   }
 
   /* Section reveal */
@@ -375,7 +460,9 @@
       animation: none;
       opacity: 0.1;
     }
-    .fade-in, .step-enter, .section-reveal {
+    .fade-in,
+    .step-enter,
+    .section-reveal {
       animation: none;
       opacity: 1;
       transform: none;

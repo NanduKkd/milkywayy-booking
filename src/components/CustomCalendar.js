@@ -124,7 +124,9 @@ export default function CustomCalendar({
       <div className="grid grid-cols-7 gap-1">
         {daysInMonth.map((day, index) => (
           <button
+            // biome-ignore lint/suspicious/noArrayIndexKey: Calendar blanks and dates are identified by their stable grid position.
             key={index}
+            type="button"
             onClick={() => handleDateClick(day)}
             disabled={
               !day ||

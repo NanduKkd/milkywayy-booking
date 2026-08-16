@@ -1,48 +1,27 @@
 "use client";
 
-import { useState, useMemo, use } from "react";
 import {
   Building2,
-  Home,
-  Store,
   Camera,
-  Video,
-  Globe,
-  Sun,
-  Moon,
-  Clock,
-  Sparkles,
-  MapPin,
-  Building,
-  Hash,
   ChevronDown,
   ChevronUp,
   Copy,
-  Plus,
-  Trash2,
-  Info,
-  Lock,
   CreditCard,
-  Smartphone,
-  Wallet,
-  CheckCircle,
-  ArrowLeft,
-  Receipt,
-  FileText,
-  Home as HomeIcon,
+  Globe,
+  Home,
   Loader2,
-  CalendarDays,
-  ClipboardList,
-  Zap,
+  Plus,
+  Smartphone,
+  Store,
+  Trash2,
+  Video,
+  Wallet,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { useAuth } from "@/lib/contexts/auth";
 
 // Types
@@ -64,6 +43,11 @@ const BookingDataDefaults = {
   commercialServices: [],
   commercialPrice: 0,
 };
+
+const createBookingData = () => ({
+  ...BookingDataDefaults,
+  clientId: globalThis.crypto.randomUUID(),
+});
 
 // Static Data
 const propertyTypes = [
@@ -92,20 +76,61 @@ const propertyTypes = [
 
 const propertySizeOptions = {
   apartment: ["Studio", "1BR", "2BR", "3BR", "4BR+"],
-  "villa-townhouse": ["Studio Villa", "1BR Villa", "2BR Villa", "3BR Villa", "4BR+ Villa"],
-  commercial: ["Small (<1000sqft)", "Medium (1000-3000sqft)", "Large (3000-5000sqft)", "Extra Large (>5000sqft)"],
+  "villa-townhouse": [
+    "Studio Villa",
+    "1BR Villa",
+    "2BR Villa",
+    "3BR Villa",
+    "4BR+ Villa",
+  ],
+  commercial: [
+    "Small (<1000sqft)",
+    "Medium (1000-3000sqft)",
+    "Large (3000-5000sqft)",
+    "Extra Large (>5000sqft)",
+  ],
 };
 
-const timeSlots = [
-  { value: "morning", label: "Morning", time: "09:00 - 12:00", description: "Arrival: 9:30 AM" },
-  { value: "afternoon", label: "Afternoon", time: "12:00 - 15:00", description: "Arrival: 12:30 PM" },
-  { value: "evening", label: "Evening", time: "15:00 - 18:00", description: "Arrival: 3:30 PM" },
+const _timeSlots = [
+  {
+    value: "morning",
+    label: "Morning",
+    time: "09:00 - 12:00",
+    description: "Arrival: 9:30 AM",
+  },
+  {
+    value: "afternoon",
+    label: "Afternoon",
+    time: "12:00 - 15:00",
+    description: "Arrival: 12:30 PM",
+  },
+  {
+    value: "evening",
+    label: "Evening",
+    time: "15:00 - 18:00",
+    description: "Arrival: 3:30 PM",
+  },
 ];
 
 const services = [
-  { value: "photography", label: "Photography", icon: Camera, description: "Professional photos" },
-  { value: "videography", label: "Videography", icon: Video, description: "Video walkthrough" },
-  { value: "360tour", label: "360° Tour", icon: Globe, description: "Interactive virtual tour" },
+  {
+    value: "photography",
+    label: "Photography",
+    icon: Camera,
+    description: "Professional photos",
+  },
+  {
+    value: "videography",
+    label: "Videography",
+    icon: Video,
+    description: "Video walkthrough",
+  },
+  {
+    value: "360tour",
+    label: "360° Tour",
+    icon: Globe,
+    description: "Interactive virtual tour",
+  },
 ];
 
 const pricingData = {
@@ -126,9 +151,24 @@ const pricingData = {
 };
 
 const commercialTiers = [
-  { value: "basic", label: "Basic", price: 1200, description: "Essential commercial package" },
-  { value: "professional", label: "Professional", price: 2500, description: "Professional commercial package" },
-  { value: "premium", label: "Premium", price: 4500, description: "Premium commercial package" },
+  {
+    value: "basic",
+    label: "Basic",
+    price: 1200,
+    description: "Essential commercial package",
+  },
+  {
+    value: "professional",
+    label: "Professional",
+    price: 2500,
+    description: "Professional commercial package",
+  },
+  {
+    value: "premium",
+    label: "Premium",
+    price: 4500,
+    description: "Premium commercial package",
+  },
 ];
 
 const commercialServices = [
@@ -138,7 +178,7 @@ const commercialServices = [
   { value: "360tour", label: "360° Tour", icon: Globe },
 ];
 
-const paymentMethods = [
+const _paymentMethods = [
   { value: "card", label: "Credit/Debit Card", icon: CreditCard },
   { value: "wallet", label: "Digital Wallet", icon: Smartphone },
   { value: "bank", label: "Bank Transfer", icon: Wallet },
@@ -193,37 +233,54 @@ const OrderSummary = ({ properties, onContinue, canContinue, loading }) => {
 
   return (
     <div className="premium-card rounded-2xl p-6 md:p-8">
-      <h3 className="text-xl font-semibold text-foreground mb-4">Booking Summary</h3>
+      <h3 className="text-xl font-semibold text-foreground mb-4">
+        Booking Summary
+      </h3>
 
-      {!canContinue ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">Select services to see your summary</p>
-      ) : (
-        <div className="space-y-3 mb-6">
-          {properties.map((p, i) => {
-            const t = totals[i];
-            if (t === 0) return null;
-            const label = buildSummaryLabel(p);
-            const servicesText = buildServicesList(p);
-            const location = buildLocationLine(p);
+      {!canContinue
+        ? <p className="text-sm text-muted-foreground py-4 text-center">
+            Select services to see your summary
+          </p>
+        : <div className="space-y-3 mb-6">
+            {properties.map((p, i) => {
+              const t = totals[i];
+              if (t === 0) return null;
+              const label = buildSummaryLabel(p);
+              const servicesText = buildServicesList(p);
+              const location = buildLocationLine(p);
 
-            return (
-              <div key={i} className="p-3 rounded-xl bg-secondary/30 border border-border/40 space-y-1.5">
-                <div className="flex justify-between items-start gap-2">
-                  <p className="text-sm font-semibold text-foreground">{label || `Property ${i + 1}`}</p>
-                  <p className="text-sm font-semibold text-foreground">AED {t.toLocaleString()}</p>
+              return (
+                <div
+                  key={p.clientId}
+                  className="p-3 rounded-xl bg-secondary/30 border border-border/40 space-y-1.5"
+                >
+                  <div className="flex justify-between items-start gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {label || `Property ${i + 1}`}
+                    </p>
+                    <p className="text-sm font-semibold text-foreground">
+                      AED {t.toLocaleString()}
+                    </p>
+                  </div>
+                  {location && (
+                    <p className="text-xs text-muted-foreground">{location}</p>
+                  )}
+                  {servicesText && (
+                    <p className="text-xs text-muted-foreground">
+                      {servicesText}
+                    </p>
+                  )}
                 </div>
-                {location && <p className="text-xs text-muted-foreground">{location}</p>}
-                {servicesText && <p className="text-xs text-muted-foreground">{servicesText}</p>}
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>}
 
       <div className="border-t border-border/50 pt-4 mb-5">
         <div className="flex justify-between items-center">
           <p className="text-sm text-muted-foreground">Total Amount</p>
-          <p className="text-2xl md:text-3xl font-bold text-foreground">AED {grandTotal.toLocaleString()}</p>
+          <p className="text-2xl md:text-3xl font-bold text-foreground">
+            AED {grandTotal.toLocaleString()}
+          </p>
         </div>
       </div>
 
@@ -232,35 +289,33 @@ const OrderSummary = ({ properties, onContinue, canContinue, loading }) => {
         disabled={!canContinue || loading}
         className="w-full btn-primary-premium text-lg py-4"
       >
-        {loading ? (
-          <>
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          "Proceed to Checkout"
-        )}
+        {loading
+          ? <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Processing...
+            </>
+          : "Proceed to Checkout"}
       </Button>
     </div>
   );
 };
 
 // Main Component
-export default function BookingPortal({ pricingsPromise, discountsPromise }) {
+export default function BookingPortal() {
   const router = useRouter();
   const { authState, login } = useAuth();
-  
-  const [properties, setProperties] = useState([BookingDataDefaults]);
+
+  const [properties, setProperties] = useState(() => [createBookingData()]);
   const [expandedIndex, setExpandedIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [_showPaymentModal, _setShowPaymentModal] = useState(false);
 
   const totalAmount = useMemo(() => {
     return properties.reduce((sum, p) => sum + calcPropertyTotal(p), 0);
   }, [properties]);
 
   const addProperty = () => {
-    setProperties([...properties, { ...BookingDataDefaults }]);
+    setProperties([...properties, createBookingData()]);
     setExpandedIndex(properties.length);
   };
 
@@ -281,7 +336,10 @@ export default function BookingPortal({ pricingsPromise, discountsPromise }) {
 
   const duplicateProperty = (index) => {
     const propertyToDuplicate = properties[index];
-    setProperties([...properties, { ...propertyToDuplicate }]);
+    setProperties([
+      ...properties,
+      { ...propertyToDuplicate, clientId: globalThis.crypto.randomUUID() },
+    ]);
   };
 
   const handleSubmit = async () => {
@@ -295,7 +353,7 @@ export default function BookingPortal({ pricingsPromise, discountsPromise }) {
       // Here you would integrate with your existing booking logic
       toast.success("Booking submitted successfully!");
       router.push("/booking/success");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to submit booking. Please try again.");
     } finally {
       setIsProcessing(false);
@@ -306,9 +364,12 @@ export default function BookingPortal({ pricingsPromise, discountsPromise }) {
     <div className="container mx-auto px-6 py-8 max-w-4xl">
       {/* Header */}
       <div className="text-center mb-8 fade-in">
-        <h1 className="text-4xl font-bold text-foreground mb-4">Book Your Property Shoot</h1>
+        <h1 className="text-4xl font-bold text-foreground mb-4">
+          Book Your Property Shoot
+        </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Schedule professional photography, videography, and 360° tours for your property in just a few clicks.
+          Schedule professional photography, videography, and 360° tours for
+          your property in just a few clicks.
         </p>
       </div>
 
@@ -316,11 +377,13 @@ export default function BookingPortal({ pricingsPromise, discountsPromise }) {
       <div className="space-y-4 mb-8">
         {properties.map((property, index) => (
           <PropertyCard
-            key={index}
+            key={property.clientId}
             index={index}
             data={property}
             isExpanded={expandedIndex === index}
-            onToggle={() => setExpandedIndex(expandedIndex === index ? -1 : index)}
+            onToggle={() =>
+              setExpandedIndex(expandedIndex === index ? -1 : index)
+            }
             onChange={(data) => updateProperty(index, data)}
             onDuplicate={() => duplicateProperty(index)}
             onRemove={() => removeProperty(index)}
@@ -341,7 +404,7 @@ export default function BookingPortal({ pricingsPromise, discountsPromise }) {
         </Button>
       </div>
 
-            {/* Summary & Checkout */}
+      {/* Summary & Checkout */}
       <OrderSummary
         properties={properties}
         onContinue={handleSubmit}
@@ -364,14 +427,21 @@ const PropertyCard = ({
   canRemove,
 }) => {
   const sizeOptions =
-    data.propertyType && data.propertyType !== "commercial" ? propertySizeOptions[data.propertyType] : [];
+    data.propertyType && data.propertyType !== "commercial"
+      ? propertySizeOptions[data.propertyType]
+      : [];
   const isCommercial = data.propertyType === "commercial";
-  const pricing = !isCommercial && data.propertyType && data.size ? pricingData[data.propertyType]?.[data.size] : null;
+  const pricing =
+    !isCommercial && data.propertyType && data.size
+      ? pricingData[data.propertyType]?.[data.size]
+      : null;
   const total = calcPropertyTotal(data);
 
   const toggleService = (service) => {
     const current = data.services || [];
-    const next = current.includes(service) ? current.filter((s) => s !== service) : [...current, service];
+    const next = current.includes(service)
+      ? current.filter((s) => s !== service)
+      : [...current, service];
     if (service === "videography" && current.includes("videography")) {
       onChange({ services: next, videoType: "short", lightingOption: "" });
     } else {
@@ -404,6 +474,7 @@ const PropertyCard = ({
     <div className="premium-card rounded-2xl overflow-hidden card-hover-lift">
       {/* Header */}
       <button
+        type="button"
         onClick={onToggle}
         className="w-full flex items-center justify-between p-5 md:p-6 text-left hover:bg-muted/20 transition-colors"
       >
@@ -412,9 +483,13 @@ const PropertyCard = ({
             {index + 1}
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">Property {index + 1}</p>
+            <p className="text-sm font-semibold text-foreground">
+              Property {index + 1}
+            </p>
             {!isExpanded && summaryParts.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-0.5">{summaryParts.join(" · ")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {summaryParts.join(" · ")}
+              </p>
             )}
           </div>
         </div>
@@ -422,11 +497,9 @@ const PropertyCard = ({
           {total > 0 && (
             <p className="text-lg font-bold text-foreground">AED {total}</p>
           )}
-          {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          )}
+          {isExpanded
+            ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+            : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
       </button>
 
@@ -435,12 +508,15 @@ const PropertyCard = ({
         <div className="border-t border-border p-5 md:p-6 space-y-6">
           {/* Property Type */}
           <div>
-            <label className="text-sm font-medium text-foreground mb-3 block">Property Type</label>
+            <p className="text-sm font-medium text-foreground mb-3 block">
+              Property Type
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {propertyTypes.map((type) => {
                 const Icon = type.icon;
                 return (
                   <button
+                    type="button"
                     key={type.value}
                     onClick={() => handlePropertyTypeChange(type.value)}
                     className={`p-4 rounded-xl border text-center transition-all duration-200 hover:scale-[1.02] ${
@@ -451,7 +527,9 @@ const PropertyCard = ({
                   >
                     <Icon className="w-6 h-6 mx-auto mb-2" />
                     <p className="text-sm font-medium">{type.label}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{type.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {type.description}
+                    </p>
                   </button>
                 );
               })}
@@ -461,10 +539,13 @@ const PropertyCard = ({
           {/* Size or Commercial Tier */}
           {!isCommercial && data.propertyType && (
             <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">Property Size</label>
+              <p className="text-sm font-medium text-foreground mb-3 block">
+                Property Size
+              </p>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
                 {sizeOptions.map((size) => (
                   <button
+                    type="button"
                     key={size}
                     onClick={() => onChange({ size })}
                     className={`p-3 rounded-lg border text-sm transition-all duration-200 ${
@@ -482,21 +563,33 @@ const PropertyCard = ({
 
           {isCommercial && (
             <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">Commercial Package</label>
+              <p className="text-sm font-medium text-foreground mb-3 block">
+                Commercial Package
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {commercialTiers.map((tier) => (
                   <button
+                    type="button"
                     key={tier.value}
-                    onClick={() => onChange({ commercialTier: tier.value, commercialPrice: tier.price })}
+                    onClick={() =>
+                      onChange({
+                        commercialTier: tier.value,
+                        commercialPrice: tier.price,
+                      })
+                    }
                     className={`p-4 rounded-xl border text-center transition-all duration-200 hover:scale-[1.02] ${
                       data.commercialTier === tier.value
                         ? "border-foreground/20 bg-secondary/80 text-foreground"
                         : "border-border text-muted-foreground hover:bg-secondary/50"
                     }`}
                   >
-                    <p className="text-lg font-bold text-foreground">AED {tier.price}</p>
+                    <p className="text-lg font-bold text-foreground">
+                      AED {tier.price}
+                    </p>
                     <p className="text-sm font-medium mt-1">{tier.label}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{tier.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {tier.description}
+                    </p>
                   </button>
                 ))}
               </div>
@@ -506,7 +599,9 @@ const PropertyCard = ({
           {/* Services */}
           {!isCommercial && (
             <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">Services</label>
+              <p className="text-sm font-medium text-foreground mb-3 block">
+                Services
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {services.map((service) => {
                   const Icon = service.icon;
@@ -514,6 +609,7 @@ const PropertyCard = ({
                   const price = pricing?.[service.value] || 0;
                   return (
                     <button
+                      type="button"
                       key={service.value}
                       onClick={() => toggleService(service.value)}
                       className={`p-4 rounded-xl border text-center transition-all duration-200 hover:scale-[1.02] ${
@@ -524,9 +620,13 @@ const PropertyCard = ({
                     >
                       <Icon className="w-6 h-6 mx-auto mb-2" />
                       <p className="text-sm font-medium">{service.label}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{service.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {service.description}
+                      </p>
                       {price > 0 && (
-                        <p className="text-sm font-bold text-foreground mt-2">AED {price}</p>
+                        <p className="text-sm font-bold text-foreground mt-2">
+                          AED {price}
+                        </p>
                       )}
                     </button>
                   );
@@ -538,13 +638,18 @@ const PropertyCard = ({
           {/* Commercial Services */}
           {isCommercial && (
             <div>
-              <label className="text-sm font-medium text-foreground mb-3 block">Services</label>
+              <p className="text-sm font-medium text-foreground mb-3 block">
+                Services
+              </p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {commercialServices.map((service) => {
                   const Icon = service.icon;
-                  const isSelected = data.commercialServices.includes(service.value);
+                  const isSelected = data.commercialServices.includes(
+                    service.value,
+                  );
                   return (
                     <button
+                      type="button"
                       key={service.value}
                       onClick={() => {
                         const current = data.commercialServices || [];
@@ -571,8 +676,14 @@ const PropertyCard = ({
           {/* Location Details */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Building</label>
+              <label
+                htmlFor={`legacy-booking-building-${index}`}
+                className="text-sm font-medium text-foreground mb-2 block"
+              >
+                Building
+              </label>
               <Input
+                id={`legacy-booking-building-${index}`}
                 value={data.building}
                 onChange={(e) => onChange({ building: e.target.value })}
                 placeholder="Building name"
@@ -580,8 +691,14 @@ const PropertyCard = ({
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Location</label>
+              <label
+                htmlFor={`legacy-booking-location-${index}`}
+                className="text-sm font-medium text-foreground mb-2 block"
+              >
+                Location
+              </label>
               <Input
+                id={`legacy-booking-location-${index}`}
                 value={data.location}
                 onChange={(e) => onChange({ location: e.target.value })}
                 placeholder="Area/Community"
@@ -589,8 +706,14 @@ const PropertyCard = ({
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Unit/Room</label>
+              <label
+                htmlFor={`legacy-booking-room-${index}`}
+                className="text-sm font-medium text-foreground mb-2 block"
+              >
+                Unit/Room
+              </label>
               <Input
+                id={`legacy-booking-room-${index}`}
                 value={data.roomNumber}
                 onChange={(e) => onChange({ roomNumber: e.target.value })}
                 placeholder="Unit number"
@@ -635,4 +758,3 @@ const PropertyCard = ({
     </div>
   );
 };
-

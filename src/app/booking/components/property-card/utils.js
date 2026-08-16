@@ -18,7 +18,11 @@ export const resolveVideographyPriceConfig = (
   servicePriceConfig,
   subService,
 ) => {
-  if (!subService || !servicePriceConfig || typeof servicePriceConfig !== "object") {
+  if (
+    !subService ||
+    !servicePriceConfig ||
+    typeof servicePriceConfig !== "object"
+  ) {
     return servicePriceConfig;
   }
 
@@ -52,7 +56,9 @@ export const getPropertySizeConfig = (
   propertyType,
   propertySize,
 ) =>
-  pricingConfig?.[propertyType]?.sizes?.find((size) => size.label === propertySize);
+  pricingConfig?.[propertyType]?.sizes?.find(
+    (size) => size.label === propertySize,
+  );
 
 export const formatDeliveryLabel = (value) => {
   if (!value) return "";
@@ -116,10 +122,11 @@ export const getVideographyBasePrice = ({
   propertySize,
   subService,
 }) => {
-  const servicePriceConfig =
-    getPropertySizeConfig(pricingConfig, propertyType, propertySize)?.prices?.[
-      "Videography"
-    ]?.[subService];
+  const servicePriceConfig = getPropertySizeConfig(
+    pricingConfig,
+    propertyType,
+    propertySize,
+  )?.prices?.Videography?.[subService];
 
   if (propertyType === "Commercial") {
     return servicePriceConfig?.price || 0;
@@ -157,7 +164,8 @@ export const getVideographySelectionPrice = (priceConfig, selection) => {
 
 export const getVideographySelectionsTotal = (priceConfig, selections) =>
   selections.reduce(
-    (sum, selection) => sum + getVideographySelectionPrice(priceConfig, selection),
+    (sum, selection) =>
+      sum + getVideographySelectionPrice(priceConfig, selection),
     0,
   );
 
@@ -171,10 +179,16 @@ export const getSelectedLongForm = (selections) =>
 
 export const getInitialLongFormSelection = (subService) => {
   const categories = VIDEOGRAPHY_SUB_CATEGORIES?.[subService];
-  const firstCategoryLabel = categories ? Object.values(categories)[0] : undefined;
+  const firstCategoryLabel = categories
+    ? Object.values(categories)[0]
+    : undefined;
 
-  return firstCategoryLabel ? `${subService}.${firstCategoryLabel}` : subService;
+  return firstCategoryLabel
+    ? `${subService}.${firstCategoryLabel}`
+    : subService;
 };
 
 export const getPropertyTitleParts = (property) =>
-  [property.propertyType, property.propertySize, property.community].filter(Boolean);
+  [property.propertyType, property.propertySize, property.community].filter(
+    Boolean,
+  );

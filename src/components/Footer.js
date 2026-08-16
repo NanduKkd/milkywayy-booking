@@ -1,10 +1,18 @@
 "use client";
 
+import Image from "next/image";
+
 const Footer = () => {
   return (
     <footer className="py-16 border-t border-border/30 bg-background">
       <div className="container mx-auto px-6 flex flex-col items-center text-center">
-        <img src="/logo.png" alt="Milkywayy" className="h-8 mb-4" />
+        <Image
+          src="/logo.png"
+          alt="Milkywayy"
+          width={160}
+          height={32}
+          className="h-8 w-auto mb-4"
+        />
 
         <p className="text-sm text-muted-foreground">
           Don't Just List. Dominate.
@@ -21,4 +29,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

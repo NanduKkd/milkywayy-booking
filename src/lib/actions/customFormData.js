@@ -1,12 +1,11 @@
-import fs from "fs/promises";
-import path from "path";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export const breakCustomFormData = async (fd) => {
   const files = fd.getAll("file");
   const savedFiles = [];
   for (const file of files) {
-    const filename =
-      Date.now() + "-" + (100000 * Math.random()).toFixed() + "-" + file.name;
+    const filename = `${Date.now()}-${(100000 * Math.random()).toFixed()}-${file.name}`;
     await fs.writeFile(
       path.join(process.env.FILE_UPLOAD_PATH, filename),
       Buffer.from(await file.arrayBuffer()),

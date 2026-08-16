@@ -53,7 +53,7 @@ export default function WorkPreviewCard({
               fill
               sizes={sizes}
               className="object-cover"
-          />
+            />
           : <div
               className={
                 item.type === OUR_WORK_TYPES.IMAGE && !isTouch

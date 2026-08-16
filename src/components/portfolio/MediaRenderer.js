@@ -52,9 +52,11 @@ export default function MediaRenderer({
   enableImageCarousel = true,
 }) {
   switch (type) {
-    case OUR_WORK_TYPES.IMAGE:
+    case OUR_WORK_TYPES.IMAGE: {
       if (Array.isArray(url) && enableImageCarousel) {
-        return <ImageCarousel images={url} title={title} className={className} />;
+        return (
+          <ImageCarousel images={url} title={title} className={className} />
+        );
       }
       const imageUrl = Array.isArray(url) ? url[0] : url;
       return (
@@ -68,6 +70,7 @@ export default function MediaRenderer({
           />
         </div>
       );
+    }
 
     case OUR_WORK_TYPES.VIDEO:
       return (
@@ -76,7 +79,7 @@ export default function MediaRenderer({
             url={url}
             height="100%"
             width="100%"
-            youTubeProps={{className: "w-full h-auto aspect-[3/2]"}}
+            youTubeProps={{ className: "w-full h-auto aspect-[3/2]" }}
           />
         </div>
       );
@@ -84,15 +87,11 @@ export default function MediaRenderer({
     case OUR_WORK_TYPES.SHORT_VIDEO:
       return (
         <div className="-mb-3 h-[613px] mx-auto">
-          <InstagramEmbed
-            url={url}
-            height="613"
-            placeholder="Loading..."
-          />
+          <InstagramEmbed url={url} height="613" placeholder="Loading..." />
         </div>
       );
 
-    case OUR_WORK_TYPES.THREE_SIXTY:
+    case OUR_WORK_TYPES.THREE_SIXTY: {
       const youtubeId = extractYouTubeId(url);
       const iframeSrc = youtubeId
         ? `https://www.youtube-nocookie.com/embed/${youtubeId}?rel=0&modestbranding=1`
@@ -110,6 +109,7 @@ export default function MediaRenderer({
           />
         </div>
       );
+    }
 
     default:
       return (

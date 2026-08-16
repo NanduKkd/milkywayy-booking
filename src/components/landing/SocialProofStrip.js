@@ -31,8 +31,8 @@ const SocialProofStrip = () => {
 
           {/* Stats */}
           <div className="flex items-center gap-6">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
+            {stats.map((stat) => (
+              <div key={stat.label} className="text-center">
                 <div className="flex items-center gap-1 justify-center">
                   {stat.value.includes("★") && (
                     <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />

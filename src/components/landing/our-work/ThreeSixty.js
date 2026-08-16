@@ -3,7 +3,7 @@ const ThreeSixty = ({ items }) => {
     <div className="grid md:grid-cols-3 gap-4 mb-12">
       {items.map((item, index) => (
         <div
-          key={`360-${index}`}
+          key={item.id || item.url || item.title}
           className="group relative aspect-[3/2] bg-card rounded-xl overflow-hidden cursor-pointer fade-in"
           style={{ animationDelay: `${index * 0.05}s` }}
         >

@@ -1,7 +1,4 @@
-import {
-  SERVICES,
-  VIDEOGRAPHY_SUB_SERVICES,
-} from "@/lib/config/pricing";
+import { SERVICES, VIDEOGRAPHY_SUB_SERVICES } from "@/lib/config/pricing";
 import { normalizePricingConfig } from "../pricing";
 
 describe("normalizePricingConfig", () => {

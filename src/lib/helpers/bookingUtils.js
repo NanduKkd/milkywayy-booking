@@ -153,7 +153,10 @@ export function getBookingBlockedPeriods({
 
   if (!startPeriod) return [];
 
-  const blocksNeeded = Math.min(Math.max(parseInt(durationHours, 10) || 1, 1), 2);
+  const blocksNeeded = Math.min(
+    Math.max(parseInt(durationHours, 10) || 1, 1),
+    2,
+  );
 
   if (!isNightService) {
     const startIndex = PERIOD_SEQUENCE.indexOf(startPeriod);
@@ -205,7 +208,6 @@ export function getBookingLoadBreakdown({
   propertySize,
   services,
   videographySubService,
-  slotCapacity,
   weightModel,
 }) {
   const selectedServices = Array.isArray(services) ? services : [];

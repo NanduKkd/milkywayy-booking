@@ -1,10 +1,18 @@
-import { BadgeCheck, Building2, Clock, Home, MapPin, Play, Store } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  Clock,
+  Home,
+  MapPin,
+  Play,
+  Store,
+} from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 const HeroSection = ({ onWatchVideo }) => {
-  const [activePropertyType, setActivePropertyType] = useState("apartment");
+  const [activePropertyType, _setActivePropertyType] = useState("apartment");
   const [activeService, setActiveService] = useState(0);
 
   const trustChips = [
@@ -45,9 +53,9 @@ const HeroSection = ({ onWatchVideo }) => {
               Don't Just List. Dominate.
             </h1>
             <p className="max-w-xl text-sm lg:text-lg leading-relaxed text-muted-foreground">
-              Dubai&apos;s first structured real estate media booking system - book
-              photography, video walkthroughs, and 360° tours in seconds, then
-              manage listings and invoices from one powerful dashboard.
+              Dubai&apos;s first structured real estate media booking system -
+              book photography, video walkthroughs, and 360° tours in seconds,
+              then manage listings and invoices from one powerful dashboard.
             </p>
 
             <div className="flex flex-col gap-4 sm:flex-row">
@@ -81,7 +89,6 @@ const HeroSection = ({ onWatchVideo }) => {
                 </div>
               ))}
             </div>
-
           </div>
 
           <div className="fade-in relative" style={{ animationDelay: "0.2s" }}>
