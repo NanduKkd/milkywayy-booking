@@ -1,6 +1,6 @@
 # Admin scheduling calendar security test plan
 
-- Last updated: 2026-07-21
+- Last updated: 2026-08-20
 - Release gate status: `IN_PROGRESS`
 
 ## Automated gates
@@ -60,8 +60,10 @@
   retain the joined customer but lock only the root `Transaction` row. Focused
   service coverage must assert the generated Sequelize lock options so
   PostgreSQL is never asked to lock the nullable side of the outer join.
-- Conflict tests cover simultaneous bookings and block versus booking creation.
-- Working-day, full-day block, period block, capacity, override, and rolling-window precedence is deterministic.
+- Conflict tests cover simultaneous bookings, overlapping properties within one
+  request, and block versus booking creation.
+- Working-day, full-day block, period block, exclusive-period, override, and
+  rolling-window precedence is deterministic.
 - Dubai timezone boundary tests cover DST-independent midnight, month, and year transitions.
 - Audit metadata records authorized overrides without logging unnecessary PII.
 

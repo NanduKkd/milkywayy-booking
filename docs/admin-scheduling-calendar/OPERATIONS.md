@@ -1,6 +1,6 @@
 # Admin scheduling calendar operations
 
-- Last updated: 2026-07-21
+- Last updated: 2026-08-20
 
 ## Migration and rollout
 
@@ -19,8 +19,8 @@ availability evaluation.
 ## Pre-release checks
 
 - Run migration against representative existing bookings and date overrides.
-- Compare effective availability for working/non-working days, blocks, full
-  capacity, partial capacity, and rolling-window boundaries.
+- Compare effective availability for working/non-working days, blocks,
+  exclusive-period conflicts, and rolling-window boundaries.
 - Verify events and bookings across Dubai midnight and month transitions.
 - Exercise simultaneous block/booking creation against the same interval.
 - Verify both customer-state handoff links, editable multiple properties,
@@ -43,7 +43,7 @@ rehearsal details.
 
 ## Monitoring
 
-Monitor calendar query latency, conflict response rate, capacity calculation
+Monitor calendar query latency, conflict response rate, scheduling calculation
 errors, handoff creation/completion/expiry, promotion-preview rate limits and
 failures, OTP failures, WhatsApp delivery, checkout failures, and differences
 between customer and admin availability.

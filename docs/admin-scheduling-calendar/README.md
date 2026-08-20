@@ -1,6 +1,6 @@
 # Admin scheduling calendar delivery plan
 
-- Last updated: 2026-07-20
+- Last updated: 2026-08-20
 - Planning status at GitHub migration: `IN_PROGRESS`
 - Implementation status at GitHub migration: `IN_PROGRESS`
 - Current UI acceptance issue: [#26](https://github.com/NanduKkd/milkywayy-booking/issues/26)
@@ -47,12 +47,16 @@ creating a second scheduling, registration, pricing, or checkout authority.
 - Four-hour pending availability holds with copyable, regeneratable payment links.
 - Optional customer-state-specific WhatsApp handoff notifications, defaulting off.
 - Server-side conflict validation without an admin availability or price override.
+- Booking availability uses exclusive named periods: property/service weights
+  determine whether a booking blocks one or two periods, and properties in one
+  order may not overlap.
 - Shared Dubai-business-time date interpretation.
 
 ## Explicit non-goals
 
 - Redesigning the Time Slots page.
 - Replacing property/service weight configuration.
+- Aggregate shared-capacity accounting across simultaneous bookings.
 - Making informational events affect customer availability; only blocks do so.
 - Recurring calendar events in the first release.
 - Clock-time or dedicated full-day availability blocking from Calendar.

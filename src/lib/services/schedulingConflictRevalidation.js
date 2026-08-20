@@ -414,6 +414,22 @@ function getConflictingBookings(bookings, request, excludeBookingIds) {
   });
 }
 
+function getConflictingRequestedBookings(requests, requestIndex) {
+  const request = requests[requestIndex];
+
+  if (request?.type !== "booking") {
+    return [];
+  }
+
+  return requests.slice(0, requestIndex).filter((candidate) => {
+    if (candidate.type !== "booking" || candidate.date !== request.date) {
+      return false;
+    }
+
+    return slotTimesOverlap(candidate.blockedSlots, request.blockedSlots);
+  });
+}
+
 function getConflictingEvents(
   _events,
   _request,
@@ -589,6 +605,36 @@ function assertRequestConflicts({
   }
 }
 
+function assertRequestedBookingConflicts(requests, requestIndex) {
+  const request = requests[requestIndex];
+  const conflictingRequests = getConflictingRequestedBookings(
+    requests,
+    requestIndex,
+  );
+
+  if (conflictingRequests.length === 0) {
+    return;
+  }
+
+  throw new SchedulingConflictError(
+    `Scheduling conflict on ${request.date}: multiple requested bookings overlap. Select different times for the properties.`,
+    {
+      reasonCode: "schedule_conflict_requested_entries",
+      conflicts: [
+        {
+          type: "booking",
+          date: request.date,
+          periods: request.periods,
+          requestedBookings: conflictingRequests.map((conflictingRequest) => ({
+            date: conflictingRequest.date,
+            periods: conflictingRequest.periods,
+          })),
+        },
+      ],
+    },
+  );
+}
+
 export async function loadSchedulingConflictContext({
   dates = [],
   transaction = null,
@@ -639,7 +685,7 @@ export function assertSchedulingRequestsAvailable({
     excludeEventIds.map((value) => Number(value)).filter(Number.isFinite),
   );
 
-  normalizedRequests.forEach((request) => {
+  normalizedRequests.forEach((request, requestIndex) => {
     assertRequestConflicts({
       timeSlotConfig: context.timeSlotConfig,
       bookings: context.bookings || [],
@@ -648,6 +694,7 @@ export function assertSchedulingRequestsAvailable({
       excludeBookingIds: excludedBookings,
       excludeEventIds: excludedEvents,
     });
+    assertRequestedBookingConflicts(normalizedRequests, requestIndex);
   });
 
   return normalizedRequests;

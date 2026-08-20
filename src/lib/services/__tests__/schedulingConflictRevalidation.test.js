@@ -137,6 +137,37 @@ describe("schedulingConflictRevalidation", () => {
     });
   });
 
+  it("rejects overlapping booking requests within the same batch", async () => {
+    await expect(
+      revalidateSchedulingRequests({
+        dates: ["2026-07-12"],
+        requests: [
+          {
+            type: "booking",
+            date: "2026-07-12",
+            startTime: "09:00",
+            durationHours: 1,
+          },
+          {
+            type: "booking",
+            date: "2026-07-12",
+            startTime: "09:00",
+            durationHours: 1,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      name: "SchedulingConflictError",
+      reasonCode: "schedule_conflict_requested_entries",
+      conflicts: [
+        expect.objectContaining({
+          date: "2026-07-12",
+          requestedBookings: [expect.objectContaining({ date: "2026-07-12" })],
+        }),
+      ],
+    });
+  });
+
   it("blocks a new schedule block when it overlaps an active booking", async () => {
     Booking.findAll.mockResolvedValue([
       {

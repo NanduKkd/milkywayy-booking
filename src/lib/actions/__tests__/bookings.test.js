@@ -308,6 +308,20 @@ describe("Booking Actions", () => {
       expect(result.message).toMatch(/no longer available/i);
     });
 
+    it("should fail when properties in the same order request overlapping slots", async () => {
+      const result = await createBookings([
+        mockProperties[0],
+        {
+          ...mockProperties[0],
+          unitNumber: "102",
+        },
+      ]);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toMatch(/no longer available/i);
+      expect(Booking.create).not.toHaveBeenCalled();
+    });
+
     it("should fail if the requested date is blocked by shared admin availability rules", async () => {
       DynamicConfig.findOne.mockResolvedValue({
         value: {

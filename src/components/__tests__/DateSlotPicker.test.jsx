@@ -106,6 +106,27 @@ describe("DateSlotPicker", () => {
     expect(screen.queryByText("Evening")).not.toBeInTheDocument();
   });
 
+  it("treats the 09:00 morning start as an occupied morning period", async () => {
+    render(
+      <DateSlotPicker
+        date="2026-01-05"
+        slot=""
+        blockedSlotsMap={{ "2026-01-05": ["09:00"] }}
+        onDateChange={mockOnDateChange}
+        onSlotChange={mockOnSlotChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByPlaceholderText(/Select Date & Time/i));
+
+    await waitFor(() => {
+      expect(screen.getByText("Morning")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Morning").closest("button")).toBeDisabled();
+    expect(screen.getByText("Afternoon").closest("button")).not.toBeDisabled();
+  });
+
   it("shows the default evening arrival window when total load is 6 or below", async () => {
     render(
       <DateSlotPicker

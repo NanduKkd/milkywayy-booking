@@ -1,13 +1,13 @@
 # Admin scheduling calendar architecture
 
-- Last updated: 2026-07-21
+- Last updated: 2026-08-20
 
 ## Scheduling authority
 
 The existing Time Slots configuration remains the source for working weekdays,
-period definitions, rolling window, capacity, property weights, service weights,
-and date overrides. The Calendar is a new view and mutation surface over that
-same scheduling domain.
+period definitions, rolling window, property weights, service weights, and date
+overrides. The Calendar is a new view and mutation surface over that same
+scheduling domain.
 
 ```mermaid
 flowchart TD
@@ -24,17 +24,23 @@ flowchart TD
 
 ## Effective availability precedence
 
+The current booking evaluator uses exclusive named-period reservations rather
+than aggregate shared-capacity accounting. Property and service weights
+determine whether each booking requires one or two adjacent periods; every
+required period is then reserved as a whole. A second booking cannot overlap an
+active booking or another property in the same request, even if the combined
+weights would fit under a theoretical capacity total.
+
 For a date and period, evaluate in this order:
 
 1. Explicit full-day block.
 2. Explicit time-range block, evaluated against the booking's actual scheduled interval.
 3. Non-working weekday baseline.
-4. Capacity consumed by active bookings.
-5. Remaining property/service weight capacity for the requested booking.
-6. Customer rolling-window restriction.
+4. Exclusive periods consumed by active bookings or other requested properties.
+5. Customer rolling-window restriction.
 
 The rolling window limits customer selection. Authorized administrators may
-create future entries outside it, but must still receive block/capacity warnings
+create future entries outside it, but must still receive availability warnings
 and explicitly confirm an allowed override where the conflict type permits one.
 
 Existing bookings are not cancelled or moved when a later block is added. The

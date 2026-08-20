@@ -1,13 +1,13 @@
 # Admin scheduling calendar decisions
 
-- Last updated: 2026-07-21
+- Last updated: 2026-08-20
 
 ## Accepted decisions
 
 | ID | Decision | Rationale |
 |---|---|---|
 | CAL-D001 | Support both calendar-only events and complete admin-created bookings. | Operational holds/notes do not always need customer, payment, invoice, or delivery records; real bookings do. |
-| CAL-D002 | Time Slots remains the scheduling configuration authority. | Working days are only one overlap; blocks, periods, capacity, weights, rolling windows, and existing bookings must also agree. |
+| CAL-D002 | Time Slots remains the scheduling configuration authority. | Working days are only one overlap; blocks, periods, weight-derived booking duration, rolling windows, and existing bookings must also agree. |
 | CAL-D003 | Calendar-only events explicitly declare whether they consume capacity. | Informational notes must not block customers, while holds and manual shoots usually should. |
 | CAL-D004 | Full-day and period blocks reuse existing date overrides. | A second block store would create inconsistent customer and admin availability. |
 | CAL-D005 | Existing bookings survive later blocks. | Blocking future availability must not silently mutate paid or operational records. |
@@ -32,6 +32,7 @@
 | CAL-D024 | The operational calendar is rendered only at `/admin/scheduling-calendar`; `/admin/timeslots` remains the configuration authority for working days, named period definitions, rolling windows, and weight models without rendering a duplicate month view. | Calendar navigation and date-specific blocking belong in one predictable operator destination. |
 | CAL-D025 | Normal customer bookings and verified admin handoffs render one canonical property form and order summary behind explicit mode adapters. Normal mode alone owns session authentication, normal drafts, promotion preview, and normal transaction creation; handoff mode initializes from the token-authorized handoff and submits only through its token-scoped checkout endpoint. | Sharing presentation and validation prevents UI drift, while separate side-effect adapters prevent cross-customer draft contamination, a second login, or duplicate transactions. |
 | CAL-D026 | Verified handoffs use a token-scoped promotion preview for the server-resolved transaction customer, while final checkout revalidates and reserves every price and benefit under the existing transaction lock. Wallet earning remains a separate displayed and persisted artifact. | Customer-specific eligibility must not depend on a second login or browser identity, and an advisory preview must not weaken availability, promotion-limit, payment, or duplicate-record protections. |
+| CAL-D027 | Booking availability is exclusive by named period. Property/service weights determine whether a booking blocks one or two adjacent periods; they do not provide shared concurrent capacity. Multiple properties in one customer order must also have non-overlapping requested periods. | The current service schedules one active shoot per reserved period, and the implementation consistently rejects overlaps with existing bookings. Explicitly checking the complete request prevents a multi-property order from bypassing that rule before its bookings exist in the database. |
 
 ## Deferred decisions
 
